@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LayoutGrid, Users, Map, Calendar, ShieldCheck, Zap, BarChart3, CheckCircle2, Building2 } from 'lucide-react';
+import LanguageSelector from '../components/LanguageSelector';
 
 const Landing = () => {
   const navigate = useNavigate();
@@ -44,12 +45,16 @@ const Landing = () => {
         </div>
 
         <div style={{ display: 'flex', gap: '32px', alignItems: 'center' }}>
+          <a href="#about" style={{ color: '#475569', fontWeight: '500', fontSize: '15px', textDecoration: 'none' }}>About Us</a>
           <a href="#features" style={{ color: '#475569', fontWeight: '500', fontSize: '15px', textDecoration: 'none' }}>Features</a>
           <a href="#solutions" style={{ color: '#475569', fontWeight: '500', fontSize: '15px', textDecoration: 'none' }}>Solutions</a>
           <a href="#pricing" style={{ color: '#475569', fontWeight: '500', fontSize: '15px', textDecoration: 'none' }}>Pricing</a>
+          <a href="#faq" style={{ color: '#475569', fontWeight: '500', fontSize: '15px', textDecoration: 'none' }}>FAQ</a>
+          <a href="#contact" style={{ color: '#475569', fontWeight: '500', fontSize: '15px', textDecoration: 'none' }}>Contact</a>
         </div>
 
         <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+          <LanguageSelector />
           <button onClick={() => navigate('/login')} style={{ background: 'transparent', border: 'none', color: '#0F172A', fontWeight: '600', fontSize: '15px', cursor: 'pointer' }}>
             Sign In
           </button>
@@ -278,6 +283,114 @@ const Landing = () => {
               <button onClick={() => navigate('/register')} style={{ width: '100%', background: '#EFF6FF', color: '#2563EB', border: 'none', padding: '14px', borderRadius: '12px', fontWeight: '600', fontSize: '15px', cursor: 'pointer', transition: 'background 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = '#DBEAFE'} onMouseOut={(e) => e.currentTarget.style.background = '#EFF6FF'}>Get Started</button>
             </div>
 
+          </div>
+        </div>
+      </section>
+
+      {/* About Us Section */}
+      <section id="about" style={{ padding: '100px 48px', background: '#F8FAFC', position: 'relative' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', textAlign: 'center' }}>
+          <div style={{ display: 'inline-block', background: '#DBEAFE', color: '#1D4ED8', padding: '6px 16px', borderRadius: '20px', fontWeight: '600', fontSize: '13px', marginBottom: '24px' }}>Our Mission</div>
+          <h2 style={{ fontSize: '40px', fontWeight: '800', color: '#0F172A', marginBottom: '24px', letterSpacing: '-1px' }}>About BizTech</h2>
+          <p style={{ fontSize: '18px', color: '#64748B', maxWidth: '800px', margin: '0 auto', lineHeight: '1.6' }}>
+            We believe that running a business should be seamless, intuitive, and scalable. At BizTech, our mission is to empower organizations of all sizes with a unified operating system that eliminates friction, connects teams, and turns complex workflows into simple, automated processes. 
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '48px', marginTop: '64px', flexWrap: 'wrap' }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '48px', fontWeight: '800', color: '#2563EB' }}>10k+</div>
+              <div style={{ fontSize: '15px', color: '#64748B', fontWeight: '500' }}>Active Businesses</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '48px', fontWeight: '800', color: '#2563EB' }}>50M+</div>
+              <div style={{ fontSize: '15px', color: '#64748B', fontWeight: '500' }}>Transactions Processed</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '48px', fontWeight: '800', color: '#2563EB' }}>99.9%</div>
+              <div style={{ fontSize: '15px', color: '#64748B', fontWeight: '500' }}>Uptime Guarantee</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section id="faq" style={{ padding: '100px 48px', background: '#FFFFFF', position: 'relative' }}>
+        <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '64px' }}>
+            <h2 style={{ fontSize: '40px', fontWeight: '800', color: '#0F172A', marginBottom: '16px', letterSpacing: '-1px' }}>Frequently Asked Questions</h2>
+            <p style={{ fontSize: '18px', color: '#64748B' }}>Everything you need to know about the product and billing.</p>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div style={{ background: '#F8FAFC', padding: '24px', borderRadius: '16px', border: '1px solid #E2E8F0' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#0F172A', marginBottom: '12px' }}>How does the 14-day free trial work?</h3>
+              <p style={{ color: '#475569', lineHeight: '1.6', fontSize: '15px' }}>You can sign up and use all the features of your selected plan completely free for 14 days. No credit card is required to start. We will notify you before your trial expires.</p>
+            </div>
+            <div style={{ background: '#F8FAFC', padding: '24px', borderRadius: '16px', border: '1px solid #E2E8F0' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#0F172A', marginBottom: '12px' }}>Can I switch plans or business archetypes later?</h3>
+              <p style={{ color: '#475569', lineHeight: '1.6', fontSize: '15px' }}>Yes, BizTech is highly flexible. You can upgrade, downgrade, or switch your business archetype at any time from your billing dashboard. Your data will seamlessly migrate.</p>
+            </div>
+            <div style={{ background: '#F8FAFC', padding: '24px', borderRadius: '16px', border: '1px solid #E2E8F0' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#0F172A', marginBottom: '12px' }}>Is my data secure?</h3>
+              <p style={{ color: '#475569', lineHeight: '1.6', fontSize: '15px' }}>Security is our top priority. We use AES-256 encryption for data at rest and TLS 1.3 for data in transit. We are fully GDPR and SOC2 compliant.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Contact Section */}
+      <section id="contact" style={{ padding: '100px 48px', background: '#F8FAFC', position: 'relative' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '64px', alignItems: 'center' }}>
+          <div>
+            <h2 style={{ fontSize: '40px', fontWeight: '800', color: '#0F172A', marginBottom: '16px', letterSpacing: '-1px' }}>Get in Touch</h2>
+            <p style={{ fontSize: '18px', color: '#64748B', marginBottom: '40px' }}>Have a question or need a custom solution? Our team is here to help you navigate your business needs.</p>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563EB' }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                </div>
+                <div>
+                  <div style={{ fontSize: '14px', color: '#64748B', fontWeight: '500' }}>Call Us</div>
+                  <div style={{ fontSize: '16px', color: '#0F172A', fontWeight: '700' }}>+1 (800) 123-4567</div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563EB' }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                </div>
+                <div>
+                  <div style={{ fontSize: '14px', color: '#64748B', fontWeight: '500' }}>Email Us</div>
+                  <div style={{ fontSize: '16px', color: '#0F172A', fontWeight: '700' }}>support@biztech.com</div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563EB' }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                </div>
+                <div>
+                  <div style={{ fontSize: '14px', color: '#64748B', fontWeight: '500' }}>Headquarters</div>
+                  <div style={{ fontSize: '16px', color: '#0F172A', fontWeight: '700' }}>123 Innovation Drive, Tech City</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div style={{ background: 'white', padding: '40px', borderRadius: '24px', boxShadow: '0 20px 40px -10px rgba(0,0,0,0.05)', border: '1px solid #E2E8F0' }}>
+            <h3 style={{ fontSize: '24px', fontWeight: '700', marginBottom: '24px' }}>Send a Message</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '8px' }}>Full Name</label>
+                <input type="text" placeholder="Enter your name" style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #E2E8F0', outline: 'none', fontSize: '15px' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '8px' }}>Work Email</label>
+                <input type="email" placeholder="Enter your email" style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #E2E8F0', outline: 'none', fontSize: '15px' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '8px' }}>Message</label>
+                <textarea rows="4" placeholder="How can we help you?" style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #E2E8F0', outline: 'none', fontSize: '15px', resize: 'none' }}></textarea>
+              </div>
+              <button style={{ width: '100%', background: '#2563EB', color: 'white', border: 'none', padding: '14px', borderRadius: '12px', fontWeight: '600', fontSize: '15px', cursor: 'pointer', marginTop: '8px' }}>Send Message</button>
+            </div>
           </div>
         </div>
       </section>

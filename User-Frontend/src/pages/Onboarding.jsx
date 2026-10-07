@@ -159,7 +159,7 @@ const Onboarding = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
                   <div className="input-group" style={{ gridColumn: '1 / span 2' }}>
                     <label className="input-label">Shop / Business Name</label>
-                    <input type="text" className="input-field" placeholder="E.g. Apex Retail Store" value={newBusiness.name} onChange={e => setNewBusiness({...newBusiness, name: e.target.value})} />
+                    <input type="text" className="input-field" placeholder="Enter business name" value={newBusiness.name} onChange={e => setNewBusiness({...newBusiness, name: e.target.value})} />
                   </div>
                   <div className="input-group">
                     <label className="input-label">Registration Number (Optional)</label>
@@ -198,7 +198,7 @@ const Onboarding = () => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
             <div className="input-group" style={{ gridColumn: '1 / span 2' }}>
               <label className="input-label">Shop / Business Name</label>
-              <input type="text" className="input-field" placeholder="E.g. Apex Retail Store" />
+              <input type="text" className="input-field" placeholder="Enter business name" />
             </div>
             <div className="input-group">
               <label className="input-label">Registration Number (Optional)</label>
@@ -269,7 +269,7 @@ const Onboarding = () => {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
                 <div className="input-group">
                   <label className="input-label">Branch Name</label>
-                  <input type="text" className="input-field" placeholder="e.g. Downtown Store" value={newBranch.name} onChange={e => setNewBranch({...newBranch, name: e.target.value})} />
+                  <input type="text" className="input-field" placeholder="Enter branch name" value={newBranch.name} onChange={e => setNewBranch({...newBranch, name: e.target.value})} />
                 </div>
                 <div className="input-group">
                   <label className="input-label">Branch Type</label>
@@ -296,7 +296,7 @@ const Onboarding = () => {
                 </div>
                 <div className="input-group">
                   <label className="input-label">Branch Manager</label>
-                  <input type="text" className="input-field" placeholder="e.g. Jane Smith" value={newBranch.manager} onChange={e => setNewBranch({...newBranch, manager: e.target.value})} />
+                  <input type="text" className="input-field" placeholder="Enter manager name" value={newBranch.manager} onChange={e => setNewBranch({...newBranch, manager: e.target.value})} />
                 </div>
                 <div className="input-group">
                   <label className="input-label">Contact Phone</label>
@@ -469,11 +469,11 @@ const Onboarding = () => {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
                 <div className="input-group">
                   <label className="input-label">Full Name</label>
-                  <input type="text" className="input-field" placeholder="e.g. John Doe" value={newEmployee.name} onChange={e => setNewEmployee({...newEmployee, name: e.target.value})} />
+                  <input type="text" className="input-field" placeholder="Enter employee name" value={newEmployee.name} onChange={e => setNewEmployee({...newEmployee, name: e.target.value})} />
                 </div>
                 <div className="input-group">
                   <label className="input-label">Role</label>
-                  <input type="text" className="input-field" placeholder="e.g. Manager" value={newEmployee.role} onChange={e => setNewEmployee({...newEmployee, role: e.target.value})} />
+                  <input type="text" className="input-field" placeholder="Enter employee role" value={newEmployee.role} onChange={e => setNewEmployee({...newEmployee, role: e.target.value})} />
                 </div>
                 <div className="input-group" style={{ gridColumn: '1 / span 2', display: 'flex', gap: '16px' }}>
                   {tenantType === 4 && (
@@ -499,7 +499,7 @@ const Onboarding = () => {
                 </div>
                 <div className="input-group">
                   <label className="input-label">Email Address</label>
-                  <input type="email" className="input-field" placeholder="john@example.com" value={newEmployee.email} onChange={e => setNewEmployee({...newEmployee, email: e.target.value})} />
+                  <input type="email" className="input-field" placeholder="Enter employee email" value={newEmployee.email} onChange={e => setNewEmployee({...newEmployee, email: e.target.value})} />
                 </div>
                 <div className="input-group">
                   <label className="input-label">Phone Number</label>

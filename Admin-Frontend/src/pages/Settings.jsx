@@ -38,11 +38,11 @@ const Settings = () => {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
               <div className="input-group" style={{ marginBottom: 0 }}>
                 <label className="input-label">Application Name <span style={{ color: '#EF4444' }}>*</span></label>
-                <input type="text" className="input-field" defaultValue="BizTech Admin" style={{ background: '#F8FAFC' }} />
+                <input placeholder="Enter value" type="text" className="input-field" defaultValue="BizTech Admin" style={{ background: '#F8FAFC' }} />
               </div>
               <div className="input-group" style={{ marginBottom: 0 }}>
                 <label className="input-label">Admin / Support Email <span style={{ color: '#EF4444' }}>*</span></label>
-                <input type="email" className="input-field" defaultValue="support@biztech.com" style={{ background: '#F8FAFC' }} />
+                <input placeholder="Enter value" type="email" className="input-field" defaultValue="support@biztech.com" style={{ background: '#F8FAFC' }} />
               </div>
             </div>
           </div>
@@ -64,7 +64,7 @@ const Settings = () => {
             <div className="input-group" style={{ marginBottom: 0, maxWidth: '400px' }}>
               <label className="input-label">Current Password</label>
               <div style={{ position: 'relative' }}>
-                <input type={showCurrentPassword ? "text" : "password"} className="input-field" defaultValue="password123" style={{ background: '#F8FAFC', paddingRight: '40px' }} />
+                <input placeholder="Enter value" type={showCurrentPassword ? "text" : "password"} className="input-field" defaultValue="password123" style={{ background: '#F8FAFC', paddingRight: '40px' }} />
                 <button type="button" onClick={() => setShowCurrentPassword(!showCurrentPassword)} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}>
                   {showCurrentPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>

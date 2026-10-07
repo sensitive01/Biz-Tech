@@ -156,7 +156,7 @@ const AddCustomer = () => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '16px' }}>
             <div className="input-group" style={{ marginBottom: 0 }}>
               <label className="input-label">Business Name</label>
-              <input type="text" className="input-field" placeholder="e.g. Blue Star Bakery" value={businessName} onChange={e => setBusinessName(e.target.value)} />
+              <input type="text" className="input-field" placeholder="Enter business name" value={businessName} onChange={e => setBusinessName(e.target.value)} />
             </div>
             <div className="input-group" style={{ marginBottom: 0, position: 'relative' }}>
               <label className="input-label">Industry / Category</label>
@@ -176,7 +176,7 @@ const AddCustomer = () => {
             <label className="input-label">Primary Branch / Location Address</label>
             <div className="input-with-icon">
               <MapPin className="input-icon" size={18} />
-              <input type="text" className="input-field" placeholder="e.g. 123 Main St, New York, NY 10001" value={address} onChange={e => setAddress(e.target.value)} />
+              <input type="text" className="input-field" placeholder="Enter complete address" value={address} onChange={e => setAddress(e.target.value)} />
             </div>
           </div>
         </section>
@@ -196,7 +196,7 @@ const AddCustomer = () => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '16px' }}>
             <div className="input-group" style={{ marginBottom: 0 }}>
               <label className="input-label">Owner Full Name <span style={{ color: '#EF4444' }}>*</span></label>
-              <input type="text" className="input-field" placeholder="e.g. Sarah Jenkins" value={fullName} onChange={e => setFullName(e.target.value)} />
+              <input type="text" className="input-field" placeholder="Enter owner name" value={fullName} onChange={e => setFullName(e.target.value)} />
             </div>
             <div className="input-group" style={{ marginBottom: 0 }}>
               <label className="input-label">Owner Email Address <span style={{ color: '#EF4444' }}>*</span></label>
@@ -208,7 +208,7 @@ const AddCustomer = () => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '16px' }}>
             <div className="input-group" style={{ marginBottom: 0 }}>
               <label className="input-label">Phone Number <span style={{ color: '#EF4444' }}>*</span></label>
-              <input type="tel" className="input-field" placeholder="e.g. +1 (555) 000-0000" value={phone} onChange={e => setPhone(e.target.value)} />
+              <input type="tel" className="input-field" placeholder="Enter phone number" value={phone} onChange={e => setPhone(e.target.value)} />
             </div>
             <div className="input-group" style={{ marginBottom: 0 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

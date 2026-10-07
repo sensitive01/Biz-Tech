@@ -196,44 +196,44 @@ const Branches = () => {
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Branch Name</label>
-                <input 
+                <input placeholder="Enter name" 
                   type="text" 
                   value={formData.name} 
                   onChange={e => setFormData({...formData, name: e.target.value})} 
-                  placeholder="e.g. Downtown Plaza Branch"
+                  placeholder="Enter branch name"
                   required
                   style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }}
                 />
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Location / Address</label>
-                <input 
+                <input placeholder="Enter location" 
                   type="text" 
                   value={formData.location} 
                   onChange={e => setFormData({...formData, location: e.target.value})} 
-                  placeholder="e.g. 123 Main St, New York"
+                  placeholder="Enter complete address"
                   required
                   style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }}
                 />
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Branch Manager</label>
-                <input 
+                <input placeholder="Enter manager" 
                   type="text" 
                   value={formData.manager} 
                   onChange={e => setFormData({...formData, manager: e.target.value})} 
-                  placeholder="e.g. Jane Doe"
+                  placeholder="Enter manager name"
                   required
                   style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }}
                 />
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Contact Number</label>
-                <input 
+                <input placeholder="Enter contact number" 
                   type="text" 
                   value={formData.contactNumber} 
                   onChange={e => setFormData({...formData, contactNumber: e.target.value})} 
-                  placeholder="e.g. +1 (555) 123-4567"
+                  placeholder="Enter contact number"
                   required
                   style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }}
                 />

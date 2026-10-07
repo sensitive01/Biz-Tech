@@ -221,7 +221,7 @@ const Employees = () => {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Full Name</label>
-                  <input 
+                  <input placeholder="Enter name" 
                     type="text" 
                     value={formData.name} 
                     onChange={e => setFormData({...formData, name: e.target.value})} 
@@ -232,7 +232,7 @@ const Employees = () => {
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Email Address</label>
-                  <input 
+                  <input placeholder="Enter email" 
                     type="email" 
                     value={formData.email} 
                     onChange={e => setFormData({...formData, email: e.target.value})} 
@@ -243,18 +243,18 @@ const Employees = () => {
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Position / Role</label>
-                  <input 
+                  <input placeholder="Enter position" 
                     type="text" 
                     value={formData.position} 
                     onChange={e => setFormData({...formData, position: e.target.value})} 
-                    placeholder="e.g. Sales Associate"
+                    placeholder="Enter employee role"
                     required
                     style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }}
                   />
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Contact Number</label>
-                  <input 
+                  <input placeholder="Enter contact number" 
                     type="text" 
                     value={formData.contactNumber} 
                     onChange={e => setFormData({...formData, contactNumber: e.target.value})} 
@@ -264,7 +264,7 @@ const Employees = () => {
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Salary ($)</label>
-                  <input 
+                  <input placeholder="Enter salary" 
                     type="number" 
                     value={formData.salary} 
                     onChange={e => setFormData({...formData, salary: e.target.value})} 

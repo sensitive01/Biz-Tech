@@ -286,11 +286,11 @@ const Products = () => {
                 <>
                   <div>
                     <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Category Name</label>
-                    <input type="text" value={catForm.name} onChange={e => setCatForm({...catForm, name: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
+                    <input placeholder="Enter name" type="text" value={catForm.name} onChange={e => setCatForm({...catForm, name: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Description</label>
-                    <textarea value={catForm.description} onChange={e => setCatForm({...catForm, description: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} rows="3"></textarea>
+                    <textarea placeholder="Enter description" value={catForm.description} onChange={e => setCatForm({...catForm, description: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} rows="3"></textarea>
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Category Image</label>
@@ -317,7 +317,7 @@ const Products = () => {
                 <>
                   <div>
                     <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Sub Category Name</label>
-                    <input type="text" value={subCatForm.name} onChange={e => setSubCatForm({...subCatForm, name: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
+                    <input placeholder="Enter name" type="text" value={subCatForm.name} onChange={e => setSubCatForm({...subCatForm, name: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Parent Category</label>
@@ -328,7 +328,7 @@ const Products = () => {
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Description</label>
-                    <textarea value={subCatForm.description} onChange={e => setSubCatForm({...subCatForm, description: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} rows="3"></textarea>
+                    <textarea placeholder="Enter description" value={subCatForm.description} onChange={e => setSubCatForm({...subCatForm, description: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} rows="3"></textarea>
                   </div>
                 </>
               )}
@@ -337,11 +337,11 @@ const Products = () => {
                 <>
                   <div>
                     <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Name</label>
-                    <input type="text" value={prodForm.name} onChange={e => setProdForm({...prodForm, name: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
+                    <input placeholder="Enter name" type="text" value={prodForm.name} onChange={e => setProdForm({...prodForm, name: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Description</label>
-                    <textarea value={prodForm.description} onChange={e => setProdForm({...prodForm, description: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} rows="2"></textarea>
+                    <textarea placeholder="Enter description" value={prodForm.description} onChange={e => setProdForm({...prodForm, description: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} rows="2"></textarea>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                     <div>
@@ -362,7 +362,7 @@ const Products = () => {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                     <div>
                       <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>SKU</label>
-                      <input type="text" value={prodForm.sku} onChange={e => setProdForm({...prodForm, sku: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
+                      <input placeholder="Enter SKU" type="text" value={prodForm.sku} onChange={e => setProdForm({...prodForm, sku: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
                     </div>
                     <div>
                       <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Type</label>
@@ -375,11 +375,11 @@ const Products = () => {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                     <div>
                       <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Price</label>
-                      <input type="number" value={prodForm.price} onChange={e => setProdForm({...prodForm, price: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
+                      <input placeholder="Enter price" type="number" value={prodForm.price} onChange={e => setProdForm({...prodForm, price: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
                     </div>
                     <div>
                       <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Stock Quantity</label>
-                      <input type="number" value={prodForm.stock} onChange={e => setProdForm({...prodForm, stock: e.target.value})} disabled={prodForm.itemType === 'Service'} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', background: prodForm.itemType === 'Service' ? '#F1F5F9' : 'white' }} />
+                      <input placeholder="Enter stock" type="number" value={prodForm.stock} onChange={e => setProdForm({...prodForm, stock: e.target.value})} disabled={prodForm.itemType === 'Service'} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', background: prodForm.itemType === 'Service' ? '#F1F5F9' : 'white' }} />
                     </div>
                   </div>
                   <div>
