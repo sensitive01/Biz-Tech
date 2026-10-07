@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Store, Users, Map, CheckCircle2, Loader2 } from 'lucide-react';
+import { Store, Users, Map, CheckCircle2, Loader2, Building2 } from 'lucide-react';
 
 const SelectType = () => {
   const navigate = useNavigate();
@@ -29,7 +29,8 @@ const SelectType = () => {
   const types = [
     { id: 1, title: 'Type 1: Sole Operator', desc: '1 Owner • 1 Shop • No employee management needed', icon: <Store size={24} /> },
     { id: 2, title: 'Type 2: Single Branch + Staff', desc: '1 Owner • 1 Shop • Includes staff attendance & leaves', icon: <Users size={24} /> },
-    { id: 3, title: 'Type 3: Multi-Branch Enterprise', desc: '1 Owner • Multiple Branches • Full employee management', icon: <Map size={24} /> }
+    { id: 3, title: 'Type 3: Multi-Branch Enterprise', desc: '1 Owner • Multiple Branches • Full employee management', icon: <Map size={24} /> },
+    { id: 4, title: 'Type 4: Multi-Business Conglomerate', desc: '1 Owner • Multiple Businesses • Multiple Branches • Full employee management', icon: <Building2 size={24} /> }
   ];
 
   const getAmountForType = (title) => {
@@ -63,7 +64,8 @@ const SelectType = () => {
       if (response.ok) {
         localStorage.setItem('token', data.token);
         localStorage.setItem('tenantType', selectedType.toString());
-        navigate('/tenant/dashboard');
+        localStorage.setItem('modules', JSON.stringify(data.user.modules || []));
+        navigate('/onboarding');
       } else {
         setError(data.message || 'Registration failed');
       }
@@ -102,9 +104,7 @@ const SelectType = () => {
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <h3 style={{ fontSize: '16px', margin: '0 0 4px 0', color: selectedType === t.id ? 'var(--primary-blue)' : 'var(--text-title)' }}>{t.title}</h3>
-                  {amount !== null && (
-                    <span style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--primary-blue)' }}>₹{amount}/mo</span>
-                  )}
+                  <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--primary-blue)', background: '#DBEAFE', padding: '4px 12px', borderRadius: '20px' }}>Free Trial</span>
                 </div>
                 <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-secondary)' }}>{t.desc}</p>
               </div>

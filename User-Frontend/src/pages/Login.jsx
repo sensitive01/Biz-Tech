@@ -30,6 +30,7 @@ const Login = () => {
       if (response.ok) {
         localStorage.setItem('token', data.token);
         localStorage.setItem('tenantType', data.user.businessType.toString());
+        localStorage.setItem('modules', JSON.stringify(data.user.modules || []));
         navigate('/tenant/dashboard');
       } else {
         setError(data.message || 'Login failed');

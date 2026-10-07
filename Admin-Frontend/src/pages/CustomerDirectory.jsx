@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, Store, Users, Map, ChevronLeft, ChevronRight, Filter, ChevronDown, Download, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { Search, Plus, Store, Users, Map, ChevronLeft, ChevronRight, Filter, ChevronDown, Download, ArrowUp, ArrowDown, ArrowUpDown, X, User, Mail, Phone, MapPin, Briefcase, Calendar, Eye, Trash2, AlertTriangle, Building2 } from 'lucide-react';
 
 const CustomerDirectory = () => {
   const navigate = useNavigate();
@@ -10,23 +11,31 @@ const CustomerDirectory = () => {
 
   const [customersData, setCustomersData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [viewCustomer, setViewCustomer] = useState(null);
+  const [deleteCustomerId, setDeleteCustomerId] = useState(null);
 
-  React.useEffect(() => {
+  const fetchCustomers = () => {
     fetch(`${import.meta.env.VITE_API_URL}/api/admin/users`)
       .then(res => res.json())
       .then(data => {
         const formattedData = data.map(user => ({
+          _id: user._id,
           id: user._id.substring(user._id.length - 6).toUpperCase(),
           businessName: user.businessName || (user.fullName + "'s Business"),
           type: user.businessType,
-          typeLabel: `Type ${user.businessType}: ${user.businessType === 1 ? 'Sole Operator' : user.businessType === 2 ? 'Single Branch + Staff' : 'Multi-Branch Enterprise'}`,
-          typeDesc: user.businessType === 1 ? '1 Owner • 1 Shop' : user.businessType === 2 ? '1 Owner • 1 Shop' : '1 Owner • Multiple Branches',
+          typeLabel: `Type ${user.businessType}: ${user.businessType === 1 ? 'Sole Operator' : user.businessType === 2 ? 'Single Branch + Staff' : user.businessType === 3 ? 'Multi-Branch Enterprise' : 'Multi-Business Conglomerate'}`,
+          typeDesc: user.businessType === 1 ? '1 Owner • 1 Shop' : user.businessType === 2 ? '1 Owner • 1 Shop' : user.businessType === 3 ? '1 Owner • Multiple Branches' : '1 Owner • Multiple Businesses',
           contactName: user.fullName,
           contactEmail: user.email,
-          locations: user.address || (user.businessType === 3 ? 'Multiple Locations' : '1 Shop'),
+          contactPhone: user.phone || 'N/A',
+          industry: user.industry || 'Not specified',
+          fullAddress: user.address || 'Not specified',
+          joinedAt: user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A',
+          locations: user.address || (user.businessType >= 3 ? 'Multiple Locations' : '1 Shop'),
           staff: user.businessType === 1 ? 'Owner Only' : 'Staff Enrolled',
           staffDesc: user.businessType === 1 ? '0 Staff' : 'Uses Roster',
-          status: 'Active'
+          status: 'Active',
+          modules: user.modules || []
         }));
         setCustomersData(formattedData);
         setLoading(false);
@@ -35,7 +44,29 @@ const CustomerDirectory = () => {
         console.error("Failed to fetch users", err);
         setLoading(false);
       });
+  };
+
+  React.useEffect(() => {
+    fetchCustomers();
   }, []);
+
+  const confirmDelete = async () => {
+    if (!deleteCustomerId) return;
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/users/${deleteCustomerId}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        setDeleteCustomerId(null);
+        fetchCustomers();
+      } else {
+        alert('Failed to delete customer');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error deleting customer');
+    }
+  };
 
   const sortedCustomers = React.useMemo(() => {
     let sortableItems = [...customersData];
@@ -106,8 +137,8 @@ const CustomerDirectory = () => {
               <Filter size={16} /> {selectedFilter} <ChevronDown size={16} />
             </button>
             {showFilterDropdown && (
-              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '8px', background: 'white', border: '1px solid var(--border-color)', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', width: '260px', zIndex: 10, overflow: 'hidden' }}>
-                {['All Clients (3)', 'Type 1: Sole Operator', 'Type 2: Single Branch + Staff', 'Type 3: Multi-Branch Enterprise'].map((filter, idx) => (
+              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '8px', background: 'white', border: '1px solid var(--border-color)', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', width: '280px', zIndex: 10, overflow: 'hidden' }}>
+                {['All Clients', 'Type 1: Sole Operator', 'Type 2: Single Branch + Staff', 'Type 3: Multi-Branch Enterprise', 'Type 4: Multi-Business Conglomerate'].map((filter, idx) => (
                   <button 
                     key={filter}
                     onClick={() => { setSelectedFilter(filter); setShowFilterDropdown(false); }}
@@ -115,7 +146,7 @@ const CustomerDirectory = () => {
                       display: 'block', width: '100%', textAlign: 'left', padding: '10px 16px', fontSize: '13px', 
                       color: filter === selectedFilter ? 'var(--primary-blue)' : 'var(--text-title)', 
                       background: filter === selectedFilter ? '#EFF4FF' : 'transparent', 
-                      borderBottom: idx === 3 ? 'none' : '1px solid var(--border-color)', 
+                      borderBottom: idx === 4 ? 'none' : '1px solid var(--border-color)', 
                       fontWeight: '500', cursor: 'pointer' 
                     }}
                     onMouseOver={(e) => { if(filter !== selectedFilter) e.currentTarget.style.background = '#F8FAFC' }}
@@ -178,6 +209,7 @@ const CustomerDirectory = () => {
                       {customer.type === 1 && <Store size={20} />}
                       {customer.type === 2 && <Users size={20} />}
                       {customer.type === 3 && <Map size={20} />}
+                      {customer.type === 4 && <Building2 size={20} />}
                     </div>
                     <div>
                       <div style={{ fontWeight: '600', color: 'var(--text-title)', fontSize: '15px' }}>{customer.businessName}</div>
@@ -211,7 +243,14 @@ const CustomerDirectory = () => {
                   </span>
                 </td>
                 <td style={{ padding: '16px 24px', textAlign: 'right' }}>
-                  <a href="#" style={{ fontWeight: '600', fontSize: '14px' }}>View Details</a>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                    <button type="button" onClick={() => setViewCustomer(customer)} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#EFF6FF', color: '#3B82F6', border: 'none', borderRadius: '6px', cursor: 'pointer', transition: 'background 0.2s' }} title="View Details" onMouseOver={(e) => e.currentTarget.style.background = '#DBEAFE'} onMouseOut={(e) => e.currentTarget.style.background = '#EFF6FF'}>
+                      <Eye size={16} />
+                    </button>
+                    <button type="button" onClick={() => setDeleteCustomerId(customer._id)} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#FEE2E2', color: '#EF4444', border: 'none', borderRadius: '6px', cursor: 'pointer', transition: 'background 0.2s' }} title="Delete Customer" onMouseOver={(e) => e.currentTarget.style.background = '#FECACA'} onMouseOut={(e) => e.currentTarget.style.background = '#FEE2E2'}>
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -235,8 +274,91 @@ const CustomerDirectory = () => {
             </button>
           </div>
         </div>
-
       </div>
+
+      {viewCustomer && createPortal(
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '24px' }}>
+          <div style={{ background: 'white', padding: '32px', borderRadius: '20px', width: '100%', maxWidth: '600px', animation: 'fadeIn 0.2s ease-out' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: `var(--badge-type${viewCustomer.type}-bg)`, color: viewCustomer.type === 1 ? 'var(--primary-blue)' : `var(--badge-type${viewCustomer.type}-text)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {viewCustomer.type === 1 && <Store size={24} />}
+                  {viewCustomer.type === 2 && <Users size={24} />}
+                  {viewCustomer.type === 3 && <Map size={24} />}
+                  {viewCustomer.type === 4 && <Building2 size={24} />}
+                </div>
+                <div>
+                  <h2 style={{ fontSize: '22px', margin: 0, color: 'var(--text-title)' }}>{viewCustomer.businessName}</h2>
+                  <span className="badge" style={{ marginTop: '4px', background: `var(--badge-type${viewCustomer.type}-bg)`, color: viewCustomer.type === 1 ? 'var(--primary-blue)' : `var(--badge-type${viewCustomer.type}-text)` }}>{viewCustomer.typeLabel}</span>
+                </div>
+              </div>
+              <button onClick={() => setViewCustomer(null)} style={{ background: '#F1F5F9', border: 'none', borderRadius: '50%', padding: '8px', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={20} /></button>
+            </div>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
+              <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px', fontWeight: '600' }}>Contact Details</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><User size={16} color="var(--text-muted)" /> <span style={{ fontSize: '14px', fontWeight: '500' }}>{viewCustomer.contactName}</span></div>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><Mail size={16} color="var(--text-muted)" /> <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>{viewCustomer.contactEmail}</span></div>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><Phone size={16} color="var(--text-muted)" /> <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>{viewCustomer.contactPhone}</span></div>
+                </div>
+              </div>
+
+              <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px', fontWeight: '600' }}>Business Info</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}><Briefcase size={16} color="var(--text-muted)" style={{ marginTop: '2px' }} /> <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>{viewCustomer.industry}</span></div>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}><MapPin size={16} color="var(--text-muted)" style={{ marginTop: '2px' }} /> <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>{viewCustomer.fullAddress}</span></div>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><Calendar size={16} color="var(--text-muted)" /> <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Joined {viewCustomer.joinedAt}</span></div>
+                </div>
+              </div>
+            </div>
+
+            {viewCustomer.modules && viewCustomer.modules.length > 0 && (
+              <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid var(--border-color)', marginBottom: '24px' }}>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px', fontWeight: '600' }}>Active Modules</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {viewCustomer.modules.map(mod => (
+                    <span key={mod} className="badge" style={{ background: '#EFF6FF', color: '#2563EB', textTransform: 'capitalize' }}>
+                      {mod.replace('_', ' ')}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={() => setViewCustomer(null)} className="btn-primary" style={{ padding: '10px 24px' }}>Close Details</button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteCustomerId && createPortal(
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '24px' }}>
+          <div style={{ background: 'white', padding: '32px', borderRadius: '20px', width: '100%', maxWidth: '400px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out', textAlign: 'center' }}>
+            <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px auto' }}>
+              <AlertTriangle size={32} color="#EF4444" />
+            </div>
+            <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#0F172A', margin: '0 0 12px 0' }}>Delete Customer</h2>
+            <p style={{ color: '#64748B', margin: '0 0 24px 0', lineHeight: '1.5' }}>Are you sure you want to delete this customer? This action cannot be undone.</p>
+            
+            <div style={{ display: 'flex', gap: '16px' }}>
+              <button type="button" onClick={() => setDeleteCustomerId(null)} style={{ flex: 1, padding: '14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '10px', color: '#475569', fontWeight: '600', fontSize: '15px', cursor: 'pointer', transition: 'background 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
+                Cancel
+              </button>
+              <button type="button" onClick={confirmDelete} style={{ flex: 1, padding: '14px', background: '#EF4444', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', fontSize: '15px', cursor: 'pointer', transition: 'background 0.2s', boxShadow: '0 4px 6px -1px rgba(239,68,68,0.2)' }} onMouseOver={(e) => e.currentTarget.style.background = '#DC2626'} onMouseOut={(e) => e.currentTarget.style.background = '#EF4444'}>
+                Yes, Delete
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
     </div>
   );
 };

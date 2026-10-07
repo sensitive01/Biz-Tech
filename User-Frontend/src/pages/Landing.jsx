@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LayoutGrid, Users, Map, Calendar, ShieldCheck, Zap, BarChart3, CheckCircle2 } from 'lucide-react';
+import { LayoutGrid, Users, Map, Calendar, ShieldCheck, Zap, BarChart3, CheckCircle2, Building2 } from 'lucide-react';
 
 const Landing = () => {
   const navigate = useNavigate();
@@ -185,6 +185,16 @@ const Landing = () => {
               </div>
             </div>
 
+            <div style={{ display: 'flex', alignItems: 'center', padding: '32px', border: '1px solid #E2E8F0', borderRadius: '16px', background: 'white', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.05)' }}>
+              <div style={{ width: '64px', height: '64px', background: '#ECFEFF', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '32px', flexShrink: 0 }}>
+                <span style={{ fontSize: '24px', fontWeight: '800', color: '#0891B2' }}>4</span>
+              </div>
+              <div style={{ flex: 1 }}>
+                <h3 style={{ fontSize: '22px', fontWeight: '700', color: '#0F172A', marginBottom: '8px' }}>Multi-Business Conglomerate</h3>
+                <p style={{ color: '#64748B', fontSize: '15px', lineHeight: '1.6', margin: 0 }}>For operators managing entirely separate businesses under one umbrella. Consolidate operations, branches, and staff with full isolation and aggregate reporting.</p>
+              </div>
+            </div>
+
           </div>
         </div>
       </section>
@@ -247,6 +257,23 @@ const Landing = () => {
                 <li style={{ display: 'flex', gap: '12px', alignItems: 'center', color: '#475569', fontSize: '15px' }}><CheckCircle2 size={18} color="#2563EB" /> Cross-Branch Reporting</li>
                 <li style={{ display: 'flex', gap: '12px', alignItems: 'center', color: '#475569', fontSize: '15px' }}><CheckCircle2 size={18} color="#2563EB" /> Hierarchical Permissions</li>
                 <li style={{ display: 'flex', gap: '12px', alignItems: 'center', color: '#475569', fontSize: '15px' }}><CheckCircle2 size={18} color="#2563EB" /> 24/7 Dedicated Account Manager</li>
+              </ul>
+              <button onClick={() => navigate('/register')} style={{ width: '100%', background: '#EFF6FF', color: '#2563EB', border: 'none', padding: '14px', borderRadius: '12px', fontWeight: '600', fontSize: '15px', cursor: 'pointer', transition: 'background 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = '#DBEAFE'} onMouseOut={(e) => e.currentTarget.style.background = '#EFF6FF'}>Get Started</button>
+            </div>
+
+            {/* Conglomerate Plan */}
+            <div style={{ background: 'white', padding: '40px 32px', borderRadius: '24px', border: '1px solid #E2E8F0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column' }}>
+              <h3 style={{ fontSize: '20px', fontWeight: '700', color: '#0F172A', marginBottom: '8px' }}>Multi-Business Conglomerate</h3>
+              <p style={{ color: '#64748B', fontSize: '14px', marginBottom: '24px' }}>For umbrella corps managing varied brands.</p>
+              <div style={{ marginBottom: '32px', display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                <span style={{ fontSize: '48px', fontWeight: '800', color: '#0F172A', letterSpacing: '-2px' }}>₹{getPrice('Type 4: Multi-Business Conglomerate', 399)}</span>
+                <span style={{ color: '#64748B', fontWeight: '500' }}>/mo</span>
+              </div>
+              <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', display: 'flex', flexDirection: 'column', gap: '16px', flex: 1 }}>
+                <li style={{ display: 'flex', gap: '12px', alignItems: 'center', color: '#475569', fontSize: '15px' }}><CheckCircle2 size={18} color="#2563EB" /> Unlimited Businesses & Brands</li>
+                <li style={{ display: 'flex', gap: '12px', alignItems: 'center', color: '#475569', fontSize: '15px' }}><CheckCircle2 size={18} color="#2563EB" /> Corporate Roll-up Reporting</li>
+                <li style={{ display: 'flex', gap: '12px', alignItems: 'center', color: '#475569', fontSize: '15px' }}><CheckCircle2 size={18} color="#2563EB" /> Brand Isolation Setup</li>
+                <li style={{ display: 'flex', gap: '12px', alignItems: 'center', color: '#475569', fontSize: '15px' }}><CheckCircle2 size={18} color="#2563EB" /> Custom Integrations Support</li>
               </ul>
               <button onClick={() => navigate('/register')} style={{ width: '100%', background: '#EFF6FF', color: '#2563EB', border: 'none', padding: '14px', borderRadius: '12px', fontWeight: '600', fontSize: '15px', cursor: 'pointer', transition: 'background 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = '#DBEAFE'} onMouseOut={(e) => e.currentTarget.style.background = '#EFF6FF'}>Get Started</button>
             </div>

@@ -37,7 +37,18 @@ const UserSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now
-  }
+  },
+  modules: {
+    type: [String],
+    enum: ['products_services', 'inventory', 'purchases', 'sales', 'expenses'],
+    default: []
+  },
+  businesses: [{
+    name: String,
+    regNo: String,
+    phone: String,
+    address: String
+  }]
 });
 
 module.exports = mongoose.model('User', UserSchema);

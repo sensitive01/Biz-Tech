@@ -1,11 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutGrid, Users, Map, Calendar, LogOut, Bell, ChevronDown, Clock } from 'lucide-react';
+import { LayoutGrid, Users, Map, Calendar, LogOut, Bell, ChevronDown, Clock, Package, Archive, TrendingUp, ShoppingCart, Receipt, Building2, UserCheck, FileText, BellRing } from 'lucide-react';
 
 const TenantLayout = () => {
   const navigate = useNavigate();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const tenantType = Number(localStorage.getItem('tenantType')) || 1;
+  const [modules, setModules] = useState([]);
+
+  useEffect(() => {
+    try {
+      let userModules = [];
+      const userStr = localStorage.getItem('user');
+      
+      if (userStr) {
+        const userObj = JSON.parse(userStr);
+        if (userObj && Array.isArray(userObj.modules)) {
+          userModules = userObj.modules;
+        }
+      }
+      
+      // Fallback
+      if (userModules.length === 0) {
+        userModules = JSON.parse(localStorage.getItem('modules')) || [];
+      }
+      
+      setModules(userModules);
+    } catch (err) {
+      setModules([]);
+    }
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -18,7 +42,7 @@ const TenantLayout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('tenantType');
     localStorage.removeItem('user');
-    navigate('/login', { replace: true });
+    navigate('/', { replace: true });
   };
 
   return (
@@ -79,7 +103,7 @@ const TenantLayout = () => {
 
       {/* Sidebar */}
       <aside className="sidebar">
-        <div style={{ padding: '24px 16px', flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div className="sidebar-scrollable" style={{ padding: '24px 16px', flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto' }}>
           <div style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px', paddingLeft: '12px' }}>
             Menu
           </div>
@@ -99,8 +123,26 @@ const TenantLayout = () => {
             Dashboard
           </NavLink>
 
-          {/* Render Branches only for Type 3 */}
-          {tenantType === 3 && (
+          {/* 2. Businesses */}
+          {tenantType >= 4 && (
+            <NavLink 
+              to="/tenant/businesses" 
+              style={({isActive}) => ({
+                display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: 'var(--radius-lg)',
+                color: isActive ? 'var(--primary-blue)' : 'var(--text-secondary)',
+                background: isActive ? '#EFF4FF' : 'transparent',
+                fontWeight: isActive ? '600' : '500',
+                fontSize: '14px',
+                textDecoration: 'none'
+              })}
+            >
+              <Building2 size={18} />
+              Businesses
+            </NavLink>
+          )}
+
+          {/* 3. Branches */}
+          {tenantType >= 3 && (
             <NavLink 
               to="/tenant/branches" 
               style={({isActive}) => ({
@@ -117,8 +159,96 @@ const TenantLayout = () => {
             </NavLink>
           )}
 
-          {/* Render Employees, Attendance, Leaves for Type 2 and Type 3 */}
-          {(tenantType === 2 || tenantType === 3) && (
+          {/* 4. Product / Service */}
+          {modules.includes('products_services') && (
+            <NavLink to="/tenant/products" style={({isActive}) => ({ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: 'var(--radius-lg)', color: isActive ? 'var(--primary-blue)' : 'var(--text-secondary)', background: isActive ? '#EFF4FF' : 'transparent', fontWeight: isActive ? '600' : '500', fontSize: '14px', textDecoration: 'none' })}>
+              <Package size={18} />
+              Products & Services
+            </NavLink>
+          )}
+
+          {/* 5. Stock / Inventory */}
+          {modules.includes('inventory') && (
+            <NavLink to="/tenant/inventory" style={({isActive}) => ({ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: 'var(--radius-lg)', color: isActive ? 'var(--primary-blue)' : 'var(--text-secondary)', background: isActive ? '#EFF4FF' : 'transparent', fontWeight: isActive ? '600' : '500', fontSize: '14px', textDecoration: 'none' })}>
+              <Archive size={18} />
+              Stock / Inventory
+            </NavLink>
+          )}
+
+          {/* 6. Customers */}
+          <NavLink 
+            to="/tenant/customers" 
+            style={({isActive}) => ({
+              display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: 'var(--radius-lg)',
+              color: isActive ? 'var(--primary-blue)' : 'var(--text-secondary)',
+              background: isActive ? '#EFF4FF' : 'transparent',
+              fontWeight: isActive ? '600' : '500',
+              fontSize: '14px',
+              textDecoration: 'none'
+            })}
+          >
+            <UserCheck size={18} />
+            Customers
+          </NavLink>
+
+          {/* 7. Expenses */}
+          {modules.includes('expenses') && (
+            <NavLink to="/tenant/expenses" style={({isActive}) => ({ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: 'var(--radius-lg)', color: isActive ? 'var(--primary-blue)' : 'var(--text-secondary)', background: isActive ? '#EFF4FF' : 'transparent', fontWeight: isActive ? '600' : '500', fontSize: '14px', textDecoration: 'none' })}>
+              <Receipt size={18} />
+              Expenses
+            </NavLink>
+          )}
+
+          {/* 8. Purchases */}
+          {modules.includes('purchases') && (
+            <NavLink to="/tenant/purchases" style={({isActive}) => ({ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: 'var(--radius-lg)', color: isActive ? 'var(--primary-blue)' : 'var(--text-secondary)', background: isActive ? '#EFF4FF' : 'transparent', fontWeight: isActive ? '600' : '500', fontSize: '14px', textDecoration: 'none' })}>
+              <ShoppingCart size={18} />
+              Purchases
+            </NavLink>
+          )}
+
+          {/* 9. Sales */}
+          {modules.includes('sales') && (
+            <NavLink to="/tenant/sales" style={({isActive}) => ({ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: 'var(--radius-lg)', color: isActive ? 'var(--primary-blue)' : 'var(--text-secondary)', background: isActive ? '#EFF4FF' : 'transparent', fontWeight: isActive ? '600' : '500', fontSize: '14px', textDecoration: 'none' })}>
+              <TrendingUp size={18} />
+              Sales
+            </NavLink>
+          )}
+
+          {/* 10. Documents */}
+          <NavLink 
+            to="/tenant/documents" 
+            style={({isActive}) => ({
+              display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: 'var(--radius-lg)',
+              color: isActive ? 'var(--primary-blue)' : 'var(--text-secondary)',
+              background: isActive ? '#EFF4FF' : 'transparent',
+              fontWeight: isActive ? '600' : '500',
+              fontSize: '14px',
+              textDecoration: 'none'
+            })}
+          >
+            <FileText size={18} />
+            Documents
+          </NavLink>
+
+          {/* 11. Reminders */}
+          <NavLink 
+            to="/tenant/reminders" 
+            style={({isActive}) => ({
+              display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: 'var(--radius-lg)',
+              color: isActive ? 'var(--primary-blue)' : 'var(--text-secondary)',
+              background: isActive ? '#EFF4FF' : 'transparent',
+              fontWeight: isActive ? '600' : '500',
+              fontSize: '14px',
+              textDecoration: 'none'
+            })}
+          >
+            <BellRing size={18} />
+            Reminders
+          </NavLink>
+
+          {/* 12, 13, 14. Employees, Attendance, Leaves */}
+          {tenantType >= 2 && (
             <>
               <NavLink 
                 to="/tenant/employees" 

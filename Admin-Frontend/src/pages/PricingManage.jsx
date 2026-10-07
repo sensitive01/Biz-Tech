@@ -5,7 +5,8 @@ import { Edit2, IndianRupee } from 'lucide-react';
 const DEFAULT_TYPES = [
   { id: 1, title: 'Type 1: Sole Operator', desc: '1 Owner • 1 Shop • No employee management needed' },
   { id: 2, title: 'Type 2: Single Branch + Staff', desc: '1 Owner • 1 Shop • Includes staff attendance & leaves' },
-  { id: 3, title: 'Type 3: Multi-Branch Enterprise', desc: '1 Owner • Multiple Branches • Full employee management' }
+  { id: 3, title: 'Type 3: Multi-Branch Enterprise', desc: '1 Owner • Multiple Branches • Full employee management' },
+  { id: 4, title: 'Type 4: Multi-Business Conglomerate', desc: '1 Owner • Multiple Businesses • Multiple Branches • Full employee management' }
 ];
 
 const PricingManage = () => {
@@ -78,7 +79,7 @@ const PricingManage = () => {
     <div style={{ padding: '24px' }}>
       <div style={{ marginBottom: '24px' }}>
         <h2 style={{ margin: 0, fontSize: '24px', color: 'var(--text-title)' }}>Manage Pricing Plans</h2>
-        <p style={{ color: 'var(--text-secondary)', marginTop: '8px' }}>Set the monthly pricing for the 3 default business archetypes.</p>
+        <p style={{ color: 'var(--text-secondary)', marginTop: '8px' }}>Set the monthly pricing for the 4 default business archetypes.</p>
       </div>
 
       {loading ? (
