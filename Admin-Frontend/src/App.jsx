@@ -6,6 +6,7 @@ import CustomerDirectory from './pages/CustomerDirectory';
 import AddCustomer from './pages/AddCustomer';
 import Dashboard from './pages/Dashboard';
 import Settings from './pages/Settings';
+import PricingManage from './pages/PricingManage';
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="customers" element={<CustomerDirectory />} />
           <Route path="customers/new" element={<AddCustomer />} />
+          <Route path="pricing" element={<PricingManage />} />
           <Route path="settings" element={<Settings />} />
           <Route path="" element={<Navigate to="/admin/dashboard" replace />} />
         </Route>

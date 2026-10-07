@@ -168,16 +168,7 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section style={{ padding: '80px 48px', background: '#0F172A', color: 'white', textAlign: 'center' }}>
-        <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-          <h2 style={{ fontSize: '40px', fontWeight: '800', letterSpacing: '-1px', marginBottom: '24px' }}>Ready to transform your operations?</h2>
-          <p style={{ fontSize: '18px', color: '#94A3B8', marginBottom: '40px' }}>Join thousands of businesses scaling efficiently with BizTech.</p>
-          <button onClick={() => navigate('/register')} style={{ background: '#2563EB', color: 'white', border: 'none', padding: '16px 40px', borderRadius: '12px', fontWeight: '600', fontSize: '16px', cursor: 'pointer', transition: 'background 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = '#3B82F6'} onMouseOut={(e) => e.currentTarget.style.background = '#2563EB'}>
-            Create Free Account
-          </button>
-        </div>
-      </section>
+
 
       {/* Footer */}
       <footer style={{ background: '#0B1121', padding: '64px 48px', color: '#64748B', borderTop: '1px solid #1E293B' }}>

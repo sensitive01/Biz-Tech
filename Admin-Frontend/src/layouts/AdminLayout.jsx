@@ -113,6 +113,21 @@ const AdminLayout = () => {
           </NavLink>
           
           <NavLink 
+            to="/admin/pricing" 
+            style={({isActive}) => ({
+              display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: 'var(--radius-lg)',
+              color: isActive ? 'var(--primary-blue)' : 'var(--text-secondary)',
+              background: isActive ? '#EFF4FF' : 'transparent',
+              fontWeight: isActive ? '600' : '500',
+              fontSize: '14px',
+              textDecoration: 'none'
+            })}
+          >
+            <Hexagon size={18} />
+            Pricing Plans
+          </NavLink>
+          
+          <NavLink 
             to="/admin/settings" 
             style={({isActive}) => ({
               display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: 'var(--radius-lg)',

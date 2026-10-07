@@ -20,8 +20,10 @@ mongoose.connect(process.env.MONGODB_URI || process.env.MONGO_URI)
 // Routes
 const authRoutes = require('./routes/auth');
 const adminAuthRoutes = require('./routes/adminAuth');
+const pricingRoutes = require('./routes/pricing');
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminAuthRoutes);
+app.use('/api/pricing', pricingRoutes);
 
 // Base route
 app.get('/', (req, res) => {

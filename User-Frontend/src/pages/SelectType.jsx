@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Store, Users, Map, CheckCircle2, Loader2 } from 'lucide-react';
 
@@ -9,11 +9,33 @@ const SelectType = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const [pricingPlans, setPricingPlans] = useState([]);
+  
+  useEffect(() => {
+    const fetchPricing = async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/pricing`);
+        if (res.ok) {
+          const data = await res.json();
+          setPricingPlans(data);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchPricing();
+  }, []);
+
   const types = [
     { id: 1, title: 'Type 1: Sole Operator', desc: '1 Owner • 1 Shop • No employee management needed', icon: <Store size={24} /> },
     { id: 2, title: 'Type 2: Single Branch + Staff', desc: '1 Owner • 1 Shop • Includes staff attendance & leaves', icon: <Users size={24} /> },
     { id: 3, title: 'Type 3: Multi-Branch Enterprise', desc: '1 Owner • Multiple Branches • Full employee management', icon: <Map size={24} /> }
   ];
+
+  const getAmountForType = (title) => {
+    const plan = pricingPlans.find(p => p.customerType === title || title.includes(p.customerType));
+    return plan ? plan.amount : null;
+  };
 
   const handleFinish = async () => {
     if (!location.state) {
@@ -61,7 +83,9 @@ const SelectType = () => {
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '32px' }}>
-          {types.map(t => (
+          {types.map(t => {
+            const amount = getAmountForType(t.title);
+            return (
             <div 
               key={t.id}
               onClick={() => setSelectedType(t.id)}
@@ -76,14 +100,19 @@ const SelectType = () => {
                 {t.icon}
               </div>
               <div style={{ flex: 1 }}>
-                <h3 style={{ fontSize: '16px', margin: '0 0 4px 0', color: selectedType === t.id ? 'var(--primary-blue)' : 'var(--text-title)' }}>{t.title}</h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3 style={{ fontSize: '16px', margin: '0 0 4px 0', color: selectedType === t.id ? 'var(--primary-blue)' : 'var(--text-title)' }}>{t.title}</h3>
+                  {amount !== null && (
+                    <span style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--primary-blue)' }}>₹{amount}/mo</span>
+                  )}
+                </div>
                 <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-secondary)' }}>{t.desc}</p>
               </div>
               {selectedType === t.id && (
                 <CheckCircle2 color="var(--primary-blue)" />
               )}
             </div>
-          ))}
+          )})}
         </div>
 
         {error && <div style={{ color: '#EF4444', fontSize: '14px', marginBottom: '16px', textAlign: 'center', background: '#FEF2F2', padding: '8px', borderRadius: '6px' }}>{error}</div>}
