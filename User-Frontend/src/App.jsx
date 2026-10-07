@@ -21,6 +21,8 @@ import Inventory from './pages/Inventory';
 import Sales from './pages/Sales';
 import Purchases from './pages/Purchases';
 import Expenses from './pages/Expenses';
+import Profile from './pages/Profile';
+import Billing from './pages/Billing';
 
 function App() {
   return (
@@ -49,6 +51,8 @@ function App() {
           <Route path="employees" element={<Employees />} />
           <Route path="attendance" element={<Attendance />} />
           <Route path="leaves" element={<LeaveRequests />} />
+          <Route path="profile" element={<Profile />} />
+          <Route path="billing" element={<Billing />} />
           
           <Route path="" element={<Navigate to="/tenant/dashboard" replace />} />
           <Route path="*" element={<div style={{ padding: '32px' }}>Feature in development...</div>} />

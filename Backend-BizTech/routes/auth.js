@@ -205,4 +205,22 @@ router.post('/onboarding', async (req, res) => {
   }
 });
 
+// @route   GET /api/auth/me
+// @desc    Get user profile
+router.get('/me', async (req, res) => {
+  try {
+    const token = req.header('Authorization')?.split(' ')[1];
+    if (!token) return res.status(401).json({ message: 'No token, authorization denied' });
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
+    const user = await User.findById(decoded.user.id).select('-password');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    res.json(user);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server Error' });
+  }
+});
+
 module.exports = router;

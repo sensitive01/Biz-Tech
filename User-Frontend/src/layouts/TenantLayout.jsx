@@ -5,6 +5,7 @@ import { LayoutGrid, Users, Map, Calendar, LogOut, Bell, ChevronDown, Clock, Pac
 const TenantLayout = () => {
   const navigate = useNavigate();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showSubMenu, setShowSubMenu] = useState(false);
   const tenantType = Number(localStorage.getItem('tenantType')) || 1;
   const [modules, setModules] = useState([]);
 
@@ -84,6 +85,52 @@ const TenantLayout = () => {
                   <div style={{ position: 'fixed', inset: 0, zIndex: 9 }} onClick={() => setShowProfileMenu(false)}></div>
                   <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '8px', background: 'white', borderRadius: '8px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', border: '1px solid var(--border-color)', width: '200px', zIndex: 10, overflow: 'hidden' }}>
                     <div style={{ padding: '8px' }}>
+                      <button 
+                        onClick={() => { setShowProfileMenu(false); navigate('/tenant/profile'); }}
+                        style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', background: 'transparent', border: 'none', color: 'var(--text-title)', fontSize: '14px', fontWeight: '500', cursor: 'pointer', borderRadius: '6px', textAlign: 'left' }}
+                        onMouseOver={(e) => e.currentTarget.style.background = '#F1F5F9'}
+                        onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <UserCheck size={16} /> My Profile
+                      </button>
+
+                      <div style={{ position: 'relative' }}>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); setShowSubMenu(!showSubMenu); }}
+                          style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: showSubMenu ? '#F1F5F9' : 'transparent', border: 'none', color: 'var(--text-title)', fontSize: '14px', fontWeight: '500', cursor: 'pointer', borderRadius: '6px', textAlign: 'left' }}
+                          onMouseOver={(e) => e.currentTarget.style.background = '#F1F5F9'}
+                          onMouseOut={(e) => e.currentTarget.style.background = showSubMenu ? '#F1F5F9' : 'transparent'}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <Receipt size={16} /> My Subscription
+                          </div>
+                          <ChevronDown size={14} style={{ transform: showSubMenu ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s' }} />
+                        </button>
+
+                        {showSubMenu && (
+                          <div style={{ padding: '4px 0 4px 32px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <button 
+                              onClick={() => { setShowProfileMenu(false); navigate('/tenant/billing'); }}
+                              style={{ width: '100%', display: 'block', padding: '8px', background: 'transparent', border: 'none', color: 'var(--text-secondary)', fontSize: '13px', fontWeight: '500', cursor: 'pointer', borderRadius: '4px', textAlign: 'left' }}
+                              onMouseOver={(e) => { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.color = 'var(--primary-blue)'; }}
+                              onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                            >
+                              MY Plan &rarr; Upgrade Plan
+                            </button>
+                            <button 
+                              onClick={() => { setShowProfileMenu(false); navigate('/tenant/billing'); }}
+                              style={{ width: '100%', display: 'block', padding: '8px', background: 'transparent', border: 'none', color: 'var(--text-secondary)', fontSize: '13px', fontWeight: '500', cursor: 'pointer', borderRadius: '4px', textAlign: 'left' }}
+                              onMouseOver={(e) => { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.color = 'var(--primary-blue)'; }}
+                              onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                            >
+                              Plan Subscriptions (Monthly Paid list)
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{ height: '1px', background: 'var(--border-color)', margin: '4px 0' }}></div>
+
                       <button 
                         onClick={handleLogout}
                         style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', background: 'transparent', border: 'none', color: '#EF4444', fontSize: '14px', fontWeight: '500', cursor: 'pointer', borderRadius: '6px', textAlign: 'left' }}
