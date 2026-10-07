@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Edit2, IndianRupee } from 'lucide-react';
 
 const DEFAULT_TYPES = [
@@ -107,8 +108,8 @@ const PricingManage = () => {
         </div>
       )}
 
-      {showModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+      {showModal && createPortal(
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.2)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div style={{ background: 'white', padding: '24px', borderRadius: '12px', width: '100%', maxWidth: '400px' }}>
             <h3 style={{ marginTop: 0, marginBottom: '20px' }}>Set Pricing Amount</h3>
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -145,7 +146,8 @@ const PricingManage = () => {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

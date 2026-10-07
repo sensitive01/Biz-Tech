@@ -29,7 +29,7 @@ const Login = () => {
 
       if (response.ok) {
         localStorage.setItem('adminToken', data.token);
-        navigate('/admin/customers');
+        navigate('/admin/dashboard');
       } else {
         setError(data.message || 'Login failed');
       }

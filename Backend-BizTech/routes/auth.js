@@ -4,6 +4,21 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
+// @route   POST /api/auth/check-email
+// @desc    Check if email already exists before step 2
+router.post('/check-email', async (req, res) => {
+  try {
+    const { email } = req.body;
+    let user = await User.findOne({ email });
+    if (user) {
+      return res.status(400).json({ message: 'This email address is already registered. Please sign in instead.' });
+    }
+    res.status(200).json({ message: 'Email is available' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server Error' });
+  }
+});
+
 // @route   POST /api/auth/register
 // @desc    Register a new user
 router.post('/register', async (req, res) => {

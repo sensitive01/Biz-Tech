@@ -6,6 +6,10 @@ import Register from './pages/Register';
 import Landing from './pages/Landing';
 import SelectType from './pages/SelectType';
 import TenantDashboard from './pages/TenantDashboard';
+import Branches from './pages/Branches';
+import Employees from './pages/Employees';
+import Attendance from './pages/Attendance';
+import LeaveRequests from './pages/LeaveRequests';
 
 function App() {
   return (
@@ -19,11 +23,10 @@ function App() {
         {/* Tenant Routes */}
         <Route path="/tenant" element={<TenantLayout />}>
           <Route path="dashboard" element={<TenantDashboard />} />
-          {/* Mock routes to prevent 404s when clicking sidebar links */}
-          <Route path="branches" element={<div style={{ padding: '32px' }}><h1 style={{ fontSize: '24px' }}>Branches Management</h1><p>Feature in development.</p></div>} />
-          <Route path="employees" element={<div style={{ padding: '32px' }}><h1 style={{ fontSize: '24px' }}>Employee Directory</h1><p>Feature in development.</p></div>} />
-          <Route path="attendance" element={<div style={{ padding: '32px' }}><h1 style={{ fontSize: '24px' }}>Attendance Log</h1><p>Feature in development.</p></div>} />
-          <Route path="leaves" element={<div style={{ padding: '32px' }}><h1 style={{ fontSize: '24px' }}>Leave Requests</h1><p>Feature in development.</p></div>} />
+          <Route path="branches" element={<Branches />} />
+          <Route path="employees" element={<Employees />} />
+          <Route path="attendance" element={<Attendance />} />
+          <Route path="leaves" element={<LeaveRequests />} />
           
           <Route path="" element={<Navigate to="/tenant/dashboard" replace />} />
           <Route path="*" element={<div style={{ padding: '32px' }}>Feature in development...</div>} />

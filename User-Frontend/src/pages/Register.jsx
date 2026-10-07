@@ -1,16 +1,39 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { User, Mail, Phone, Lock, Eye, EyeOff } from 'lucide-react';
+import { User, Mail, Phone, Lock, Eye, EyeOff, Loader2 } from 'lucide-react';
 
 const Register = () => {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
 
   const [formData, setFormData] = useState({ fullName: '', email: '', phone: '', password: '' });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleRegister = (e) => {
+  const handleRegister = async (e) => {
     e.preventDefault();
-    navigate('/select-type', { state: { ...formData } });
+    setError('');
+    setLoading(true);
+
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/check-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: formData.email })
+      });
+      
+      const data = await res.json();
+      
+      if (!res.ok) {
+        setError(data.message || 'Error checking email');
+      } else {
+        navigate('/select-type', { state: { ...formData } });
+      }
+    } catch (err) {
+      setError('Server error, please try again later');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -36,6 +59,8 @@ const Register = () => {
         <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '32px' }}>
           Step into seamless operations. Free 14-day trial, no credit card required.
         </p>
+
+        {error && <div style={{ color: '#EF4444', fontSize: '14px', marginBottom: '16px', textAlign: 'center', background: '#FEF2F2', padding: '12px', borderRadius: '8px', border: '1px solid #FECACA' }}>{error}</div>}
 
         <form onSubmit={handleRegister} style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
           
@@ -82,8 +107,8 @@ const Register = () => {
             </span>
           </div>
 
-          <button type="submit" className="btn-primary btn-full" style={{ padding: '14px', fontSize: '15px' }}>
-            Create Account & Continue &rarr;
+          <button type="submit" disabled={loading} className="btn-primary btn-full" style={{ padding: '14px', fontSize: '15px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', opacity: loading ? 0.7 : 1 }}>
+            {loading ? <><Loader2 size={18} className="spin" /> Verifying...</> : <>Create Account & Continue &rarr;</>}
           </button>
         </form>
 

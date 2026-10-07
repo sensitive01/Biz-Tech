@@ -13,17 +13,33 @@ app.use(express.json());
 app.use(cors());
 
 // Database Connection
-mongoose.connect(process.env.MONGODB_URI || process.env.MONGO_URI)
-.then(() => console.log('MongoDB Connected successfully'))
-.catch((err) => console.log('MongoDB connection error: ', err));
+const mongoURI = process.env.MONGODB_URI || process.env.MONGO_URI;
+
+if (!mongoURI) {
+  console.error('Fatal Error: MONGODB_URI is not defined in environment variables.');
+  process.exit(1);
+}
+
+mongoose.connect(mongoURI)
+  .then(() => console.log('MongoDB Connected successfully'))
+  .catch((err) => console.log('MongoDB connection error: ', err));
 
 // Routes
 const authRoutes = require('./routes/auth');
 const adminAuthRoutes = require('./routes/adminAuth');
 const pricingRoutes = require('./routes/pricing');
+const branchesRoutes = require('./routes/branches');
+const employeesRoutes = require('./routes/employees');
+const attendanceRoutes = require('./routes/attendance');
+const leavesRoutes = require('./routes/leaves');
+
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminAuthRoutes);
 app.use('/api/pricing', pricingRoutes);
+app.use('/api/branches', branchesRoutes);
+app.use('/api/employees', employeesRoutes);
+app.use('/api/attendance', attendanceRoutes);
+app.use('/api/leaves', leavesRoutes);
 
 // Base route
 app.get('/', (req, res) => {
