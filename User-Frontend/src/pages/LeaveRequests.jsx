@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Calendar as CalendarIcon, Plus, X, Trash2, Check, XCircle } from 'lucide-react';
+import { Calendar as CalendarIcon, Plus, X, Trash2, Check, XCircle, Search, Download, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { exportToCSV } from '../utils/exportToCSV';
 
 const LeaveRequests = () => {
   const [leaves, setLeaves] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [filterDays, setFilterDays] = useState('all');
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({ employeeId: '', type: 'Annual Leave', startDate: '', endDate: '', reason: '' });
 
@@ -54,6 +58,50 @@ const LeaveRequests = () => {
     } catch (err) { console.error(err); }
   };
 
+  const requestSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') direction = 'desc';
+    setSortConfig({ key, direction });
+  };
+
+  const renderSortIcon = (key) => {
+    if (sortConfig.key !== key) return <ArrowUpDown size={14} style={{ opacity: 0.3, marginLeft: '4px' }} />;
+    return sortConfig.direction === 'asc' ? <ArrowUp size={14} style={{ color: 'var(--primary-blue)', marginLeft: '4px' }} /> : <ArrowDown size={14} style={{ color: 'var(--primary-blue)', marginLeft: '4px' }} />;
+  };
+
+  const filteredLeaves = leaves
+    .filter(i => {
+      if (filterDays === 'all') return true;
+      const itemDate = new Date(i.startDate || i.createdAt || new Date());
+      const diffTime = Math.abs(new Date() - itemDate);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      if (filterDays === '7') return diffDays <= 7;
+      if (filterDays === '30') return diffDays <= 30;
+      return true;
+    })
+    .filter(i => (i.employeeId?.name || '').toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => {
+      if (!sortConfig.key) return 0;
+      
+      let aVal = sortConfig.key === 'employee' ? a.employeeId?.name : a[sortConfig.key];
+      let bVal = sortConfig.key === 'employee' ? b.employeeId?.name : b[sortConfig.key];
+      
+      if (aVal === null || aVal === undefined) aVal = '';
+      if (bVal === null || bVal === undefined) bVal = '';
+
+      if (sortConfig.key === 'startDate' || sortConfig.key === 'endDate') {
+        aVal = new Date(aVal).getTime();
+        bVal = new Date(bVal).getTime();
+      } else {
+        if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+        if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+      }
+      
+      if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+
   return (
     <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto', animation: 'fadeIn 0.3s ease-out' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
@@ -68,24 +116,39 @@ const LeaveRequests = () => {
         </button>
       </div>
 
+      <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+        <div style={{ flex: '0 1 300px', minWidth: '250px', position: 'relative' }}>
+          <Search size={18} color="#94A3B8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
+          <input type="text" placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: '100%', padding: '12px 16px 12px 42px', borderRadius: '10px', border: '1px solid #E2E8F0', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }} />
+        </div>
+        <div style={{ display: 'flex', gap: '16px' }}>
+          <select value={filterDays} onChange={(e) => setFilterDays(e.target.value)} style={{ padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', outline: 'none', cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+            <option value="all">Filter: All Time</option>
+            <option value="7">Last 7 Days</option>
+            <option value="30">Last 30 Days</option>
+          </select>
+          <button onClick={() => exportToCSV(filteredLeaves, 'Leaves')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', cursor: 'pointer' }}><Download size={16} /> Export</button>
+        </div>
+      </div>
+
       <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
           <thead>
             <tr style={{ background: '#F8FAFC' }}>
               <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', width: '60px' }}>S.No</th>
-              <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>Employee</th>
-              <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>Type & Dates</th>
-              <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>Reason</th>
-              <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>Status</th>
+              <th onClick={() => requestSort('employee')} style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', alignItems: 'center' }}>Employee {renderSortIcon('employee')}</div></th>
+              <th onClick={() => requestSort('type')} style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', alignItems: 'center' }}>Type & Dates {renderSortIcon('type')}</div></th>
+              <th onClick={() => requestSort('reason')} style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', alignItems: 'center' }}>Reason {renderSortIcon('reason')}</div></th>
+              <th onClick={() => requestSort('status')} style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', alignItems: 'center' }}>Status {renderSortIcon('status')}</div></th>
               <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', textAlign: 'right' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr><td colSpan="6" style={{ padding: '32px', textAlign: 'center', color: '#64748B' }}>Loading...</td></tr>
-            ) : leaves.length === 0 ? (
-              <tr><td colSpan="6" style={{ padding: '64px 32px', textAlign: 'center', color: '#64748B' }}>No leave requests found.</td></tr>
-            ) : leaves.map((leave, index) => (
+            ) : filteredLeaves.length === 0 ? (
+              <tr><td colSpan="6" style={{ padding: '64px 32px', textAlign: 'center', color: '#64748B' }}>No leave requests match your search.</td></tr>
+            ) : filteredLeaves.map((leave, index) => (
               <tr key={leave._id} style={{ borderBottom: '1px solid #E2E8F0' }}>
                 <td style={{ padding: '16px 24px', fontSize: '15px', color: '#475569', fontWeight: '500' }}>{index + 1}</td>
                 <td style={{ padding: '16px 24px', color: '#0F172A', fontWeight: '600' }}>{leave.employeeId?.name || 'Unknown'}</td>

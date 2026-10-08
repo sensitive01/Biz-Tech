@@ -125,10 +125,6 @@ const Login = () => {
           Don't have an account yet? <Link to="/register" style={{ fontWeight: '600' }}>Register here</Link>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '24px', color: 'var(--text-muted)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>
-          <ShieldCheck size={14} />
-          <span>Enterprise 256-bit SSL Encrypted • Fast & Secure</span>
-        </div>
       </div>
 
       <div style={{ position: 'absolute', bottom: '32px', display: 'flex', gap: '24px', fontSize: '12px', color: 'var(--text-muted)' }}>
