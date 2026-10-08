@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Expense = require('../models/Expense');
 const jwt = require('jsonwebtoken');
+const { upload } = require('../config/cloudinary');
 
 const auth = (req, res, next) => {
   const token = req.header('Authorization')?.split(' ')[1];
@@ -24,12 +25,27 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-router.post('/', auth, async (req, res) => {
+router.post('/', auth, upload.single('proof'), async (req, res) => {
   try {
-    const newItem = new Expense({ ...req.body, tenantId: req.user.id });
+    const proofUrl = req.file ? req.file.path : null;
+    const { title, category, customCategory, description, date, amount } = req.body;
+    
+    const finalCategory = category === 'Other' ? customCategory : category;
+
+    const newItem = new Expense({ 
+      title,
+      category: finalCategory,
+      description,
+      date,
+      amount,
+      proofUrl,
+      tenantId: req.user.id 
+    });
+    
     const saved = await newItem.save();
     res.json(saved);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: 'Server Error' });
   }
 });

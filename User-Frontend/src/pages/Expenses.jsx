@@ -1,3 +1,4 @@
+import { exportToCSV } from '../utils/exportToCSV';
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Receipt, Plus, X, Eye, Trash2, AlertTriangle, Search, Filter, ArrowUpDown, Download } from 'lucide-react';
@@ -9,8 +10,9 @@ const Expenses = () => {
   const [viewItem, setViewItem] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
   const [search, setSearch] = useState('');
-  
-  const [formData, setFormData] = useState({ category: '', description: '', date: '', amount: '' });
+  const [sortOrder, setSortOrder] = useState('newest');
+  const [filterDays, setFilterDays] = useState('all');
+  const [formData, setFormData] = useState({ title: '', category: '', customCategory: '', description: '', date: '', amount: '', proof: null });
 
   const fetchItems = async () => {
     try {
@@ -37,14 +39,27 @@ const Expenses = () => {
     e.preventDefault();
     try {
       const token = localStorage.getItem('token');
+      const formDataToSend = new FormData();
+      formDataToSend.append('title', formData.title);
+      formDataToSend.append('category', formData.category);
+      if (formData.category === 'Other') {
+        formDataToSend.append('customCategory', formData.customCategory);
+      }
+      formDataToSend.append('description', formData.description);
+      formDataToSend.append('date', formData.date);
+      formDataToSend.append('amount', formData.amount);
+      if (formData.proof) {
+        formDataToSend.append('proof', formData.proof);
+      }
+
       const res = await fetch(`${import.meta.env.VITE_API_URL}/api/expenses`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify(formData)
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formDataToSend
       });
       if (res.ok) {
         setShowModal(false);
-        setFormData({ category: '', description: '', date: '', amount: '' });
+        setFormData({ title: '', category: '', customCategory: '', description: '', date: '', amount: '', proof: null });
         fetchItems();
       } else {
         alert('Failed to add item');
@@ -73,7 +88,24 @@ const Expenses = () => {
     }
   };
 
-  const filteredItems = items.filter(i => Object.values(i).some(val => String(val).toLowerCase().includes(search.toLowerCase())));
+  const filteredItems = items
+    .filter(i => {
+      if (filterDays === 'all') return true;
+      const itemDate = new Date(i.createdAt || i.date || new Date());
+      const diffTime = Math.abs(new Date() - itemDate);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      if (filterDays === '7') return diffDays <= 7;
+      if (filterDays === '30') return diffDays <= 30;
+      return true;
+    })
+    .filter(i => Object.values(i).some(val => String(val).toLowerCase().includes(search.toLowerCase())))
+    .sort((a, b) => {
+      const dateA = new Date(a.createdAt || a.date || 0);
+      const dateB = new Date(b.createdAt || b.date || 0);
+      if (sortOrder === 'newest') return dateB - dateA;
+      if (sortOrder === 'oldest') return dateA - dateB;
+      return 0;
+    });
 
   return (
     <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto', animation: 'fadeIn 0.3s ease-out' }}>
@@ -85,18 +117,26 @@ const Expenses = () => {
           <p style={{ color: '#64748B', fontSize: '15px', margin: 0 }}>Manage your expenses efficiently.</p>
         </div>
         <button onClick={() => setShowModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', background: 'var(--primary-blue)', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>
-          <Plus size={18} /> Add New
+          <Plus size={18} /> Add New Expenses
         </button>
       </div>
 
-      <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', flexWrap: 'wrap' }}>
-        <div style={{ flex: 1, minWidth: '250px', position: 'relative' }}>
+      <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+        <div style={{ flex: '0 1 300px', minWidth: '250px', position: 'relative' }}>
           <Search size={18} color="#94A3B8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
           <input type="text" placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: '100%', padding: '12px 16px 12px 42px', borderRadius: '10px', border: '1px solid #E2E8F0', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }} />
         </div>
-        <button style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', cursor: 'pointer' }}><Filter size={16} /> Filter</button>
-        <button style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', cursor: 'pointer' }}><ArrowUpDown size={16} /> Sort</button>
-        <button style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', cursor: 'pointer' }}><Download size={16} /> Export</button>
+        <div style={{ display: 'flex', gap: '16px' }}>
+        <select value={filterDays} onChange={(e) => setFilterDays(e.target.value)} style={{ padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', outline: 'none', cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+          <option value="all">Filter: All Time</option>
+          <option value="7">Last 7 Days</option>
+          <option value="30">Last 30 Days</option>
+        </select>
+        <button onClick={() => setSortOrder(prev => prev === 'newest' ? 'oldest' : 'newest')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+          <ArrowUpDown size={16} /> {sortOrder === 'newest' ? 'Sort: Newest' : 'Sort: Oldest'}
+        </button>
+        <button onClick={() => exportToCSV(filteredItems, 'Expenses')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', cursor: 'pointer' }}><Download size={16} /> Export</button>
+      </div>
       </div>
 
       <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
@@ -150,26 +190,46 @@ const Expenses = () => {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '24px' }}>
           <div style={{ background: 'white', padding: '32px', borderRadius: '20px', width: '100%', maxWidth: '500px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-              <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#0F172A', margin: 0 }}>Add New</h2>
+              <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#0F172A', margin: 0 }}>Add New Expenses</h2>
               <button onClick={() => setShowModal(false)} style={{ background: '#F1F5F9', border: 'none', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer' }}><X size={18} /></button>
             </div>
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
               <div>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Title</label>
+                <input placeholder="Enter the title" type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} required style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }} />
+              </div>
+              <div>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Category</label>
-                <input placeholder="Enter category" type="text" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} required style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }} />
+                <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} required style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }}>
+                  <option value="">Select a category</option>
+                  <option value="Office Supplies">Office Supplies</option>
+                  <option value="Travel">Travel</option>
+                  <option value="Meals">Meals</option>
+                  <option value="Software">Software</option>
+                  <option value="Other">Other</option>
+                </select>
+                {formData.category === 'Other' && (
+                  <input placeholder="Specify other category" type="text" value={formData.customCategory} onChange={e => setFormData({...formData, customCategory: e.target.value})} required style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box', marginTop: '12px' }} />
+                )}
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Description</label>
-                <input placeholder="Enter description" type="text" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} required style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }} />
+                <textarea placeholder="Enter the description" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} required style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }} rows="3" />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Date</label>
+                  <input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} required style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Amount</label>
+                  <input placeholder="Enter the amount" type="number" value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})} required style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }} />
+                </div>
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Date</label>
-                <input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} required style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }} />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Amount</label>
-                <input placeholder="Enter amount" type="number" value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})} required style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }} />
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Upload Proof</label>
+                <input type="file" onChange={e => setFormData({...formData, proof: e.target.files[0]})} style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box', background: '#F8FAFC' }} />
               </div>
               <div style={{ display: 'flex', gap: '16px', marginTop: '12px' }}>
                 <button type="button" onClick={() => setShowModal(false)} style={{ flex: 1, padding: '14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '10px', color: '#475569', fontWeight: '600', cursor: 'pointer' }}>Cancel</button>
@@ -188,7 +248,10 @@ const Expenses = () => {
               <button onClick={() => setViewItem(null)} style={{ background: '#F1F5F9', border: 'none', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer' }}><X size={18} /></button>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-
+              <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
+                <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Title</p>
+                <p style={{ margin: 0, fontSize: '16px', color: '#0F172A' }}>{viewItem.title || 'N/A'}</p>
+              </div>
               <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
                 <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Category</p>
                 <p style={{ margin: 0, fontSize: '16px', color: '#0F172A' }}>{viewItem.category}</p>
@@ -197,14 +260,22 @@ const Expenses = () => {
                 <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Description</p>
                 <p style={{ margin: 0, fontSize: '16px', color: '#0F172A' }}>{viewItem.description}</p>
               </div>
-              <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
-                <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Date</p>
-                <p style={{ margin: 0, fontSize: '16px', color: '#0F172A' }}>{viewItem.date}</p>
+              <div style={{ display: 'flex', gap: '16px' }}>
+                <div style={{ flex: 1, padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
+                  <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Date</p>
+                  <p style={{ margin: 0, fontSize: '16px', color: '#0F172A' }}>{viewItem.date ? new Date(viewItem.date).toLocaleDateString() : 'N/A'}</p>
+                </div>
+                <div style={{ flex: 1, padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
+                  <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Amount</p>
+                  <p style={{ margin: 0, fontSize: '16px', color: '#0F172A' }}>{viewItem.amount}</p>
+                </div>
               </div>
-              <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
-                <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Amount</p>
-                <p style={{ margin: 0, fontSize: '16px', color: '#0F172A' }}>{viewItem.amount}</p>
-              </div>
+              {viewItem.proofUrl && (
+                <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
+                  <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Proof</p>
+                  <a href={viewItem.proofUrl} target="_blank" rel="noreferrer" style={{ margin: 0, fontSize: '14px', color: '#2563EB', textDecoration: 'none', fontWeight: '500' }}>View Uploaded Proof ↗</a>
+                </div>
+              )}
             </div>
           </div>
         </div>, document.body

@@ -258,7 +258,7 @@ const TenantLayout = () => {
           {modules.includes('sales') && (
             <NavLink to="/tenant/sales" style={({isActive}) => ({ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: 'var(--radius-lg)', color: isActive ? 'var(--primary-blue)' : 'var(--text-secondary)', background: isActive ? '#EFF4FF' : 'transparent', fontWeight: isActive ? '600' : '500', fontSize: '14px', textDecoration: 'none' })}>
               <TrendingUp size={18} />
-              Sales
+              Billing
             </NavLink>
           )}
 

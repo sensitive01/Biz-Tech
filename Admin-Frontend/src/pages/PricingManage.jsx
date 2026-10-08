@@ -116,7 +116,7 @@ const PricingManage = () => {
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500' }}>Customer Type</label>
-                <input placeholder="Enter customer type" 
+                <input placeholder="Enter the customer type" 
                   type="text" 
                   value={formData.customerType} 
                   disabled
@@ -125,7 +125,7 @@ const PricingManage = () => {
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500' }}>Monthly Amount (₹)</label>
-                <input placeholder="Enter amount" 
+                <input placeholder="Enter the monthly amount" 
                   type="number" 
                   value={formData.amount} 
                   onChange={e => setFormData({...formData, amount: e.target.value})} 
@@ -135,7 +135,7 @@ const PricingManage = () => {
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500' }}>Description</label>
-                <textarea placeholder="Enter description" 
+                <textarea placeholder="Enter the description" 
                   value={formData.description} 
                   onChange={e => setFormData({...formData, description: e.target.value})} 
                   style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #CBD5E1', minHeight: '80px' }}

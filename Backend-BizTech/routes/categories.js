@@ -2,18 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Category = require('../models/Category');
 const jwt = require('jsonwebtoken');
-const multer = require('multer');
-const path = require('path');
-
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/');
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + path.extname(file.originalname));
-  }
-});
-const upload = multer({ storage: storage });
+const { upload } = require('../config/cloudinary');
 
 const auth = (req, res, next) => {
   const token = req.header('Authorization')?.split(' ')[1];
@@ -40,7 +29,7 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
   try {
     const data = { ...req.body };
     if (req.file) {
-      data.image = '/uploads/' + req.file.filename;
+      data.image = req.file.path;
     }
     const newItem = new Category({ ...data, tenantId: req.user.id });
     const saved = await newItem.save();

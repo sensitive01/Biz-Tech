@@ -1,10 +1,13 @@
+import { exportToCSV } from '../utils/exportToCSV';
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Search, Filter, Package, Tag, Archive, Trash2, X, AlertTriangle } from 'lucide-react';
+import { Plus, Search, Filter, Package, Tag, Archive, Trash2, X, AlertTriangle, ArrowUpDown, Download } from 'lucide-react';
 
 const Products = () => {
   const [activeTab, setActiveTab] = useState('categories');
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortOrder, setSortOrder] = useState('newest');
+  const [filterDays, setFilterDays] = useState('all');
   
   const [categories, setCategories] = useState([]);
   const [subcategories, setSubcategories] = useState([]);
@@ -119,9 +122,24 @@ const Products = () => {
     else if (activeTab === 'subcategories') data = subcategories;
     else data = products;
 
-    return data.filter(item => 
-      (item.name || '').toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    return data
+      .filter(item => {
+        if (filterDays === 'all') return true;
+        const itemDate = new Date(item.createdAt || item.date || new Date());
+        const diffTime = Math.abs(new Date() - itemDate);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        if (filterDays === '7') return diffDays <= 7;
+        if (filterDays === '30') return diffDays <= 30;
+        return true;
+      })
+      .filter(item => (item.name || '').toLowerCase().includes(searchQuery.toLowerCase()))
+      .sort((a, b) => {
+        const dateA = new Date(a.createdAt || a.date || 0);
+        const dateB = new Date(b.createdAt || b.date || 0);
+        if (sortOrder === 'newest') return dateB - dateA;
+        if (sortOrder === 'oldest') return dateA - dateB;
+        return 0;
+      });
   };
 
   const filteredData = getFilteredData();
@@ -167,16 +185,29 @@ const Products = () => {
       </div>
 
       <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ padding: '20px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-          <div style={{ display: 'flex', gap: '8px', background: '#F8FAFC', padding: '4px', borderRadius: '10px' }}>
+        <div style={{ padding: '20px', borderBottom: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div style={{ display: 'flex', gap: '8px', background: '#F8FAFC', padding: '4px', borderRadius: '10px', alignSelf: 'flex-start' }}>
             <button onClick={() => setActiveTab('categories')} style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '14px', fontWeight: '600', background: activeTab === 'categories' ? 'white' : 'transparent', color: activeTab === 'categories' ? '#0F172A' : '#64748B', border: 'none', boxShadow: activeTab === 'categories' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: 'all 0.2s' }}>Categories</button>
             <button onClick={() => setActiveTab('subcategories')} style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '14px', fontWeight: '600', background: activeTab === 'subcategories' ? 'white' : 'transparent', color: activeTab === 'subcategories' ? '#0F172A' : '#64748B', border: 'none', boxShadow: activeTab === 'subcategories' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: 'all 0.2s' }}>Sub Categories</button>
             <button onClick={() => setActiveTab('products')} style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '14px', fontWeight: '600', background: activeTab === 'products' ? 'white' : 'transparent', color: activeTab === 'products' ? '#0F172A' : '#64748B', border: 'none', boxShadow: activeTab === 'products' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: 'all 0.2s' }}>Products & Services</button>
           </div>
           
-          <div style={{ position: 'relative', width: '280px' }}>
-            <Search size={18} color="#94A3B8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-            <input type="text" placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ width: '100%', padding: '10px 16px 10px 38px', borderRadius: '8px', border: '1px solid #E2E8F0', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }} />
+          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+            <div style={{ flex: '0 1 300px', minWidth: '250px', position: 'relative' }}>
+              <Search size={18} color="#94A3B8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
+              <input type="text" placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ width: '100%', padding: '12px 16px 12px 42px', borderRadius: '10px', border: '1px solid #E2E8F0', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }} />
+            </div>
+            <div style={{ display: 'flex', gap: '16px' }}>
+              <select value={filterDays} onChange={(e) => setFilterDays(e.target.value)} style={{ padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', outline: 'none', cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                <option value="all">Filter: All Time</option>
+                <option value="7">Last 7 Days</option>
+                <option value="30">Last 30 Days</option>
+              </select>
+              <button onClick={() => setSortOrder(prev => prev === 'newest' ? 'oldest' : 'newest')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                <ArrowUpDown size={16} /> {sortOrder === 'newest' ? 'Sort: Newest' : 'Sort: Oldest'}
+              </button>
+              <button onClick={() => exportToCSV(filteredData, 'Products')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', cursor: 'pointer' }}><Download size={16} /> Export</button>
+            </div>
           </div>
         </div>
 
@@ -286,11 +317,11 @@ const Products = () => {
                 <>
                   <div>
                     <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Category Name</label>
-                    <input placeholder="Enter name" type="text" value={catForm.name} onChange={e => setCatForm({...catForm, name: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
+                    <input placeholder="Enter category name" type="text" value={catForm.name} onChange={e => setCatForm({...catForm, name: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Description</label>
-                    <textarea placeholder="Enter description" value={catForm.description} onChange={e => setCatForm({...catForm, description: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} rows="3"></textarea>
+                    <textarea placeholder="Enter category description" value={catForm.description} onChange={e => setCatForm({...catForm, description: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} rows="3"></textarea>
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Category Image</label>
@@ -317,7 +348,7 @@ const Products = () => {
                 <>
                   <div>
                     <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Sub Category Name</label>
-                    <input placeholder="Enter name" type="text" value={subCatForm.name} onChange={e => setSubCatForm({...subCatForm, name: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
+                    <input placeholder="Enter the subcategory name" type="text" value={subCatForm.name} onChange={e => setSubCatForm({...subCatForm, name: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Parent Category</label>
@@ -328,7 +359,7 @@ const Products = () => {
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Description</label>
-                    <textarea placeholder="Enter description" value={subCatForm.description} onChange={e => setSubCatForm({...subCatForm, description: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} rows="3"></textarea>
+                    <textarea placeholder="Enter the subcategory description" value={subCatForm.description} onChange={e => setSubCatForm({...subCatForm, description: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} rows="3"></textarea>
                   </div>
                 </>
               )}
@@ -337,11 +368,11 @@ const Products = () => {
                 <>
                   <div>
                     <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Name</label>
-                    <input placeholder="Enter name" type="text" value={prodForm.name} onChange={e => setProdForm({...prodForm, name: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
+                    <input placeholder="Enter the product name" type="text" value={prodForm.name} onChange={e => setProdForm({...prodForm, name: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Description</label>
-                    <textarea placeholder="Enter description" value={prodForm.description} onChange={e => setProdForm({...prodForm, description: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} rows="2"></textarea>
+                    <textarea placeholder="Enter the product description" value={prodForm.description} onChange={e => setProdForm({...prodForm, description: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} rows="2"></textarea>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                     <div>
@@ -362,7 +393,7 @@ const Products = () => {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                     <div>
                       <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>SKU</label>
-                      <input placeholder="Enter SKU" type="text" value={prodForm.sku} onChange={e => setProdForm({...prodForm, sku: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
+                      <input placeholder="Enter the SKU(Stock Keeping Unit)" type="text" value={prodForm.sku} onChange={e => setProdForm({...prodForm, sku: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
                     </div>
                     <div>
                       <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Type</label>
@@ -375,11 +406,11 @@ const Products = () => {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                     <div>
                       <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Price</label>
-                      <input placeholder="Enter price" type="number" value={prodForm.price} onChange={e => setProdForm({...prodForm, price: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
+                      <input placeholder="Enter the price amount" type="number" value={prodForm.price} onChange={e => setProdForm({...prodForm, price: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
                     </div>
                     <div>
                       <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Stock Quantity</label>
-                      <input placeholder="Enter stock" type="number" value={prodForm.stock} onChange={e => setProdForm({...prodForm, stock: e.target.value})} disabled={prodForm.itemType === 'Service'} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', background: prodForm.itemType === 'Service' ? '#F1F5F9' : 'white' }} />
+                      <input placeholder="Enter the stock quantity" type="number" value={prodForm.stock} onChange={e => setProdForm({...prodForm, stock: e.target.value})} disabled={prodForm.itemType === 'Service'} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', background: prodForm.itemType === 'Service' ? '#F1F5F9' : 'white' }} />
                     </div>
                   </div>
                   <div>

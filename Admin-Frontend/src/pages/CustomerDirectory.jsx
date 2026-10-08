@@ -1,3 +1,4 @@
+import { exportToCSV } from '../utils/exportToCSV';
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
@@ -159,9 +160,7 @@ const CustomerDirectory = () => {
             )}
           </div>
           
-          <button className="btn-secondary" style={{ padding: '8px 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', background: 'white' }}>
-            <Download size={16} /> Export
-          </button>
+          <button onClick={() => exportToCSV(filteredItems, 'CustomerDirectory')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', cursor: 'pointer' }}><Download size={16} /> Export</button>
         </div>
       </div>
 
@@ -173,8 +172,8 @@ const CustomerDirectory = () => {
       </div>
 
       {/* Data Table */}
-      <div className="card" style={{ overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+      <div className="card" style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '1000px' }}>
           <thead>
             <tr style={{ background: '#F8FAFC', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               <th style={{ padding: '16px 24px', fontWeight: '600', width: '60px' }}>S.NO</th>

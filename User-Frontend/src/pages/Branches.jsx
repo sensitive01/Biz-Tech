@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { MapPin, Plus, Store, Users, Phone, X, Eye, Trash2, AlertTriangle } from 'lucide-react';
+import { MapPin, Plus, Store, Users, Phone, X, Eye, Trash2, AlertTriangle, Search, ArrowUpDown, Download, Filter } from 'lucide-react';
+import { exportToCSV } from '../utils/exportToCSV';
 
 const Branches = () => {
   const [branches, setBranches] = useState([]);
@@ -8,6 +9,9 @@ const Branches = () => {
   const [showModal, setShowModal] = useState(false);
   const [viewBranch, setViewBranch] = useState(null);
   const [deleteBranchId, setDeleteBranchId] = useState(null);
+  const [search, setSearch] = useState('');
+  const [sortOrder, setSortOrder] = useState('newest');
+  const [filterDays, setFilterDays] = useState('all');
   
   const [formData, setFormData] = useState({
     name: '',
@@ -33,6 +37,25 @@ const Branches = () => {
   useEffect(() => {
     fetchBranches();
   }, []);
+
+  const filteredBranches = branches
+    .filter(i => {
+      if (filterDays === 'all') return true;
+      const itemDate = new Date(i.createdAt || i.date || new Date());
+      const diffTime = Math.abs(new Date() - itemDate);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      if (filterDays === '7') return diffDays <= 7;
+      if (filterDays === '30') return diffDays <= 30;
+      return true;
+    })
+    .filter(i => Object.values(i).some(val => String(val).toLowerCase().includes(search.toLowerCase())))
+    .sort((a, b) => {
+      const dateA = new Date(a.createdAt || a.date || 0);
+      const dateB = new Date(b.createdAt || b.date || 0);
+      if (sortOrder === 'newest') return dateB - dateA;
+      if (sortOrder === 'oldest') return dateA - dateB;
+      return 0;
+    });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -93,6 +116,26 @@ const Branches = () => {
         </button>
       </div>
 
+
+
+      <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+        <div style={{ flex: '0 1 300px', minWidth: '250px', position: 'relative' }}>
+          <Search size={18} color="#94A3B8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
+          <input type="text" placeholder="Search branches..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: '100%', padding: '12px 16px 12px 42px', borderRadius: '10px', border: '1px solid #E2E8F0', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }} />
+        </div>
+        <div style={{ display: 'flex', gap: '16px' }}>
+          <select value={filterDays} onChange={(e) => setFilterDays(e.target.value)} style={{ padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', outline: 'none', cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+            <option value="all">Filter: All Time</option>
+            <option value="7">Last 7 Days</option>
+            <option value="30">Last 30 Days</option>
+          </select>
+          <button onClick={() => setSortOrder(prev => prev === 'newest' ? 'oldest' : 'newest')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+            <ArrowUpDown size={16} /> {sortOrder === 'newest' ? 'Sort: Newest' : 'Sort: Oldest'}
+          </button>
+          <button onClick={() => exportToCSV(filteredBranches, 'Branches')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', cursor: 'pointer' }}><Download size={16} /> Export</button>
+        </div>
+      </div>
+
       <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', minWidth: '800px', borderCollapse: 'collapse', textAlign: 'left' }}>
@@ -111,7 +154,7 @@ const Branches = () => {
                 <tr>
                   <td colSpan="6" style={{ padding: '32px', textAlign: 'center', color: '#64748B' }}>Loading branches...</td>
                 </tr>
-              ) : branches.length === 0 ? (
+              ) : filteredBranches.length === 0 ? (
                 <tr>
                   <td colSpan="6" style={{ padding: '64px 32px', textAlign: 'center' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -126,7 +169,7 @@ const Branches = () => {
                   </td>
                 </tr>
               ) : (
-                branches.map((branch, index) => (
+                filteredBranches.map((branch, index) => (
                   <tr key={branch._id} style={{ borderBottom: '1px solid #E2E8F0', transition: 'background 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
                     <td style={{ padding: '16px 24px', fontSize: '15px', color: '#475569', fontWeight: '500' }}>
                       {index + 1}
@@ -196,7 +239,7 @@ const Branches = () => {
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Branch Name</label>
-                <input placeholder="Enter name" 
+                <input 
                   type="text" 
                   value={formData.name} 
                   onChange={e => setFormData({...formData, name: e.target.value})} 
@@ -207,7 +250,7 @@ const Branches = () => {
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Location / Address</label>
-                <input placeholder="Enter location" 
+                <input
                   type="text" 
                   value={formData.location} 
                   onChange={e => setFormData({...formData, location: e.target.value})} 
@@ -218,7 +261,7 @@ const Branches = () => {
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Branch Manager</label>
-                <input placeholder="Enter manager" 
+                <input 
                   type="text" 
                   value={formData.manager} 
                   onChange={e => setFormData({...formData, manager: e.target.value})} 
@@ -229,7 +272,7 @@ const Branches = () => {
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Contact Number</label>
-                <input placeholder="Enter contact number" 
+                <input  
                   type="text" 
                   value={formData.contactNumber} 
                   onChange={e => setFormData({...formData, contactNumber: e.target.value})} 
