@@ -258,3 +258,17 @@ button {
 .animate-fade-in {
   animation: fadeIn 0.3s ease-out forwards;
 }
+
+/* Auth Pages Responsiveness */
+.auth-card {
+  width: 100%;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 768px) {
+  .auth-card {
+    padding: 24px 20px !important;
+  }
+}

@@ -78,7 +78,7 @@ const SelectType = () => {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'var(--bg-color)' }}>
-      <div className="card animate-fade-in" style={{ width: '100%', maxWidth: '600px', padding: '40px', display: 'flex', flexDirection: 'column' }}>
+      <div className="card animate-fade-in auth-card" style={{ maxWidth: '600px' }}>
         <h1 style={{ fontSize: '24px', marginBottom: '8px', textAlign: 'center' }}>Select Your Business Archetype</h1>
         <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '32px', textAlign: 'center' }}>
           Choose the structure that best fits your business to customize your dashboard.
@@ -102,7 +102,7 @@ const SelectType = () => {
                 {t.icon}
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div className="type-header-row">
                   <h3 style={{ fontSize: '16px', margin: '0 0 4px 0', color: selectedType === t.id ? 'var(--primary-blue)' : 'var(--text-title)' }}>{t.title}</h3>
                   <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--primary-blue)', background: '#DBEAFE', padding: '4px 12px', borderRadius: '20px' }}>Free Trial</span>
                 </div>

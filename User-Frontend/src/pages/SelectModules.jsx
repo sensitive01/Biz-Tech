@@ -59,7 +59,7 @@ const SelectModules = () => {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'var(--bg-color)' }}>
-      <div className="card animate-fade-in" style={{ width: '100%', maxWidth: '800px', padding: '40px', display: 'flex', flexDirection: 'column' }}>
+      <div className="card animate-fade-in auth-card" style={{ maxWidth: '800px' }}>
         <h1 style={{ fontSize: '28px', marginBottom: '8px', textAlign: 'center' }}>Tailor Your Workspace</h1>
         <p style={{ color: 'var(--text-secondary)', fontSize: '15px', marginBottom: '32px', textAlign: 'center', maxWidth: '600px', margin: '0 auto 32px auto' }}>
           Select the core modules you need for your business. You can always change these later in your settings.

@@ -44,10 +44,10 @@ const Login = () => {
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', position: 'relative', overflow: 'hidden' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
       
       {/* Header */}
-      <div className="auth-header" style={{ position: 'absolute', top: 0, left: 0, right: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 }}>
+      <div className="auth-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }} onClick={() => navigate('/')}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '8px', overflow: 'hidden' }}>
             <img src="/logo.jpg" alt="BizTech Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -57,7 +57,8 @@ const Login = () => {
         <LanguageSelector />
       </div>
 
-      <div className="card animate-fade-in" style={{ width: '100%', maxWidth: '440px', padding: '48px 40px', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+        <div className="card animate-fade-in auth-card" style={{ maxWidth: '440px', zIndex: 1, alignItems: 'center' }}>
         
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', background: '#EFF6FF', padding: '6px 12px', borderRadius: '16px' }}>
           <div style={{ width: '20px', height: '20px', borderRadius: '4px', overflow: 'hidden' }}>
@@ -125,9 +126,10 @@ const Login = () => {
           Don't have an account yet? <Link to="/register" style={{ fontWeight: '600' }}>Register here</Link>
         </div>
 
+        </div>
       </div>
 
-      <div style={{ position: 'absolute', bottom: '32px', display: 'flex', gap: '24px', fontSize: '12px', color: 'var(--text-muted)' }}>
+      <div style={{ padding: '24px', display: 'flex', justifyContent: 'center', gap: '24px', fontSize: '12px', color: 'var(--text-muted)' }}>
         <a href="#" style={{ color: 'var(--text-muted)' }}>Terms</a>
         <span>&bull;</span>
         <a href="#" style={{ color: 'var(--text-muted)' }}>Privacy</a>

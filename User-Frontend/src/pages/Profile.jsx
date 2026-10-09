@@ -126,6 +126,23 @@ const Profile = () => {
           </button>
         </div>
       </div>
+
+      <div style={{ background: 'white', borderRadius: '12px', padding: '32px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', border: '1px solid var(--border-color)', marginTop: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+          <div>
+            <h3 style={{ fontSize: '20px', fontWeight: '600', color: 'var(--text-title)', margin: '0 0 8px 0' }}>Business Setup Configuration</h3>
+            <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '14px', maxWidth: '500px' }}>
+              Did you skip the initial setup? You can resume the onboarding wizard to configure your business structure, branches, products, and employees.
+            </p>
+          </div>
+          <button 
+            onClick={() => window.location.href = '/onboarding'}
+            style={{ padding: '12px 24px', background: 'white', color: 'var(--primary-blue)', border: '1px solid var(--primary-blue)', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+            <Briefcase size={18} /> Resume Setup
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

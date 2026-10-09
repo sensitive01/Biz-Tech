@@ -1,32 +1,49 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Store, Users, Map, Package, ArrowRight, ArrowLeft, CheckCircle2, Building2, LayoutGrid, ShoppingCart, TrendingUp, Briefcase } from 'lucide-react';
+import { Store, Users, Map, Package, ArrowRight, ArrowLeft, CheckCircle2, Building2, LayoutGrid, ShoppingCart, TrendingUp, Briefcase, Menu, X } from 'lucide-react';
 
 const Onboarding = () => {
   const navigate = useNavigate();
   const tenantType = Number(localStorage.getItem('tenantType')) || 1;
   const [currentStep, setCurrentStep] = useState(0);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 768);
 
   // State for the new selections
-  const [selections, setSelections] = useState({
-    offering: [], // 'product', 'service'
-    operation: [] // 'purchase', 'sale'
+  const [selections, setSelections] = useState(() => JSON.parse(localStorage.getItem('onb_selections')) || {
+    offering: [],
+    operation: []
   });
 
   // State for Businesses (Type 4)
-  const [businesses, setBusinesses] = useState([]);
+  const [businesses, setBusinesses] = useState(() => JSON.parse(localStorage.getItem('onb_businesses')) || []);
   const [showBusinessForm, setShowBusinessForm] = useState(true);
   const [newBusiness, setNewBusiness] = useState({ name: '', regNo: '', phone: '', address: '' });
 
   // State for Branches
-  const [branches, setBranches] = useState([]);
+  const [branches, setBranches] = useState(() => JSON.parse(localStorage.getItem('onb_branches')) || []);
   const [showBranchForm, setShowBranchForm] = useState(false);
   const [newBranch, setNewBranch] = useState({ name: '', location: '', manager: '', phone: '', type: 'Store', business: '' });
 
   // State for Employees
-  const [employees, setEmployees] = useState([]);
+  const [employees, setEmployees] = useState(() => JSON.parse(localStorage.getItem('onb_employees')) || []);
   const [showEmployeeForm, setShowEmployeeForm] = useState(false);
   const [newEmployee, setNewEmployee] = useState({ name: '', role: '', email: '', phone: '', shiftFrom: '', shiftTo: '', salary: '', branch: 'Main Office', business: '' });
+
+  useEffect(() => {
+    localStorage.setItem('onb_selections', JSON.stringify(selections));
+  }, [selections]);
+
+  useEffect(() => {
+    localStorage.setItem('onb_businesses', JSON.stringify(businesses));
+  }, [businesses]);
+
+  useEffect(() => {
+    localStorage.setItem('onb_branches', JSON.stringify(branches));
+  }, [branches]);
+
+  useEffect(() => {
+    localStorage.setItem('onb_employees', JSON.stringify(employees));
+  }, [employees]);
 
   const toggleSelection = (category, value) => {
     setSelections(prev => {
@@ -48,18 +65,8 @@ const Onboarding = () => {
     { id: 'employees', title: 'Register Employees', desc: 'Invite your staff', icon: <Users size={24} /> }
   ];
 
-  // Dynamically build the flow based on Archetype
-  let activeSteps = [];
-  if (tenantType === 1) {
-    // Sole Operator: No Branches, No Employees
-    activeSteps = [allSteps[0], allSteps[2], allSteps[3]];
-  } else if (tenantType === 2) {
-    // Single Branch + Staff: No Branches
-    activeSteps = [allSteps[0], allSteps[2], allSteps[3], allSteps[4]];
-  } else {
-    // Enterprise / Conglomerate: Everything
-    activeSteps = allSteps; 
-  }
+  // Show all steps by default when resuming to avoid missing fields
+  let activeSteps = allSteps;
 
   const handleNext = async () => {
     if (currentStep < activeSteps.length - 1) {
@@ -546,13 +553,24 @@ const Onboarding = () => {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-color)', display: 'flex' }}>
       
+      {/* Backdrop for mobile */}
+      <div 
+        className={`sidebar-backdrop ${isSidebarOpen ? 'open' : ''}`}
+        onClick={() => setIsSidebarOpen(false)}
+      ></div>
+
       {/* Left Sidebar Progress */}
-      <div style={{ width: '320px', background: 'white', borderRight: '1px solid var(--border-color)', padding: '40px 32px', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '64px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '8px', overflow: 'hidden' }}>
-            <img src="/logo.jpg" alt="BizTech Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      <div className={`onboarding-sidebar ${isSidebarOpen ? 'open' : ''}`}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '64px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '8px', overflow: 'hidden' }}>
+              <img src="/logo.jpg" alt="BizTech Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            </div>
+            <span style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-title)', fontFamily: 'Plus Jakarta Sans', letterSpacing: '-0.5px' }}>BizTech</span>
           </div>
-          <span style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-title)', fontFamily: 'Plus Jakarta Sans', letterSpacing: '-0.5px' }}>BizTech</span>
+          <button className="sidebar-close-btn" onClick={() => setIsSidebarOpen(false)}>
+            <X size={24} />
+          </button>
         </div>
 
         <h3 style={{ fontSize: '14px', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-muted)', marginBottom: '32px' }}>Setup Progress</h3>
@@ -567,7 +585,14 @@ const Onboarding = () => {
             const color = isCompleted ? '#10B981' : isActive ? 'var(--primary-blue)' : '#CBD5E1';
             
             return (
-              <div key={step.id} style={{ display: 'flex', gap: '16px', zIndex: 1 }}>
+              <div 
+                key={step.id} 
+                style={{ display: 'flex', gap: '16px', zIndex: 1, cursor: 'pointer' }}
+                onClick={() => {
+                  setCurrentStep(idx);
+                  if (window.innerWidth <= 768) setIsSidebarOpen(false);
+                }}
+              >
                 <div style={{ 
                   width: '32px', height: '32px', borderRadius: '50%', 
                   background: isCompleted ? '#10B981' : isActive ? 'var(--primary-blue)' : 'white', 
@@ -589,16 +614,29 @@ const Onboarding = () => {
       </div>
 
       {/* Main Content Area */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div className="onboarding-main">
         
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px' }}>
+        {/* Header */}
+        <div className={`onboarding-header ${isSidebarOpen ? 'hide-on-desktop' : ''}`}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '8px', overflow: 'hidden' }}>
+              <img src="/logo.jpg" alt="BizTech Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            </div>
+            <span style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-title)', fontFamily: 'Plus Jakarta Sans', letterSpacing: '-0.5px' }}>BizTech</span>
+          </div>
+          <button className="sidebar-close-btn" onClick={() => setIsSidebarOpen(true)}>
+            <Menu size={24} />
+          </button>
+        </div>
+
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
           <div className="card" style={{ width: '100%', maxWidth: '700px', minHeight: '400px', display: 'flex', flexDirection: 'column' }}>
             {renderStepContent()}
           </div>
         </div>
 
         {/* Bottom Bar - Always 3 Buttons */}
-        <div style={{ padding: '24px 48px', background: 'white', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="onboarding-footer">
           
           <button 
             onClick={handleBack} 

@@ -25,6 +25,8 @@ const Expenses = () => {
     return sortConfig.direction === 'asc' ? <ArrowUp size={14} style={{ color: 'var(--primary-blue)', marginLeft: '4px' }} /> : <ArrowDown size={14} style={{ color: 'var(--primary-blue)', marginLeft: '4px' }} />;
   };
   const [filterDays, setFilterDays] = useState('all');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
   const [formData, setFormData] = useState({ title: '', category: '', customCategory: '', description: '', date: '', amount: '', proof: null });
 
   const fetchItems = async () => {
@@ -109,6 +111,11 @@ const Expenses = () => {
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       if (filterDays === '7') return diffDays <= 7;
       if (filterDays === '30') return diffDays <= 30;
+      if (filterDays === 'custom') {
+        if (customStartDate && new Date(itemDate) < new Date(customStartDate)) return false;
+        if (customEndDate && new Date(itemDate) > new Date(customEndDate)) return false;
+        return true;
+      }
       return true;
     })
     .filter(i => Object.values(i).some(val => String(val).toLowerCase().includes(search.toLowerCase())))
@@ -162,7 +169,15 @@ const Expenses = () => {
           <option value="all">Filter: All Time</option>
           <option value="7">Last 7 Days</option>
           <option value="30">Last 30 Days</option>
+          <option value="custom">Custom Range</option>
         </select>
+        {filterDays === 'custom' && (
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <input type="date" value={customStartDate} onChange={(e) => setCustomStartDate(e.target.value)} style={{ padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', outline: 'none', fontSize: '13px', color: '#475569' }} />
+            <span style={{ fontSize: '13px', color: '#64748B' }}>to</span>
+            <input type="date" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} style={{ padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', outline: 'none', fontSize: '13px', color: '#475569' }} />
+          </div>
+        )}
         
         <button onClick={() => exportToCSV(filteredItems, 'Expenses')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', cursor: 'pointer' }}><Download size={16} /> Export</button>
       </div>

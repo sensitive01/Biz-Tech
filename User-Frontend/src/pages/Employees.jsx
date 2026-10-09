@@ -9,6 +9,8 @@ const Employees = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterDays, setFilterDays] = useState('all');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [showModal, setShowModal] = useState(false);
   const [viewEmployee, setViewEmployee] = useState(null);
@@ -112,6 +114,11 @@ const Employees = () => {
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       if (filterDays === '7') return diffDays <= 7;
       if (filterDays === '30') return diffDays <= 30;
+      if (filterDays === 'custom') {
+        if (customStartDate && new Date(itemDate) < new Date(customStartDate)) return false;
+        if (customEndDate && new Date(itemDate) > new Date(customEndDate)) return false;
+        return true;
+      }
       return true;
     })
     .filter(i => (i.name || '').toLowerCase().includes(search.toLowerCase()))
@@ -158,7 +165,15 @@ const Employees = () => {
             <option value="all">Filter: All Time</option>
             <option value="7">Last 7 Days</option>
             <option value="30">Last 30 Days</option>
-          </select>
+          <option value="custom">Custom Range</option>
+        </select>
+        {filterDays === 'custom' && (
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <input type="date" value={customStartDate} onChange={(e) => setCustomStartDate(e.target.value)} style={{ padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', outline: 'none', fontSize: '13px', color: '#475569' }} />
+            <span style={{ fontSize: '13px', color: '#64748B' }}>to</span>
+            <input type="date" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} style={{ padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', outline: 'none', fontSize: '13px', color: '#475569' }} />
+          </div>
+        )}
           <button onClick={() => exportToCSV(filteredEmployees, 'Employees')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', cursor: 'pointer' }}><Download size={16} /> Export</button>
         </div>
       </div>
