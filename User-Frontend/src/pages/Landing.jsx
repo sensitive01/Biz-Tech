@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LayoutGrid, Users, Map, Calendar, ShieldCheck, Zap, BarChart3, CheckCircle2, Building2 } from 'lucide-react';
+import { LayoutGrid, Users, Map, Calendar, ShieldCheck, Zap, BarChart3, CheckCircle2, Building2, Menu, X } from 'lucide-react';
 import LanguageSelector from '../components/LanguageSelector';
 
 const Landing = () => {
   const navigate = useNavigate();
   const [pricingPlans, setPricingPlans] = useState([]);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const fetchPricing = async () => {
@@ -31,7 +32,7 @@ const Landing = () => {
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#FFFFFF', overflowX: 'hidden' }}>
 
       {/* Navbar */}
-      <header style={{
+      <header className="landing-header" style={{
         position: 'fixed', top: 0, left: 0, right: 0, height: '72px',
         background: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(10px)',
         borderBottom: '1px solid #E2E8F0', zIndex: 50,
@@ -44,7 +45,7 @@ const Landing = () => {
           <span style={{ fontSize: '20px', fontWeight: '800', color: '#0F172A', fontFamily: 'Plus Jakarta Sans', letterSpacing: '-0.5px' }}>BizTech</span>
         </div>
 
-        <div style={{ display: 'flex', gap: '32px', alignItems: 'center' }}>
+        <div className="desktop-nav" style={{ display: 'flex', gap: '32px', alignItems: 'center' }}>
           <a href="#about" style={{ color: '#475569', fontWeight: '500', fontSize: '15px', textDecoration: 'none' }}>About Us</a>
           <a href="#features" style={{ color: '#475569', fontWeight: '500', fontSize: '15px', textDecoration: 'none' }}>Features</a>
           <a href="#solutions" style={{ color: '#475569', fontWeight: '500', fontSize: '15px', textDecoration: 'none' }}>Solutions</a>
@@ -53,7 +54,7 @@ const Landing = () => {
           <a href="#contact" style={{ color: '#475569', fontWeight: '500', fontSize: '15px', textDecoration: 'none' }}>Contact</a>
         </div>
 
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+        <div className="desktop-nav" style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
           <LanguageSelector />
           <button onClick={() => navigate('/login')} style={{ background: 'transparent', border: 'none', color: '#0F172A', fontWeight: '600', fontSize: '15px', cursor: 'pointer' }}>
             Sign In
@@ -62,7 +63,39 @@ const Landing = () => {
             Register
           </button>
         </div>
+
+        {/* Mobile Menu Button */}
+        <button 
+          className="mobile-menu-btn" 
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+        >
+          {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
       </header>
+
+      {/* Mobile Navigation Dropdown */}
+      {isMobileMenuOpen && (
+        <div className="mobile-menu">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <a href="#about" onClick={() => setIsMobileMenuOpen(false)} style={{ color: '#475569', fontWeight: '500', fontSize: '15px', textDecoration: 'none' }}>About Us</a>
+            <a href="#features" onClick={() => setIsMobileMenuOpen(false)} style={{ color: '#475569', fontWeight: '500', fontSize: '15px', textDecoration: 'none' }}>Features</a>
+            <a href="#solutions" onClick={() => setIsMobileMenuOpen(false)} style={{ color: '#475569', fontWeight: '500', fontSize: '15px', textDecoration: 'none' }}>Solutions</a>
+            <a href="#pricing" onClick={() => setIsMobileMenuOpen(false)} style={{ color: '#475569', fontWeight: '500', fontSize: '15px', textDecoration: 'none' }}>Pricing</a>
+            <a href="#faq" onClick={() => setIsMobileMenuOpen(false)} style={{ color: '#475569', fontWeight: '500', fontSize: '15px', textDecoration: 'none' }}>FAQ</a>
+            <a href="#contact" onClick={() => setIsMobileMenuOpen(false)} style={{ color: '#475569', fontWeight: '500', fontSize: '15px', textDecoration: 'none' }}>Contact</a>
+          </div>
+          <hr style={{ border: 'none', borderTop: '1px solid #E2E8F0', margin: '8px 0' }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <LanguageSelector />
+            <button onClick={() => { navigate('/login'); setIsMobileMenuOpen(false); }} style={{ textAlign: 'left', background: 'transparent', border: 'none', color: '#0F172A', fontWeight: '600', fontSize: '15px', cursor: 'pointer', padding: 0 }}>
+              Sign In
+            </button>
+            <button onClick={() => { navigate('/register'); setIsMobileMenuOpen(false); }} style={{ width: '100%', background: '#2563EB', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '8px', fontWeight: '600', fontSize: '15px', cursor: 'pointer', textAlign: 'center' }}>
+              Register
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Hero Section */}
       <section style={{ paddingTop: '160px', paddingBottom: '100px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', position: 'relative' }}>
@@ -75,15 +108,15 @@ const Landing = () => {
             <Zap size={14} /> The Ultimate Enterprise Operating System
           </div>
 
-          <h1 style={{ fontSize: '72px', fontWeight: '800', color: '#0F172A', letterSpacing: '-2px', lineHeight: '1.1', marginBottom: '24px' }}>
+          <h1 className="hero-title">
             Scale Your Organization With <br /> <span style={{ color: '#2563EB' }}>Absolute Precision</span>.
           </h1>
 
-          <p style={{ fontSize: '20px', color: '#64748B', lineHeight: '1.6', marginBottom: '40px', maxWidth: '800px', margin: '0 auto 40px auto' }}>
+          <p className="hero-subtitle">
             Take control of your entire workflow with intelligent automation, real-time analytics, and seamless collaboration tools built for modern teams.
           </p>
 
-          <div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }}>
+          <div className="hero-buttons">
             <button onClick={() => navigate('/register')} style={{ background: '#2563EB', color: 'white', border: 'none', padding: '16px 36px', borderRadius: '12px', fontWeight: '600', fontSize: '16px', cursor: 'pointer', boxShadow: '0 10px 25px -5px rgba(37,99,235,0.4)', transition: 'transform 0.2s' }} onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
               Get Started Now
             </button>
@@ -101,7 +134,7 @@ const Landing = () => {
       </section>
 
       {/* Features Section */}
-      <section id="features" style={{ padding: '100px 48px', background: '#F8FAFC', position: 'relative' }}>
+      <section id="features" className="section-padding" style={{ background: '#F8FAFC', position: 'relative' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '64px' }}>
             <h2 style={{ fontSize: '36px', fontWeight: '800', color: '#0F172A', letterSpacing: '-1px', marginBottom: '16px' }}>Everything you need to grow</h2>
@@ -151,7 +184,7 @@ const Landing = () => {
       </section>
 
       {/* Solutions / Archetypes Section */}
-      <section id="solutions" style={{ padding: '100px 48px', background: '#FFFFFF' }}>
+      <section id="solutions" className="section-padding" style={{ background: '#FFFFFF' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '64px' }}>
             <h2 style={{ fontSize: '36px', fontWeight: '800', color: '#0F172A', letterSpacing: '-1px', marginBottom: '16px' }}>Built for your exact business model</h2>
@@ -160,8 +193,8 @@ const Landing = () => {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '900px', margin: '0 auto' }}>
 
-            <div style={{ display: 'flex', alignItems: 'center', padding: '32px', border: '1px solid #E2E8F0', borderRadius: '16px', background: 'white', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.05)' }}>
-              <div style={{ width: '64px', height: '64px', background: '#F8FAFC', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '32px', flexShrink: 0 }}>
+            <div className="archetype-card">
+              <div className="archetype-icon" style={{ background: '#F8FAFC' }}>
                 <span style={{ fontSize: '24px', fontWeight: '800', color: '#94A3B8' }}>1</span>
               </div>
               <div style={{ flex: 1 }}>
@@ -170,8 +203,8 @@ const Landing = () => {
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', padding: '32px', border: '1px solid #E2E8F0', borderRadius: '16px', background: 'white', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.05)' }}>
-              <div style={{ width: '64px', height: '64px', background: '#EFF6FF', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '32px', flexShrink: 0 }}>
+            <div className="archetype-card">
+              <div className="archetype-icon" style={{ background: '#EFF6FF' }}>
                 <span style={{ fontSize: '24px', fontWeight: '800', color: '#2563EB' }}>2</span>
               </div>
               <div style={{ flex: 1 }}>
@@ -180,8 +213,8 @@ const Landing = () => {
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', padding: '32px', border: '1px solid #E2E8F0', borderRadius: '16px', background: 'white', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.05)' }}>
-              <div style={{ width: '64px', height: '64px', background: '#F5F3FF', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '32px', flexShrink: 0 }}>
+            <div className="archetype-card">
+              <div className="archetype-icon" style={{ background: '#F5F3FF' }}>
                 <span style={{ fontSize: '24px', fontWeight: '800', color: '#7C3AED' }}>3</span>
               </div>
               <div style={{ flex: 1 }}>
@@ -190,8 +223,8 @@ const Landing = () => {
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', padding: '32px', border: '1px solid #E2E8F0', borderRadius: '16px', background: 'white', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.05)' }}>
-              <div style={{ width: '64px', height: '64px', background: '#ECFEFF', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '32px', flexShrink: 0 }}>
+            <div className="archetype-card">
+              <div className="archetype-icon" style={{ background: '#ECFEFF' }}>
                 <span style={{ fontSize: '24px', fontWeight: '800', color: '#0891B2' }}>4</span>
               </div>
               <div style={{ flex: 1 }}>
@@ -205,7 +238,7 @@ const Landing = () => {
       </section>
 
       {/* Pricing Section */}
-      <section id="pricing" style={{ padding: '100px 48px', background: '#F8FAFC' }}>
+      <section id="pricing" className="section-padding" style={{ background: '#F8FAFC' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '64px' }}>
             <h2 style={{ fontSize: '36px', fontWeight: '800', color: '#0F172A', letterSpacing: '-1px', marginBottom: '16px' }}>Transparent, Simple Pricing</h2>
@@ -288,7 +321,7 @@ const Landing = () => {
       </section>
 
       {/* About Us Section */}
-      <section id="about" style={{ padding: '100px 48px', background: '#F8FAFC', position: 'relative' }}>
+      <section id="about" className="section-padding" style={{ background: '#F8FAFC', position: 'relative' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto', textAlign: 'center' }}>
           <div style={{ display: 'inline-block', background: '#DBEAFE', color: '#1D4ED8', padding: '6px 16px', borderRadius: '20px', fontWeight: '600', fontSize: '13px', marginBottom: '24px' }}>Our Mission</div>
           <h2 style={{ fontSize: '40px', fontWeight: '800', color: '#0F172A', marginBottom: '24px', letterSpacing: '-1px' }}>About BizTech</h2>
@@ -313,7 +346,7 @@ const Landing = () => {
       </section>
 
       {/* FAQ Section */}
-      <section id="faq" style={{ padding: '100px 48px', background: '#FFFFFF', position: 'relative' }}>
+      <section id="faq" className="section-padding" style={{ background: '#FFFFFF', position: 'relative' }}>
         <div style={{ maxWidth: '800px', margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '64px' }}>
             <h2 style={{ fontSize: '40px', fontWeight: '800', color: '#0F172A', marginBottom: '16px', letterSpacing: '-1px' }}>Frequently Asked Questions</h2>
@@ -337,7 +370,7 @@ const Landing = () => {
       </section>
 
       {/* Contact Section */}
-      <section id="contact" style={{ padding: '100px 48px', background: '#F8FAFC', position: 'relative' }}>
+      <section id="contact" className="section-padding" style={{ background: '#F8FAFC', position: 'relative' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '64px', alignItems: 'center' }}>
           <div>
             <h2 style={{ fontSize: '40px', fontWeight: '800', color: '#0F172A', marginBottom: '16px', letterSpacing: '-1px' }}>Get in Touch</h2>
@@ -396,10 +429,10 @@ const Landing = () => {
       </section>
 
       {/* Footer */}
-      <footer style={{ background: '#0B1121', padding: '64px 48px', color: '#64748B', borderTop: '1px solid #1E293B' }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '48px' }}>
+      <footer className="section-padding" style={{ background: '#0B1121', color: '#64748B', borderTop: '1px solid #1E293B' }}>
+        <div className="footer-grid">
 
-          <div style={{ gridColumn: '1 / span 2' }}>
+          <div className="footer-brand">
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '24px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '8px', overflow: 'hidden' }}>
                 <img src="/logo.jpg" alt="BizTech Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
