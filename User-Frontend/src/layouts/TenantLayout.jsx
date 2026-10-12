@@ -323,7 +323,7 @@ const TenantLayout = () => {
                         {showSubMenu && (
                           <div style={{ padding: '4px 0 4px 32px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
                             <button 
-                              onClick={() => { setShowProfileMenu(false); setShowSubMenu(false); navigate('/tenant/billing'); }}
+                              onClick={() => { setShowProfileMenu(false); setShowSubMenu(false); navigate('/tenant/billing?tab=plan'); }}
                               style={{ width: '100%', display: 'block', padding: '8px', background: 'transparent', border: 'none', color: 'var(--text-secondary)', fontSize: '13px', fontWeight: '500', cursor: 'pointer', borderRadius: '4px', textAlign: 'left' }}
                               onMouseOver={(e) => { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.color = 'var(--primary-blue)'; }}
                               onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
@@ -331,7 +331,7 @@ const TenantLayout = () => {
                               MY Plan &rarr; Upgrade Plan
                             </button>
                             <button 
-                              onClick={() => { setShowProfileMenu(false); setShowSubMenu(false); navigate('/tenant/billing'); }}
+                              onClick={() => { setShowProfileMenu(false); setShowSubMenu(false); navigate('/tenant/billing?tab=subscriptions'); }}
                               style={{ width: '100%', display: 'block', padding: '8px', background: 'transparent', border: 'none', color: 'var(--text-secondary)', fontSize: '13px', fontWeight: '500', cursor: 'pointer', borderRadius: '4px', textAlign: 'left' }}
                               onMouseOver={(e) => { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.color = 'var(--primary-blue)'; }}
                               onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}

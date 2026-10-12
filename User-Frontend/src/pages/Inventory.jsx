@@ -1,7 +1,7 @@
 import { exportToCSV } from '../utils/exportToCSV';
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowUp, ArrowDown, Archive, Plus, X, Eye, Pencil, Trash2, AlertTriangle, Search, Filter, ArrowUpDown, Download } from 'lucide-react';
+import { ArrowUp, ArrowDown, Archive, Plus, X, Eye, Pencil, Trash2, AlertTriangle, Search, ArrowUpDown, Download } from 'lucide-react';
 
 const Inventory = () => {
   const [items, setItems] = useState([]);
@@ -203,10 +203,10 @@ const Inventory = () => {
               <tr style={{ background: '#F8FAFC' }}>
                 <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', width: '60px' }}>S.No</th>
                 <th onClick={() => requestSort('itemName')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',  padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
-                <div style={{ display: 'flex', alignItems: 'center' }}>ItemName {renderSortIcon('itemName')}</div>
+                <div style={{ display: 'flex', alignItems: 'center' }}>Item Name {renderSortIcon('itemName')}</div>
               </th>
                 <th onClick={() => requestSort('sku')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',  padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
-                <div style={{ display: 'flex', alignItems: 'center' }}>Sku {renderSortIcon('sku')}</div>
+                <div style={{ display: 'flex', alignItems: 'center' }}>Stock Keeping Unit(SKU) {renderSortIcon('sku')}</div>
               </th>
                 <th onClick={() => requestSort('category')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',  padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
                 <div style={{ display: 'flex', alignItems: 'center' }}>Category {renderSortIcon('category')}</div>
@@ -260,14 +260,13 @@ const Inventory = () => {
               <button onClick={() => { setShowModal(false); setEditingItem(null); }} style={{ background: '#F1F5F9', border: 'none', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer' }}><X size={18} /></button>
             </div>
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-
               <div>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Item Name</label>
                 <input placeholder="Enter the item name" type="text" value={formData.itemName} onChange={e => setFormData({...formData, itemName: e.target.value})} required style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }} />
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Stock Keeping Unit(SKU)</label>
-                <input placeholder="Enter the SKU(Stock Keeping Unit)" type="text" value={formData.sku} onChange={e => setFormData({...formData, sku: e.target.value})} required style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }} />
+                <input placeholder="e.g. SKU-001" type="text" value={formData.sku} onChange={e => setFormData({...formData, sku: e.target.value})} required style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }} />
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Category</label>
