@@ -1,7 +1,7 @@
 import { exportToCSV } from '../utils/exportToCSV';
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowUp, ArrowDown, FileText, Plus, X, Eye, Pencil, Trash2, AlertTriangle, Search, ArrowUpDown, Download } from 'lucide-react';
+import { ArrowUp, ArrowDown, FileText, Plus, X, Eye, Pencil, Trash2, AlertTriangle, Search, ArrowUpDown, Download, Paperclip, ExternalLink } from 'lucide-react';
 
 const Documents = () => {
   const [items, setItems] = useState([]);
@@ -29,22 +29,34 @@ const Documents = () => {
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
   
-  const [formData, setFormData] = useState({ title: '', type: '', expiryDate: '', status: '' });
+  const STANDARD_TYPES = ['Invoice', 'Receipt', 'Contract', 'Report'];
+
+  const [formData, setFormData] = useState({ title: '', type: '', expiryDate: '' });
+  const [customType, setCustomType] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [existingFileUrl, setExistingFileUrl] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const handleOpenAdd = () => {
     setEditingItem(null);
-    setFormData({ title: '', type: '', expiryDate: '', status: '' });
+    setFormData({ title: '', type: '', expiryDate: '' });
+    setCustomType('');
+    setSelectedFile(null);
+    setExistingFileUrl(null);
     setShowModal(true);
   };
 
   const handleEdit = (item) => {
     setEditingItem(item);
+    const isStandard = STANDARD_TYPES.includes(item.type);
     setFormData({
       title: item.title || '',
-      type: item.type || '',
-      expiryDate: item.expiryDate ? item.expiryDate.substring(0, 10) : '',
-      status: item.status || ''
+      type: isStandard ? item.type : (item.type ? 'Others' : ''),
+      expiryDate: item.expiryDate ? item.expiryDate.substring(0, 10) : ''
     });
+    setCustomType(isStandard ? '' : (item.type || ''));
+    setSelectedFile(null);
+    setExistingFileUrl(item.fileUrl || null);
     setShowModal(true);
   };
 
@@ -78,21 +90,39 @@ const Documents = () => {
         : `${import.meta.env.VITE_API_URL}/api/documents`;
       const method = editingItem ? 'PUT' : 'POST';
 
+      const finalType = formData.type === 'Others' ? customType.trim() : formData.type;
+      if (!finalType) {
+        alert('Please select or specify document type');
+        return;
+      }
+
+      setSubmitting(true);
+      const bodyData = new FormData();
+      bodyData.append('title', formData.title);
+      bodyData.append('type', finalType);
+      if (formData.expiryDate) bodyData.append('expiryDate', formData.expiryDate);
+      if (selectedFile) bodyData.append('file', selectedFile);
+
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify(formData)
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: bodyData
       });
       if (res.ok) {
         setShowModal(false);
         setEditingItem(null);
-        setFormData({ title: '', type: '', expiryDate: '', status: '' });
+        setFormData({ title: '', type: '', expiryDate: '' });
+        setCustomType('');
+        setSelectedFile(null);
+        setExistingFileUrl(null);
         fetchItems();
       } else {
         alert(editingItem ? 'Failed to update item' : 'Failed to add item');
       }
     } catch (err) {
       console.error(err);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -207,11 +237,9 @@ const Documents = () => {
                 <th onClick={() => requestSort('type')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',  padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
                 <div style={{ display: 'flex', alignItems: 'center' }}>Type {renderSortIcon('type')}</div>
               </th>
+                <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>Document</th>
                 <th onClick={() => requestSort('expiryDate')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',  padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
-                <div style={{ display: 'flex', alignItems: 'center' }}>ExpiryDate {renderSortIcon('expiryDate')}</div>
-              </th>
-                <th onClick={() => requestSort('status')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',  padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
-                <div style={{ display: 'flex', alignItems: 'center' }}>Status {renderSortIcon('status')}</div>
+                <div style={{ display: 'flex', alignItems: 'center' }}>Expiry Date {renderSortIcon('expiryDate')}</div>
               </th>
                 <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', textAlign: 'right' }}>Actions</th>
               </tr>
@@ -232,10 +260,22 @@ const Documents = () => {
                 filteredItems.map((item, index) => (
                   <tr key={item._id} style={{ borderBottom: '1px solid #E2E8F0', transition: 'background 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
                     <td style={{ padding: '16px 24px', fontSize: '15px', color: '#475569', fontWeight: '500' }}>{index + 1}</td>
-                    <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px' }}>{item.title}</td>
-                    <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px' }}>{item.type}</td>
-                    <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px' }}>{item.expiryDate}</td>
-                    <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px' }}>{item.status}</td>
+                    <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px', fontWeight: '500' }}>{item.title}</td>
+                    <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px' }}>
+                      <span style={{ display: 'inline-block', padding: '4px 10px', background: '#F1F5F9', borderRadius: '6px', fontSize: '13px', fontWeight: '500', color: '#334155' }}>
+                        {item.type || '-'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px' }}>
+                      {item.fileUrl ? (
+                        <a href={item.fileUrl} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#2563EB', textDecoration: 'none', fontWeight: '500', fontSize: '13px' }}>
+                          <Paperclip size={14} /> View File
+                        </a>
+                      ) : (
+                        <span style={{ color: '#94A3B8', fontSize: '13px' }}>-</span>
+                      )}
+                    </td>
+                    <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px' }}>{item.expiryDate ? item.expiryDate.substring(0, 10) : '-'}</td>
                     <td style={{ padding: '16px 24px', textAlign: 'right' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
                         <button onClick={() => setViewItem(item)} title="View" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#EFF6FF', color: '#3B82F6', border: 'none', borderRadius: '6px', cursor: 'pointer' }}><Eye size={16} /></button>
@@ -266,19 +306,65 @@ const Documents = () => {
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Type</label>
-                <input placeholder="Enter the type" type="text" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} required style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }} />
+                <select
+                  value={formData.type}
+                  onChange={e => setFormData({ ...formData, type: e.target.value })}
+                  required
+                  style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box', background: 'white', cursor: 'pointer' }}
+                >
+                  <option value="">Select type</option>
+                  <option value="Invoice">Invoice</option>
+                  <option value="Receipt">Receipt</option>
+                  <option value="Contract">Contract</option>
+                  <option value="Report">Report</option>
+                  <option value="Others">Others</option>
+                </select>
               </div>
+
+              {formData.type === 'Others' && (
+                <div>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Specify Type</label>
+                  <input
+                    placeholder="Enter document type"
+                    type="text"
+                    value={customType}
+                    onChange={e => setCustomType(e.target.value)}
+                    required
+                    style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }}
+                  />
+                </div>
+              )}
+
               <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>ExpiryDate</label>
-                <input placeholder='Enter the expiry date' type="date" value={formData.expiryDate} onChange={e => setFormData({...formData, expiryDate: e.target.value})} required style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }} />
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Upload Document</label>
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp,.xls,.xlsx"
+                  onChange={e => setSelectedFile(e.target.files[0])}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box', background: '#F8FAFC' }}
+                />
+                {existingFileUrl && !selectedFile && (
+                  <div style={{ marginTop: '6px', fontSize: '13px', color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>Current document:</span>
+                    <a href={existingFileUrl} target="_blank" rel="noreferrer" style={{ color: '#2563EB', textDecoration: 'none', fontWeight: '500', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      View file <ExternalLink size={13} />
+                    </a>
+                  </div>
+                )}
+                {selectedFile && (
+                  <div style={{ marginTop: '6px', fontSize: '13px', color: '#16A34A', fontWeight: '500' }}>
+                    Selected: {selectedFile.name}
+                  </div>
+                )}
               </div>
+
               <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Status</label>
-                <input placeholder="Enter the status" type="text" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})} required style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }} />
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Expiry Date (Optional)</label>
+                <input placeholder='Enter the expiry date' type="date" value={formData.expiryDate} onChange={e => setFormData({...formData, expiryDate: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }} />
               </div>
               <div style={{ display: 'flex', gap: '16px', marginTop: '12px' }}>
                 <button type="button" onClick={() => { setShowModal(false); setEditingItem(null); }} style={{ flex: 1, padding: '14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '10px', color: '#475569', fontWeight: '600', cursor: 'pointer' }}>Cancel</button>
-                <button type="submit" style={{ flex: 1, padding: '14px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', cursor: 'pointer' }}>{editingItem ? 'Update' : 'Save'}</button>
+                <button type="submit" disabled={submitting} style={{ flex: 1, padding: '14px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.7 : 1 }}>{submitting ? 'Uploading...' : (editingItem ? 'Update' : 'Save')}</button>
               </div>
             </form>
           </div>
@@ -300,15 +386,19 @@ const Documents = () => {
               </div>
               <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
                 <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Type</p>
-                <p style={{ margin: 0, fontSize: '16px', color: '#0F172A' }}>{viewItem.type}</p>
+                <p style={{ margin: 0, fontSize: '16px', color: '#0F172A' }}>{viewItem.type || '-'}</p>
               </div>
+              {viewItem.fileUrl && (
+                <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
+                  <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Uploaded Document</p>
+                  <a href={viewItem.fileUrl} target="_blank" rel="noreferrer" style={{ color: '#2563EB', textDecoration: 'none', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '14px' }}>
+                    <Paperclip size={16} /> Open Document <ExternalLink size={14} />
+                  </a>
+                </div>
+              )}
               <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
-                <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>ExpiryDate</p>
-                <p style={{ margin: 0, fontSize: '16px', color: '#0F172A' }}>{viewItem.expiryDate}</p>
-              </div>
-              <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
-                <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Status</p>
-                <p style={{ margin: 0, fontSize: '16px', color: '#0F172A' }}>{viewItem.status}</p>
+                <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Expiry Date</p>
+                <p style={{ margin: 0, fontSize: '16px', color: '#0F172A' }}>{viewItem.expiryDate ? viewItem.expiryDate.substring(0, 10) : '-'}</p>
               </div>
             </div>
           </div>

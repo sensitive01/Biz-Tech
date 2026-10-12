@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Document = require('../models/Document');
 const jwt = require('jsonwebtoken');
+const { upload } = require('../config/cloudinary');
 
 const auth = (req, res, next) => {
   const token = req.header('Authorization')?.split(' ')[1];
@@ -24,9 +25,13 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-router.post('/', auth, async (req, res) => {
+router.post('/', auth, upload.single('file'), async (req, res) => {
   try {
-    const newItem = new Document({ ...req.body, tenantId: req.user.id });
+    const data = { ...req.body };
+    if (req.file) {
+      data.fileUrl = req.file.path;
+    }
+    const newItem = new Document({ ...data, tenantId: req.user.id });
     const saved = await newItem.save();
     res.json(saved);
   } catch (err) {
@@ -34,11 +39,15 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-router.put('/:id', auth, async (req, res) => {
+router.put('/:id', auth, upload.single('file'), async (req, res) => {
   try {
+    const data = { ...req.body };
+    if (req.file) {
+      data.fileUrl = req.file.path;
+    }
     const updated = await Document.findOneAndUpdate(
       { _id: req.params.id, tenantId: req.user.id },
-      { ...req.body },
+      { $set: data },
       { new: true }
     );
     if (!updated) return res.status(404).json({ message: 'Document not found' });

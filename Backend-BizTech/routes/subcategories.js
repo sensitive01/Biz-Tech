@@ -18,7 +18,7 @@ const auth = (req, res, next) => {
 router.get('/', auth, async (req, res) => {
   try {
     const items = await SubCategory.find({ tenantId: req.user.id })
-      .populate('categoryId', 'name')
+      .populate('categoryId', 'name itemType transactionType')
       .sort({ createdAt: -1 });
     res.json(items);
   } catch (err) {

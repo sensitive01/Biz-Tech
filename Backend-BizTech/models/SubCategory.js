@@ -5,6 +5,8 @@ const SubCategorySchema = new mongoose.Schema({
   name: { type: String, required: true },
   categoryId: { type: mongoose.Schema.Types.ObjectId, ref: "Category" },
   description: { type: String },
+  itemType: { type: String },
+  transactionType: { type: String },
   createdAt: { type: Date, default: Date.now }
 });
 

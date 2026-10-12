@@ -3,6 +3,13 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 
+// Globally disable mouse wheel changing number input values across the entire application
+document.addEventListener('wheel', () => {
+  if (document.activeElement && document.activeElement.tagName === 'INPUT' && document.activeElement.type === 'number') {
+    document.activeElement.blur();
+  }
+}, { passive: true });
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <App />

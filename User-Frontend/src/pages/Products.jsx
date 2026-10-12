@@ -3,6 +3,14 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowUp, ArrowDown, Plus, Search, Package, Tag, Trash2, Pencil, X, AlertTriangle, ArrowUpDown, Download } from 'lucide-react';
 
+const getImageUrl = (image) => {
+  if (!image) return '';
+  if (image.startsWith('http://') || image.startsWith('https://')) {
+    return image;
+  }
+  return `${import.meta.env.VITE_API_URL}${image.startsWith('/') ? '' : '/'}${image}`;
+};
+
 const Products = () => {
   const [activeTab, setActiveTab] = useState('categories');
   const [searchQuery, setSearchQuery] = useState('');
@@ -33,15 +41,15 @@ const Products = () => {
   const [editingItem, setEditingItem] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
 
-  const [catForm, setCatForm] = useState({ name: '', description: '', image: null, itemType: 'Product', transactionType: 'Sales' });
-  const [subCatForm, setSubCatForm] = useState({ name: '', categoryId: '', description: '' });
-  const [prodForm, setProdForm] = useState({ name: '', sku: '', categoryId: '', subCategoryId: '', price: '', stock: '', image: null, itemType: 'Product', description: '' });
+  const [catForm, setCatForm] = useState({ name: '', description: '', image: null, existingImage: null, itemType: 'Product', transactionType: 'Sales' });
+  const [subCatForm, setSubCatForm] = useState({ name: '', categoryId: '', itemType: 'Product', transactionType: 'Sales', description: '' });
+  const [prodForm, setProdForm] = useState({ name: '', sku: '', categoryId: '', subCategoryId: '', price: '', stock: '', image: null, existingImage: null, itemType: 'Product', description: '' });
 
   const handleOpenAdd = () => {
     setEditingItem(null);
-    setCatForm({ name: '', description: '', image: null, itemType: 'Product', transactionType: 'Sales' });
-    setSubCatForm({ name: '', categoryId: '', description: '' });
-    setProdForm({ name: '', sku: '', categoryId: '', subCategoryId: '', price: '', stock: '', image: null, itemType: 'Product', description: '' });
+    setCatForm({ name: '', description: '', image: null, existingImage: null, itemType: 'Product', transactionType: 'Sales' });
+    setSubCatForm({ name: '', categoryId: '', itemType: 'Product', transactionType: 'Sales', description: '' });
+    setProdForm({ name: '', sku: '', categoryId: '', subCategoryId: '', price: '', stock: '', image: null, existingImage: null, itemType: 'Product', description: '' });
     setShowModal(true);
   };
 
@@ -51,6 +59,7 @@ const Products = () => {
       name: item.name || '',
       description: item.description || '',
       image: null,
+      existingImage: item.image || null,
       itemType: item.itemType || 'Product',
       transactionType: item.transactionType || 'Sales'
     });
@@ -62,6 +71,8 @@ const Products = () => {
     setSubCatForm({
       name: item.name || '',
       categoryId: item.categoryId?._id || item.categoryId || '',
+      itemType: item.itemType || item.categoryId?.itemType || 'Product',
+      transactionType: item.transactionType || item.categoryId?.transactionType || 'Sales',
       description: item.description || ''
     });
     setShowModal(true);
@@ -69,15 +80,19 @@ const Products = () => {
 
   const handleEditProduct = (item) => {
     setEditingItem(item);
+    const catId = item.categoryId?._id || item.categoryId || '';
+    const matchedCat = categories.find(c => c._id === catId);
+    const derivedType = item.itemType || matchedCat?.itemType || 'Product';
     setProdForm({
       name: item.name || '',
       sku: item.sku || '',
-      categoryId: item.categoryId?._id || item.categoryId || '',
+      categoryId: catId,
       subCategoryId: item.subCategoryId?._id || item.subCategoryId || '',
       price: item.price !== undefined ? item.price : '',
       stock: item.stock !== undefined ? item.stock : '',
       image: null,
-      itemType: item.itemType || 'Product',
+      existingImage: item.image || null,
+      itemType: derivedType,
       description: item.description || ''
     });
     setShowModal(true);
@@ -122,6 +137,7 @@ const Products = () => {
       endpoint = editingItem ? `/api/categories/${editingItem._id}` : '/api/categories';
       bodyData = new FormData();
       Object.keys(catForm).forEach(key => {
+        if (key === 'existingImage') return;
         if (catForm[key] !== null && catForm[key] !== '') {
           bodyData.append(key, catForm[key]);
         }
@@ -134,6 +150,7 @@ const Products = () => {
       endpoint = editingItem ? `/api/products/${editingItem._id}` : '/api/products';
       bodyData = new FormData();
       Object.keys(prodForm).forEach(key => {
+        if (key === 'existingImage') return;
         if (prodForm[key] !== null && prodForm[key] !== '') {
           bodyData.append(key, prodForm[key]);
         }
@@ -149,9 +166,9 @@ const Products = () => {
       if (res.ok) {
         setShowModal(false);
         setEditingItem(null);
-        setCatForm({ name: '', description: '', image: null, itemType: 'Product', transactionType: 'Sales' });
-        setSubCatForm({ name: '', categoryId: '', description: '' });
-        setProdForm({ name: '', sku: '', categoryId: '', subCategoryId: '', price: '', stock: '', image: null, itemType: 'Product', description: '' });
+        setCatForm({ name: '', description: '', image: null, existingImage: null, itemType: 'Product', transactionType: 'Sales' });
+        setSubCatForm({ name: '', categoryId: '', itemType: 'Product', transactionType: 'Sales', description: '' });
+        setProdForm({ name: '', sku: '', categoryId: '', subCategoryId: '', price: '', stock: '', image: null, existingImage: null, itemType: 'Product', description: '' });
         fetchData();
       } else {
         alert('Failed to save');
@@ -326,6 +343,12 @@ const Products = () => {
                 {activeTab === 'subcategories' && (
                   <>
                     <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>Parent Category</th>
+                    <th onClick={() => requestSort('itemType')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
+                      <div style={{ display: 'flex', alignItems: 'center' }}>Item Type {renderSortIcon('itemType')}</div>
+                    </th>
+                    <th onClick={() => requestSort('transactionType')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
+                      <div style={{ display: 'flex', alignItems: 'center' }}>Transaction Type {renderSortIcon('transactionType')}</div>
+                    </th>
                     <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>Description</th>
                   </>
                 )}
@@ -371,11 +394,32 @@ const Products = () => {
                     <td style={{ padding: '16px 24px', fontWeight: '600', color: '#0F172A' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         {item.image ? (
-                          <img src={`${import.meta.env.VITE_API_URL}${item.image}`} alt="" style={{ width: '32px', height: '32px', borderRadius: '6px', objectFit: 'cover' }} />
-                        ) : (
-                          <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Package size={16} color="#94A3B8" /></div>
-                        )}
-                        {item.name}
+                          <img
+                            src={getImageUrl(item.image)}
+                            alt=""
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                              const fallback = e.currentTarget.nextElementSibling;
+                              if (fallback) fallback.style.display = 'flex';
+                            }}
+                            style={{ width: '32px', height: '32px', borderRadius: '6px', objectFit: 'cover' }}
+                          />
+                        ) : null}
+                        <div
+                          style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '6px',
+                            background: '#F1F5F9',
+                            display: item.image ? 'none' : 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0
+                          }}
+                        >
+                          {activeTab === 'subcategories' ? <Tag size={16} color="#94A3B8" /> : <Package size={16} color="#94A3B8" />}
+                        </div>
+                        <span>{item.name}</span>
                       </div>
                     </td>
                     
@@ -390,6 +434,8 @@ const Products = () => {
                     {activeTab === 'subcategories' && (
                       <>
                         <td style={{ padding: '16px 24px', color: '#475569' }}>{item.categoryId?.name || '-'}</td>
+                        <td style={{ padding: '16px 24px', color: '#475569' }}>{item.itemType || item.categoryId?.itemType || '-'}</td>
+                        <td style={{ padding: '16px 24px', color: '#475569' }}>{item.transactionType || item.categoryId?.transactionType || '-'}</td>
                         <td style={{ padding: '16px 24px', color: '#475569' }}>{item.description || '-'}</td>
                       </>
                     )}
@@ -465,7 +511,7 @@ const Products = () => {
 
       {showModal && createPortal(
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '24px' }}>
-          <div style={{ background: 'white', padding: '32px', borderRadius: '20px', width: '100%', maxWidth: '500px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', maxHeight: '90vh', overflowY: 'auto' }}>
+          <div style={{ background: 'white', padding: '32px', borderRadius: '20px', width: '100%', maxWidth: '540px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
               <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#0F172A', margin: 0 }}>
                 {editingItem ? 'Edit' : 'Add'} {activeTab === 'categories' ? 'Category' : activeTab === 'subcategories' ? 'Sub Category' : 'Product / Service'}
@@ -481,27 +527,34 @@ const Products = () => {
                     <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Category Name</label>
                     <input placeholder="Enter category name" type="text" value={catForm.name} onChange={e => setCatForm({...catForm, name: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
                   </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Description</label>
-                    <textarea placeholder="Enter category description" value={catForm.description} onChange={e => setCatForm({...catForm, description: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} rows="3"></textarea>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Item Type</label>
+                      <select value={catForm.itemType} onChange={e => setCatForm({...catForm, itemType: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }}>
+                        <option value="Product">Product</option>
+                        <option value="Service">Service</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Transaction Type</label>
+                      <select value={catForm.transactionType} onChange={e => setCatForm({...catForm, transactionType: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }}>
+                        <option value="Sales">Sales</option>
+                        <option value="Purchase">Purchase</option>
+                      </select>
+                    </div>
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Category Image</label>
-                    <input type="file" accept="image/*" onChange={e => setCatForm({...catForm, image: e.target.files[0]})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Type</label>
-                    <select value={catForm.itemType} onChange={e => setCatForm({...catForm, itemType: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }}>
-                      <option value="Product">Product</option>
-                      <option value="Service">Service</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Transaction Type</label>
-                    <select value={catForm.transactionType} onChange={e => setCatForm({...catForm, transactionType: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }}>
-                      <option value="Sales">Sales</option>
-                      <option value="Purchase">Purchase</option>
-                    </select>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      {(catForm.image || catForm.existingImage) && (
+                        <img
+                          src={catForm.image ? URL.createObjectURL(catForm.image) : getImageUrl(catForm.existingImage)}
+                          alt="Preview"
+                          style={{ width: '44px', height: '44px', borderRadius: '8px', objectFit: 'cover', border: '1px solid #CBD5E1', flexShrink: 0 }}
+                        />
+                      )}
+                      <input type="file" accept="image/*" onChange={e => setCatForm({...catForm, image: e.target.files[0]})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
+                    </div>
                   </div>
                 </>
               )}
@@ -514,7 +567,21 @@ const Products = () => {
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Parent Category</label>
-                    <select value={subCatForm.categoryId} onChange={e => setSubCatForm({...subCatForm, categoryId: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }}>
+                    <select
+                      value={subCatForm.categoryId}
+                      onChange={e => {
+                        const catId = e.target.value;
+                        const matched = categories.find(c => c._id === catId);
+                        setSubCatForm({
+                          ...subCatForm,
+                          categoryId: catId,
+                          itemType: matched?.itemType || subCatForm.itemType || 'Product',
+                          transactionType: matched?.transactionType || subCatForm.transactionType || 'Sales'
+                        });
+                      }}
+                      required
+                      style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }}
+                    >
                       {categories.length === 0 ? (
                         <option value="" disabled>No category available</option>
                       ) : (
@@ -522,98 +589,153 @@ const Products = () => {
                       )}
                       {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
                     </select>
-
                   </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Description</label>
-                    <textarea placeholder="Enter the subcategory description" value={subCatForm.description} onChange={e => setSubCatForm({...subCatForm, description: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} rows="3"></textarea>
-                  </div>
+                  {subCatForm.categoryId && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Item Type</label>
+                        <input
+                          type="text"
+                          readOnly
+                          value={subCatForm.itemType || ''}
+                          style={{
+                            width: '100%',
+                            padding: '12px',
+                            borderRadius: '10px',
+                            border: '1px solid #CBD5E1',
+                            backgroundColor: '#F8FAFC',
+                            color: '#334155',
+                            cursor: 'default',
+                            outline: 'none'
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Transaction Type</label>
+                        <input
+                          type="text"
+                          readOnly
+                          value={subCatForm.transactionType || ''}
+                          style={{
+                            width: '100%',
+                            padding: '12px',
+                            borderRadius: '10px',
+                            border: '1px solid #CBD5E1',
+                            backgroundColor: '#F8FAFC',
+                            color: '#334155',
+                            cursor: 'default',
+                            outline: 'none'
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
 
               {activeTab === 'products' && (
                 <>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Name</label>
-                    <input placeholder="Enter the product name" type="text" value={prodForm.name} onChange={e => setProdForm({...prodForm, name: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
+                  <div style={{ display: 'grid', gridTemplateColumns: prodForm.itemType === 'Product' ? '1fr 1fr' : '1fr', gap: '16px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Name</label>
+                      <input placeholder="Enter the product name" type="text" value={prodForm.name} onChange={e => setProdForm({...prodForm, name: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
+                    </div>
+                    {prodForm.itemType === 'Product' && (
+                      <div>
+                        <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Stock Keeping Unit (SKU)</label>
+                        <input placeholder="e.g. SKU-101" type="text" value={prodForm.sku} onChange={e => setProdForm({...prodForm, sku: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
+                      </div>
+                    )}
                   </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Description</label>
-                    <textarea placeholder="Enter the product description" value={prodForm.description} onChange={e => setProdForm({...prodForm, description: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} rows="2"></textarea>
-                  </div>
+
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                     <div>
                       <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Category</label>
-                      <select value={prodForm.categoryId} onChange={e => setProdForm({...prodForm, categoryId: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }}>
+                      <select
+                        value={prodForm.categoryId}
+                        onChange={e => {
+                          const catId = e.target.value;
+                          const matched = categories.find(c => c._id === catId);
+                          const derivedType = matched?.itemType || 'Product';
+                          setProdForm({
+                            ...prodForm,
+                            categoryId: catId,
+                            subCategoryId: '',
+                            itemType: derivedType,
+                            ...(derivedType === 'Service' ? { stock: '', sku: '' } : {})
+                          });
+                        }}
+                        required
+                        style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }}
+                      >
                         {categories.length === 0 ? (
                           <option value="" disabled>No category available</option>
                         ) : (
-                          <option value="">Select...</option>
+                          <option value="">Select Category...</option>
                         )}
                         {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
                       </select>
                     </div>
                     <div>
                       <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Sub Category</label>
-                      <select value={prodForm.subCategoryId} onChange={e => setProdForm({...prodForm, subCategoryId: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }}>
-                        {subcategories.filter(sc => sc.categoryId?._id === prodForm.categoryId).length === 0 ? (
+                      <select
+                        value={prodForm.subCategoryId}
+                        onChange={e => setProdForm({ ...prodForm, subCategoryId: e.target.value })}
+                        disabled={!prodForm.categoryId || subcategories.filter(sc => (sc.categoryId?._id || sc.categoryId) === prodForm.categoryId).length === 0}
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          borderRadius: '10px',
+                          border: '1px solid #CBD5E1',
+                          backgroundColor: (!prodForm.categoryId || subcategories.filter(sc => (sc.categoryId?._id || sc.categoryId) === prodForm.categoryId).length === 0) ? '#F8FAFC' : 'white',
+                          color: (!prodForm.categoryId || subcategories.filter(sc => (sc.categoryId?._id || sc.categoryId) === prodForm.categoryId).length === 0) ? '#64748B' : '#0F172A',
+                          cursor: (!prodForm.categoryId || subcategories.filter(sc => (sc.categoryId?._id || sc.categoryId) === prodForm.categoryId).length === 0) ? 'not-allowed' : 'pointer'
+                        }}
+                      >
+                        {!prodForm.categoryId ? (
+                          <option value="" disabled>Select category first</option>
+                        ) : subcategories.filter(sc => (sc.categoryId?._id || sc.categoryId) === prodForm.categoryId).length === 0 ? (
                           <option value="" disabled>No subcategory available</option>
                         ) : (
                           <>
-                            <option value="">None</option>
-                            {subcategories.filter(sc => sc.categoryId?._id === prodForm.categoryId).map(sc => <option key={sc._id} value={sc._id}>{sc.name}</option>)}
+                            <option value="">Select sub category</option>
+                            {subcategories
+                              .filter(sc => (sc.categoryId?._id || sc.categoryId) === prodForm.categoryId)
+                              .map(sc => (
+                                <option key={sc._id} value={sc._id}>{sc.name}</option>
+                              ))}
                           </>
                         )}
                       </select>
                     </div>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Type</label>
-                      <select 
-                        value={prodForm.itemType} 
-                        onChange={e => {
-                          const newType = e.target.value;
-                          setProdForm({
-                            ...prodForm, 
-                            itemType: newType,
-                            ...(newType === 'Service' ? { stock: '', sku: '' } : {})
-                          });
-                        }} 
-                        style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }}
-                      >
-                        <option value="Product">Product</option>
-                        <option value="Service">Service</option>
-                      </select>
-                    </div>
-                    {prodForm.itemType === 'Product' ? (
-                      <div>
-                        <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Stock Keeping Unit(SKU)</label>
-                        <input placeholder="Enter the SKU(Stock Keeping Unit)" type="text" value={prodForm.sku} onChange={e => setProdForm({...prodForm, sku: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
-                      </div>
-                    ) : (
-                      <div>
-                        <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Price</label>
-                        <input placeholder="Enter the price amount" type="number" value={prodForm.price} onChange={e => setProdForm({...prodForm, price: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
-                      </div>
-                    )}
-                  </div>
 
-                  {prodForm.itemType === 'Product' && (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Price</label>
-                        <input placeholder="Enter the price amount" type="number" value={prodForm.price} onChange={e => setProdForm({...prodForm, price: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
-                      </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: prodForm.itemType === 'Product' ? '1fr 1fr' : '1fr', gap: '16px' }}>
+                    {prodForm.itemType === 'Product' && (
                       <div>
                         <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Stock Quantity</label>
                         <input placeholder="Enter the stock quantity" type="number" value={prodForm.stock} onChange={e => setProdForm({...prodForm, stock: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
                       </div>
+                    )}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Price</label>
+                      <input placeholder="Enter the price amount" type="number" value={prodForm.price} onChange={e => setProdForm({...prodForm, price: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
                     </div>
-                  )}
+                    
+                  </div>
+
                   <div>
                     <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Product/Service Image</label>
-                    <input type="file" accept="image/*" onChange={e => setProdForm({...prodForm, image: e.target.files[0]})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      {(prodForm.image || prodForm.existingImage) && (
+                        <img
+                          src={prodForm.image ? URL.createObjectURL(prodForm.image) : getImageUrl(prodForm.existingImage)}
+                          alt="Preview"
+                          style={{ width: '44px', height: '44px', borderRadius: '8px', objectFit: 'cover', border: '1px solid #CBD5E1', flexShrink: 0 }}
+                        />
+                      )}
+                      <input type="file" accept="image/*" onChange={e => setProdForm({...prodForm, image: e.target.files[0]})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
+                    </div>
                   </div>
                 </>
               )}
