@@ -1,77 +1,167 @@
-import { exportToCSV } from '../utils/exportToCSV';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowUp, ArrowDown, BellRing, Plus, X, Eye, Trash2, AlertTriangle, Search, Filter, ArrowUpDown, Download } from 'lucide-react';
+import { 
+  Calendar as CalendarIcon, Clock, Bell, BellRing, Plus, X, Pencil, 
+  Trash2, CheckCircle2, ChevronLeft, ChevronRight, AlertTriangle, 
+  Repeat, Search, Download, Filter, Check, List, CalendarDays, Eye, 
+  Loader2, AlertCircle, Sparkles, Tag 
+} from 'lucide-react';
+import { exportToCSV } from '../utils/exportToCSV';
 
 const Reminders = () => {
   const [items, setItems] = useState([]);
+  const [activeNotifications, setActiveNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState('calendar'); // 'calendar' or 'list'
+
+  // Calendar State
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(new Date());
+
+  // Modal State
   const [showModal, setShowModal] = useState(false);
-  const [viewItem, setViewItem] = useState(null);
+  const [editingItem, setEditingItem] = useState(null);
+  const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
   const [search, setSearch] = useState('');
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
-  const requestSort = (key) => {
-    let direction = 'asc';
-    if (sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc';
-    }
-    setSortConfig({ key, direction });
-  };
+  // Form State
+  const [formData, setFormData] = useState({
+    title: '',
+    date: '',
+    description: '',
+    repeatMonthly: false,
+    notifyBeforeDays: 0
+  });
 
-  const renderSortIcon = (key) => {
-    if (sortConfig.key !== key) return <ArrowUpDown size={14} style={{ opacity: 0.3, marginLeft: '4px' }} />;
-    return sortConfig.direction === 'asc' ? <ArrowUp size={14} style={{ color: 'var(--primary-blue)', marginLeft: '4px' }} /> : <ArrowDown size={14} style={{ color: 'var(--primary-blue)', marginLeft: '4px' }} />;
-  };
-  const [filterDays, setFilterDays] = useState('all');
-  const [customStartDate, setCustomStartDate] = useState('');
-  const [customEndDate, setCustomEndDate] = useState('');
-  
-  const [formData, setFormData] = useState({ title: '', date: '', priority: '', description: '' });
-
-  const fetchItems = async () => {
+  const fetchReminders = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/reminders`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
+      if (!token) return;
+
+      const [resAll, resActive] = await Promise.all([
+        fetch(`${import.meta.env.VITE_API_URL}/api/reminders`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch(`${import.meta.env.VITE_API_URL}/api/reminders/active-notifications`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+      ]);
+
+      if (resAll.ok) {
+        const data = await resAll.json();
         setItems(data);
       }
+      if (resActive.ok) {
+        const activeData = await resActive.json();
+        setActiveNotifications(activeData);
+      }
     } catch (err) {
-      console.error(err);
+      console.error('Error fetching reminders:', err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchItems();
+    fetchReminders();
   }, []);
 
+  // Format date helper: YYYY-MM-DD
+  const formatDateKey = (d) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Open modal to add reminder for a specific date
+  const handleOpenAddModal = (dateToUse = selectedDate) => {
+    setEditingItem(null);
+    setFormData({
+      title: '',
+      date: formatDateKey(dateToUse),
+      description: '',
+      repeatMonthly: false,
+      notifyBeforeDays: 2
+    });
+    setShowModal(true);
+  };
+
+  // Open modal to edit existing reminder
+  const handleOpenEditModal = (item) => {
+    setEditingItem(item);
+    const itemDate = new Date(item.date);
+    setFormData({
+      title: item.title || '',
+      date: formatDateKey(itemDate),
+      description: item.description || '',
+      repeatMonthly: Boolean(item.repeatMonthly),
+      notifyBeforeDays: item.notifyBeforeDays !== undefined ? item.notifyBeforeDays : 2
+    });
+    setShowModal(true);
+  };
+
+  // Submit Handler (Create or Update)
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSaving(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/reminders`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      const url = editingItem 
+        ? `${import.meta.env.VITE_API_URL}/api/reminders/${editingItem._id}`
+        : `${import.meta.env.VITE_API_URL}/api/reminders`;
+      const method = editingItem ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify(formData)
       });
+
       if (res.ok) {
         setShowModal(false);
-        setFormData({ title: '', date: '', priority: '', description: '' });
-        fetchItems();
+        setEditingItem(null);
+        await fetchReminders();
+        // Dispatch global notification update event for topbar
+        window.dispatchEvent(new Event('remindersUpdated'));
       } else {
-        alert('Failed to add item');
+        alert('Failed to save reminder');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Network error while saving reminder');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Toggle Complete Status
+  const handleToggleComplete = async (item) => {
+    try {
+      const token = localStorage.getItem('token');
+      const newStatus = item.status === 'Completed' ? 'Pending' : 'Completed';
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/reminders/${item._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+      if (res.ok) {
+        fetchReminders();
+        window.dispatchEvent(new Event('remindersUpdated'));
       }
     } catch (err) {
       console.error(err);
     }
   };
 
+  // Delete Handler
   const confirmDelete = async () => {
     if (!deleteId) return;
     try {
@@ -82,225 +172,783 @@ const Reminders = () => {
       });
       if (res.ok) {
         setDeleteId(null);
-        fetchItems();
-      } else {
-        alert('Failed to delete');
+        fetchReminders();
+        window.dispatchEvent(new Event('remindersUpdated'));
       }
     } catch (err) {
       console.error(err);
     }
   };
 
-  const filteredItems = items
-    .filter(i => {
-      if (filterDays === 'all') return true;
-      const itemDate = new Date(i.createdAt || i.date || new Date());
-      const diffTime = Math.abs(new Date() - itemDate);
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      if (filterDays === '7') return diffDays <= 7;
-      if (filterDays === '30') return diffDays <= 30;
-      if (filterDays === 'custom') {
-        if (customStartDate && new Date(itemDate) < new Date(customStartDate)) return false;
-        if (customEndDate && new Date(itemDate) > new Date(customEndDate)) return false;
-        return true;
-      }
-      return true;
-    })
-    .filter(i => Object.values(i).some(val => String(val).toLowerCase().includes(search.toLowerCase())))
-    .sort((a, b) => {
-      if (!sortConfig.key) return 0;
-      let aVal = a[sortConfig.key];
-      let bVal = b[sortConfig.key];
-      
-      // Handle missing values
-      if (aVal === null || aVal === undefined) aVal = '';
-      if (bVal === null || bVal === undefined) bVal = '';
+  // --- Calendar Computation ---
+  const calendarDays = useMemo(() => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
 
-      // Check if it's a date or number to sort accordingly
-      if (sortConfig.key === 'date' || sortConfig.key === 'createdAt' || sortConfig.key === 'expiryDate') {
-        aVal = new Date(aVal).getTime();
-        bVal = new Date(bVal).getTime();
-      } else if (!isNaN(Number(aVal)) && !isNaN(Number(bVal)) && aVal !== '' && bVal !== '') {
-        aVal = Number(aVal);
-        bVal = Number(bVal);
-      } else if (typeof aVal === 'string' && typeof bVal === 'string') {
-        aVal = aVal.toLowerCase();
-        bVal = bVal.toLowerCase();
+    const firstDayIndex = new Date(year, month, 1).getDay(); // 0 for Sunday
+    const daysInCurrentMonth = new Date(year, month + 1, 0).getDate();
+    const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+    const days = [];
+
+    // Preceding padding days from previous month
+    for (let i = firstDayIndex - 1; i >= 0; i--) {
+      const d = new Date(year, month - 1, daysInPrevMonth - i);
+      days.push({ date: d, isCurrentMonth: false });
+    }
+
+    // Days in current month
+    for (let i = 1; i <= daysInCurrentMonth; i++) {
+      const d = new Date(year, month, i);
+      days.push({ date: d, isCurrentMonth: true });
+    }
+
+    // Trailing padding days to fill 5 or 6 weeks (total 35 or 42)
+    const totalSlots = days.length <= 35 ? 35 : 42;
+    const remaining = totalSlots - days.length;
+    for (let i = 1; i <= remaining; i++) {
+      const d = new Date(year, month + 1, i);
+      days.push({ date: d, isCurrentMonth: false });
+    }
+
+    return days;
+  }, [currentDate]);
+
+  // Check if a reminder falls on a particular calendar date
+  const getRemindersForDate = (date) => {
+    const targetDateStr = formatDateKey(date);
+    const targetDayOfMonth = date.getDate();
+
+    return items.filter(item => {
+      if (!item.date) return false;
+      const itemDate = new Date(item.date);
+      const itemDateStr = formatDateKey(itemDate);
+
+      // 1. Exact Date Match
+      if (itemDateStr === targetDateStr) return true;
+
+      // 2. Monthly Recurring Match (Same day of the month) - Applicable ONLY for the current year
+      if (item.repeatMonthly && itemDate.getDate() === targetDayOfMonth) {
+        const itemYear = itemDate.getFullYear();
+        // Only recur in the same year as the event (current year) and on or after original start month
+        if (date.getFullYear() === itemYear && date.getMonth() >= itemDate.getMonth()) {
+          return true;
+        }
       }
 
-      if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-      if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
-      return 0;
+      return false;
     });
+  };
+
+  // Reminders for the currently selected date
+  const selectedDayReminders = useMemo(() => {
+    return getRemindersForDate(selectedDate);
+  }, [items, selectedDate]);
+
+  // Priority color helpers
+  const getPriorityBadge = (priority) => {
+    switch (priority) {
+      case 'High':
+        return { bg: '#FEF2F2', text: '#DC2626', border: '#FEE2E2', dot: '#EF4444' };
+      case 'Low':
+        return { bg: '#F0FDF4', text: '#16A34A', border: '#DCFCE7', dot: '#22C55E' };
+      default:
+        return { bg: '#FFFBEB', text: '#D97706', border: '#FEF3C7', dot: '#F59E0B' };
+    }
+  };
+
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  const handlePrevMonth = () => {
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
+  };
+
+  const handleNextMonth = () => {
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+  };
+
+  const handleToday = () => {
+    const today = new Date();
+    setCurrentDate(today);
+    setSelectedDate(today);
+  };
+
+  const isToday = (d) => {
+    const today = new Date();
+    return d.getDate() === today.getDate() &&
+      d.getMonth() === today.getMonth() &&
+      d.getFullYear() === today.getFullYear();
+  };
+
+  const isSelected = (d) => {
+    return d.getDate() === selectedDate.getDate() &&
+      d.getMonth() === selectedDate.getMonth() &&
+      d.getFullYear() === selectedDate.getFullYear();
+  };
+
+  if (loading) {
+    return (
+      <div style={{ padding: '60px 24px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+        <Loader2 size={32} className="spin" style={{ margin: '0 auto 16px auto', color: 'var(--primary-blue)' }} />
+        <p style={{ fontSize: '15px', fontWeight: '500' }}>Loading calendar & reminders...</p>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto', animation: 'fadeIn 0.3s ease-out' }}>
+    <div style={{ padding: '24px', maxWidth: '1240px', margin: '0 auto' }}>
+      
+      {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#0F172A', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <BellRing size={28} color="var(--primary-blue)" /> Reminders
+          <h1 style={{ fontSize: '26px', fontWeight: '700', color: 'var(--text-title)', display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
+            <CalendarIcon size={26} color="var(--primary-blue)" /> Reminders & Event Calendar
           </h1>
-          <p style={{ color: '#64748B', fontSize: '15px', margin: 0 }}>Manage your reminders efficiently.</p>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: '4px 0 0 0' }}>
+            Click on any date to schedule reminders, monthly repeating bills, and advance notification alerts.
+          </p>
         </div>
-        <button onClick={() => setShowModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', background: 'var(--primary-blue)', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>
-          <Plus size={18} /> Add New Remainder
-        </button>
-      </div>
 
-      <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-        <div style={{ flex: '0 1 300px', minWidth: '250px', position: 'relative' }}>
-          <Search size={18} color="#94A3B8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
-          <input type="text" placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: '100%', padding: '12px 16px 12px 42px', borderRadius: '10px', border: '1px solid #E2E8F0', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }} />
-        </div>
-        <div style={{ display: 'flex', gap: '16px' }}>
-        <select value={filterDays} onChange={(e) => setFilterDays(e.target.value)} style={{ padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', outline: 'none', cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-          <option value="all">Filter: All Time</option>
-          <option value="7">Last 7 Days</option>
-          <option value="30">Last 30 Days</option>
-          <option value="custom">Custom Range</option>
-        </select>
-        {filterDays === 'custom' && (
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-            <input type="date" value={customStartDate} onChange={(e) => setCustomStartDate(e.target.value)} style={{ padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', outline: 'none', fontSize: '13px', color: '#475569' }} />
-            <span style={{ fontSize: '13px', color: '#64748B' }}>to</span>
-            <input type="date" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} style={{ padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', outline: 'none', fontSize: '13px', color: '#475569' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* View Toggle */}
+          <div style={{ display: 'flex', background: '#F1F5F9', padding: '4px', borderRadius: '8px' }}>
+            <button
+              onClick={() => setViewMode('calendar')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '6px',
+                fontSize: '13px', fontWeight: '600', border: 'none', cursor: 'pointer',
+                background: viewMode === 'calendar' ? 'white' : 'transparent',
+                color: viewMode === 'calendar' ? 'var(--primary-blue)' : 'var(--text-secondary)',
+                boxShadow: viewMode === 'calendar' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none'
+              }}
+            >
+              <CalendarDays size={16} /> Calendar
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '6px',
+                fontSize: '13px', fontWeight: '600', border: 'none', cursor: 'pointer',
+                background: viewMode === 'list' ? 'white' : 'transparent',
+                color: viewMode === 'list' ? 'var(--primary-blue)' : 'var(--text-secondary)',
+                boxShadow: viewMode === 'list' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none'
+              }}
+            >
+              <List size={16} /> Table View
+            </button>
           </div>
-        )}
-        
-        <button onClick={() => exportToCSV(filteredItems, 'Reminders')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', cursor: 'pointer' }}><Download size={16} /> Export</button>
-      </div>
+
+          <button 
+            onClick={() => handleOpenAddModal(selectedDate)}
+            className="btn-primary"
+            style={{ padding: '10px 18px', fontSize: '14px', borderRadius: '8px' }}
+          >
+            <Plus size={16} /> Add Reminder
+          </button>
+        </div>
       </div>
 
-      <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', minWidth: '800px', borderCollapse: 'collapse', textAlign: 'left' }}>
+      {/* Active Advance Notification Alerts Banner */}
+      {activeNotifications.length > 0 && (
+        <div style={{ 
+          background: 'linear-gradient(to right, #FFFBEB, #FEF3C7)', 
+          border: '1px solid #FDE68A', 
+          borderRadius: '12px', 
+          padding: '16px 20px', 
+          marginBottom: '24px',
+          boxShadow: '0 2px 8px rgba(245, 158, 11, 0.08)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+            <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#F59E0B', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <BellRing size={16} />
+            </div>
+            <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#92400E' }}>
+              Active Upcoming Alerts ({activeNotifications.length})
+            </h3>
+            <span style={{ fontSize: '12px', color: '#B45309' }}>• Triggered by your advance notification settings</span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
+            {activeNotifications.map(alert => (
+              <div 
+                key={alert._id} 
+                style={{ 
+                  background: 'white', 
+                  borderRadius: '8px', 
+                  padding: '12px 14px', 
+                  border: '1px solid #FDE68A',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '12px'
+                }}
+              >
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ 
+                      fontSize: '11px', 
+                      fontWeight: '700', 
+                      padding: '2px 6px', 
+                      borderRadius: '4px',
+                      background: alert.isDueToday ? '#FEE2E2' : '#EFF6FF',
+                      color: alert.isDueToday ? '#DC2626' : '#2563EB'
+                    }}>
+                      {alert.isDueToday ? 'DUE TODAY' : `IN ${alert.daysRemaining} DAYS`}
+                    </span>
+                    {alert.repeatMonthly && (
+                      <span style={{ fontSize: '11px', color: '#7C3AED', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                        <Repeat size={11} /> Monthly
+                      </span>
+                    )}
+                  </div>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '14px', fontWeight: '600', color: '#0F172A' }}>
+                    {alert.title}
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => handleToggleComplete(alert)}
+                  style={{
+                    padding: '6px 10px',
+                    borderRadius: '6px',
+                    background: '#F0FDF4',
+                    border: '1px solid #BBF7D0',
+                    color: '#16A34A',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                  title="Mark as done"
+                >
+                  <Check size={13} /> Done
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Mode 1: Calendar View */}
+      {viewMode === 'calendar' ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 340px', gap: '24px', alignItems: 'start' }}>
+          
+          {/* Main Month Calendar Card */}
+          <div style={{ background: 'white', borderRadius: '16px', padding: '24px', border: '1px solid var(--border-color)', boxShadow: '0 4px 12px rgba(15,23,42,0.03)' }}>
+            
+            {/* Calendar Controls */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <h2 style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-title)', margin: 0 }}>
+                  {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+                </h2>
+                <button
+                  onClick={handleToday}
+                  style={{
+                    padding: '4px 10px', fontSize: '12px', fontWeight: '600',
+                    background: '#F1F5F9', border: '1px solid #E2E8F0', borderRadius: '6px',
+                    color: 'var(--text-secondary)', cursor: 'pointer'
+                  }}
+                >
+                  Today
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button 
+                  onClick={handlePrevMonth}
+                  style={{ width: '32px', height: '32px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                >
+                  <ChevronLeft size={18} />
+                </button>
+                <button 
+                  onClick={handleNextMonth}
+                  style={{ width: '32px', height: '32px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Weekday Labels */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px', textAlign: 'center', marginBottom: '8px' }}>
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, i) => (
+                <div key={i} style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', padding: '6px 0' }}>
+                  {day}
+                </div>
+              ))}
+            </div>
+
+            {/* Calendar Days Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px' }}>
+              {calendarDays.map((slot, index) => {
+                const dayReminders = getRemindersForDate(slot.date);
+                const isCurrent = isToday(slot.date);
+                const isSel = isSelected(slot.date);
+
+                return (
+                  <div
+                    key={index}
+                    onClick={() => setSelectedDate(slot.date)}
+                    style={{
+                      minHeight: '84px',
+                      borderRadius: '10px',
+                      padding: '8px',
+                      cursor: 'pointer',
+                      border: isSel 
+                        ? '2px solid var(--primary-blue)' 
+                        : isCurrent 
+                          ? '1px solid #93C5FD' 
+                          : '1px solid #F1F5F9',
+                      background: isSel 
+                        ? '#EFF6FF' 
+                        : slot.isCurrentMonth 
+                          ? '#FFFFFF' 
+                          : '#F8FAFC',
+                      opacity: slot.isCurrentMonth ? 1 : 0.5,
+                      transition: 'all 0.15s ease',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      position: 'relative'
+                    }}
+                    onMouseOver={e => { if (!isSel) e.currentTarget.style.borderColor = 'var(--primary-blue)'; }}
+                    onMouseOut={e => { if (!isSel) e.currentTarget.style.borderColor = isCurrent ? '#93C5FD' : '#F1F5F9'; }}
+                  >
+                    {/* Top Row: Date Number & Add Icon */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{
+                        width: '24px', height: '24px', borderRadius: '50%',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '13px', fontWeight: isCurrent ? '700' : '500',
+                        background: isCurrent ? 'var(--primary-blue)' : 'transparent',
+                        color: isCurrent ? 'white' : 'var(--text-title)'
+                      }}>
+                        {slot.date.getDate()}
+                      </span>
+
+                      {dayReminders.length > 0 && (
+                        <span style={{ fontSize: '10px', fontWeight: '700', color: 'var(--primary-blue)', background: '#DBEAFE', borderRadius: '10px', padding: '1px 5px' }}>
+                          {dayReminders.length}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Event Badges inside Cell */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '4px' }}>
+                      {dayReminders.slice(0, 2).map((item, idx) => {
+                        return (
+                          <div
+                            key={idx}
+                            style={{
+                              fontSize: '11px',
+                              padding: '2px 5px',
+                              borderRadius: '4px',
+                              background: '#EFF6FF',
+                              color: '#1E40AF',
+                              border: '1px solid #DBEAFE',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontWeight: '500',
+                              textDecoration: item.status === 'Completed' ? 'line-through' : 'none'
+                            }}
+                          >
+                            <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'var(--primary-blue)', flexShrink: 0 }}></span>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title}</span>
+                            {item.repeatMonthly && <Repeat size={10} style={{ flexShrink: 0 }} />}
+                          </div>
+                        );
+                      })}
+                      {dayReminders.length > 2 && (
+                        <span style={{ fontSize: '10px', color: 'var(--text-muted)', textAlign: 'right', fontWeight: '600' }}>
+                          +{dayReminders.length - 2} more
+                        </span>
+                      )}
+                    </div>
+
+                  </div>
+                );
+              })}
+            </div>
+
+          </div>
+
+          {/* Side Panel: Selected Date Details */}
+          <div style={{ background: 'white', borderRadius: '16px', padding: '24px', border: '1px solid var(--border-color)', boxShadow: '0 4px 12px rgba(15,23,42,0.03)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid var(--border-color)' }}>
+              <div>
+                <p style={{ margin: 0, fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Selected Date
+                </p>
+                <h3 style={{ margin: '2px 0 0 0', fontSize: '18px', fontWeight: '700', color: 'var(--text-title)' }}>
+                  {monthNames[selectedDate.getMonth()]} {selectedDate.getDate()}, {selectedDate.getFullYear()}
+                </h3>
+              </div>
+              <button
+                onClick={() => handleOpenAddModal(selectedDate)}
+                style={{
+                  width: '32px', height: '32px', borderRadius: '8px',
+                  background: '#EFF6FF', border: '1px solid #DBEAFE', color: 'var(--primary-blue)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'
+                }}
+                title="Add event for this date"
+              >
+                <Plus size={18} />
+              </button>
+            </div>
+
+            {/* List of Reminders for this day */}
+            {selectedDayReminders.length === 0 ? (
+              <div style={{ padding: '36px 16px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                <Bell size={32} style={{ margin: '0 auto 12px auto', opacity: 0.3 }} />
+                <p style={{ margin: 0, fontSize: '14px', fontWeight: '500' }}>No reminders scheduled</p>
+                <p style={{ margin: '4px 0 16px 0', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                  Click below to set an alert or recurring monthly event.
+                </p>
+                <button
+                  onClick={() => handleOpenAddModal(selectedDate)}
+                  className="btn-primary"
+                  style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '6px' }}
+                >
+                  <Plus size={14} /> Schedule for this day
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {selectedDayReminders.map(item => {
+                  return (
+                    <div 
+                      key={item._id}
+                      style={{
+                        padding: '14px',
+                        borderRadius: '10px',
+                        background: item.status === 'Completed' ? '#F8FAFC' : 'white',
+                        border: '1px solid #E2E8F0',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                            {item.repeatMonthly && (
+                              <span style={{ fontSize: '11px', fontWeight: '600', padding: '2px 6px', borderRadius: '4px', background: '#F5F3FF', color: '#6D28D9', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                <Repeat size={11} /> Monthly (Current Year)
+                              </span>
+                            )}
+                            {item.notifyBeforeDays > 0 && (
+                              <span style={{ fontSize: '11px', fontWeight: '600', padding: '2px 6px', borderRadius: '4px', background: '#FEF3C7', color: '#B45309', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                <Bell size={11} /> {item.notifyBeforeDays}d Advance
+                              </span>
+                            )}
+                          </div>
+                          <h4 style={{ 
+                            fontSize: '15px', fontWeight: '600', color: 'var(--text-title)', margin: '6px 0 0 0',
+                            textDecoration: item.status === 'Completed' ? 'line-through' : 'none',
+                            opacity: item.status === 'Completed' ? 0.6 : 1
+                          }}>
+                            {item.title}
+                          </h4>
+                        </div>
+
+                        {/* Quick action buttons */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <button
+                            onClick={() => handleToggleComplete(item)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: item.status === 'Completed' ? '#16A34A' : 'var(--text-muted)', padding: '4px' }}
+                            title={item.status === 'Completed' ? 'Mark Pending' : 'Mark Complete'}
+                          >
+                            <CheckCircle2 size={18} />
+                          </button>
+                          <button
+                            onClick={() => handleOpenEditModal(item)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '4px' }}
+                            title="Edit"
+                          >
+                            <Pencil size={15} />
+                          </button>
+                          <button
+                            onClick={() => setDeleteId(item._id)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', padding: '4px' }}
+                            title="Delete"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {item.description && (
+                        <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                          {item.description}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+        </div>
+      ) : (
+        /* Mode 2: Table / List View */
+        <div style={{ background: 'white', borderRadius: '16px', border: '1px solid var(--border-color)', overflow: 'hidden', boxShadow: '0 4px 12px rgba(15,23,42,0.03)' }}>
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+            <div className="input-with-icon" style={{ maxWidth: '300px', width: '100%' }}>
+              <Search className="input-icon" size={16} />
+              <input 
+                type="text" 
+                className="input-field" 
+                placeholder="Search reminders..." 
+                value={search} 
+                onChange={e => setSearch(e.target.value)} 
+                style={{ height: '38px', fontSize: '13px' }}
+              />
+            </div>
+            <button
+              onClick={() => exportToCSV(items, 'reminders.csv')}
+              className="btn-secondary"
+              style={{ padding: '8px 14px', fontSize: '13px', borderRadius: '6px' }}
+            >
+              <Download size={15} /> Export CSV
+            </button>
+          </div>
+
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
-              <tr style={{ background: '#F8FAFC' }}>
-                <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', width: '60px' }}>S.No</th>
-                <th onClick={() => requestSort('title')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',  padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
-                <div style={{ display: 'flex', alignItems: 'center' }}>Title {renderSortIcon('title')}</div>
-              </th>
-                <th onClick={() => requestSort('date')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',  padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
-                <div style={{ display: 'flex', alignItems: 'center' }}>Date {renderSortIcon('date')}</div>
-              </th>
-                <th onClick={() => requestSort('priority')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',  padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
-                <div style={{ display: 'flex', alignItems: 'center' }}>Priority {renderSortIcon('priority')}</div>
-              </th>
-                <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>Description</th>
-                <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', textAlign: 'right' }}>Actions</th>
+              <tr style={{ background: '#F8FAFC', borderBottom: '1px solid var(--border-color)' }}>
+                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)' }}>TITLE</th>
+                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)' }}>EVENT DATE</th>
+                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)' }}>RECURRENCE</th>
+                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)' }}>ADVANCE ALERT</th>
+                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)' }}>STATUS</th>
+                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)', textAlign: 'right' }}>ACTIONS</th>
               </tr>
             </thead>
             <tbody>
-              {loading ? (
-                <tr><td colSpan="6" style={{ padding: '32px', textAlign: 'center', color: '#64748B' }}>Loading...</td></tr>
-              ) : filteredItems.length === 0 ? (
+              {items
+                .filter(i => (i.title || '').toLowerCase().includes(search.toLowerCase()) || (i.description || '').toLowerCase().includes(search.toLowerCase()))
+                .map(item => {
+                  return (
+                    <tr key={item._id} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                      <td style={{ padding: '14px 16px', fontWeight: '600', color: 'var(--text-title)' }}>
+                        {item.title}
+                        {item.description && <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '400' }}>{item.description}</p>}
+                      </td>
+                      <td style={{ padding: '14px 16px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                        {new Date(item.date).toLocaleDateString()}
+                      </td>
+                      <td style={{ padding: '14px 16px', fontSize: '13px' }}>
+                        {item.repeatMonthly ? (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#6D28D9', fontWeight: '600', background: '#F5F3FF', padding: '2px 8px', borderRadius: '4px', fontSize: '12px' }}>
+                            <Repeat size={12} /> Monthly (Current Year)
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)' }}>One-time</span>
+                        )}
+                      </td>
+                      <td style={{ padding: '14px 16px', fontSize: '13px' }}>
+                        {item.notifyBeforeDays > 0 ? (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#B45309', fontWeight: '600', background: '#FEF3C7', padding: '2px 8px', borderRadius: '4px', fontSize: '12px' }}>
+                            <Bell size={12} /> {item.notifyBeforeDays} days prior
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)' }}>On day only</span>
+                        )}
+                      </td>
+                      <td style={{ padding: '14px 16px' }}>
+                        <button
+                          onClick={() => handleToggleComplete(item)}
+                          style={{
+                            padding: '3px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: '600',
+                            border: 'none', cursor: 'pointer',
+                            background: item.status === 'Completed' ? '#ECFDF5' : '#F1F5F9',
+                            color: item.status === 'Completed' ? '#059669' : '#475569'
+                          }}
+                        >
+                          {item.status || 'Pending'}
+                        </button>
+                      </td>
+                      <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                        <div style={{ display: 'inline-flex', gap: '6px' }}>
+                          <button onClick={() => handleOpenEditModal(item)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}>
+                            <Pencil size={16} />
+                          </button>
+                          <button onClick={() => setDeleteId(item._id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444' }}>
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              {items.length === 0 && (
                 <tr>
-                  <td colSpan="6" style={{ padding: '64px 32px', textAlign: 'center' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                      <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}><BellRing size={32} color="#3B82F6" /></div>
-                      <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#0F172A', marginBottom: '8px' }}>No records found</h3>
-                    </div>
+                  <td colSpan="7" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    No reminders registered yet.
                   </td>
                 </tr>
-              ) : (
-                filteredItems.map((item, index) => (
-                  <tr key={item._id} style={{ borderBottom: '1px solid #E2E8F0', transition: 'background 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
-                    <td style={{ padding: '16px 24px', fontSize: '15px', color: '#475569', fontWeight: '500' }}>{index + 1}</td>
-                    <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px' }}>{item.title}</td>
-                    <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px' }}>{item.date}</td>
-                    <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px' }}>{item.priority}</td>
-                    <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px' }}>{item.description}</td>
-                    <td style={{ padding: '16px 24px', textAlign: 'right' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
-                        <button onClick={() => setViewItem(item)} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#EFF6FF', color: '#3B82F6', border: 'none', borderRadius: '6px', cursor: 'pointer' }}><Eye size={16} /></button>
-                        <button onClick={() => setDeleteId(item._id)} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#FEE2E2', color: '#EF4444', border: 'none', borderRadius: '6px', cursor: 'pointer' }}><Trash2 size={16} /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
               )}
             </tbody>
           </table>
         </div>
-      </div>
+      )}
 
+      {/* Add / Edit Reminder Modal */}
       {showModal && createPortal(
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '24px' }}>
-          <div style={{ background: 'white', padding: '32px', borderRadius: '20px', width: '100%', maxWidth: '500px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-              <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#0F172A', margin: 0 }}>Add New Remainder</h2>
-              <button onClick={() => setShowModal(false)} style={{ background: '#F1F5F9', border: 'none', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer' }}><X size={18} /></button>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.45)', backdropFilter: 'blur(6px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div style={{ background: 'white', borderRadius: '16px', maxWidth: '520px', width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '24px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <CalendarIcon size={20} color="var(--primary-blue)" />
+                <h3 style={{ margin: 0, fontSize: '18px', color: 'var(--text-title)' }}>
+                  {editingItem ? 'Edit Reminder' : 'Add New Reminder'}
+                </h3>
+              </div>
+              <button onClick={() => setShowModal(false)} style={{ background: '#F1F5F9', border: 'none', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                <X size={18} />
+              </button>
             </div>
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Title</label>
-                <input placeholder="Enter the title" type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} required style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }} />
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              
+              {/* Title */}
+              <div className="input-group" style={{ margin: 0 }}>
+                <label className="input-label">Event / Reminder Title *</label>
+                <input 
+                  type="text" 
+                  className="input-field" 
+                  placeholder="e.g. Shop Rent, GST Filing, Vendor Payment"
+                  value={formData.title} 
+                  onChange={e => setFormData({ ...formData, title: e.target.value })} 
+                  required 
+                />
               </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Date</label>
-                <input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} required style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }} />
+
+              {/* Event Date */}
+              <div className="input-group" style={{ margin: 0 }}>
+                <label className="input-label">Event Date *</label>
+                <input 
+                  type="date" 
+                  className="input-field" 
+                  value={formData.date} 
+                  onChange={e => setFormData({ ...formData, date: e.target.value })} 
+                  required 
+                />
               </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Priority</label>
-                <input placeholder="Enter the priority" type="text" value={formData.priority} onChange={e => setFormData({...formData, priority: e.target.value})} required style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }} />
+
+              {/* Recurring Feature: Repeat Every Month (Current Year Only) */}
+              <div style={{ padding: '14px', borderRadius: '10px', background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={formData.repeatMonthly} 
+                    onChange={e => setFormData({ ...formData, repeatMonthly: e.target.checked })} 
+                    style={{ width: '18px', height: '18px', accentColor: 'var(--primary-blue)', cursor: 'pointer' }}
+                  />
+                  <div>
+                    <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-title)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Repeat size={15} color="#7C3AED" /> Repeat Every Month (Current Year Only)
+                    </span>
+                    <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                      Automatically recurs on day {formData.date ? new Date(formData.date).getDate() : 'X'} of each month through December {formData.date ? new Date(formData.date).getFullYear() : new Date().getFullYear()}.
+                    </p>
+                  </div>
+                </label>
               </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Description</label>
-                <input placeholder="Enter the description" type="text" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} required style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }} />
+
+              {/* Advance Notification Days */}
+              <div style={{ padding: '14px', borderRadius: '10px', background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                  <Bell size={15} color="#D97706" /> Notify in Advance (Consecutive Days Before Event)
+                </label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <input 
+                    type="number" 
+                    min="0" 
+                    max="30" 
+                    className="input-field" 
+                    style={{ maxWidth: '100px' }}
+                    value={formData.notifyBeforeDays} 
+                    onChange={e => setFormData({ ...formData, notifyBeforeDays: Math.max(0, parseInt(e.target.value, 10) || 0) })} 
+                  />
+                  <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>days prior to the event date</span>
+                </div>
+                <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>
+                  {formData.notifyBeforeDays > 0 
+                    ? `Active alert triggers for the consecutive ${formData.notifyBeforeDays} days leading up to the event.`
+                    : 'Alert triggers only on the day of the event.'}
+                </p>
               </div>
-              <div style={{ display: 'flex', gap: '16px', marginTop: '12px' }}>
-                <button type="button" onClick={() => setShowModal(false)} style={{ flex: 1, padding: '14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '10px', color: '#475569', fontWeight: '600', cursor: 'pointer' }}>Cancel</button>
-                <button type="submit" style={{ flex: 1, padding: '14px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', cursor: 'pointer' }}>Save</button>
+
+              {/* Description */}
+              <div className="input-group" style={{ margin: 0 }}>
+                <label className="input-label">Notes / Description (Optional)</label>
+                <textarea 
+                  className="input-field" 
+                  rows="2" 
+                  placeholder="Additional details, bank account, reference info..."
+                  value={formData.description} 
+                  onChange={e => setFormData({ ...formData, description: e.target.value })} 
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '12px' }}>
+                <button 
+                  type="button" 
+                  onClick={() => setShowModal(false)} 
+                  className="btn-secondary" 
+                  style={{ padding: '10px 18px' }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={saving} 
+                  className="btn-primary" 
+                  style={{ padding: '10px 24px', display: 'flex', alignItems: 'center', gap: '8px' }}
+                >
+                  {saving ? <><Loader2 size={16} className="spin" /> Saving...</> : (editingItem ? 'Update Reminder' : 'Add Reminder')}
+                </button>
               </div>
             </form>
           </div>
-        </div>, document.body
+        </div>,
+        document.body
       )}
 
-      {viewItem && createPortal(
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '24px' }}>
-          <div style={{ background: 'white', padding: '32px', borderRadius: '20px', width: '100%', maxWidth: '500px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-              <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#0F172A', margin: 0 }}>Details</h2>
-              <button onClick={() => setViewItem(null)} style={{ background: '#F1F5F9', border: 'none', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer' }}><X size={18} /></button>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-
-              <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
-                <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Title</p>
-                <p style={{ margin: 0, fontSize: '16px', color: '#0F172A' }}>{viewItem.title}</p>
-              </div>
-              <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
-                <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Date</p>
-                <p style={{ margin: 0, fontSize: '16px', color: '#0F172A' }}>{viewItem.date}</p>
-              </div>
-              <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
-                <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Priority</p>
-                <p style={{ margin: 0, fontSize: '16px', color: '#0F172A' }}>{viewItem.priority}</p>
-              </div>
-              <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
-                <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Description</p>
-                <p style={{ margin: 0, fontSize: '16px', color: '#0F172A' }}>{viewItem.description}</p>
-              </div>
-            </div>
-          </div>
-        </div>, document.body
-      )}
-
+      {/* Delete Confirmation Modal */}
       {deleteId && createPortal(
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '24px' }}>
-          <div style={{ background: 'white', padding: '32px', borderRadius: '20px', width: '100%', maxWidth: '400px', textAlign: 'center' }}>
-            <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px auto' }}><AlertTriangle size={32} color="#EF4444" /></div>
-            <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#0F172A', margin: '0 0 12px 0' }}>Delete Record</h2>
-            <p style={{ color: '#64748B', margin: '0 0 24px 0' }}>Are you sure you want to delete this record?</p>
-            <div style={{ display: 'flex', gap: '16px' }}>
-              <button type="button" onClick={() => setDeleteId(null)} style={{ flex: 1, padding: '14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '10px', color: '#475569', fontWeight: '600', cursor: 'pointer' }}>Cancel</button>
-              <button type="button" onClick={confirmDelete} style={{ flex: 1, padding: '14px', background: '#EF4444', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', cursor: 'pointer' }}>Delete</button>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.45)', backdropFilter: 'blur(6px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div style={{ background: 'white', borderRadius: '16px', maxWidth: '400px', width: '100%', padding: '24px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
+            <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#FEE2E2', color: '#DC2626', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto' }}>
+              <AlertTriangle size={24} />
+            </div>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', color: 'var(--text-title)' }}>Delete Reminder?</h3>
+            <p style={{ margin: '0 0 24px 0', fontSize: '14px', color: 'var(--text-secondary)' }}>
+              Are you sure you want to remove this reminder? This action cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <button onClick={() => setDeleteId(null)} className="btn-secondary" style={{ padding: '10px 20px' }}>
+                Cancel
+              </button>
+              <button onClick={confirmDelete} style={{ padding: '10px 20px', background: '#EF4444', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '600', cursor: 'pointer' }}>
+                Delete
+              </button>
             </div>
           </div>
-        </div>, document.body
+        </div>,
+        document.body
       )}
+
     </div>
   );
 };

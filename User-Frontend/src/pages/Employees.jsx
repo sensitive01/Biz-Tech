@@ -33,7 +33,7 @@ const Employees = () => {
     try {
       const [empRes, branchRes] = await Promise.all([
         fetch(`${import.meta.env.VITE_API_URL}/api/employees`),
-        tenantType === 3 ? fetch(`${import.meta.env.VITE_API_URL}/api/branches`) : Promise.resolve(null)
+        (tenantType === 3 || tenantType === 4) ? fetch(`${import.meta.env.VITE_API_URL}/api/branches`) : Promise.resolve(null)
       ]);
       
       if (empRes.ok) {
@@ -187,7 +187,7 @@ const Employees = () => {
                 <th onClick={() => requestSort('name')} style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', alignItems: 'center' }}>Name {renderSortIcon('name')}</div></th>
                 <th onClick={() => requestSort('position')} style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', alignItems: 'center' }}>Position {renderSortIcon('position')}</div></th>
                 <th onClick={() => requestSort('status')} style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', alignItems: 'center' }}>Status {renderSortIcon('status')}</div></th>
-                {tenantType === 3 && (
+                {(tenantType === 3 || tenantType === 4) && (
                   <th onClick={() => requestSort('branch')} style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', alignItems: 'center' }}>Branch {renderSortIcon('branch')}</div></th>
                 )}
                 <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'right' }}>Action</th>
@@ -196,11 +196,11 @@ const Employees = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={tenantType === 3 ? "6" : "5"} style={{ padding: '32px', textAlign: 'center', color: '#64748B' }}>Loading employees...</td>
+                  <td colSpan={(tenantType === 3 || tenantType === 4) ? "6" : "5"} style={{ padding: '32px', textAlign: 'center', color: '#64748B' }}>Loading employees...</td>
                 </tr>
               ) : filteredEmployees.length === 0 ? (
                 <tr>
-                  <td colSpan={tenantType === 3 ? "6" : "5"} style={{ padding: '64px 32px', textAlign: 'center' }}>
+                  <td colSpan={(tenantType === 3 || tenantType === 4) ? "6" : "5"} style={{ padding: '64px 32px', textAlign: 'center' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                       <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
                         <Users size={32} color="#3B82F6" />
@@ -240,7 +240,7 @@ const Employees = () => {
                         {employee.status || 'Active'}
                       </span>
                     </td>
-                    {tenantType === 3 && (
+                    {(tenantType === 3 || tenantType === 4) && (
                       <td style={{ padding: '16px 24px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#475569', fontSize: '14px' }}>
                           <Store size={16} color="#94A3B8" /> {employee.branchId ? employee.branchId.name : 'Unassigned'}
@@ -361,7 +361,7 @@ const Employees = () => {
                     <option value="On Leave">On Leave</option>
                   </select>
                 </div>
-                {tenantType === 3 && (
+                {(tenantType === 3 || tenantType === 4) && (
                   <div>
                     <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Assign to Branch</label>
                     <select 
@@ -443,7 +443,7 @@ const Employees = () => {
                     <Activity size={16} color="#64748B" /> {viewEmployee.status || 'Active'}
                   </div>
                 </div>
-                {tenantType === 3 && (
+                {(tenantType === 3 || tenantType === 4) && (
                   <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
                     <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600', textTransform: 'uppercase' }}>Assigned Branch</p>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, fontSize: '16px', color: '#0F172A', fontWeight: '500' }}>

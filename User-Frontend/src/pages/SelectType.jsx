@@ -39,8 +39,46 @@ const SelectType = () => {
   };
 
   const handleFinish = async () => {
+    // If not coming directly from registration form, allow direct access for testing or existing users
     if (!location.state) {
-      setError('Registration data missing. Please go back.');
+      setLoading(true);
+      setError('');
+      localStorage.setItem('tenantType', selectedType.toString());
+
+      try {
+        const storedUser = JSON.parse(localStorage.getItem('user')) || {};
+        storedUser.businessType = selectedType;
+        localStorage.setItem('user', JSON.stringify(storedUser));
+      } catch (e) {}
+
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          await fetch(`${import.meta.env.VITE_API_URL}/api/auth/onboarding`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ businessType: selectedType })
+          });
+        } catch (e) {
+          console.warn("Could not sync businessType to server in test mode:", e);
+        }
+      } else {
+        // Fallback test session for instant testing access without prior registration
+        localStorage.setItem('token', 'dev_test_token');
+        localStorage.setItem('user', JSON.stringify({
+          fullName: 'Test User',
+          email: 'test@biztech.com',
+          phone: '+91 9876543210',
+          businessType: selectedType,
+          modules: ['expenses']
+        }));
+      }
+
+      setLoading(false);
+      navigate('/onboarding');
       return;
     }
     
@@ -119,7 +157,7 @@ const SelectType = () => {
         {error && <div style={{ color: '#EF4444', fontSize: '14px', marginBottom: '16px', textAlign: 'center', background: '#FEF2F2', padding: '8px', borderRadius: '6px' }}>{error}</div>}
 
         <button onClick={handleFinish} disabled={loading} className="btn-primary" style={{ padding: '14px', fontSize: '16px', width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', opacity: loading ? 0.7 : 1 }}>
-          {loading ? <><Loader2 size={18} className="spin" /> Creating Account...</> : <>Complete Registration &rarr;</>}
+          {loading ? <><Loader2 size={18} className="spin" /> Processing...</> : location.state ? <>Complete Registration &rarr;</> : <>Continue to Onboarding &rarr;</>}
         </button>
       </div>
     </div>

@@ -6,6 +6,8 @@ const TenantLayout = () => {
   const navigate = useNavigate();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showSubMenu, setShowSubMenu] = useState(false);
+  const [activeAlerts, setActiveAlerts] = useState([]);
+  const [showAlertMenu, setShowAlertMenu] = useState(false);
   const tenantType = Number(localStorage.getItem('tenantType')) || 1;
   const [modules, setModules] = useState([]);
   const [currentUser, setCurrentUser] = useState(() => {
@@ -59,6 +61,31 @@ const TenantLayout = () => {
   }, []);
 
   useEffect(() => {
+    const fetchActiveAlerts = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/reminders/active-notifications`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setActiveAlerts(data);
+        }
+      } catch (err) {
+        console.error('Error fetching active alerts:', err);
+      }
+    };
+
+    fetchActiveAlerts();
+
+    const handleRemindersUpdate = () => fetchActiveAlerts();
+    window.addEventListener('remindersUpdated', handleRemindersUpdate);
+    return () => window.removeEventListener('remindersUpdated', handleRemindersUpdate);
+  }, []);
+
+  useEffect(() => {
     try {
       let userModules = [];
       const userStr = localStorage.getItem('user');
@@ -100,18 +127,106 @@ const TenantLayout = () => {
       {/* Top Header */}
       <header className="top-header" style={{ padding: 0 }}>
         {/* Logo Area (Left) */}
-        <div style={{ width: '240px', height: '100%', display: 'flex', alignItems: 'center', padding: '0 24px', gap: '10px', flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '8px', overflow: 'hidden' }}>
+        <div style={{ width: '240px', height: '100%', display: 'flex', alignItems: 'center', padding: '0 20px', gap: '10px', flexShrink: 0, borderRight: '1px solid var(--border-color)', boxSizing: 'border-box' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #E2E8F0', flexShrink: 0 }}>
             <img src="/logo.jpg" alt="BizTech Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </div>
-          <span style={{ fontSize: '18px', fontWeight: '700', color: 'var(--text-title)', fontFamily: 'Plus Jakarta Sans' }}>My Workspace</span>
+          <span style={{ fontSize: '17px', fontWeight: '700', color: 'var(--text-title)', fontFamily: 'Plus Jakarta Sans' }}>My Workspace</span>
         </div>
 
         {/* Header Right Content */}
-        <div style={{ flex: 1, height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '0 32px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-            <div style={{ position: 'relative', cursor: 'pointer' }}>
-              <Bell size={20} color="var(--text-secondary)" />
+        <div style={{ flex: 1, height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '0 24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            {/* Notification Bell with Badge & Dropdown */}
+            <div style={{ position: 'relative' }}>
+              <div 
+                onClick={() => {
+                  setShowAlertMenu(!showAlertMenu);
+                  setShowProfileMenu(false);
+                }}
+                style={{ 
+                  position: 'relative', 
+                  cursor: 'pointer',
+                  width: '38px', height: '38px',
+                  borderRadius: '8px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: showAlertMenu ? '#F1F5F9' : '#F8FAFC',
+                  border: '1px solid var(--border-color)',
+                  transition: 'all 0.15s ease',
+                  color: activeAlerts.length > 0 ? 'var(--primary-blue)' : 'var(--text-secondary)'
+                }}
+                title="Reminders & Notifications"
+                onMouseOver={(e) => { if (!showAlertMenu) e.currentTarget.style.background = '#F1F5F9'; }}
+                onMouseOut={(e) => { if (!showAlertMenu) e.currentTarget.style.background = '#F8FAFC'; }}
+              >
+                <Bell size={18} />
+                {activeAlerts.length > 0 && (
+                  <span style={{ 
+                    position: 'absolute', top: '-4px', right: '-4px', 
+                    background: '#EF4444', color: 'white', 
+                    fontSize: '10px', fontWeight: '700', 
+                    minWidth: '18px', height: '18px', 
+                    padding: '0 4px',
+                    borderRadius: '9999px', display: 'flex', 
+                    alignItems: 'center', justifyContent: 'center',
+                    boxShadow: '0 2px 4px rgba(239, 68, 68, 0.4)',
+                    lineHeight: '1'
+                  }}>
+                    {activeAlerts.length}
+                  </span>
+                )}
+              </div>
+
+              {showAlertMenu && (
+                <>
+                  <div style={{ position: 'fixed', inset: 0, zIndex: 9 }} onClick={() => setShowAlertMenu(false)}></div>
+                  <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '8px', background: 'white', borderRadius: '12px', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.15)', border: '1px solid var(--border-color)', width: '320px', zIndex: 10, overflow: 'hidden' }}>
+                    <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F8FAFC' }}>
+                      <span style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-title)' }}>Reminder Alerts</span>
+                      <span style={{ fontSize: '11px', fontWeight: '700', background: '#EFF6FF', color: 'var(--primary-blue)', padding: '2px 8px', borderRadius: '10px' }}>
+                        {activeAlerts.length} Active
+                      </span>
+                    </div>
+
+                    <div style={{ maxHeight: '280px', overflowY: 'auto', padding: '8px' }}>
+                      {activeAlerts.length === 0 ? (
+                        <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                          No upcoming alerts for today or advance window.
+                        </div>
+                      ) : (
+                        activeAlerts.map(alert => (
+                          <div 
+                            key={alert._id}
+                            onClick={() => { setShowAlertMenu(false); navigate('/tenant/reminders'); }}
+                            style={{ padding: '10px 12px', borderRadius: '8px', cursor: 'pointer', transition: 'background 0.2s', borderBottom: '1px solid #F1F5F9' }}
+                            onMouseOver={e => e.currentTarget.style.background = '#F8FAFC'}
+                            onMouseOut={e => e.currentTarget.style.background = 'transparent'}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2px' }}>
+                              <span style={{ fontSize: '11px', fontWeight: '700', color: alert.isDueToday ? '#DC2626' : '#D97706' }}>
+                                {alert.isDueToday ? 'DUE TODAY' : `IN ${alert.daysRemaining} DAYS`}
+                              </span>
+                              {alert.repeatMonthly && (
+                                <span style={{ fontSize: '10px', color: '#7C3AED', background: '#F5F3FF', padding: '1px 5px', borderRadius: '4px' }}>Monthly</span>
+                              )}
+                            </div>
+                            <p style={{ margin: 0, fontSize: '13px', fontWeight: '600', color: 'var(--text-title)' }}>{alert.title}</p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    <div style={{ padding: '8px', borderTop: '1px solid var(--border-color)', textAlign: 'center', background: '#F8FAFC' }}>
+                      <button 
+                        onClick={() => { setShowAlertMenu(false); navigate('/tenant/reminders'); }}
+                        style={{ width: '100%', padding: '6px', fontSize: '12px', fontWeight: '600', color: 'var(--primary-blue)', border: 'none', background: 'transparent', cursor: 'pointer' }}
+                      >
+                        View Calendar & Reminders &rarr;
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
             
             <div style={{ position: 'relative' }}>
@@ -122,22 +237,52 @@ const TenantLayout = () => {
                     setShowSubMenu(false);
                   } else {
                     setShowProfileMenu(true);
+                    setShowAlertMenu(false);
                   }
                 }}
-                style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', padding: '4px 8px', borderRadius: '8px', background: showProfileMenu ? '#F1F5F9' : 'transparent', transition: 'background 0.2s' }}
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '10px', 
+                  cursor: 'pointer', 
+                  padding: '5px 10px 5px 6px', 
+                  borderRadius: '8px', 
+                  background: showProfileMenu ? '#F1F5F9' : '#F8FAFC', 
+                  border: '1px solid var(--border-color)', 
+                  transition: 'all 0.15s ease' 
+                }}
+                onMouseOver={(e) => { if (!showProfileMenu) e.currentTarget.style.background = '#F1F5F9'; }}
+                onMouseOut={(e) => { if (!showProfileMenu) e.currentTarget.style.background = '#F8FAFC'; }}
               >
-                <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, #2563EB 0%, #4F46E5 100%)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', fontSize: '13px', boxShadow: '0 2px 4px rgba(37,99,235,0.2)' }}>
+                <div style={{ 
+                  width: '32px', height: '32px', borderRadius: '8px', 
+                  background: 'linear-gradient(135deg, #2563EB 0%, #4F46E5 100%)', 
+                  color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                  fontWeight: '700', fontSize: '13px', 
+                  boxShadow: '0 2px 4px rgba(37,99,235,0.2)',
+                  flexShrink: 0
+                }}>
                   {getInitials(currentUser?.fullName)}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
-                  <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-title)', lineHeight: '1.2' }}>
+                  <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-title)', lineHeight: '1.2' }}>
                     {currentUser?.fullName || 'Business Owner'}
                   </span>
-                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '600', fontFamily: 'monospace', marginTop: '2px', letterSpacing: '0.5px' }}>
-                    {currentUser?.userId ? `ID: ${currentUser.userId}` : 'Tenant Account'}
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                    <span style={{ 
+                      fontSize: '10px', 
+                      fontWeight: '700', 
+                      color: '#2563EB', 
+                      background: '#EFF6FF', 
+                      padding: '1px 5px', 
+                      borderRadius: '4px',
+                      lineHeight: '1.2'
+                    }}>
+                      {currentUser?.userId || 'BT-TENANT'}
+                    </span>
+                  </div>
                 </div>
-                <ChevronDown size={16} color="var(--text-muted)" style={{ marginLeft: '4px', transform: showProfileMenu ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s' }} />
+                <ChevronDown size={14} color="var(--text-muted)" style={{ marginLeft: '2px', transform: showProfileMenu ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s' }} />
               </div>
 
               {showProfileMenu && (
@@ -200,7 +345,7 @@ const TenantLayout = () => {
                       <div style={{ height: '1px', background: 'var(--border-color)', margin: '4px 0' }}></div>
 
                       <button 
-                        onClick={handleLogout}
+                        onClick={handleLogout} 
                         style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', background: 'transparent', border: 'none', color: '#EF4444', fontSize: '14px', fontWeight: '500', cursor: 'pointer', borderRadius: '6px', textAlign: 'left' }}
                         onMouseOver={(e) => e.currentTarget.style.background = '#FEF2F2'}
                         onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
@@ -218,204 +363,112 @@ const TenantLayout = () => {
 
       {/* Sidebar */}
       <aside className="sidebar">
-        <div className="sidebar-scrollable" style={{ padding: '24px 16px', flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto' }}>
-          <div style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px', paddingLeft: '12px' }}>
+        <div className="sidebar-scrollable" style={{ padding: '20px 12px', flex: 1, display: 'flex', flexDirection: 'column', gap: '4px', overflowY: 'auto' }}>
+          <div style={{ fontSize: '11px', fontWeight: '700', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px', paddingLeft: '12px' }}>
             Menu
           </div>
           
-          <NavLink 
-            to="/tenant/dashboard" 
-            style={({isActive}) => ({
-              display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: 'var(--radius-lg)',
-              color: isActive ? 'var(--primary-blue)' : 'var(--text-secondary)',
-              background: isActive ? '#EFF4FF' : 'transparent',
-              fontWeight: isActive ? '600' : '500',
-              fontSize: '14px',
-              textDecoration: 'none'
-            })}
-          >
+          <NavLink to="/tenant/dashboard" className={({isActive}) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
             <LayoutGrid size={18} />
-            Dashboard
+            <span>Dashboard</span>
           </NavLink>
 
           {/* 2. Businesses */}
           {tenantType >= 4 && (
-            <NavLink 
-              to="/tenant/businesses" 
-              style={({isActive}) => ({
-                display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: 'var(--radius-lg)',
-                color: isActive ? 'var(--primary-blue)' : 'var(--text-secondary)',
-                background: isActive ? '#EFF4FF' : 'transparent',
-                fontWeight: isActive ? '600' : '500',
-                fontSize: '14px',
-                textDecoration: 'none'
-              })}
-            >
+            <NavLink to="/tenant/businesses" className={({isActive}) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <Building2 size={18} />
-              Businesses
+              <span>Businesses</span>
             </NavLink>
           )}
 
           {/* 3. Branches */}
           {tenantType >= 3 && (
-            <NavLink 
-              to="/tenant/branches" 
-              style={({isActive}) => ({
-                display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: 'var(--radius-lg)',
-                color: isActive ? 'var(--primary-blue)' : 'var(--text-secondary)',
-                background: isActive ? '#EFF4FF' : 'transparent',
-                fontWeight: isActive ? '600' : '500',
-                fontSize: '14px',
-                textDecoration: 'none'
-              })}
-            >
+            <NavLink to="/tenant/branches" className={({isActive}) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <Map size={18} />
-              Branches
+              <span>Branches</span>
             </NavLink>
           )}
 
           {/* 4. Product / Service */}
           {modules.includes('products_services') && (
-            <NavLink to="/tenant/products" style={({isActive}) => ({ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: 'var(--radius-lg)', color: isActive ? 'var(--primary-blue)' : 'var(--text-secondary)', background: isActive ? '#EFF4FF' : 'transparent', fontWeight: isActive ? '600' : '500', fontSize: '14px', textDecoration: 'none' })}>
+            <NavLink to="/tenant/products" className={({isActive}) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <Package size={18} />
-              Products & Services
+              <span>Products & Services</span>
             </NavLink>
           )}
 
           {/* 5. Stock / Inventory */}
           {modules.includes('inventory') && (
-            <NavLink to="/tenant/inventory" style={({isActive}) => ({ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: 'var(--radius-lg)', color: isActive ? 'var(--primary-blue)' : 'var(--text-secondary)', background: isActive ? '#EFF4FF' : 'transparent', fontWeight: isActive ? '600' : '500', fontSize: '14px', textDecoration: 'none' })}>
+            <NavLink to="/tenant/inventory" className={({isActive}) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <Archive size={18} />
-              Stock / Inventory
+              <span>Stock / Inventory</span>
             </NavLink>
           )}
 
           {/* 6. Customers */}
-          <NavLink 
-            to="/tenant/customers" 
-            style={({isActive}) => ({
-              display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: 'var(--radius-lg)',
-              color: isActive ? 'var(--primary-blue)' : 'var(--text-secondary)',
-              background: isActive ? '#EFF4FF' : 'transparent',
-              fontWeight: isActive ? '600' : '500',
-              fontSize: '14px',
-              textDecoration: 'none'
-            })}
-          >
+          <NavLink to="/tenant/customers" className={({isActive}) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
             <UserCheck size={18} />
-            Customers
+            <span>Customers</span>
           </NavLink>
 
-          {/* 7. Expenses */}
-          {modules.includes('expenses') && (
-            <NavLink to="/tenant/expenses" style={({isActive}) => ({ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: 'var(--radius-lg)', color: isActive ? 'var(--primary-blue)' : 'var(--text-secondary)', background: isActive ? '#EFF4FF' : 'transparent', fontWeight: isActive ? '600' : '500', fontSize: '14px', textDecoration: 'none' })}>
-              <Receipt size={18} />
-              Expenses
-            </NavLink>
-          )}
+          {/* 7. Expenses - Visible to all businesses */}
+          <NavLink to="/tenant/expenses" className={({isActive}) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
+            <Receipt size={18} />
+            <span>Expenses</span>
+          </NavLink>
 
           {/* 8. Purchases */}
           {modules.includes('purchases') && (
-            <NavLink to="/tenant/purchases" style={({isActive}) => ({ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: 'var(--radius-lg)', color: isActive ? 'var(--primary-blue)' : 'var(--text-secondary)', background: isActive ? '#EFF4FF' : 'transparent', fontWeight: isActive ? '600' : '500', fontSize: '14px', textDecoration: 'none' })}>
+            <NavLink to="/tenant/purchases" className={({isActive}) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <ShoppingCart size={18} />
-              Purchases
+              <span>Purchases</span>
             </NavLink>
           )}
 
           {/* 9. Sales */}
           {modules.includes('sales') && (
-            <NavLink to="/tenant/sales" style={({isActive}) => ({ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: 'var(--radius-lg)', color: isActive ? 'var(--primary-blue)' : 'var(--text-secondary)', background: isActive ? '#EFF4FF' : 'transparent', fontWeight: isActive ? '600' : '500', fontSize: '14px', textDecoration: 'none' })}>
+            <NavLink to="/tenant/sales" className={({isActive}) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <TrendingUp size={18} />
-              Billing
+              <span>Billing</span>
             </NavLink>
           )}
 
           {/* 10. Documents */}
-          <NavLink 
-            to="/tenant/documents" 
-            style={({isActive}) => ({
-              display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: 'var(--radius-lg)',
-              color: isActive ? 'var(--primary-blue)' : 'var(--text-secondary)',
-              background: isActive ? '#EFF4FF' : 'transparent',
-              fontWeight: isActive ? '600' : '500',
-              fontSize: '14px',
-              textDecoration: 'none'
-            })}
-          >
+          <NavLink to="/tenant/documents" className={({isActive}) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
             <FileText size={18} />
-            Documents
+            <span>Documents</span>
           </NavLink>
 
           {/* 11. Reminders */}
-          <NavLink 
-            to="/tenant/reminders" 
-            style={({isActive}) => ({
-              display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: 'var(--radius-lg)',
-              color: isActive ? 'var(--primary-blue)' : 'var(--text-secondary)',
-              background: isActive ? '#EFF4FF' : 'transparent',
-              fontWeight: isActive ? '600' : '500',
-              fontSize: '14px',
-              textDecoration: 'none'
-            })}
-          >
+          <NavLink to="/tenant/reminders" className={({isActive}) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
             <BellRing size={18} />
-            Reminders
+            <span>Reminders</span>
           </NavLink>
 
           {/* 12, 13, 14. Employees, Attendance, Leaves */}
           {tenantType >= 2 && (
             <>
-              <NavLink 
-                to="/tenant/employees" 
-                style={({isActive}) => ({
-                  display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: 'var(--radius-lg)',
-                  color: isActive ? 'var(--primary-blue)' : 'var(--text-secondary)',
-                  background: isActive ? '#EFF4FF' : 'transparent',
-                  fontWeight: isActive ? '600' : '500',
-                  fontSize: '14px',
-                  textDecoration: 'none'
-                })}
-              >
+              <NavLink to="/tenant/employees" className={({isActive}) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
                 <Users size={18} />
-                Employees
+                <span>Employees</span>
               </NavLink>
 
-              <NavLink 
-                to="/tenant/attendance" 
-                style={({isActive}) => ({
-                  display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: 'var(--radius-lg)',
-                  color: isActive ? 'var(--primary-blue)' : 'var(--text-secondary)',
-                  background: isActive ? '#EFF4FF' : 'transparent',
-                  fontWeight: isActive ? '600' : '500',
-                  fontSize: '14px',
-                  textDecoration: 'none'
-                })}
-              >
+              <NavLink to="/tenant/attendance" className={({isActive}) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
                 <Clock size={18} />
-                Attendance
+                <span>Attendance</span>
               </NavLink>
 
-              <NavLink 
-                to="/tenant/leaves" 
-                style={({isActive}) => ({
-                  display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: 'var(--radius-lg)',
-                  color: isActive ? 'var(--primary-blue)' : 'var(--text-secondary)',
-                  background: isActive ? '#EFF4FF' : 'transparent',
-                  fontWeight: isActive ? '600' : '500',
-                  fontSize: '14px',
-                  textDecoration: 'none'
-                })}
-              >
+              <NavLink to="/tenant/leaves" className={({isActive}) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
                 <Calendar size={18} />
-                Leave Requests
+                <span>Leave Requests</span>
               </NavLink>
             </>
           )}
         </div>
         
         {/* Sidebar Footer */}
-        <div style={{ padding: '24px', borderTop: '1px solid var(--border-color)' }}>
-          <button onClick={handleLogout} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#EF4444', fontWeight: '600', fontSize: '14px', width: '100%', padding: '10px', borderRadius: '8px', transition: 'background 0.2s', border: 'none', cursor: 'pointer', background: 'transparent' }} onMouseOver={(e) => e.currentTarget.style.background = '#FEF2F2'} onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}>
+        <div style={{ padding: '16px 14px', borderTop: '1px solid var(--border-color)', marginTop: 'auto' }}>
+          <button onClick={handleLogout} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#EF4444', fontWeight: '600', fontSize: '13px', width: '100%', padding: '9px 12px', borderRadius: '8px', transition: 'background 0.15s ease', border: 'none', cursor: 'pointer', background: 'transparent' }} onMouseOver={(e) => e.currentTarget.style.background = '#FEF2F2'} onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}>
             <LogOut size={16} /> Logout
           </button>
         </div>

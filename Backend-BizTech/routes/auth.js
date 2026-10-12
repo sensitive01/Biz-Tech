@@ -191,13 +191,16 @@ router.post('/onboarding', async (req, res) => {
     if (!token) return res.status(401).json({ message: 'No token, authorization denied' });
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
-    const { businesses, singleBusiness, businessName, address, regNo, phone, branches, employees, modules } = req.body;
+    const { businesses, singleBusiness, businessName, address, regNo, phone, branches, employees, modules, businessType } = req.body;
     const userId = decoded.user.id;
 
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     // 1. Update User details (business, modules, etc.)
+    if (businessType !== undefined && businessType !== null) {
+      user.businessType = Number(businessType);
+    }
     if (singleBusiness) {
       if (singleBusiness.name) user.businessName = singleBusiness.name;
       if (singleBusiness.address) user.address = singleBusiness.address;

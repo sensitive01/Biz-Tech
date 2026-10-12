@@ -208,6 +208,48 @@ button {
   top: 64px;
   height: calc(100vh - 64px);
   z-index: 10;
+  box-sizing: border-box;
+}
+
+.sidebar-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  color: #475569;
+  background: transparent;
+  font-weight: 500;
+  font-size: 14px;
+  text-decoration: none;
+  transition: all 0.15s ease-in-out;
+  border: 1px solid transparent;
+}
+
+.sidebar-nav-link:hover {
+  color: #0F172A;
+  background-color: #F8FAFC;
+  border-color: #F1F5F9;
+}
+
+.sidebar-nav-link.active {
+  color: var(--primary-blue);
+  background-color: #EFF6FF;
+  border-color: #DBEAFE;
+  font-weight: 600;
+}
+
+.sidebar-nav-link svg {
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+.sidebar-nav-link:hover svg {
+  transform: scale(1.05);
+}
+
+.sidebar-nav-link.active svg {
+  color: var(--primary-blue);
 }
 
 .main-content {
