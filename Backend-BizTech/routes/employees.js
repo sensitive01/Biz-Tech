@@ -2,10 +2,23 @@ const express = require('express');
 const router = express.Router();
 const Employee = require('../models/Employee');
 
+const jwt = require('jsonwebtoken');
+
 // Get all employees
 router.get('/', async (req, res) => {
   try {
-    const employees = await Employee.find().populate('branchId').sort({ createdAt: -1 });
+    let query = {};
+    const authHeader = req.header('Authorization');
+    if (authHeader) {
+      try {
+        const token = authHeader.split(' ')[1];
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
+        if (decoded?.user?.id) {
+          query = { $or: [{ tenantId: decoded.user.id }, { tenantId: 'default_tenant' }] };
+        }
+      } catch (e) {}
+    }
+    const employees = await Employee.find(query).populate('branchId').sort({ createdAt: -1 });
     res.json(employees);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -15,7 +28,18 @@ router.get('/', async (req, res) => {
 // Add a new employee
 router.post('/', async (req, res) => {
   try {
-    const newEmployee = new Employee(req.body);
+    let tenantId = req.body.tenantId || 'default_tenant';
+    const authHeader = req.header('Authorization');
+    if (authHeader) {
+      try {
+        const token = authHeader.split(' ')[1];
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
+        if (decoded?.user?.id) {
+          tenantId = decoded.user.id;
+        }
+      } catch (e) {}
+    }
+    const newEmployee = new Employee({ ...req.body, tenantId });
     const savedEmployee = await newEmployee.save();
     
     if (savedEmployee.branchId) {

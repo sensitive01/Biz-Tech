@@ -8,6 +8,55 @@ const TenantLayout = () => {
   const [showSubMenu, setShowSubMenu] = useState(false);
   const tenantType = Number(localStorage.getItem('tenantType')) || 1;
   const [modules, setModules] = useState([]);
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const userStr = localStorage.getItem('user');
+      return userStr ? JSON.parse(userStr) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  const getInitials = (name) => {
+    if (!name) return 'U';
+    const parts = name.trim().split(' ').filter(Boolean);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  };
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/me`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setCurrentUser(data);
+          localStorage.setItem('user', JSON.stringify(data));
+        }
+      } catch (err) {
+        console.error('Error fetching user:', err);
+      }
+    };
+
+    fetchUser();
+
+    const handleProfileUpdate = () => {
+      try {
+        const userStr = localStorage.getItem('user');
+        if (userStr) setCurrentUser(JSON.parse(userStr));
+      } catch (e) {}
+    };
+
+    window.addEventListener('userProfileUpdated', handleProfileUpdate);
+    return () => window.removeEventListener('userProfileUpdated', handleProfileUpdate);
+  }, []);
 
   useEffect(() => {
     try {
@@ -77,12 +126,16 @@ const TenantLayout = () => {
                 }}
                 style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', padding: '4px 8px', borderRadius: '8px', background: showProfileMenu ? '#F1F5F9' : 'transparent', transition: 'background 0.2s' }}
               >
-                <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'var(--primary-blue)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '600', fontSize: '14px' }}>
-                  JD
+                <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, #2563EB 0%, #4F46E5 100%)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', fontSize: '13px', boxShadow: '0 2px 4px rgba(37,99,235,0.2)' }}>
+                  {getInitials(currentUser?.fullName)}
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-title)' }}>Business Owner</span>
-                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Tenant Account</span>
+                <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
+                  <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-title)', lineHeight: '1.2' }}>
+                    {currentUser?.fullName || 'Business Owner'}
+                  </span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '600', fontFamily: 'monospace', marginTop: '2px', letterSpacing: '0.5px' }}>
+                    {currentUser?.userId ? `ID: ${currentUser.userId}` : 'Tenant Account'}
+                  </span>
                 </div>
                 <ChevronDown size={16} color="var(--text-muted)" style={{ marginLeft: '4px', transform: showProfileMenu ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s' }} />
               </div>
@@ -90,7 +143,15 @@ const TenantLayout = () => {
               {showProfileMenu && (
                 <>
                   <div style={{ position: 'fixed', inset: 0, zIndex: 9 }} onClick={() => { setShowProfileMenu(false); setShowSubMenu(false); }}></div>
-                  <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '8px', background: 'white', borderRadius: '8px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', border: '1px solid var(--border-color)', width: '200px', zIndex: 10, overflow: 'hidden' }}>
+                  <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '8px', background: 'white', borderRadius: '8px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', border: '1px solid var(--border-color)', width: '220px', zIndex: 10, overflow: 'hidden' }}>
+                    <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-color)', background: '#F8FAFC' }}>
+                      <p style={{ margin: 0, fontSize: '13px', fontWeight: '600', color: 'var(--text-title)' }}>
+                        {currentUser?.fullName || 'Business Owner'}
+                      </p>
+                      <p style={{ margin: '3px 0 0 0', fontSize: '11px', color: 'var(--primary-blue)', fontFamily: 'monospace', fontWeight: '700' }}>
+                        UID: {currentUser?.userId || 'BT-TENANT'}
+                      </p>
+                    </div>
                     <div style={{ padding: '8px' }}>
                       <button 
                         onClick={() => { setShowProfileMenu(false); setShowSubMenu(false); navigate('/tenant/profile'); }}

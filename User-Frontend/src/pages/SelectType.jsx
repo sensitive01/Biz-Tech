@@ -63,6 +63,7 @@ const SelectType = () => {
 
       if (response.ok) {
         localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
         localStorage.setItem('tenantType', selectedType.toString());
         localStorage.setItem('modules', JSON.stringify(data.user.modules || []));
         navigate('/onboarding');

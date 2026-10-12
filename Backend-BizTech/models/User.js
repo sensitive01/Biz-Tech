@@ -18,6 +18,11 @@ const UserSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  userId: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
   businessType: {
     type: Number,
     default: 1
@@ -31,6 +36,14 @@ const UserSchema = new mongoose.Schema({
     required: false
   },
   address: {
+    type: String,
+    required: false
+  },
+  regNo: {
+    type: String,
+    required: false
+  },
+  businessPhone: {
     type: String,
     required: false
   },

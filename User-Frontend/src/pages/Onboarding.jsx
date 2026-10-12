@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Store, Users, Map, Package, ArrowRight, ArrowLeft, CheckCircle2, Building2, LayoutGrid, ShoppingCart, TrendingUp, Briefcase, Menu, X } from 'lucide-react';
+import { Store, Users, Map, Package, ArrowRight, ArrowLeft, CheckCircle2, Building2, LayoutGrid, ShoppingCart, TrendingUp, Briefcase, Menu, X, Trash2 } from 'lucide-react';
 
 const Onboarding = () => {
   const navigate = useNavigate();
@@ -12,6 +12,15 @@ const Onboarding = () => {
   const [selections, setSelections] = useState(() => JSON.parse(localStorage.getItem('onb_selections')) || {
     offering: [],
     operation: []
+  });
+
+  // State for Single Business (Type 1, 2, 3)
+  const [singleBusiness, setSingleBusiness] = useState(() => {
+    try {
+      const saved = localStorage.getItem('onb_single_business');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return { name: '', regNo: '', phone: '', address: '' };
   });
 
   // State for Businesses (Type 4)
@@ -34,6 +43,10 @@ const Onboarding = () => {
   }, [selections]);
 
   useEffect(() => {
+    localStorage.setItem('onb_single_business', JSON.stringify(singleBusiness));
+  }, [singleBusiness]);
+
+  useEffect(() => {
     localStorage.setItem('onb_businesses', JSON.stringify(businesses));
   }, [businesses]);
 
@@ -44,6 +57,104 @@ const Onboarding = () => {
   useEffect(() => {
     localStorage.setItem('onb_employees', JSON.stringify(employees));
   }, [employees]);
+
+  // Fetch prefilled data on mount (from registration and previous setup)
+  useEffect(() => {
+    const fetchPrefilledData = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/onboarding-data`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const { user, branches: existingBranches, employees: existingEmployees } = data;
+
+          if (user) {
+            if (user.businessType) {
+              localStorage.setItem('tenantType', user.businessType.toString());
+            }
+
+            setSingleBusiness(prev => ({
+              name: prev.name || user.businessName || '',
+              regNo: prev.regNo || user.regNo || '',
+              phone: prev.phone || user.businessPhone || user.phone || '',
+              address: prev.address || user.address || ''
+            }));
+
+            setNewBusiness(prev => ({
+              ...prev,
+              phone: prev.phone || user.businessPhone || user.phone || ''
+            }));
+
+            if (user.businesses && Array.isArray(user.businesses) && user.businesses.length > 0) {
+              setBusinesses(prev => prev.length > 0 ? prev : user.businesses);
+              setShowBusinessForm(false);
+            }
+
+            if (user.modules && Array.isArray(user.modules) && user.modules.length > 0) {
+              setSelections(prev => {
+                const off = new Set(prev.offering);
+                const op = new Set(prev.operation);
+                if (user.modules.includes('products_services') || user.modules.includes('inventory')) {
+                  off.add('product');
+                }
+                if (user.modules.includes('purchases')) op.add('purchase');
+                if (user.modules.includes('sales')) op.add('sale');
+                return {
+                  offering: Array.from(off),
+                  operation: Array.from(op)
+                };
+              });
+            }
+          }
+
+          if (existingBranches && existingBranches.length > 0) {
+            const mappedBranches = existingBranches.map(b => ({
+              name: b.name,
+              location: b.location || '',
+              manager: b.manager || '',
+              phone: b.contactNumber || b.phone || '',
+              type: b.type || 'Store',
+              business: b.businessName || ''
+            }));
+            setBranches(prev => {
+              if (!prev || prev.length === 0) return mappedBranches;
+              const names = new Set(prev.map(p => p.name));
+              const additions = mappedBranches.filter(m => !names.has(m.name));
+              return [...prev, ...additions];
+            });
+          }
+
+          if (existingEmployees && existingEmployees.length > 0) {
+            const mappedEmployees = existingEmployees.map(e => ({
+              name: e.name,
+              role: e.position || e.role || '',
+              email: e.email,
+              phone: e.contactNumber || e.phone || '',
+              shiftFrom: e.shiftFrom || '',
+              shiftTo: e.shiftTo || '',
+              salary: e.salary ? (typeof e.salary === 'number' ? `₹${e.salary.toLocaleString()}` : e.salary) : '',
+              branch: e.branchName || 'Main Office',
+              business: e.businessName || ''
+            }));
+            setEmployees(prev => {
+              if (!prev || prev.length === 0) return mappedEmployees;
+              const emails = new Set(prev.map(p => p.email));
+              const additions = mappedEmployees.filter(m => !emails.has(m.email));
+              return [...prev, ...additions];
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Error loading prefilled onboarding data:", err);
+      }
+    };
+
+    fetchPrefilledData();
+  }, []);
 
   const toggleSelection = (category, value) => {
     setSelections(prev => {
@@ -68,48 +179,57 @@ const Onboarding = () => {
   // Show all steps by default when resuming to avoid missing fields
   let activeSteps = allSteps;
 
+  const saveProgress = async (customPayload = {}) => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    let modules = [];
+    if (selections.offering.includes('product')) modules.push('products_services', 'inventory');
+    if (selections.offering.includes('service')) {
+      if (!modules.includes('products_services')) modules.push('products_services');
+    }
+    if (selections.operation.includes('purchase')) modules.push('purchases', 'expenses');
+    if (selections.operation.includes('sale')) modules.push('sales');
+    modules = [...new Set(modules)];
+
+    const payload = {
+      singleBusiness,
+      businesses: tenantType === 4 ? businesses : [],
+      branches,
+      employees,
+      modules,
+      ...customPayload
+    };
+
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/onboarding`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.user) {
+          localStorage.setItem('user', JSON.stringify(data.user));
+          if (data.user.modules) {
+            localStorage.setItem('modules', JSON.stringify(data.user.modules));
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Error saving onboarding data:", err);
+    }
+  };
+
   const handleNext = async () => {
+    await saveProgress();
     if (currentStep < activeSteps.length - 1) {
       setCurrentStep(prev => prev + 1);
     } else {
-      // Final step -> save to backend
-      const token = localStorage.getItem('token');
-      
-      // Determine final modules from selections
-      let modules = [];
-      if (selections.offering.includes('product')) modules.push('products_services', 'inventory');
-      if (selections.offering.includes('service')) {
-        if (!modules.includes('products_services')) modules.push('products_services');
-      }
-      if (selections.operation.includes('purchase')) modules.push('purchases', 'expenses');
-      if (selections.operation.includes('sale')) modules.push('sales');
-      
-      // Filter out duplicate modules just in case
-      modules = [...new Set(modules)];
-
-      try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/onboarding`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            businesses: tenantType === 4 ? businesses : [],
-            branches,
-            employees,
-            modules
-          })
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          localStorage.setItem('user', JSON.stringify(data.user));
-        }
-      } catch (err) {
-        console.error("Error saving onboarding data:", err);
-      }
-      
       navigate('/tenant/dashboard');
     }
   };
@@ -118,7 +238,8 @@ const Onboarding = () => {
     if (currentStep > 0) setCurrentStep(prev => prev - 1);
   };
 
-  const handleSkip = () => {
+  const handleSkip = async () => {
+    await saveProgress();
     navigate('/tenant/dashboard');
   };
 
@@ -205,19 +326,43 @@ const Onboarding = () => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
             <div className="input-group" style={{ gridColumn: '1 / span 2' }}>
               <label className="input-label">Shop / Business Name</label>
-              <input type="text" className="input-field" placeholder="Enter business name" />
+              <input 
+                type="text" 
+                className="input-field" 
+                placeholder="Enter business name" 
+                value={singleBusiness.name} 
+                onChange={e => setSingleBusiness({...singleBusiness, name: e.target.value})} 
+              />
             </div>
             <div className="input-group">
               <label className="input-label">Registration Number (Optional)</label>
-              <input type="text" className="input-field" placeholder="GSTIN / VAT / Registration No" />
+              <input 
+                type="text" 
+                className="input-field" 
+                placeholder="GSTIN / VAT / Registration No" 
+                value={singleBusiness.regNo} 
+                onChange={e => setSingleBusiness({...singleBusiness, regNo: e.target.value})} 
+              />
             </div>
             <div className="input-group">
               <label className="input-label">Contact Phone</label>
-              <input type="text" className="input-field" placeholder="+91 9876543210" />
+              <input 
+                type="text" 
+                className="input-field" 
+                placeholder="+91 9876543210" 
+                value={singleBusiness.phone} 
+                onChange={e => setSingleBusiness({...singleBusiness, phone: e.target.value})} 
+              />
             </div>
             <div className="input-group" style={{ gridColumn: '1 / span 2' }}>
               <label className="input-label">Primary Address</label>
-              <textarea className="input-field" rows="3" placeholder="Street address, City, State, Zip..."></textarea>
+              <textarea 
+                className="input-field" 
+                rows="3" 
+                placeholder="Street address, City, State, Zip..." 
+                value={singleBusiness.address} 
+                onChange={e => setSingleBusiness({...singleBusiness, address: e.target.value})}
+              ></textarea>
             </div>
           </div>
         </div>
@@ -239,6 +384,7 @@ const Onboarding = () => {
                     <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)' }}>Type</th>
                     <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)' }}>Location</th>
                     <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)' }}>Contact</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'center', fontSize: '13px', color: 'var(--text-secondary)', width: '60px' }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -257,6 +403,20 @@ const Onboarding = () => {
                           <span style={{ fontSize: '13px' }}>{b.manager || 'No manager'}</span>
                           <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{b.phone}</span>
                         </div>
+                      </td>
+                      <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updated = branches.filter((_, i) => i !== idx);
+                            setBranches(updated);
+                            saveProgress({ branches: updated });
+                          }}
+                          style={{ background: 'transparent', border: 'none', color: '#EF4444', cursor: 'pointer', padding: '4px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                          title="Remove Branch"
+                        >
+                          <Trash2 size={16} />
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -314,9 +474,11 @@ const Onboarding = () => {
                 <button onClick={() => setShowBranchForm(false)} className="btn-secondary" style={{ padding: '8px 16px' }}>Cancel</button>
                 <button onClick={() => {
                   if(newBranch.name) {
-                    setBranches([...branches, newBranch]);
+                    const updated = [...branches, newBranch];
+                    setBranches(updated);
                     setNewBranch({ name: '', location: '', manager: '', phone: '', type: 'Store', business: '' });
                     setShowBranchForm(false);
+                    saveProgress({ branches: updated });
                   }
                 }} className="btn-primary" style={{ padding: '8px 16px' }}>Save Branch</button>
               </div>
@@ -332,7 +494,7 @@ const Onboarding = () => {
           )}
         </div>
       );
-    }
+    }  
 
     if (stepId === 'offering') {
       const isProduct = selections.offering.includes('product');
@@ -438,6 +600,7 @@ const Onboarding = () => {
                     <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)' }}>Contact</th>
                     <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)' }}>Shift</th>
                     <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)' }}>Salary</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'center', fontSize: '13px', color: 'var(--text-secondary)', width: '60px' }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -458,6 +621,20 @@ const Onboarding = () => {
                       </td>
                       <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{emp.shiftFrom && emp.shiftTo ? `${emp.shiftFrom} - ${emp.shiftTo}` : '—'}</td>
                       <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{emp.salary}</td>
+                      <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updated = employees.filter((_, i) => i !== idx);
+                            setEmployees(updated);
+                            saveProgress({ employees: updated });
+                          }}
+                          style={{ background: 'transparent', border: 'none', color: '#EF4444', cursor: 'pointer', padding: '4px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                          title="Remove Employee"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -529,9 +706,11 @@ const Onboarding = () => {
                 <button onClick={() => setShowEmployeeForm(false)} className="btn-secondary" style={{ padding: '8px 16px' }}>Cancel</button>
                 <button onClick={() => {
                   if(newEmployee.name) {
-                    setEmployees([...employees, newEmployee]);
+                    const updated = [...employees, newEmployee];
+                    setEmployees(updated);
                     setNewEmployee({ name: '', role: '', email: '', phone: '', shiftFrom: '', shiftTo: '', salary: '', branch: 'Main Office', business: '' });
                     setShowEmployeeForm(false);
+                    saveProgress({ employees: updated });
                   }
                 }} className="btn-primary" style={{ padding: '8px 16px' }}>Save Employee</button>
               </div>
