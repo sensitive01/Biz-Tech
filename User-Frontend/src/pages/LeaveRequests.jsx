@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Calendar as CalendarIcon, Plus, X, Trash2, Check, XCircle, Search, Download, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { Calendar as CalendarIcon, Plus, X, Trash2, Check, XCircle, Search, Download, ArrowUp, ArrowDown, ArrowUpDown, Pencil } from 'lucide-react';
 import { exportToCSV } from '../utils/exportToCSV';
 
 const LeaveRequests = () => {
@@ -13,6 +13,7 @@ const LeaveRequests = () => {
   const [customEndDate, setCustomEndDate] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [showModal, setShowModal] = useState(false);
+  const [editingLeave, setEditingLeave] = useState(null);
   const [formData, setFormData] = useState({ employeeId: '', type: 'Annual Leave', startDate: '', endDate: '', reason: '' });
 
   const fetchData = async () => {
@@ -32,19 +33,51 @@ const LeaveRequests = () => {
 
   useEffect(() => { fetchData(); }, []);
 
+  const handleOpenAdd = () => {
+    setEditingLeave(null);
+    setFormData({ employeeId: '', type: 'Annual Leave', startDate: '', endDate: '', reason: '' });
+    setShowModal(true);
+  };
+
+  const handleEdit = (leave) => {
+    setEditingLeave(leave);
+    setFormData({
+      employeeId: leave.employeeId?._id || leave.employeeId || '',
+      type: leave.type || 'Annual Leave',
+      startDate: leave.startDate ? new Date(leave.startDate).toISOString().split('T')[0] : '',
+      endDate: leave.endDate ? new Date(leave.endDate).toISOString().split('T')[0] : '',
+      reason: leave.reason || ''
+    });
+    setShowModal(true);
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this leave request?')) return;
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/leaves/${id}`, { method: 'DELETE' });
+      if (res.ok) fetchData();
+    } catch (err) { console.error(err); }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/leaves`, {
-        method: 'POST',
+      const url = editingLeave
+        ? `${import.meta.env.VITE_API_URL}/api/leaves/${editingLeave._id}`
+        : `${import.meta.env.VITE_API_URL}/api/leaves`;
+      const method = editingLeave ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       });
       if (res.ok) {
         setShowModal(false);
+        setEditingLeave(null);
         fetchData();
       } else {
-        alert('Failed to log leave request');
+        alert(`Failed to ${editingLeave ? 'update' : 'log'} leave request`);
       }
     } catch (err) { console.error(err); }
   };
@@ -118,7 +151,7 @@ const LeaveRequests = () => {
           </h1>
           <p style={{ color: '#64748B', fontSize: '15px', margin: 0 }}>Review and manage employee time off.</p>
         </div>
-        <button onClick={() => setShowModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', background: '#2563EB', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}>
+        <button onClick={handleOpenAdd} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', background: '#2563EB', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}>
           <Plus size={18} /> New Request
         </button>
       </div>
@@ -178,12 +211,20 @@ const LeaveRequests = () => {
                   </span>
                 </td>
                 <td style={{ padding: '16px 24px', textAlign: 'right' }}>
-                  {leave.status === 'Pending' && (
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                      <button onClick={() => updateStatus(leave._id, 'Approved')} style={{ background: '#DCFCE7', color: '#166534', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '13px' }}><Check size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }} />Approve</button>
-                      <button onClick={() => updateStatus(leave._id, 'Rejected')} style={{ background: '#FEE2E2', color: '#991B1B', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '13px' }}><XCircle size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }} />Reject</button>
-                    </div>
-                  )}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', alignItems: 'center' }}>
+                    {leave.status === 'Pending' && (
+                      <>
+                        <button onClick={() => updateStatus(leave._id, 'Approved')} style={{ background: '#DCFCE7', color: '#166534', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '13px' }}><Check size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }} />Approve</button>
+                        <button onClick={() => updateStatus(leave._id, 'Rejected')} style={{ background: '#FEE2E2', color: '#991B1B', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '13px' }}><XCircle size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }} />Reject</button>
+                      </>
+                    )}
+                    <button title="Edit" onClick={() => handleEdit(leave)} style={{ background: '#EFF6FF', border: 'none', color: '#2563EB', cursor: 'pointer', padding: '8px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s' }}>
+                      <Pencil size={15} />
+                    </button>
+                    <button title="Delete" onClick={() => handleDelete(leave._id)} style={{ background: '#FEE2E2', border: 'none', color: '#EF4444', cursor: 'pointer', padding: '8px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s' }}>
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -195,8 +236,8 @@ const LeaveRequests = () => {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '24px' }}>
           <div style={{ background: 'white', padding: '32px', borderRadius: '20px', width: '100%', maxWidth: '500px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px' }}>
-              <h2 style={{ fontSize: '22px', margin: 0 }}>Log Leave Request</h2>
-              <button onClick={() => setShowModal(false)} style={{ background: '#F1F5F9', border: 'none', borderRadius: '50%', padding: '6px', cursor: 'pointer' }}><X size={18} /></button>
+              <h2 style={{ fontSize: '22px', margin: 0 }}>{editingLeave ? 'Edit Leave Request' : 'Log Leave Request'}</h2>
+              <button onClick={() => { setShowModal(false); setEditingLeave(null); }} style={{ background: '#F1F5F9', border: 'none', borderRadius: '50%', padding: '6px', cursor: 'pointer' }}><X size={18} /></button>
             </div>
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
@@ -229,7 +270,7 @@ const LeaveRequests = () => {
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Reason</label>
                 <textarea placeholder="Enter reason" rows="3" value={formData.reason} onChange={e => setFormData({...formData, reason: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} ></textarea>
               </div>
-              <button type="submit" style={{ width: '100%', padding: '14px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', marginTop: '16px', cursor: 'pointer' }}>Submit Request</button>
+              <button type="submit" style={{ width: '100%', padding: '14px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', marginTop: '16px', cursor: 'pointer' }}>{editingLeave ? 'Update Request' : 'Submit Request'}</button>
             </form>
           </div>
         </div>,

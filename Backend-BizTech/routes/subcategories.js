@@ -36,6 +36,19 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
+router.put('/:id', auth, async (req, res) => {
+  try {
+    const updated = await SubCategory.findOneAndUpdate(
+      { _id: req.params.id, tenantId: req.user.id },
+      { $set: req.body },
+      { new: true }
+    );
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: 'Server Error' });
+  }
+});
+
 router.delete('/:id', auth, async (req, res) => {
   try {
     await SubCategory.findOneAndDelete({ _id: req.params.id, tenantId: req.user.id });

@@ -47,6 +47,23 @@ router.post('/', async (req, res) => {
   }
 });
 
+// Update a branch
+router.put('/:id', async (req, res) => {
+  try {
+    const updated = await Branch.findByIdAndUpdate(
+      req.params.id,
+      { ...req.body },
+      { new: true, runValidators: true }
+    );
+    if (!updated) {
+      return res.status(404).json({ error: 'Branch not found' });
+    }
+    res.json(updated);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // Delete a branch
 router.delete('/:id', async (req, res) => {
   try {

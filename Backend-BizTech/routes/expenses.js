@@ -50,6 +50,33 @@ router.post('/', auth, upload.single('proof'), async (req, res) => {
   }
 });
 
+router.put('/:id', auth, upload.single('proof'), async (req, res) => {
+  try {
+    const { title, category, customCategory, description, date, amount } = req.body;
+    const finalCategory = category === 'Other' ? customCategory : category;
+    const updateData = {
+      title,
+      category: finalCategory,
+      description,
+      date,
+      amount
+    };
+    if (req.file) {
+      updateData.proofUrl = req.file.path;
+    }
+    const updated = await Expense.findOneAndUpdate(
+      { _id: req.params.id, tenantId: req.user.id },
+      updateData,
+      { new: true }
+    );
+    if (!updated) return res.status(404).json({ message: 'Expense not found' });
+    res.json(updated);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server Error' });
+  }
+});
+
 router.delete('/:id', auth, async (req, res) => {
   try {
     await Expense.findOneAndDelete({ _id: req.params.id, tenantId: req.user.id });

@@ -34,6 +34,20 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
+router.put('/:id', auth, async (req, res) => {
+  try {
+    const updated = await Customer.findOneAndUpdate(
+      { _id: req.params.id, tenantId: req.user.id },
+      { ...req.body },
+      { new: true }
+    );
+    if (!updated) return res.status(404).json({ message: 'Customer not found' });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: 'Server Error' });
+  }
+});
+
 router.delete('/:id', auth, async (req, res) => {
   try {
     await Customer.findOneAndDelete({ _id: req.params.id, tenantId: req.user.id });

@@ -99,7 +99,7 @@ const TenantDashboard = () => {
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', fontWeight: '600', color: stat.up ? '#10B981' : '#F59E0B', background: stat.up ? '#D1FAE5' : '#FEF3C7', padding: '4px 8px', borderRadius: '20px' }}>
                 {stat.up ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />} {stat.trend}
               </div>
-            </div>
+            </div>  
             <h3 style={{ fontSize: '15px', color: '#64748B', fontWeight: '500', marginBottom: '8px' }}>{stat.title}</h3>
             <div style={{ fontSize: '28px', fontWeight: '800', color: '#0F172A', letterSpacing: '-0.5px' }}>{stat.value}</div>
           </div>
@@ -117,6 +117,7 @@ const TenantDashboard = () => {
             <table style={{ width: '100%', minWidth: '600px', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>
                 <tr style={{ background: '#F8FAFC' }}>
+                  <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', width: '60px' }}>S.No</th>
                   <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0' }}>Action</th>
                   <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0' }}>Type</th>
                   <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0' }}>Time</th>
@@ -124,8 +125,9 @@ const TenantDashboard = () => {
                 </tr>
               </thead>
               <tbody>
-                {activities.map((act) => (
+                {activities.map((act, idx) => (
                   <tr key={act.id} style={{ borderBottom: '1px solid #E2E8F0', transition: 'background 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
+                    <td style={{ padding: '16px 24px', fontSize: '14px', color: '#64748B', fontWeight: '500' }}>{idx + 1}</td>
                     <td style={{ padding: '16px 24px', fontSize: '14px', fontWeight: '600', color: '#0F172A' }}>{act.action}</td>
                     <td style={{ padding: '16px 24px', fontSize: '14px', color: '#64748B', fontWeight: '500' }}>{act.type}</td>
                     <td style={{ padding: '16px 24px', fontSize: '14px', color: '#64748B' }}>{act.time}</td>

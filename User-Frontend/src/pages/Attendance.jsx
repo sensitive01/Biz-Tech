@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Clock, Plus, X, Trash2, LogOut, Search, Download, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { Clock, Plus, X, Pencil, Trash2, LogOut, Search, Download, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { exportToCSV } from '../utils/exportToCSV';
 
 const Attendance = () => {
@@ -13,9 +13,28 @@ const Attendance = () => {
   const [customEndDate, setCustomEndDate] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [showModal, setShowModal] = useState(false);
+  const [editingRecord, setEditingRecord] = useState(null);
   const [checkoutData, setCheckoutData] = useState(null);
   const [deleteRecordId, setDeleteRecordId] = useState(null);
-  const [formData, setFormData] = useState({ employeeId: '', date: new Date().toISOString().split('T')[0], status: 'Present', checkIn: '09:00' });
+  const [formData, setFormData] = useState({ employeeId: '', date: new Date().toISOString().split('T')[0], status: 'Present', checkIn: '09:00', checkOut: '' });
+
+  const handleOpenAdd = () => {
+    setEditingRecord(null);
+    setFormData({ employeeId: '', date: new Date().toISOString().split('T')[0], status: 'Present', checkIn: '09:00', checkOut: '' });
+    setShowModal(true);
+  };
+
+  const handleEdit = (record) => {
+    setEditingRecord(record);
+    setFormData({
+      employeeId: record.employeeId?._id || record.employeeId || '',
+      date: record.date ? record.date.substring(0, 10) : new Date().toISOString().split('T')[0],
+      status: record.status || 'Present',
+      checkIn: record.checkIn || '',
+      checkOut: record.checkOut || ''
+    });
+    setShowModal(true);
+  };
 
   const fetchData = async () => {
     try {
@@ -37,16 +56,22 @@ const Attendance = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/attendance`, {
-        method: 'POST',
+      const url = editingRecord
+        ? `${import.meta.env.VITE_API_URL}/api/attendance/${editingRecord._id}`
+        : `${import.meta.env.VITE_API_URL}/api/attendance`;
+      const method = editingRecord ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       });
       if (res.ok) {
         setShowModal(false);
+        setEditingRecord(null);
         fetchData();
       } else {
-        alert('Failed to mark attendance');
+        alert(editingRecord ? 'Failed to update attendance' : 'Failed to mark attendance');
       }
     } catch (err) { console.error(err); }
   };
@@ -136,7 +161,7 @@ const Attendance = () => {
           </h1>
           <p style={{ color: '#64748B', fontSize: '15px', margin: 0 }}>Track daily employee attendance and work hours.</p>
         </div>
-        <button onClick={() => setShowModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', background: '#2563EB', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}>
+        <button onClick={handleOpenAdd} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', background: '#2563EB', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}>
           <Plus size={18} /> Mark Attendance
         </button>
       </div>
@@ -198,6 +223,7 @@ const Attendance = () => {
                   {!record.checkOut && (
                     <button onClick={() => setCheckoutData({ id: record._id, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: false}) })} title="Check Out" style={{ background: '#EFF6FF', color: '#2563EB', border: 'none', padding: '8px', borderRadius: '6px', cursor: 'pointer', marginRight: '8px' }}><LogOut size={16} /></button>
                   )}
+                  <button onClick={() => handleEdit(record)} title="Edit" style={{ background: '#EFF6FF', color: '#2563EB', border: 'none', padding: '8px', borderRadius: '6px', cursor: 'pointer', marginRight: '8px' }}><Pencil size={16} /></button>
                   <button onClick={() => setDeleteRecordId(record._id)} title="Delete" style={{ background: '#FEE2E2', color: '#EF4444', border: 'none', padding: '8px', borderRadius: '6px', cursor: 'pointer' }}><Trash2 size={16} /></button>
                 </td>
               </tr>
@@ -210,8 +236,8 @@ const Attendance = () => {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '24px' }}>
           <div style={{ background: 'white', padding: '32px', borderRadius: '20px', width: '100%', maxWidth: '500px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px' }}>
-              <h2 style={{ fontSize: '22px', margin: 0 }}>Mark Attendance</h2>
-              <button onClick={() => setShowModal(false)} style={{ background: '#F1F5F9', border: 'none', borderRadius: '50%', padding: '6px', cursor: 'pointer' }}><X size={18} /></button>
+              <h2 style={{ fontSize: '22px', margin: 0 }}>{editingRecord ? 'Edit Attendance' : 'Mark Attendance'}</h2>
+              <button onClick={() => { setShowModal(false); setEditingRecord(null); }} style={{ background: '#F1F5F9', border: 'none', borderRadius: '50%', padding: '6px', cursor: 'pointer' }}><X size={18} /></button>
             </div>
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
@@ -242,7 +268,7 @@ const Attendance = () => {
                   <input type="time" value={formData.checkIn} onChange={e => setFormData({...formData, checkIn: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
                 </div>
               </div>
-              <button type="submit" style={{ width: '100%', padding: '14px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', marginTop: '16px', cursor: 'pointer' }}>Save Record</button>
+              <button type="submit" style={{ width: '100%', padding: '14px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', marginTop: '16px', cursor: 'pointer' }}>{editingRecord ? 'Update Record' : 'Save Record'}</button>
             </form>
           </div>
         </div>,

@@ -31,6 +31,17 @@ router.put('/:id/checkout', async (req, res) => {
   }
 });
 
+router.put('/:id', async (req, res) => {
+  try {
+    const record = await Attendance.findByIdAndUpdate(req.params.id, { ...req.body }, { new: true });
+    if (!record) return res.status(404).json({ error: 'Record not found' });
+    await record.populate('employeeId');
+    res.json(record);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.delete('/:id', async (req, res) => {
   try {
     await Attendance.findByIdAndDelete(req.params.id);

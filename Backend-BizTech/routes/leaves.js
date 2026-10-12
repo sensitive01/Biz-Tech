@@ -22,6 +22,16 @@ router.post('/', async (req, res) => {
   }
 });
 
+router.put('/:id', async (req, res) => {
+  try {
+    const updated = await Leave.findByIdAndUpdate(req.params.id, req.body, { new: true }).populate('employeeId');
+    if (!updated) return res.status(404).json({ error: 'Leave request not found' });
+    res.json(updated);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 router.put('/:id/status', async (req, res) => {
   try {
     const { status } = req.body;

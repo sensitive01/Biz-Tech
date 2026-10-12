@@ -7,6 +7,7 @@ const InventorySchema = new mongoose.Schema({
   category: { type: String },
   quantity: { type: Number },
   price: { type: Number },
+  productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
   createdAt: { type: Date, default: Date.now }
 });
 

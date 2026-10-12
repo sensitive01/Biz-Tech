@@ -1,12 +1,13 @@
 import { exportToCSV } from '../utils/exportToCSV';
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowUp, ArrowDown, Building2, Plus, Phone, X, Eye, Trash2, AlertTriangle, Search, Filter, ArrowUpDown, Download } from 'lucide-react';
+import { ArrowUp, ArrowDown, Building2, Plus, Phone, X, Eye, Pencil, Trash2, AlertTriangle, Search, Filter, ArrowUpDown, Download } from 'lucide-react';
 
 const Businesses = () => {
   const [businesses, setBusinesses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [editingBusiness, setEditingBusiness] = useState(null);
   const [viewBusiness, setViewBusiness] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
   const [search, setSearch] = useState('');
@@ -29,6 +30,23 @@ const Businesses = () => {
   const [customEndDate, setCustomEndDate] = useState('');
   
   const [formData, setFormData] = useState({ name: '', regNo: '', phone: '', address: '' });
+
+  const handleOpenAdd = () => {
+    setEditingBusiness(null);
+    setFormData({ name: '', regNo: '', phone: '', address: '' });
+    setShowModal(true);
+  };
+
+  const handleEdit = (b) => {
+    setEditingBusiness(b);
+    setFormData({
+      name: b.name || '',
+      regNo: b.regNo || '',
+      phone: b.phone || '',
+      address: b.address || ''
+    });
+    setShowModal(true);
+  };
 
   const fetchBusinesses = async () => {
     try {
@@ -55,17 +73,23 @@ const Businesses = () => {
     e.preventDefault();
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/businesses`, {
-        method: 'POST',
+      const url = editingBusiness
+        ? `${import.meta.env.VITE_API_URL}/api/businesses/${editingBusiness._id}`
+        : `${import.meta.env.VITE_API_URL}/api/businesses`;
+      const method = editingBusiness ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(formData)
       });
       if (res.ok) {
         setShowModal(false);
+        setEditingBusiness(null);
         setFormData({ name: '', regNo: '', phone: '', address: '' });
         fetchBusinesses();
       } else {
-        alert('Failed to add business');
+        alert(editingBusiness ? 'Failed to update business' : 'Failed to add business');
       }
     } catch (err) {
       console.error(err);
@@ -146,7 +170,7 @@ const Businesses = () => {
           </p>
         </div>
         <button 
-          onClick={() => setShowModal(true)} 
+          onClick={handleOpenAdd} 
           style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', background: 'var(--primary-blue)', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
         >
           <Plus size={18} /> Add New Business
@@ -252,6 +276,13 @@ const Businesses = () => {
                           <Eye size={16} />
                         </button>
                         <button 
+                          onClick={() => handleEdit(b)}
+                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#EFF6FF', color: '#2563EB', border: 'none', borderRadius: '6px', cursor: 'pointer', transition: 'background 0.2s' }}
+                          title="Edit Business"
+                        >
+                          <Pencil size={15} />
+                        </button>
+                        <button 
                           onClick={() => setDeleteId(b._id)}
                           style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#FEE2E2', color: '#EF4444', border: 'none', borderRadius: '6px', cursor: 'pointer', transition: 'background 0.2s' }}
                           title="Delete Business"
@@ -272,8 +303,8 @@ const Businesses = () => {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '24px' }}>
           <div style={{ background: 'white', padding: '32px', borderRadius: '20px', width: '100%', maxWidth: '500px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-              <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#0F172A', margin: 0 }}>Add New Business</h2>
-              <button onClick={() => setShowModal(false)} style={{ background: '#F1F5F9', border: 'none', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748B', cursor: 'pointer' }}><X size={18} /></button>
+              <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#0F172A', margin: 0 }}>{editingBusiness ? 'Edit Business' : 'Add New Business'}</h2>
+              <button onClick={() => { setShowModal(false); setEditingBusiness(null); }} style={{ background: '#F1F5F9', border: 'none', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748B', cursor: 'pointer' }}><X size={18} /></button>
             </div>
             
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -295,8 +326,8 @@ const Businesses = () => {
               </div>
               
               <div style={{ display: 'flex', gap: '16px', marginTop: '12px' }}>
-                <button type="button" onClick={() => setShowModal(false)} style={{ flex: 1, padding: '14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '10px', color: '#475569', fontWeight: '600', fontSize: '15px', cursor: 'pointer' }}>Cancel</button>
-                <button type="submit" style={{ flex: 1, padding: '14px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', fontSize: '15px', cursor: 'pointer' }}>Save</button>
+                <button type="button" onClick={() => { setShowModal(false); setEditingBusiness(null); }} style={{ flex: 1, padding: '14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '10px', color: '#475569', fontWeight: '600', fontSize: '15px', cursor: 'pointer' }}>Cancel</button>
+                <button type="submit" style={{ flex: 1, padding: '14px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', fontSize: '15px', cursor: 'pointer' }}>{editingBusiness ? 'Update' : 'Save'}</button>
               </div>
             </form>
           </div>

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowUp, ArrowDown, MapPin, Plus, Store, Users, Phone, X, Eye, Trash2, AlertTriangle, Search, ArrowUpDown, Download, Filter } from 'lucide-react';
+import { ArrowUp, ArrowDown, MapPin, Plus, Store, Users, Phone, X, Eye, Pencil, Trash2, AlertTriangle, Search, ArrowUpDown, Download, Filter } from 'lucide-react';
 import { exportToCSV } from '../utils/exportToCSV';
 
 const Branches = () => {
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [editingBranch, setEditingBranch] = useState(null);
   const [viewBranch, setViewBranch] = useState(null);
   const [deleteBranchId, setDeleteBranchId] = useState(null);
   const [search, setSearch] = useState('');
@@ -34,6 +35,23 @@ const Branches = () => {
     manager: '',
     contactNumber: ''
   });
+
+  const handleOpenAdd = () => {
+    setEditingBranch(null);
+    setFormData({ name: '', location: '', manager: '', contactNumber: '' });
+    setShowModal(true);
+  };
+
+  const handleEdit = (branch) => {
+    setEditingBranch(branch);
+    setFormData({
+      name: branch.name || '',
+      location: branch.location || '',
+      manager: branch.manager || '',
+      contactNumber: branch.contactNumber || ''
+    });
+    setShowModal(true);
+  };
 
   const fetchBranches = async () => {
     try {
@@ -98,17 +116,23 @@ const Branches = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/branches`, {
-        method: 'POST',
+      const url = editingBranch
+        ? `${import.meta.env.VITE_API_URL}/api/branches/${editingBranch._id}`
+        : `${import.meta.env.VITE_API_URL}/api/branches`;
+      const method = editingBranch ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       });
       if (res.ok) {
         setShowModal(false);
+        setEditingBranch(null);
         setFormData({ name: '', location: '', manager: '', contactNumber: '' });
         fetchBranches();
       } else {
-        alert('Failed to add branch');
+        alert(editingBranch ? 'Failed to update branch' : 'Failed to add branch');
       }
     } catch (err) {
       console.error(err);
@@ -147,7 +171,7 @@ const Branches = () => {
           </p>
         </div>
         <button 
-          onClick={() => setShowModal(true)} 
+          onClick={handleOpenAdd} 
           style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', background: '#2563EB', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
         >
           <Plus size={18} /> Add New Branch
@@ -261,6 +285,15 @@ const Branches = () => {
                           <Eye size={16} />
                         </button>
                         <button 
+                          onClick={() => handleEdit(branch)}
+                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#EFF6FF', color: '#2563EB', border: 'none', borderRadius: '6px', cursor: 'pointer', transition: 'background 0.2s' }}
+                          title="Edit Branch"
+                          onMouseOver={(e) => e.currentTarget.style.background = '#DBEAFE'} 
+                          onMouseOut={(e) => e.currentTarget.style.background = '#EFF6FF'}
+                        >
+                          <Pencil size={15} />
+                        </button>
+                        <button 
                           onClick={() => setDeleteBranchId(branch._id)}
                           style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#FEE2E2', color: '#EF4444', border: 'none', borderRadius: '6px', cursor: 'pointer', transition: 'background 0.2s' }}
                           title="Delete Branch"
@@ -284,8 +317,8 @@ const Branches = () => {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '24px' }}>
           <div style={{ background: 'white', padding: '32px', borderRadius: '20px', width: '100%', maxWidth: '500px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-              <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#0F172A', margin: 0 }}>Add New Branch</h2>
-              <button onClick={() => setShowModal(false)} style={{ background: '#F1F5F9', border: 'none', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748B', cursor: 'pointer' }}><X size={18} /></button>
+              <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#0F172A', margin: 0 }}>{editingBranch ? 'Edit Branch' : 'Add New Branch'}</h2>
+              <button onClick={() => { setShowModal(false); setEditingBranch(null); }} style={{ background: '#F1F5F9', border: 'none', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748B', cursor: 'pointer' }}><X size={18} /></button>
             </div>
             
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -335,11 +368,11 @@ const Branches = () => {
               </div>
               
               <div style={{ display: 'flex', gap: '16px', marginTop: '12px' }}>
-                <button type="button" onClick={() => setShowModal(false)} style={{ flex: 1, padding: '14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '10px', color: '#475569', fontWeight: '600', fontSize: '15px', cursor: 'pointer', transition: 'background 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
+                <button type="button" onClick={() => { setShowModal(false); setEditingBranch(null); }} style={{ flex: 1, padding: '14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '10px', color: '#475569', fontWeight: '600', fontSize: '15px', cursor: 'pointer', transition: 'background 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
                   Cancel
                 </button>
                 <button type="submit" style={{ flex: 1, padding: '14px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', fontSize: '15px', cursor: 'pointer', transition: 'background 0.2s', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }} onMouseOver={(e) => e.currentTarget.style.background = '#1D4ED8'} onMouseOut={(e) => e.currentTarget.style.background = '#2563EB'}>
-                  Save Branch
+                  {editingBranch ? 'Update Branch' : 'Save Branch'}
                 </button>
               </div>
             </form>

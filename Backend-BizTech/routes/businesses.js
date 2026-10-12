@@ -45,6 +45,25 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
+// @route   PUT /api/businesses/:id
+// @desc    Update a business
+router.put('/:id', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    
+    const index = user.businesses.findIndex(b => b._id.toString() === req.params.id);
+    if (index === -1) return res.status(404).json({ message: 'Business not found' });
+    
+    user.businesses[index] = { ...user.businesses[index].toObject(), ...req.body };
+    await user.save();
+    
+    res.json(user.businesses);
+  } catch (err) {
+    res.status(500).json({ message: 'Server Error' });
+  }
+});
+
 // @route   DELETE /api/businesses/:id
 // @desc    Delete a business
 router.delete('/:id', auth, async (req, res) => {

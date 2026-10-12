@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Users, Mail, Briefcase, Store, X, Eye, Trash2, AlertTriangle, UserPlus, Phone, DollarSign, Calendar, Activity, Search, Download, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { Plus, Users, Mail, Briefcase, Store, X, Eye, Pencil, Trash2, AlertTriangle, UserPlus, Phone, DollarSign, Calendar, Activity, Search, Download, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { exportToCSV } from '../utils/exportToCSV';
 
 const Employees = () => {
@@ -13,6 +13,7 @@ const Employees = () => {
   const [customEndDate, setCustomEndDate] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [showModal, setShowModal] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState(null);
   const [viewEmployee, setViewEmployee] = useState(null);
   const [deleteEmployeeId, setDeleteEmployeeId] = useState(null);
   
@@ -28,6 +29,27 @@ const Employees = () => {
     status: 'Active',
     branchId: ''
   });
+
+  const handleOpenAdd = () => {
+    setEditingEmployee(null);
+    setFormData({ name: '', email: '', position: '', contactNumber: '', salary: '', dateOfJoining: '', status: 'Active', branchId: '' });
+    setShowModal(true);
+  };
+
+  const handleEdit = (employee) => {
+    setEditingEmployee(employee);
+    setFormData({
+      name: employee.name || '',
+      email: employee.email || '',
+      position: employee.position || '',
+      contactNumber: employee.contactNumber || '',
+      salary: employee.salary !== undefined ? employee.salary : '',
+      dateOfJoining: employee.dateOfJoining ? employee.dateOfJoining.substring(0, 10) : '',
+      status: employee.status || 'Active',
+      branchId: employee.branchId?._id || employee.branchId || ''
+    });
+    setShowModal(true);
+  };
 
   const fetchData = async () => {
     try {
@@ -59,18 +81,24 @@ const Employees = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/employees`, {
-        method: 'POST',
+      const url = editingEmployee
+        ? `${import.meta.env.VITE_API_URL}/api/employees/${editingEmployee._id}`
+        : `${import.meta.env.VITE_API_URL}/api/employees`;
+      const method = editingEmployee ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       });
       if (res.ok) {
         setShowModal(false);
+        setEditingEmployee(null);
         setFormData({ name: '', email: '', position: '', contactNumber: '', salary: '', dateOfJoining: '', status: 'Active', branchId: '' });
         fetchData();
       } else {
         const data = await res.json();
-        alert(data.error || 'Failed to add employee');
+        alert(data.error || (editingEmployee ? 'Failed to update employee' : 'Failed to add employee'));
       }
     } catch (err) {
       console.error(err);
@@ -148,7 +176,7 @@ const Employees = () => {
           </p>
         </div>
         <button 
-          onClick={() => setShowModal(true)} 
+          onClick={handleOpenAdd} 
           style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', background: '#2563EB', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
         >
           <Plus size={18} /> Add New Employee
@@ -259,6 +287,15 @@ const Employees = () => {
                           <Eye size={16} />
                         </button>
                         <button 
+                          onClick={() => handleEdit(employee)}
+                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#EFF6FF', color: '#2563EB', border: 'none', borderRadius: '6px', cursor: 'pointer', transition: 'background 0.2s' }}
+                          title="Edit Employee"
+                          onMouseOver={(e) => e.currentTarget.style.background = '#DBEAFE'} 
+                          onMouseOut={(e) => e.currentTarget.style.background = '#EFF6FF'}
+                        >
+                          <Pencil size={15} />
+                        </button>
+                        <button 
                           onClick={() => setDeleteEmployeeId(employee._id)}
                           style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#FEE2E2', color: '#EF4444', border: 'none', borderRadius: '6px', cursor: 'pointer', transition: 'background 0.2s' }}
                           title="Delete Employee"
@@ -282,8 +319,8 @@ const Employees = () => {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '24px' }}>
           <div style={{ background: 'white', padding: '32px', borderRadius: '20px', width: '100%', maxWidth: '600px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-              <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#0F172A', margin: 0 }}>Add New Employee</h2>
-              <button onClick={() => setShowModal(false)} style={{ background: '#F1F5F9', border: 'none', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748B', cursor: 'pointer' }}><X size={18} /></button>
+              <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#0F172A', margin: 0 }}>{editingEmployee ? 'Edit Employee' : 'Add New Employee'}</h2>
+              <button onClick={() => { setShowModal(false); setEditingEmployee(null); }} style={{ background: '#F1F5F9', border: 'none', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748B', cursor: 'pointer' }}><X size={18} /></button>
             </div>
             
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -380,11 +417,11 @@ const Employees = () => {
               </div>
               
               <div style={{ display: 'flex', gap: '16px', marginTop: '12px' }}>
-                <button type="button" onClick={() => setShowModal(false)} style={{ flex: 1, padding: '14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '10px', color: '#475569', fontWeight: '600', fontSize: '15px', cursor: 'pointer', transition: 'background 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
+                <button type="button" onClick={() => { setShowModal(false); setEditingEmployee(null); }} style={{ flex: 1, padding: '14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '10px', color: '#475569', fontWeight: '600', fontSize: '15px', cursor: 'pointer', transition: 'background 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
                   Cancel
                 </button>
                 <button type="submit" style={{ flex: 1, padding: '14px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', fontSize: '15px', cursor: 'pointer', transition: 'background 0.2s', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }} onMouseOver={(e) => e.currentTarget.style.background = '#1D4ED8'} onMouseOut={(e) => e.currentTarget.style.background = '#2563EB'}>
-                  Save Employee
+                  {editingEmployee ? 'Update Employee' : 'Save Employee'}
                 </button>
               </div>
             </form>

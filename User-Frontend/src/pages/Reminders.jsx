@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { 
-  Calendar as CalendarIcon, Clock, Bell, BellRing, Plus, X, Pencil, 
+  Calendar as CalendarIcon, Clock, Bell, Plus, X, Pencil, 
   Trash2, CheckCircle2, ChevronLeft, ChevronRight, AlertTriangle, 
   Repeat, Search, Download, Filter, Check, List, CalendarDays, Eye, 
   Loader2, AlertCircle, Sparkles, Tag 
@@ -10,7 +10,6 @@ import { exportToCSV } from '../utils/exportToCSV';
 
 const Reminders = () => {
   const [items, setItems] = useState([]);
-  const [activeNotifications, setActiveNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState('calendar'); // 'calendar' or 'list'
 
@@ -39,22 +38,13 @@ const Reminders = () => {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const [resAll, resActive] = await Promise.all([
-        fetch(`${import.meta.env.VITE_API_URL}/api/reminders`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        fetch(`${import.meta.env.VITE_API_URL}/api/reminders/active-notifications`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
-      ]);
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/reminders`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
 
-      if (resAll.ok) {
-        const data = await resAll.json();
+      if (res.ok) {
+        const data = await res.json();
         setItems(data);
-      }
-      if (resActive.ok) {
-        const activeData = await resActive.json();
-        setActiveNotifications(activeData);
       }
     } catch (err) {
       console.error('Error fetching reminders:', err);
@@ -351,88 +341,7 @@ const Reminders = () => {
         </div>
       </div>
 
-      {/* Active Advance Notification Alerts Banner */}
-      {activeNotifications.length > 0 && (
-        <div style={{ 
-          background: 'linear-gradient(to right, #FFFBEB, #FEF3C7)', 
-          border: '1px solid #FDE68A', 
-          borderRadius: '12px', 
-          padding: '16px 20px', 
-          marginBottom: '24px',
-          boxShadow: '0 2px 8px rgba(245, 158, 11, 0.08)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-            <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#F59E0B', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <BellRing size={16} />
-            </div>
-            <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#92400E' }}>
-              Active Upcoming Alerts ({activeNotifications.length})
-            </h3>
-            <span style={{ fontSize: '12px', color: '#B45309' }}>• Triggered by your advance notification settings</span>
-          </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
-            {activeNotifications.map(alert => (
-              <div 
-                key={alert._id} 
-                style={{ 
-                  background: 'white', 
-                  borderRadius: '8px', 
-                  padding: '12px 14px', 
-                  border: '1px solid #FDE68A',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '12px'
-                }}
-              >
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ 
-                      fontSize: '11px', 
-                      fontWeight: '700', 
-                      padding: '2px 6px', 
-                      borderRadius: '4px',
-                      background: alert.isDueToday ? '#FEE2E2' : '#EFF6FF',
-                      color: alert.isDueToday ? '#DC2626' : '#2563EB'
-                    }}>
-                      {alert.isDueToday ? 'DUE TODAY' : `IN ${alert.daysRemaining} DAYS`}
-                    </span>
-                    {alert.repeatMonthly && (
-                      <span style={{ fontSize: '11px', color: '#7C3AED', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                        <Repeat size={11} /> Monthly
-                      </span>
-                    )}
-                  </div>
-                  <p style={{ margin: '4px 0 0 0', fontSize: '14px', fontWeight: '600', color: '#0F172A' }}>
-                    {alert.title}
-                  </p>
-                </div>
-
-                <button
-                  onClick={() => handleToggleComplete(alert)}
-                  style={{
-                    padding: '6px 10px',
-                    borderRadius: '6px',
-                    background: '#F0FDF4',
-                    border: '1px solid #BBF7D0',
-                    color: '#16A34A',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}
-                  title="Mark as done"
-                >
-                  <Check size={13} /> Done
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Mode 1: Calendar View */}
       {viewMode === 'calendar' ? (
@@ -725,6 +634,7 @@ const Reminders = () => {
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ background: '#F8FAFC', borderBottom: '1px solid var(--border-color)' }}>
+                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)', width: '60px' }}>S.NO</th>
                 <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)' }}>TITLE</th>
                 <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)' }}>EVENT DATE</th>
                 <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)' }}>RECURRENCE</th>
@@ -736,9 +646,10 @@ const Reminders = () => {
             <tbody>
               {items
                 .filter(i => (i.title || '').toLowerCase().includes(search.toLowerCase()) || (i.description || '').toLowerCase().includes(search.toLowerCase()))
-                .map(item => {
+                .map((item, idx) => {
                   return (
                     <tr key={item._id} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                      <td style={{ padding: '14px 16px', fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '500' }}>{idx + 1}</td>
                       <td style={{ padding: '14px 16px', fontWeight: '600', color: 'var(--text-title)' }}>
                         {item.title}
                         {item.description && <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '400' }}>{item.description}</p>}

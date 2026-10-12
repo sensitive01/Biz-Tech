@@ -49,6 +49,7 @@ const Billing = () => {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border-color)', textAlign: 'left' }}>
+                    <th style={{ padding: '12px 8px', color: 'var(--text-muted)', fontWeight: '500', fontSize: '13px', width: '50px' }}>S.No</th>
                     <th style={{ padding: '12px 8px', color: 'var(--text-muted)', fontWeight: '500', fontSize: '13px' }}>Date</th>
                     <th style={{ padding: '12px 8px', color: 'var(--text-muted)', fontWeight: '500', fontSize: '13px' }}>Amount</th>
                     <th style={{ padding: '12px 8px', color: 'var(--text-muted)', fontWeight: '500', fontSize: '13px' }}>Status</th>
@@ -62,6 +63,7 @@ const Billing = () => {
                     { date: 'Aug 01, 2026', amount: '$199.00', status: 'Paid' },
                   ].map((inv, i) => (
                     <tr key={i} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                      <td style={{ padding: '16px 8px', fontSize: '14px', color: '#64748B', fontWeight: '500' }}>{i + 1}</td>
                       <td style={{ padding: '16px 8px', fontSize: '14px', color: 'var(--text-title)', fontWeight: '500' }}>{inv.date}</td>
                       <td style={{ padding: '16px 8px', fontSize: '14px', color: 'var(--text-title)' }}>{inv.amount}</td>
                       <td style={{ padding: '16px 8px' }}>

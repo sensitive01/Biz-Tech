@@ -1,7 +1,7 @@
 import { exportToCSV } from '../utils/exportToCSV';
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowUp, ArrowDown, Plus, Search, Filter, Package, Tag, Archive, Trash2, X, AlertTriangle, ArrowUpDown, Download } from 'lucide-react';
+import { ArrowUp, ArrowDown, Plus, Search, Package, Tag, Trash2, Pencil, X, AlertTriangle, ArrowUpDown, Download } from 'lucide-react';
 
 const Products = () => {
   const [activeTab, setActiveTab] = useState('categories');
@@ -30,11 +30,58 @@ const Products = () => {
   const [loading, setLoading] = useState(true);
 
   const [showModal, setShowModal] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
 
   const [catForm, setCatForm] = useState({ name: '', description: '', image: null, itemType: 'Product', transactionType: 'Sales' });
   const [subCatForm, setSubCatForm] = useState({ name: '', categoryId: '', description: '' });
   const [prodForm, setProdForm] = useState({ name: '', sku: '', categoryId: '', subCategoryId: '', price: '', stock: '', image: null, itemType: 'Product', description: '' });
+
+  const handleOpenAdd = () => {
+    setEditingItem(null);
+    setCatForm({ name: '', description: '', image: null, itemType: 'Product', transactionType: 'Sales' });
+    setSubCatForm({ name: '', categoryId: '', description: '' });
+    setProdForm({ name: '', sku: '', categoryId: '', subCategoryId: '', price: '', stock: '', image: null, itemType: 'Product', description: '' });
+    setShowModal(true);
+  };
+
+  const handleEditCategory = (item) => {
+    setEditingItem(item);
+    setCatForm({
+      name: item.name || '',
+      description: item.description || '',
+      image: null,
+      itemType: item.itemType || 'Product',
+      transactionType: item.transactionType || 'Sales'
+    });
+    setShowModal(true);
+  };
+
+  const handleEditSubCategory = (item) => {
+    setEditingItem(item);
+    setSubCatForm({
+      name: item.name || '',
+      categoryId: item.categoryId?._id || item.categoryId || '',
+      description: item.description || ''
+    });
+    setShowModal(true);
+  };
+
+  const handleEditProduct = (item) => {
+    setEditingItem(item);
+    setProdForm({
+      name: item.name || '',
+      sku: item.sku || '',
+      categoryId: item.categoryId?._id || item.categoryId || '',
+      subCategoryId: item.subCategoryId?._id || item.subCategoryId || '',
+      price: item.price !== undefined ? item.price : '',
+      stock: item.stock !== undefined ? item.stock : '',
+      image: null,
+      itemType: item.itemType || 'Product',
+      description: item.description || ''
+    });
+    setShowModal(true);
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -69,9 +116,10 @@ const Products = () => {
     let endpoint = '';
     let bodyData;
     let headers = { 'Authorization': `Bearer ${token}` };
+    const method = editingItem ? 'PUT' : 'POST';
     
     if (activeTab === 'categories') {
-      endpoint = '/api/categories';
+      endpoint = editingItem ? `/api/categories/${editingItem._id}` : '/api/categories';
       bodyData = new FormData();
       Object.keys(catForm).forEach(key => {
         if (catForm[key] !== null && catForm[key] !== '') {
@@ -79,11 +127,11 @@ const Products = () => {
         }
       });
     } else if (activeTab === 'subcategories') {
-      endpoint = '/api/subcategories';
+      endpoint = editingItem ? `/api/subcategories/${editingItem._id}` : '/api/subcategories';
       bodyData = JSON.stringify(subCatForm);
       headers['Content-Type'] = 'application/json';
     } else {
-      endpoint = '/api/products';
+      endpoint = editingItem ? `/api/products/${editingItem._id}` : '/api/products';
       bodyData = new FormData();
       Object.keys(prodForm).forEach(key => {
         if (prodForm[key] !== null && prodForm[key] !== '') {
@@ -94,12 +142,13 @@ const Products = () => {
 
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL}${endpoint}`, {
-        method: 'POST',
+        method,
         headers: headers,
         body: bodyData
       });
       if (res.ok) {
         setShowModal(false);
+        setEditingItem(null);
         setCatForm({ name: '', description: '', image: null, itemType: 'Product', transactionType: 'Sales' });
         setSubCatForm({ name: '', categoryId: '', description: '' });
         setProdForm({ name: '', sku: '', categoryId: '', subCategoryId: '', price: '', stock: '', image: null, itemType: 'Product', description: '' });
@@ -193,7 +242,7 @@ const Products = () => {
           </h1>
           <p style={{ color: '#64748B', fontSize: '15px', margin: 0 }}>Manage your inventory catalogue, service offerings, and categorizations.</p>
         </div>
-        <button onClick={() => setShowModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', background: 'var(--primary-blue)', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}>
+        <button onClick={handleOpenAdd} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', background: 'var(--primary-blue)', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}>
           <Plus size={18} /> Add New {activeTab === 'categories' ? 'Category' : activeTab === 'subcategories' ? 'Sub Category' : 'Product/Service'}
         </button>
       </div>
@@ -250,7 +299,7 @@ const Products = () => {
           </div>
         )}
               
-              <button onClick={() => exportToCSV(filteredData, 'Products')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', cursor: 'pointer' }}><Download size={16} /> Export</button>
+                <button onClick={() => exportToCSV(filteredData, 'Products')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', cursor: 'pointer' }}><Download size={16} /> Export</button>
             </div>
           </div>
         </div>
@@ -259,6 +308,7 @@ const Products = () => {
           <table style={{ width: '100%', minWidth: '800px', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ background: '#F8FAFC' }}>
+                <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', width: '60px' }}>S.No</th>
                 <th onClick={() => requestSort('name')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',  padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
                 <div style={{ display: 'flex', alignItems: 'center' }}>Name {renderSortIcon('name')}</div>
               </th>
@@ -300,12 +350,24 @@ const Products = () => {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="6" style={{ padding: '32px', textAlign: 'center', color: '#64748B' }}>Loading...</td></tr>
+                <tr><td colSpan="7" style={{ padding: '32px', textAlign: 'center', color: '#64748B' }}>Loading...</td></tr>
               ) : filteredData.length === 0 ? (
-                <tr><td colSpan="6" style={{ padding: '32px', textAlign: 'center', color: '#64748B' }}>No items found</td></tr>
+                <tr>
+                  <td colSpan="7" style={{ padding: '36px 24px', textAlign: 'center', color: '#64748B' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                      <p style={{ margin: 0, fontSize: '15px', fontWeight: '600', color: '#334155' }}>
+                        {activeTab === 'categories' ? 'No categories available' : activeTab === 'subcategories' ? 'No subcategories available' : 'No products or services found'}
+                      </p>
+                      {/* <span style={{ fontSize: '13px', color: '#94A3B8' }}>
+                        Click "+ Add New {activeTab === 'categories' ? 'Category' : activeTab === 'subcategories' ? 'Sub Category' : 'Product/Service'}" above to create one.
+                      </span> */}
+                    </div>
+                  </td>
+                </tr>
               ) : (
-                filteredData.map(item => (
+                filteredData.map((item, index) => (
                   <tr key={item._id} style={{ borderBottom: '1px solid #E2E8F0' }}>
+                    <td style={{ padding: '16px 24px', fontSize: '15px', color: '#475569', fontWeight: '500' }}>{index + 1}</td>
                     <td style={{ padding: '16px 24px', fontWeight: '600', color: '#0F172A' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         {item.image ? (
@@ -349,7 +411,49 @@ const Products = () => {
                     )}
 
                     <td style={{ padding: '16px 24px', textAlign: 'right' }}>
-                      <button onClick={() => setDeleteId(item._id)} style={{ background: '#FEE2E2', color: '#EF4444', border: 'none', width: '32px', height: '32px', borderRadius: '6px', cursor: 'pointer' }}><Trash2 size={16} /></button>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                        <button
+                          onClick={() => {
+                            if (activeTab === 'categories') handleEditCategory(item);
+                            else if (activeTab === 'subcategories') handleEditSubCategory(item);
+                            else handleEditProduct(item);
+                          }}
+                          title="Edit"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: '32px',
+                            height: '32px',
+                            background: '#EFF6FF',
+                            color: '#2563EB',
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            transition: 'background 0.2s'
+                          }}
+                        >
+                          <Pencil size={15} />
+                        </button>
+                        <button
+                          onClick={() => setDeleteId(item._id)}
+                          title="Delete"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: '32px',
+                            height: '32px',
+                            background: '#FEE2E2',
+                            color: '#EF4444',
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -364,9 +468,9 @@ const Products = () => {
           <div style={{ background: 'white', padding: '32px', borderRadius: '20px', width: '100%', maxWidth: '500px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
               <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#0F172A', margin: 0 }}>
-                Add {activeTab === 'categories' ? 'Category' : activeTab === 'subcategories' ? 'Sub Category' : 'Product / Service'}
+                {editingItem ? 'Edit' : 'Add'} {activeTab === 'categories' ? 'Category' : activeTab === 'subcategories' ? 'Sub Category' : 'Product / Service'}
               </h2>
-              <button onClick={() => setShowModal(false)} style={{ background: '#F1F5F9', border: 'none', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer' }}><X size={18} /></button>
+              <button onClick={() => { setShowModal(false); setEditingItem(null); }} style={{ background: '#F1F5F9', border: 'none', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer' }}><X size={18} /></button>
             </div>
             
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -411,9 +515,14 @@ const Products = () => {
                   <div>
                     <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Parent Category</label>
                     <select value={subCatForm.categoryId} onChange={e => setSubCatForm({...subCatForm, categoryId: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }}>
-                      <option value="">Select Category...</option>
+                      {categories.length === 0 ? (
+                        <option value="" disabled>No category available</option>
+                      ) : (
+                        <option value="">Select Category...</option>
+                      )}
                       {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
                     </select>
+
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Description</label>
@@ -436,41 +545,72 @@ const Products = () => {
                     <div>
                       <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Category</label>
                       <select value={prodForm.categoryId} onChange={e => setProdForm({...prodForm, categoryId: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }}>
-                        <option value="">Select...</option>
+                        {categories.length === 0 ? (
+                          <option value="" disabled>No category available</option>
+                        ) : (
+                          <option value="">Select...</option>
+                        )}
                         {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
                       </select>
                     </div>
                     <div>
                       <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Sub Category</label>
                       <select value={prodForm.subCategoryId} onChange={e => setProdForm({...prodForm, subCategoryId: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }}>
-                        <option value="">None</option>
-                        {subcategories.filter(sc => sc.categoryId?._id === prodForm.categoryId).map(sc => <option key={sc._id} value={sc._id}>{sc.name}</option>)}
+                        {subcategories.filter(sc => sc.categoryId?._id === prodForm.categoryId).length === 0 ? (
+                          <option value="" disabled>No subcategory available</option>
+                        ) : (
+                          <>
+                            <option value="">None</option>
+                            {subcategories.filter(sc => sc.categoryId?._id === prodForm.categoryId).map(sc => <option key={sc._id} value={sc._id}>{sc.name}</option>)}
+                          </>
+                        )}
                       </select>
                     </div>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                     <div>
-                      <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>SKU</label>
-                      <input placeholder="Enter the SKU(Stock Keeping Unit)" type="text" value={prodForm.sku} onChange={e => setProdForm({...prodForm, sku: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
-                    </div>
-                    <div>
                       <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Type</label>
-                      <select value={prodForm.itemType} onChange={e => setProdForm({...prodForm, itemType: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }}>
+                      <select 
+                        value={prodForm.itemType} 
+                        onChange={e => {
+                          const newType = e.target.value;
+                          setProdForm({
+                            ...prodForm, 
+                            itemType: newType,
+                            ...(newType === 'Service' ? { stock: '', sku: '' } : {})
+                          });
+                        }} 
+                        style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }}
+                      >
                         <option value="Product">Product</option>
                         <option value="Service">Service</option>
                       </select>
                     </div>
+                    {prodForm.itemType === 'Product' ? (
+                      <div>
+                        <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Stock Keeping Unit(SKU)</label>
+                        <input placeholder="Enter the SKU(Stock Keeping Unit)" type="text" value={prodForm.sku} onChange={e => setProdForm({...prodForm, sku: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
+                      </div>
+                    ) : (
+                      <div>
+                        <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Price</label>
+                        <input placeholder="Enter the price amount" type="number" value={prodForm.price} onChange={e => setProdForm({...prodForm, price: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
+                      </div>
+                    )}
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Price</label>
-                      <input placeholder="Enter the price amount" type="number" value={prodForm.price} onChange={e => setProdForm({...prodForm, price: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
+
+                  {prodForm.itemType === 'Product' && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Price</label>
+                        <input placeholder="Enter the price amount" type="number" value={prodForm.price} onChange={e => setProdForm({...prodForm, price: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Stock Quantity</label>
+                        <input placeholder="Enter the stock quantity" type="number" value={prodForm.stock} onChange={e => setProdForm({...prodForm, stock: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
+                      </div>
                     </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Stock Quantity</label>
-                      <input placeholder="Enter the stock quantity" type="number" value={prodForm.stock} onChange={e => setProdForm({...prodForm, stock: e.target.value})} disabled={prodForm.itemType === 'Service'} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', background: prodForm.itemType === 'Service' ? '#F1F5F9' : 'white' }} />
-                    </div>
-                  </div>
+                  )}
                   <div>
                     <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Product/Service Image</label>
                     <input type="file" accept="image/*" onChange={e => setProdForm({...prodForm, image: e.target.files[0]})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
@@ -479,8 +619,8 @@ const Products = () => {
               )}
 
               <div style={{ display: 'flex', gap: '16px', marginTop: '12px' }}>
-                <button type="button" onClick={() => setShowModal(false)} style={{ flex: 1, padding: '14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '10px', color: '#475569', fontWeight: '600', cursor: 'pointer' }}>Cancel</button>
-                <button type="submit" style={{ flex: 1, padding: '14px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', cursor: 'pointer' }}>Save</button>
+                <button type="button" onClick={() => { setShowModal(false); setEditingItem(null); }} style={{ flex: 1, padding: '14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '10px', color: '#475569', fontWeight: '600', cursor: 'pointer' }}>Cancel</button>
+                <button type="submit" style={{ flex: 1, padding: '14px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', cursor: 'pointer' }}>{editingItem ? 'Update' : 'Save'}</button>
               </div>
             </form>
           </div>

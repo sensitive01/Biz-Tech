@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Store, Users, Map, Package, ArrowRight, ArrowLeft, CheckCircle2, Building2, LayoutGrid, ShoppingCart, TrendingUp, Briefcase, Menu, X, Trash2, Edit2, Plus } from 'lucide-react';
+import { Store, Users, Map, Package, ArrowRight, ArrowLeft, CheckCircle2, Building2, ShoppingCart, TrendingUp, Briefcase, Menu, X, Trash2, Edit2, Plus } from 'lucide-react';
 
 const Onboarding = () => {
   const navigate = useNavigate();
@@ -313,6 +313,7 @@ const Onboarding = () => {
                 <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden' }}>
                   <thead style={{ background: '#F8FAFC' }}>
                     <tr>
+                      <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', width: '60px' }}>S.No</th>
                       <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)' }}>Business Name</th>
                       <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)' }}>Contact</th>
                       <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)' }}>Reg No</th>
@@ -321,6 +322,7 @@ const Onboarding = () => {
                   <tbody>
                     {businesses.map((b, idx) => (
                       <tr key={idx} style={{ borderTop: '1px solid var(--border-color)' }}>
+                        <td style={{ padding: '12px 16px', fontSize: '14px', color: 'var(--text-secondary)', fontWeight: '500' }}>{idx + 1}</td>
                         <td style={{ padding: '12px 16px', fontWeight: '500' }}>{b.name}</td>
                         <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{b.phone}</td>
                         <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{b.regNo || '-'}</td>
@@ -494,7 +496,7 @@ const Onboarding = () => {
                 <div style={{ marginTop: '20px', padding: '12px 16px', background: '#EFF6FF', borderRadius: '8px', border: '1px solid #DBEAFE', display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <CheckCircle2 size={18} color="var(--primary-blue)" />
                   <span style={{ fontSize: '13px', color: '#1E40AF' }}>
-                    Single branch configured. All employees will be assigned to this branch. Multiple branch creation is not required for Type 2.
+                    Single branch configured. All employees will be assigned to this branch.
                   </span>
                 </div>
               </div>
@@ -604,6 +606,7 @@ const Onboarding = () => {
               <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden' }}>
                 <thead style={{ background: '#F8FAFC' }}>
                   <tr>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', width: '60px' }}>S.No</th>
                     <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)' }}>Branch Name</th>
                     <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)' }}>Type</th>
                     <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)' }}>Location</th>
@@ -614,6 +617,7 @@ const Onboarding = () => {
                 <tbody>
                   {branches.map((b, idx) => (
                     <tr key={idx} style={{ borderTop: '1px solid var(--border-color)' }}>
+                      <td style={{ padding: '12px 16px', fontSize: '14px', color: 'var(--text-secondary)', fontWeight: '500' }}>{idx + 1}</td>
                       <td style={{ padding: '12px 16px', fontWeight: '500' }}>
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
                           <span>{b.name}</span>
@@ -828,6 +832,7 @@ const Onboarding = () => {
               <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden' }}>
                 <thead style={{ background: '#F8FAFC' }}>
                   <tr>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', width: '60px' }}>S.No</th>
                     <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)' }}>Name</th>
                     <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)' }}>Role & Branch</th>
                     <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)' }}>Contact</th>
@@ -839,6 +844,7 @@ const Onboarding = () => {
                 <tbody>
                   {employees.map((emp, idx) => (
                     <tr key={idx} style={{ borderTop: '1px solid var(--border-color)' }}>
+                      <td style={{ padding: '12px 16px', fontSize: '14px', color: 'var(--text-secondary)', fontWeight: '500' }}>{idx + 1}</td>
                       <td style={{ padding: '12px 16px', fontWeight: '500' }}>{emp.name}</td>
                       <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>
                         <div style={{ display: 'flex', flexDirection: 'column' }}>

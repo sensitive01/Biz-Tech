@@ -39,6 +39,23 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
   }
 });
 
+router.put('/:id', auth, upload.single('image'), async (req, res) => {
+  try {
+    const data = { ...req.body };
+    if (req.file) {
+      data.image = req.file.path;
+    }
+    const updated = await Category.findOneAndUpdate(
+      { _id: req.params.id, tenantId: req.user.id },
+      { $set: data },
+      { new: true }
+    );
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: 'Server Error' });
+  }
+});
+
 router.delete('/:id', auth, async (req, res) => {
   try {
     await Category.findOneAndDelete({ _id: req.params.id, tenantId: req.user.id });
