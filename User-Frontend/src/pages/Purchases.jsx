@@ -1,4 +1,5 @@
 import { exportToCSV } from '../utils/exportToCSV';
+import { formatDate } from '../utils/formatDate';
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowUp, ArrowDown, ShoppingCart, Plus, X, Eye, Pencil, Trash2, AlertTriangle, Search, Filter, ArrowUpDown, Download } from 'lucide-react';
@@ -25,15 +26,33 @@ const Purchases = () => {
     if (sortConfig.key !== key) return <ArrowUpDown size={14} style={{ opacity: 0.3, marginLeft: '4px' }} />;
     return sortConfig.direction === 'asc' ? <ArrowUp size={14} style={{ color: 'var(--primary-blue)', marginLeft: '4px' }} /> : <ArrowDown size={14} style={{ color: 'var(--primary-blue)', marginLeft: '4px' }} />;
   };
+  const getStatusBadge = (status) => {
+    const s = (status || '').toLowerCase();
+    if (s === 'pending') {
+      return { bg: '#FEF3C7', color: '#B45309', border: '#FDE68A', label: 'Pending' };
+    }
+    if (s === 'ordered') {
+      return { bg: '#DBEAFE', color: '#1E40AF', border: '#BFDBFE', label: 'Ordered' };
+    }
+    if (s === 'received' || s === 'completed' || s === 'delivered' || s === 'paid') {
+      return { bg: '#DCFCE7', color: '#166534', border: '#BBF7D0', label: status || 'Received' };
+    }
+    if (s === 'cancelled') {
+      return { bg: '#FEE2E2', color: '#991B1B', border: '#FECACA', label: 'Cancelled' };
+    }
+    return { bg: '#F1F5F9', color: '#475569', border: '#E2E8F0', label: status || 'Pending' };
+  };
+
   const [filterDays, setFilterDays] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
   
-  const [formData, setFormData] = useState({ poNumber: '', supplierName: '', date: '', amount: '', status: '' });
+  const [formData, setFormData] = useState({ poNumber: '', supplierName: '', date: '', amount: '', status: 'Pending' });
 
   const handleOpenAdd = () => {
     setEditingItem(null);
-    setFormData({ poNumber: '', supplierName: '', date: '', amount: '', status: '' });
+    setFormData({ poNumber: '', supplierName: '', date: '', amount: '', status: 'Pending' });
     setShowModal(true);
   };
 
@@ -42,9 +61,9 @@ const Purchases = () => {
     setFormData({
       poNumber: item.poNumber || '',
       supplierName: item.supplierName || '',
-      date: item.date ? item.date.substring(0, 10) : '',
+      date: item.date ? (typeof item.date === 'string' ? item.date.substring(0, 10) : new Date(item.date).toISOString().substring(0, 10)) : '',
       amount: item.amount || '',
-      status: item.status || ''
+      status: item.status || 'Pending'
     });
     setShowModal(true);
   };
@@ -87,7 +106,7 @@ const Purchases = () => {
       if (res.ok) {
         setShowModal(false);
         setEditingItem(null);
-        setFormData({ poNumber: '', supplierName: '', date: '', amount: '', status: '' });
+        setFormData({ poNumber: '', supplierName: '', date: '', amount: '', status: 'Pending' });
         fetchItems();
       } else {
         alert(editingItem ? 'Failed to update item' : 'Failed to add item');
@@ -130,6 +149,10 @@ const Purchases = () => {
         return true;
       }
       return true;
+    })
+    .filter(i => {
+      if (filterStatus === 'all') return true;
+      return (i.status || 'Pending').toLowerCase() === filterStatus.toLowerCase();
     })
     .filter(i => Object.values(i).some(val => String(val).toLowerCase().includes(search.toLowerCase())))
     .sort((a, b) => {
@@ -178,6 +201,13 @@ const Purchases = () => {
           <input type="text" placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: '100%', padding: '12px 16px 12px 42px', borderRadius: '10px', border: '1px solid #E2E8F0', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }} />
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
+        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', outline: 'none', cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+          <option value="all">Status: All</option>
+          <option value="Pending">Pending</option>
+          <option value="Ordered">Ordered</option>
+          <option value="Received">Received</option>
+          <option value="Cancelled">Cancelled</option>
+        </select>
         <select value={filterDays} onChange={(e) => setFilterDays(e.target.value)} style={{ padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', outline: 'none', cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
           <option value="all">Filter: All Time</option>
           <option value="7">Last 7 Days</option>
@@ -192,7 +222,7 @@ const Purchases = () => {
           </div>
         )}
         
-        <button onClick={() => exportToCSV(filteredItems, 'Purchases')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', cursor: 'pointer' }}><Download size={16} /> Export</button>
+        <button onClick={() => exportToCSV(filteredItems.map(item => ({ ...item, date: formatDate(item.date) })), 'Purchases')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', cursor: 'pointer' }}><Download size={16} /> Export</button>
       </div>
       </div>
 
@@ -214,15 +244,18 @@ const Purchases = () => {
                 <th onClick={() => requestSort('amount')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',  padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
                 <div style={{ display: 'flex', alignItems: 'center' }}>Amount {renderSortIcon('amount')}</div>
               </th>
+                <th onClick={() => requestSort('status')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
+                <div style={{ display: 'flex', alignItems: 'center' }}>Status {renderSortIcon('status')}</div>
+              </th>
                 <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="6" style={{ padding: '32px', textAlign: 'center', color: '#64748B' }}>Loading...</td></tr>
+                <tr><td colSpan="7" style={{ padding: '32px', textAlign: 'center', color: '#64748B' }}>Loading...</td></tr>
               ) : filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan="6" style={{ padding: '64px 32px', textAlign: 'center' }}>
+                  <td colSpan="7" style={{ padding: '64px 32px', textAlign: 'center' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                       <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}><ShoppingCart size={32} color="#3B82F6" /></div>
                       <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#0F172A', marginBottom: '8px' }}>No records found</h3>
@@ -235,8 +268,28 @@ const Purchases = () => {
                     <td style={{ padding: '16px 24px', fontSize: '15px', color: '#475569', fontWeight: '500' }}>{index + 1}</td>
                     <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px' }}>{item.poNumber}</td>
                     <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px' }}>{item.supplierName}</td>
-                    <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px' }}>{item.date}</td>
+                    <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px', whiteSpace: 'nowrap' }}>{formatDate(item.date)}</td>
                     <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px' }}>{item.amount}</td>
+                    <td style={{ padding: '16px 24px' }}>
+                      {(() => {
+                        const badge = getStatusBadge(item.status);
+                        return (
+                          <span style={{ 
+                            padding: '4px 10px', 
+                            borderRadius: '12px', 
+                            fontSize: '12px', 
+                            fontWeight: '600', 
+                            background: badge.bg, 
+                            color: badge.color, 
+                            border: `1px solid ${badge.border}`,
+                            display: 'inline-flex',
+                            alignItems: 'center'
+                          }}>
+                            {badge.label}
+                          </span>
+                        );
+                      })()}
+                    </td>
                     <td style={{ padding: '16px 24px', textAlign: 'right' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
                         <button onClick={() => setViewItem(item)} title="View" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#EFF6FF', color: '#3B82F6', border: 'none', borderRadius: '6px', cursor: 'pointer' }}><Eye size={16} /></button>
@@ -275,11 +328,21 @@ const Purchases = () => {
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Amount</label>
-                <input placeholder="Enter amount" type="number" value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})} required style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }} />
+                <input placeholder="Enter the amount (e.g. 2000)" type="number" value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})} required style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }} />
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Status</label>
-                <input placeholder="Enter status" type="text" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})} required style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }} />
+                <select 
+                  value={formData.status} 
+                  onChange={e => setFormData({...formData, status: e.target.value})} 
+                  required 
+                  style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box', background: 'white', cursor: 'pointer', outline: 'none' }}
+                >
+                  <option value="Pending">Pending</option>
+                  <option value="Ordered">Ordered</option>
+                  <option value="Received">Received</option>
+                  <option value="Cancelled">Cancelled</option>
+                </select>
               </div>
               <div style={{ display: 'flex', gap: '16px', marginTop: '12px' }}>
                 <button type="button" onClick={() => { setShowModal(false); setEditingItem(null); }} style={{ flex: 1, padding: '14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '10px', color: '#475569', fontWeight: '600', cursor: 'pointer' }}>Cancel</button>
@@ -309,15 +372,31 @@ const Purchases = () => {
               </div>
               <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
                 <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Date</p>
-                <p style={{ margin: 0, fontSize: '16px', color: '#0F172A' }}>{viewItem.date}</p>
+                <p style={{ margin: 0, fontSize: '16px', color: '#0F172A' }}>{formatDate(viewItem.date)}</p>
               </div>
               <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
                 <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Amount</p>
                 <p style={{ margin: 0, fontSize: '16px', color: '#0F172A' }}>{viewItem.amount}</p>
               </div>
               <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
-                <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Status</p>
-                <p style={{ margin: 0, fontSize: '16px', color: '#0F172A' }}>{viewItem.status}</p>
+                <p style={{ margin: '0 0 6px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Status</p>
+                {(() => {
+                  const badge = getStatusBadge(viewItem.status);
+                  return (
+                    <span style={{ 
+                      padding: '4px 12px', 
+                      borderRadius: '12px', 
+                      fontSize: '13px', 
+                      fontWeight: '600', 
+                      background: badge.bg, 
+                      color: badge.color, 
+                      border: `1px solid ${badge.border}`, 
+                      display: 'inline-block' 
+                    }}>
+                      {badge.label}
+                    </span>
+                  );
+                })()}
               </div>
             </div>
           </div>

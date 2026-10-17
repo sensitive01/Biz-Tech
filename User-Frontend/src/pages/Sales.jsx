@@ -1,4 +1,5 @@
 import { exportToCSV } from '../utils/exportToCSV';
+import { formatDate } from '../utils/formatDate';
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowUp, ArrowDown, TrendingUp, Plus, X, Eye, Pencil, Trash2, AlertTriangle, Search, Filter, ArrowUpDown, Download } from 'lucide-react';
@@ -203,7 +204,7 @@ const Sales = () => {
           </div>
         )}
         
-        <button onClick={() => exportToCSV(filteredItems, 'Sales')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', cursor: 'pointer' }}><Download size={16} /> Export</button>
+        <button onClick={() => exportToCSV(filteredItems.map(item => ({ ...item, date: formatDate(item.date) })), 'Sales')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', cursor: 'pointer' }}><Download size={16} /> Export</button>
       </div>
       </div>
 
@@ -246,7 +247,7 @@ const Sales = () => {
                     <td style={{ padding: '16px 24px', fontSize: '15px', color: '#475569', fontWeight: '500' }}>{index + 1}</td>
                     <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px' }}>{item.invoiceNo}</td>
                     <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px' }}>{item.customerName}</td>
-                    <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px' }}>{item.date}</td>
+                    <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px', whiteSpace: 'nowrap' }}>{formatDate(item.date)}</td>
                     <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px' }}>{item.amount}</td>
                     <td style={{ padding: '16px 24px', textAlign: 'right' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
@@ -320,7 +321,7 @@ const Sales = () => {
               </div>
               <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
                 <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Date</p>
-                <p style={{ margin: 0, fontSize: '16px', color: '#0F172A' }}>{viewItem.date}</p>
+                <p style={{ margin: 0, fontSize: '16px', color: '#0F172A' }}>{formatDate(viewItem.date)}</p>
               </div>
               <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
                 <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Amount</p>

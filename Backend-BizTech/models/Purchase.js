@@ -6,7 +6,7 @@ const PurchaseSchema = new mongoose.Schema({
   supplierName: { type: String },
   date: { type: Date },
   amount: { type: Number },
-  status: { type: String },
+  status: { type: String, default: 'pending' },
   createdAt: { type: Date, default: Date.now }
 });
 

@@ -2,18 +2,50 @@ import { exportToCSV } from '../utils/exportToCSV';
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, Store, Users, Map, ChevronLeft, ChevronRight, Filter, ChevronDown, Download, ArrowUp, ArrowDown, ArrowUpDown, X, User, Mail, Phone, MapPin, Briefcase, Calendar, Eye, Trash2, AlertTriangle, Building2 } from 'lucide-react';
+import { Search, Plus, Store, Users, Map, ChevronLeft, ChevronRight, Filter, ChevronDown, Download, ArrowUp, ArrowDown, ArrowUpDown, X, User, Mail, Phone, MapPin, Briefcase, Calendar, Eye, Trash2, AlertTriangle, Building2, LogIn, ExternalLink, Loader2 } from 'lucide-react';
 
 const CustomerDirectory = () => {
   const navigate = useNavigate();
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
-  const [selectedFilter, setSelectedFilter] = useState('All Clients (3)');
+  const [selectedFilter, setSelectedFilter] = useState('All Clients (4)');
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
   const [customersData, setCustomersData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [viewCustomer, setViewCustomer] = useState(null);
   const [deleteCustomerId, setDeleteCustomerId] = useState(null);
+  const [impersonatingId, setImpersonatingId] = useState(null);
+
+  const handleManageUser = async (customer) => {
+    try {
+      setImpersonatingId(customer._id);
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/impersonate/${customer._id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(err.message || 'Failed to initialize user session');
+        return;
+      }
+
+      const data = await res.json();
+      const userFrontendUrl = import.meta.env.VITE_USER_FRONTEND_URL || 'http://localhost:5174';
+      const adminReturnUrl = window.location.href;
+      
+      const impersonateUrl = `${userFrontendUrl}/impersonate?token=${encodeURIComponent(data.token)}&user=${encodeURIComponent(JSON.stringify(data.user))}&adminReturnUrl=${encodeURIComponent(adminReturnUrl)}`;
+      
+      window.location.href = impersonateUrl;
+    } catch (err) {
+      console.error('Impersonation error:', err);
+      alert('Error connecting to user workspace');
+    } finally {
+      setImpersonatingId(null);
+    }
+  };
 
   const fetchCustomers = () => {
     fetch(`${import.meta.env.VITE_API_URL}/api/admin/users`)
@@ -118,6 +150,8 @@ const CustomerDirectory = () => {
         </button>
       </div>
 
+      
+
       {/* Search & Filter Row */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', marginTop: '8px' }}>
         <div style={{ position: 'relative', width: '320px' }}>
@@ -164,12 +198,7 @@ const CustomerDirectory = () => {
         </div>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '500' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--primary-blue)' }}></div>
-          Active Directory &bull; {customersData.length} Total Enterprises
-        </div>
-      </div>
+     
 
       {/* Data Table */}
       <div className="card" style={{ overflowX: 'auto' }}>
@@ -204,14 +233,29 @@ const CustomerDirectory = () => {
                 <td style={{ padding: '16px 24px', color: 'var(--text-secondary)', fontWeight: '500' }}>{idx + 1}</td>
                 <td style={{ padding: '16px 24px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{ width: '40px', height: '40px', borderRadius: '8px', background: `var(--badge-type${customer.type}-bg)`, color: customer.type === 1 ? 'var(--primary-blue)' : `var(--badge-type${customer.type}-text)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div 
+                      onClick={() => handleManageUser(customer)}
+                      style={{ width: '40px', height: '40px', borderRadius: '8px', background: `var(--badge-type${customer.type}-bg)`, color: customer.type === 1 ? 'var(--primary-blue)' : `var(--badge-type${customer.type}-text)`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'transform 0.15s' }}
+                      onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                      onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                      title="Manage User Workspace"
+                    >
                       {customer.type === 1 && <Store size={20} />}
                       {customer.type === 2 && <Users size={20} />}
                       {customer.type === 3 && <Map size={20} />}
                       {customer.type === 4 && <Building2 size={20} />}
                     </div>
                     <div>
-                      <div style={{ fontWeight: '600', color: 'var(--text-title)', fontSize: '15px' }}>{customer.businessName}</div>
+                      <div 
+                        onClick={() => handleManageUser(customer)}
+                        style={{ fontWeight: '600', color: 'var(--primary-blue)', fontSize: '15px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                        title="Click to view and manage all sections of this user"
+                        onMouseOver={(e) => e.currentTarget.style.textDecoration = 'underline'}
+                        onMouseOut={(e) => e.currentTarget.style.textDecoration = 'none'}
+                      >
+                        {customer.businessName}
+                        <ExternalLink size={13} style={{ opacity: 0.7 }} />
+                      </div>
                       <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>ID: {customer.id}</div>
                     </div>
                   </div>
@@ -243,7 +287,33 @@ const CustomerDirectory = () => {
                 </td>
                 <td style={{ padding: '16px 24px', textAlign: 'right' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
-                    <button type="button" onClick={() => setViewCustomer(customer)} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#EFF6FF', color: '#3B82F6', border: 'none', borderRadius: '6px', cursor: 'pointer', transition: 'background 0.2s' }} title="View Details" onMouseOver={(e) => e.currentTarget.style.background = '#DBEAFE'} onMouseOut={(e) => e.currentTarget.style.background = '#EFF6FF'}>
+                    <button 
+                      type="button" 
+                      onClick={() => handleManageUser(customer)} 
+                      disabled={impersonatingId === customer._id}
+                      style={{ 
+                        display: 'inline-flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center', 
+                        gap: '6px',
+                        padding: '6px 12px', 
+                        background: '#EFF6FF', 
+                        color: 'var(--primary-blue)', 
+                        border: '1px solid #BFDBFE', 
+                        borderRadius: '6px', 
+                        cursor: impersonatingId === customer._id ? 'wait' : 'pointer', 
+                        fontSize: '13px',
+                        fontWeight: '600',
+                        transition: 'all 0.2s' 
+                      }} 
+                      title="Manage User Workspace (Access all sidebar modules and data)" 
+                      onMouseOver={(e) => e.currentTarget.style.background = '#DBEAFE'} 
+                      onMouseOut={(e) => e.currentTarget.style.background = '#EFF6FF'}
+                    >
+                      {impersonatingId === customer._id ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <LogIn size={14} />}
+                      Manage
+                    </button>
+                    <button type="button" onClick={() => setViewCustomer(customer)} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#F8FAFC', color: '#64748B', border: '1px solid var(--border-color)', borderRadius: '6px', cursor: 'pointer', transition: 'background 0.2s' }} title="View Details" onMouseOver={(e) => e.currentTarget.style.background = '#F1F5F9'} onMouseOut={(e) => e.currentTarget.style.background = '#F8FAFC'}>
                       <Eye size={16} />
                     </button>
                     <button type="button" onClick={() => setDeleteCustomerId(customer._id)} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#FEE2E2', color: '#EF4444', border: 'none', borderRadius: '6px', cursor: 'pointer', transition: 'background 0.2s' }} title="Delete Customer" onMouseOver={(e) => e.currentTarget.style.background = '#FECACA'} onMouseOut={(e) => e.currentTarget.style.background = '#FEE2E2'}>
@@ -327,8 +397,19 @@ const CustomerDirectory = () => {
               </div>
             )}
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button onClick={() => setViewCustomer(null)} className="btn-primary" style={{ padding: '10px 24px' }}>Close Details</button>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button onClick={() => setViewCustomer(null)} className="btn-secondary" style={{ padding: '10px 20px', background: 'white', border: '1px solid var(--border-color)', borderRadius: '8px', cursor: 'pointer' }}>Close</button>
+              <button 
+                onClick={() => {
+                  const cust = viewCustomer;
+                  setViewCustomer(null);
+                  handleManageUser(cust);
+                }} 
+                className="btn-primary" 
+                style={{ padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '8px' }}
+              >
+                <LogIn size={16} /> Manage Workspace ↗
+              </button>
             </div>
           </div>
         </div>,

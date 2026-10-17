@@ -1,4 +1,5 @@
 import { exportToCSV } from '../utils/exportToCSV';
+import { formatDate } from '../utils/formatDate';
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowUp, ArrowDown, Receipt, Plus, X, Eye, Pencil, Trash2, AlertTriangle, Search, Filter, ArrowUpDown, Download } from 'lucide-react';
@@ -208,7 +209,7 @@ const Expenses = () => {
           </div>
         )}
         
-        <button onClick={() => exportToCSV(filteredItems, 'Expenses')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', cursor: 'pointer' }}><Download size={16} /> Export</button>
+        <button onClick={() => exportToCSV(filteredItems.map(item => ({ ...item, date: formatDate(item.date) })), 'Expenses')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', cursor: 'pointer' }}><Download size={16} /> Export</button>
       </div>
       </div>
 
@@ -218,6 +219,9 @@ const Expenses = () => {
             <thead>
               <tr style={{ background: '#F8FAFC' }}>
                 <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', width: '60px' }}>S.No</th>
+                <th onClick={() => requestSort('title')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',  padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
+                <div style={{ display: 'flex', alignItems: 'center' }}>Title {renderSortIcon('title')}</div>
+              </th>
                 <th onClick={() => requestSort('category')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',  padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
                 <div style={{ display: 'flex', alignItems: 'center' }}>Category {renderSortIcon('category')}</div>
               </th>
@@ -233,10 +237,10 @@ const Expenses = () => {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="6" style={{ padding: '32px', textAlign: 'center', color: '#64748B' }}>Loading...</td></tr>
+                <tr><td colSpan="7" style={{ padding: '32px', textAlign: 'center', color: '#64748B' }}>Loading...</td></tr>
               ) : filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan="6" style={{ padding: '64px 32px', textAlign: 'center' }}>
+                  <td colSpan="7" style={{ padding: '64px 32px', textAlign: 'center' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                       <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}><Receipt size={32} color="#3B82F6" /></div>
                       <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#0F172A', marginBottom: '8px' }}>No records found</h3>
@@ -247,9 +251,10 @@ const Expenses = () => {
                 filteredItems.map((item, index) => (
                   <tr key={item._id} style={{ borderBottom: '1px solid #E2E8F0', transition: 'background 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
                     <td style={{ padding: '16px 24px', fontSize: '15px', color: '#475569', fontWeight: '500' }}>{index + 1}</td>
+                    <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px' }}>{item.title}</td>
                     <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px' }}>{item.category}</td>
                     <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px' }}>{item.description}</td>
-                    <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px' }}>{item.date}</td>
+                    <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px', whiteSpace: 'nowrap' }}>{formatDate(item.date)}</td>
                     <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px' }}>{item.amount}</td>
                     <td style={{ padding: '16px 24px', textAlign: 'right' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
@@ -343,7 +348,7 @@ const Expenses = () => {
               <div style={{ display: 'flex', gap: '16px' }}>
                 <div style={{ flex: 1, padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
                   <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Date</p>
-                  <p style={{ margin: 0, fontSize: '16px', color: '#0F172A' }}>{viewItem.date ? new Date(viewItem.date).toLocaleDateString() : 'N/A'}</p>
+                  <p style={{ margin: 0, fontSize: '16px', color: '#0F172A' }}>{formatDate(viewItem.date)}</p>
                 </div>
                 <div style={{ flex: 1, padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
                   <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Amount</p>

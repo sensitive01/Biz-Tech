@@ -29,11 +29,27 @@ const Customers = () => {
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
   
-  const [formData, setFormData] = useState({ name: '', email: '', phone: '', address: '' });
+  const [formData, setFormData] = useState({
+    name: '',
+    companyName: '',
+    customerType: 'Retail',
+    gstin: '',
+    email: '',
+    phone: '',
+    address: ''
+  });
 
   const handleOpenAdd = () => {
     setEditingItem(null);
-    setFormData({ name: '', email: '', phone: '', address: '' });
+    setFormData({
+      name: '',
+      companyName: '',
+      customerType: 'Retail',
+      gstin: '',
+      email: '',
+      phone: '',
+      address: ''
+    });
     setShowModal(true);
   };
 
@@ -41,6 +57,9 @@ const Customers = () => {
     setEditingItem(item);
     setFormData({
       name: item.name || '',
+      companyName: item.companyName || '',
+      customerType: item.customerType || 'Retail',
+      gstin: item.gstin || '',
       email: item.email || '',
       phone: item.phone || '',
       address: item.address || ''
@@ -86,7 +105,7 @@ const Customers = () => {
       if (res.ok) {
         setShowModal(false);
         setEditingItem(null);
-        setFormData({ name: '', email: '', phone: '', address: '' });
+        setFormData({ name: '', companyName: '', customerType: 'Retail', gstin: '', email: '', phone: '', address: '' });
         fetchItems();
       } else {
         alert(editingItem ? 'Failed to update item' : 'Failed to add item');
@@ -157,6 +176,20 @@ const Customers = () => {
       return 0;
     });
 
+  const renderCustomerTypeBadge = (type) => {
+    switch (type) {
+      case 'Wholesale':
+        return <span style={{ fontSize: '12px', fontWeight: '600', color: '#5B21B6', background: '#F5F3FF', padding: '3px 8px', borderRadius: '6px' }}>Wholesale</span>;
+      case 'Corporate':
+        return <span style={{ fontSize: '12px', fontWeight: '600', color: '#065F46', background: '#ECFDF5', padding: '3px 8px', borderRadius: '6px' }}>Corporate</span>;
+      case 'Individual':
+        return <span style={{ fontSize: '12px', fontWeight: '600', color: '#475569', background: '#F1F5F9', padding: '3px 8px', borderRadius: '6px' }}>Individual</span>;
+      case 'Retail':
+      default:
+        return <span style={{ fontSize: '12px', fontWeight: '600', color: '#1E40AF', background: '#EFF6FF', padding: '3px 8px', borderRadius: '6px' }}>Retail</span>;
+    }
+  };
+
   return (
     <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto', animation: 'fadeIn 0.3s ease-out' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
@@ -164,9 +197,9 @@ const Customers = () => {
           <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#0F172A', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
             <UserCheck size={28} color="var(--primary-blue)" /> Customers
           </h1>
-          <p style={{ color: '#64748B', fontSize: '15px', margin: 0 }}>Manage your customers efficiently.</p>
+          <p style={{ color: '#64748B', fontSize: '15px', margin: 0 }}>Manage your customers directory and business details.</p>
         </div>
-        <button onClick={handleOpenAdd} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', background: 'var(--primary-blue)', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>
+        <button onClick={handleOpenAdd} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', background: 'var(--primary-blue)', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}>
           <Plus size={18} /> Add New Customer
         </button>
       </div>
@@ -174,7 +207,7 @@ const Customers = () => {
       <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', flexWrap: 'wrap', justifyContent: 'space-between' }}>
         <div style={{ flex: '0 1 300px', minWidth: '250px', position: 'relative' }}>
           <Search size={18} color="#94A3B8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
-          <input type="text" placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: '100%', padding: '12px 16px 12px 42px', borderRadius: '10px', border: '1px solid #E2E8F0', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }} />
+          <input type="text" placeholder="Search customers..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: '100%', padding: '12px 16px 12px 42px', borderRadius: '10px', border: '1px solid #E2E8F0', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }} />
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
         <select value={filterDays} onChange={(e) => setFilterDays(e.target.value)} style={{ padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', outline: 'none', cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
@@ -197,31 +230,40 @@ const Customers = () => {
 
       <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', minWidth: '800px', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <table style={{ width: '100%', minWidth: '950px', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ background: '#F8FAFC' }}>
-                <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', width: '60px' }}>S.No</th>
-                <th onClick={() => requestSort('name')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',  padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
-                <div style={{ display: 'flex', alignItems: 'center' }}>Name {renderSortIcon('name')}</div>
-              </th>
-                <th onClick={() => requestSort('email')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',  padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
-                <div style={{ display: 'flex', alignItems: 'center' }}>Email {renderSortIcon('email')}</div>
-              </th>
-                <th onClick={() => requestSort('phone')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',  padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
-                <div style={{ display: 'flex', alignItems: 'center' }}>Phone {renderSortIcon('phone')}</div>
-              </th>
-                <th onClick={() => requestSort('address')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',  padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
-                <div style={{ display: 'flex', alignItems: 'center' }}>Address {renderSortIcon('address')}</div>
-              </th>
-                <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', textAlign: 'right' }}>Actions</th>
+                <th style={{ padding: '16px 20px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', width: '50px' }}>S.No</th>
+                <th onClick={() => requestSort('name')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '16px 20px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>Customer Name {renderSortIcon('name')}</div>
+                </th>
+                <th onClick={() => requestSort('companyName')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '16px 20px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>Company {renderSortIcon('companyName')}</div>
+                </th>
+                <th onClick={() => requestSort('customerType')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '16px 20px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>Type {renderSortIcon('customerType')}</div>
+                </th>
+                <th onClick={() => requestSort('gstin')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '16px 20px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>GSTIN / Tax No {renderSortIcon('gstin')}</div>
+                </th>
+                <th onClick={() => requestSort('phone')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '16px 20px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>Phone {renderSortIcon('phone')}</div>
+                </th>
+                <th onClick={() => requestSort('email')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '16px 20px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>Email {renderSortIcon('email')}</div>
+                </th>
+                <th onClick={() => requestSort('address')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '16px 20px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>Address {renderSortIcon('address')}</div>
+                </th>
+                <th style={{ padding: '16px 20px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="6" style={{ padding: '32px', textAlign: 'center', color: '#64748B' }}>Loading...</td></tr>
+                <tr><td colSpan="9" style={{ padding: '32px', textAlign: 'center', color: '#64748B' }}>Loading...</td></tr>
               ) : filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan="6" style={{ padding: '64px 32px', textAlign: 'center' }}>
+                  <td colSpan="9" style={{ padding: '64px 32px', textAlign: 'center' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                       <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}><UserCheck size={32} color="#3B82F6" /></div>
                       <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#0F172A', marginBottom: '8px' }}>No records found</h3>
@@ -231,12 +273,19 @@ const Customers = () => {
               ) : (
                 filteredItems.map((item, index) => (
                   <tr key={item._id} style={{ borderBottom: '1px solid #E2E8F0', transition: 'background 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
-                    <td style={{ padding: '16px 24px', fontSize: '15px', color: '#475569', fontWeight: '500' }}>{index + 1}</td>
-                    <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px' }}>{item.name}</td>
-                    <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px' }}>{item.email}</td>
-                    <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px' }}>{item.phone}</td>
-                    <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px' }}>{item.address}</td>
-                    <td style={{ padding: '16px 24px', textAlign: 'right' }}>
+                    <td style={{ padding: '16px 20px', fontSize: '14px', color: '#475569', fontWeight: '500' }}>{index + 1}</td>
+                    <td style={{ padding: '16px 20px', color: '#0F172A', fontSize: '14px', fontWeight: '600' }}>{item.name}</td>
+                    <td style={{ padding: '16px 20px', color: '#475569', fontSize: '14px' }}>{item.companyName || '-'}</td>
+                    <td style={{ padding: '16px 20px' }}>
+                      {renderCustomerTypeBadge(item.customerType)}
+                    </td>
+                    <td style={{ padding: '16px 20px', color: item.gstin ? '#0F172A' : '#94A3B8', fontSize: '13px', fontFamily: 'monospace', fontWeight: item.gstin ? '600' : '400' }}>
+                      {item.gstin || '-'}
+                    </td>
+                    <td style={{ padding: '16px 20px', color: '#475569', fontSize: '14px' }}>{item.phone || '-'}</td>
+                    <td style={{ padding: '16px 20px', color: '#475569', fontSize: '14px' }}>{item.email || '-'}</td>
+                    <td style={{ padding: '16px 20px', color: '#475569', fontSize: '14px', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.address}>{item.address || '-'}</td>
+                    <td style={{ padding: '16px 20px', textAlign: 'right' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
                         <button onClick={() => setViewItem(item)} title="View" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#EFF6FF', color: '#3B82F6', border: 'none', borderRadius: '6px', cursor: 'pointer' }}><Eye size={16} /></button>
                         <button onClick={() => handleEdit(item)} title="Edit" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#EFF6FF', color: '#2563EB', border: 'none', borderRadius: '6px', cursor: 'pointer' }}><Pencil size={15} /></button>
@@ -253,29 +302,51 @@ const Customers = () => {
 
       {showModal && createPortal(
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '24px' }}>
-          <div style={{ background: 'white', padding: '32px', borderRadius: '20px', width: '100%', maxWidth: '500px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
+          <div style={{ background: 'white', padding: '32px', borderRadius: '20px', width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-              <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#0F172A', margin: 0 }}>{editingItem ? 'Edit Customer' : 'Add New Customer'}</h2>
+              <div>
+                <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#0F172A', margin: 0 }}>{editingItem ? 'Edit Customer' : 'Add New Customer'}</h2>
+                <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#64748B' }}>Fill in the business and contact details below.</p>
+              </div>
               <button onClick={() => { setShowModal(false); setEditingItem(null); }} style={{ background: '#F1F5F9', border: 'none', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer' }}><X size={18} /></button>
             </div>
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>Customer Name *</label>
+                  <input placeholder="Enter contact/customer name" type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>Company / Business Name</label>
+                  <input placeholder="e.g. Acme Corp / Retail Shop" type="text" value={formData.companyName} onChange={e => setFormData({...formData, companyName: e.target.value})} style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>Customer Type</label>
+                  <select value={formData.customerType} onChange={e => setFormData({...formData, customerType: e.target.value})} style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box', background: 'white' }}>
+                    <option value="Retail">Retail</option>
+                    <option value="Wholesale">Wholesale</option>
+                    <option value="Corporate">Corporate</option>
+                    <option value="Individual">Individual</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>GSTIN / Tax No</label>
+                  <input placeholder="e.g. 29ABCDE1234F1Z5" type="text" value={formData.gstin} onChange={e => setFormData({...formData, gstin: e.target.value})} style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>Phone *</label>
+                  <input placeholder="Enter phone number" type="text" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} required style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>Email</label>
+                  <input placeholder="Enter email address" type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box' }} />
+                </div>
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>Address</label>
+                  <input placeholder="Enter full address" type="text" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box' }} />
+                </div>
+              </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Name</label>
-                <input placeholder="Enter Your name" type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }} />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Email</label>
-                <input placeholder="Enter your email" type="text" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} required style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }} />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Phone</label>
-                <input placeholder="Enter your phone" type="text" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} required style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }} />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Address</label>
-                <input placeholder="Enter your address" type="text" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} required style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }} />
-              </div>
               <div style={{ display: 'flex', gap: '16px', marginTop: '12px' }}>
                 <button type="button" onClick={() => { setShowModal(false); setEditingItem(null); }} style={{ flex: 1, padding: '14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '10px', color: '#475569', fontWeight: '600', cursor: 'pointer' }}>Cancel</button>
                 <button type="submit" style={{ flex: 1, padding: '14px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', cursor: 'pointer' }}>{editingItem ? 'Update' : 'Save'}</button>
@@ -287,28 +358,45 @@ const Customers = () => {
 
       {viewItem && createPortal(
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '24px' }}>
-          <div style={{ background: 'white', padding: '32px', borderRadius: '20px', width: '100%', maxWidth: '500px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
+          <div style={{ background: 'white', padding: '32px', borderRadius: '20px', width: '100%', maxWidth: '540px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-              <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#0F172A', margin: 0 }}>Details</h2>
+              <div>
+                <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#0F172A', margin: '0 0 4px 0' }}>{viewItem.name}</h2>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  {renderCustomerTypeBadge(viewItem.customerType)}
+                  {viewItem.companyName && (
+                    <span style={{ fontSize: '13px', color: '#64748B', fontWeight: '500' }}>
+                      {viewItem.companyName}
+                    </span>
+                  )}
+                </div>
+              </div>
               <button onClick={() => setViewItem(null)} style={{ background: '#F1F5F9', border: 'none', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer' }}><X size={18} /></button>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-
-              <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
-                <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Name</p>
-                <p style={{ margin: 0, fontSize: '16px', color: '#0F172A' }}>{viewItem.name}</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+              <div style={{ padding: '14px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
+                <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#64748B', fontWeight: '600' }}>Company Name</p>
+                <p style={{ margin: 0, fontSize: '15px', color: '#0F172A', fontWeight: '500' }}>{viewItem.companyName || '-'}</p>
               </div>
-              <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
-                <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Email</p>
-                <p style={{ margin: 0, fontSize: '16px', color: '#0F172A' }}>{viewItem.email}</p>
+              <div style={{ padding: '14px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
+                <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#64748B', fontWeight: '600' }}>GSTIN / Tax No</p>
+                <p style={{ margin: 0, fontSize: '15px', color: '#0F172A', fontFamily: 'monospace', fontWeight: '600' }}>{viewItem.gstin || '-'}</p>
               </div>
-              <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
-                <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Phone</p>
-                <p style={{ margin: 0, fontSize: '16px', color: '#0F172A' }}>{viewItem.phone}</p>
+              <div style={{ padding: '14px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
+                <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#64748B', fontWeight: '600' }}>Customer Type</p>
+                <p style={{ margin: 0, fontSize: '15px', color: '#0F172A', fontWeight: '500' }}>{viewItem.customerType || 'Retail'}</p>
               </div>
-              <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
-                <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Address</p>
-                <p style={{ margin: 0, fontSize: '16px', color: '#0F172A' }}>{viewItem.address}</p>
+              <div style={{ padding: '14px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
+                <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#64748B', fontWeight: '600' }}>Phone</p>
+                <p style={{ margin: 0, fontSize: '15px', color: '#0F172A', fontWeight: '500' }}>{viewItem.phone || '-'}</p>
+              </div>
+              <div style={{ padding: '14px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
+                <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#64748B', fontWeight: '600' }}>Email</p>
+                <p style={{ margin: 0, fontSize: '15px', color: '#0F172A', fontWeight: '500' }}>{viewItem.email || '-'}</p>
+              </div>
+              <div style={{ padding: '14px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0', gridColumn: '1 / -1' }}>
+                <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#64748B', fontWeight: '600' }}>Address</p>
+                <p style={{ margin: 0, fontSize: '15px', color: '#0F172A' }}>{viewItem.address || '-'}</p>
               </div>
             </div>
           </div>

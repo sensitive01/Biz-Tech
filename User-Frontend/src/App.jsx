@@ -23,6 +23,7 @@ import Purchases from './pages/Purchases';
 import Expenses from './pages/Expenses';
 import Profile from './pages/Profile';
 import Billing from './pages/Billing';
+import Impersonate from './pages/Impersonate';
 
 function App() {
   return (
@@ -31,6 +32,7 @@ function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/impersonate" element={<Impersonate />} />
         <Route path="/select-type" element={<SelectType />} />
         <Route path="/onboarding" element={<Onboarding />} />
         <Route path="/select-modules" element={<SelectModules />} />

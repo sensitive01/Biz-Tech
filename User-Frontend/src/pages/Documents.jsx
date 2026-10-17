@@ -1,4 +1,5 @@
 import { exportToCSV } from '../utils/exportToCSV';
+import { formatDate } from '../utils/formatDate';
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowUp, ArrowDown, FileText, Plus, X, Eye, Pencil, Trash2, AlertTriangle, Search, ArrowUpDown, Download, Paperclip, ExternalLink } from 'lucide-react';
@@ -221,7 +222,7 @@ const Documents = () => {
           </div>
         )}
         
-        <button onClick={() => exportToCSV(filteredItems, 'Documents')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', cursor: 'pointer' }}><Download size={16} /> Export</button>
+        <button onClick={() => exportToCSV(filteredItems.map(item => ({ ...item, expiryDate: formatDate(item.expiryDate) })), 'Documents')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', cursor: 'pointer' }}><Download size={16} /> Export</button>
       </div>
       </div>
 
@@ -275,7 +276,7 @@ const Documents = () => {
                         <span style={{ color: '#94A3B8', fontSize: '13px' }}>-</span>
                       )}
                     </td>
-                    <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px' }}>{item.expiryDate ? item.expiryDate.substring(0, 10) : '-'}</td>
+                    <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px', whiteSpace: 'nowrap' }}>{formatDate(item.expiryDate)}</td>
                     <td style={{ padding: '16px 24px', textAlign: 'right' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
                         <button onClick={() => setViewItem(item)} title="View" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#EFF6FF', color: '#3B82F6', border: 'none', borderRadius: '6px', cursor: 'pointer' }}><Eye size={16} /></button>
@@ -398,7 +399,7 @@ const Documents = () => {
               )}
               <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
                 <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Expiry Date</p>
-                <p style={{ margin: 0, fontSize: '16px', color: '#0F172A' }}>{viewItem.expiryDate ? viewItem.expiryDate.substring(0, 10) : '-'}</p>
+                <p style={{ margin: 0, fontSize: '16px', color: '#0F172A' }}>{formatDate(viewItem.expiryDate)}</p>
               </div>
             </div>
           </div>

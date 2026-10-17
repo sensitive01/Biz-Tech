@@ -53,7 +53,7 @@ const TenantLayout = () => {
       try {
         const userStr = localStorage.getItem('user');
         if (userStr) setCurrentUser(JSON.parse(userStr));
-      } catch (e) {}
+      } catch (e) { }
     };
 
     window.addEventListener('userProfileUpdated', handleProfileUpdate);
@@ -89,19 +89,19 @@ const TenantLayout = () => {
     try {
       let userModules = [];
       const userStr = localStorage.getItem('user');
-      
+
       if (userStr) {
         const userObj = JSON.parse(userStr);
         if (userObj && Array.isArray(userObj.modules)) {
           userModules = userObj.modules;
         }
       }
-      
+
       // Fallback
       if (userModules.length === 0) {
         userModules = JSON.parse(localStorage.getItem('modules')) || [];
       }
-      
+
       setModules(userModules);
     } catch (err) {
       setModules([]);
@@ -115,15 +115,89 @@ const TenantLayout = () => {
     }
   }, [navigate]);
 
-  const handleLogout = () => {
+  const isImpersonated = localStorage.getItem('impersonatedByAdmin') === 'true';
+  const adminReturnUrl = localStorage.getItem('adminReturnUrl') || 'http://localhost:5173/admin/customers';
+
+  const handleExitImpersonation = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('tenantType');
     localStorage.removeItem('user');
+    localStorage.removeItem('modules');
+    localStorage.removeItem('impersonatedByAdmin');
+    localStorage.removeItem('adminReturnUrl');
+    window.location.href = adminReturnUrl;
+  };
+
+  const handleLogout = () => {
+    if (isImpersonated) {
+      handleExitImpersonation();
+      return;
+    }
+    localStorage.removeItem('token');
+    localStorage.removeItem('tenantType');
+    localStorage.removeItem('user');
+    localStorage.removeItem('modules');
     navigate('/', { replace: true });
   };
 
   return (
-    <div className="admin-layout">
+    <div className="admin-layout" style={{ display: 'flex', flexDirection: 'column' }}>
+      {/* Admin Impersonation Top Banner */}
+      {isImpersonated && (
+        <div style={{
+          background: 'linear-gradient(90deg, #0F172A 0%, #1E293B 100%)',
+          borderBottom: '1px solid #334155',
+          color: '#F8FAFC',
+          padding: '10px 24px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          zIndex: 10001,
+          boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
+          fontSize: '13px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <span style={{ 
+              background: '#2563EB', 
+              color: 'white', 
+              padding: '3px 10px', 
+              borderRadius: '20px', 
+              fontSize: '11px', 
+              fontWeight: '700', 
+              letterSpacing: '0.6px',
+              textTransform: 'uppercase' 
+            }}>
+              Admin Impersonation Mode
+            </span>
+            <span>
+              Managing User: <strong style={{ color: '#60A5FA' }}>{currentUser?.businessName || currentUser?.name || 'Customer'}</strong> ({currentUser?.email || 'Active Client'})
+            </span>
+          </div>
+          <button 
+            onClick={handleExitImpersonation}
+            style={{
+              background: '#EF4444',
+              color: 'white',
+              border: 'none',
+              padding: '6px 14px',
+              borderRadius: '6px',
+              fontWeight: '600',
+              fontSize: '12px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              transition: 'background 0.2s',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.background = '#DC2626'}
+            onMouseOut={(e) => e.currentTarget.style.background = '#EF4444'}
+          >
+            <LogOut size={14} /> Exit to Admin Portal
+          </button>
+        </div>
+      )}
+
       {/* Top Header */}
       <header className="top-header" style={{ padding: 0 }}>
         {/* Logo Area (Left) */}
@@ -139,13 +213,13 @@ const TenantLayout = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             {/* Notification Bell with Badge & Dropdown */}
             <div style={{ position: 'relative' }}>
-              <div 
+              <div
                 onClick={() => {
                   setShowAlertMenu(!showAlertMenu);
                   setShowProfileMenu(false);
                 }}
-                style={{ 
-                  position: 'relative', 
+                style={{
+                  position: 'relative',
                   cursor: 'pointer',
                   width: '38px', height: '38px',
                   borderRadius: '8px',
@@ -161,13 +235,13 @@ const TenantLayout = () => {
               >
                 <Bell size={18} />
                 {activeAlerts.length > 0 && (
-                  <span style={{ 
-                    position: 'absolute', top: '-4px', right: '-4px', 
-                    background: '#EF4444', color: 'white', 
-                    fontSize: '10px', fontWeight: '700', 
-                    minWidth: '18px', height: '18px', 
+                  <span style={{
+                    position: 'absolute', top: '-4px', right: '-4px',
+                    background: '#EF4444', color: 'white',
+                    fontSize: '10px', fontWeight: '700',
+                    minWidth: '18px', height: '18px',
                     padding: '0 4px',
-                    borderRadius: '9999px', display: 'flex', 
+                    borderRadius: '9999px', display: 'flex',
                     alignItems: 'center', justifyContent: 'center',
                     boxShadow: '0 2px 4px rgba(239, 68, 68, 0.4)',
                     lineHeight: '1'
@@ -195,7 +269,7 @@ const TenantLayout = () => {
                         </div>
                       ) : (
                         activeAlerts.map(alert => (
-                          <div 
+                          <div
                             key={alert._id}
                             onClick={() => { setShowAlertMenu(false); navigate('/tenant/reminders'); }}
                             style={{ padding: '10px 12px', borderRadius: '8px', cursor: 'pointer', transition: 'background 0.2s', borderBottom: '1px solid #F1F5F9' }}
@@ -217,7 +291,7 @@ const TenantLayout = () => {
                     </div>
 
                     <div style={{ padding: '8px', borderTop: '1px solid var(--border-color)', textAlign: 'center', background: '#F8FAFC' }}>
-                      <button 
+                      <button
                         onClick={() => { setShowAlertMenu(false); navigate('/tenant/reminders'); }}
                         style={{ width: '100%', padding: '6px', fontSize: '12px', fontWeight: '600', color: 'var(--primary-blue)', border: 'none', background: 'transparent', cursor: 'pointer' }}
                       >
@@ -228,9 +302,9 @@ const TenantLayout = () => {
                 </>
               )}
             </div>
-            
+
             <div style={{ position: 'relative' }}>
-              <div 
+              <div
                 onClick={() => {
                   if (showProfileMenu) {
                     setShowProfileMenu(false);
@@ -240,25 +314,25 @@ const TenantLayout = () => {
                     setShowAlertMenu(false);
                   }
                 }}
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '10px', 
-                  cursor: 'pointer', 
-                  padding: '5px 10px 5px 6px', 
-                  borderRadius: '8px', 
-                  background: showProfileMenu ? '#F1F5F9' : '#F8FAFC', 
-                  border: '1px solid var(--border-color)', 
-                  transition: 'all 0.15s ease' 
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  cursor: 'pointer',
+                  padding: '5px 10px 5px 6px',
+                  borderRadius: '8px',
+                  background: showProfileMenu ? '#F1F5F9' : '#F8FAFC',
+                  border: '1px solid var(--border-color)',
+                  transition: 'all 0.15s ease'
                 }}
                 onMouseOver={(e) => { if (!showProfileMenu) e.currentTarget.style.background = '#F1F5F9'; }}
                 onMouseOut={(e) => { if (!showProfileMenu) e.currentTarget.style.background = '#F8FAFC'; }}
               >
-                <div style={{ 
-                  width: '32px', height: '32px', borderRadius: '8px', 
-                  background: 'linear-gradient(135deg, #2563EB 0%, #4F46E5 100%)', 
-                  color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                  fontWeight: '700', fontSize: '13px', 
+                <div style={{
+                  width: '32px', height: '32px', borderRadius: '8px',
+                  background: 'linear-gradient(135deg, #2563EB 0%, #4F46E5 100%)',
+                  color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontWeight: '700', fontSize: '13px',
                   boxShadow: '0 2px 4px rgba(37,99,235,0.2)',
                   flexShrink: 0
                 }}>
@@ -269,12 +343,12 @@ const TenantLayout = () => {
                     {currentUser?.fullName || 'Business Owner'}
                   </span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
-                    <span style={{ 
-                      fontSize: '10px', 
-                      fontWeight: '700', 
-                      color: '#2563EB', 
-                      background: '#EFF6FF', 
-                      padding: '1px 5px', 
+                    <span style={{
+                      fontSize: '10px',
+                      fontWeight: '700',
+                      color: '#2563EB',
+                      background: '#EFF6FF',
+                      padding: '1px 5px',
                       borderRadius: '4px',
                       lineHeight: '1.2'
                     }}>
@@ -298,7 +372,7 @@ const TenantLayout = () => {
                       </p>
                     </div>
                     <div style={{ padding: '8px' }}>
-                      <button 
+                      <button
                         onClick={() => { setShowProfileMenu(false); setShowSubMenu(false); navigate('/tenant/profile'); }}
                         style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', background: 'transparent', border: 'none', color: 'var(--text-title)', fontSize: '14px', fontWeight: '500', cursor: 'pointer', borderRadius: '6px', textAlign: 'left' }}
                         onMouseOver={(e) => e.currentTarget.style.background = '#F1F5F9'}
@@ -308,7 +382,7 @@ const TenantLayout = () => {
                       </button>
 
                       <div style={{ position: 'relative' }}>
-                        <button 
+                        <button
                           onClick={(e) => { e.stopPropagation(); setShowSubMenu(!showSubMenu); }}
                           style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: showSubMenu ? '#F1F5F9' : 'transparent', border: 'none', color: 'var(--text-title)', fontSize: '14px', fontWeight: '500', cursor: 'pointer', borderRadius: '6px', textAlign: 'left' }}
                           onMouseOver={(e) => e.currentTarget.style.background = '#F1F5F9'}
@@ -322,7 +396,7 @@ const TenantLayout = () => {
 
                         {showSubMenu && (
                           <div style={{ padding: '4px 0 4px 32px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                            <button 
+                            <button
                               onClick={() => { setShowProfileMenu(false); setShowSubMenu(false); navigate('/tenant/billing?tab=plan'); }}
                               style={{ width: '100%', display: 'block', padding: '8px', background: 'transparent', border: 'none', color: 'var(--text-secondary)', fontSize: '13px', fontWeight: '500', cursor: 'pointer', borderRadius: '4px', textAlign: 'left' }}
                               onMouseOver={(e) => { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.color = 'var(--primary-blue)'; }}
@@ -330,7 +404,7 @@ const TenantLayout = () => {
                             >
                               MY Plan &rarr; Upgrade Plan
                             </button>
-                            <button 
+                            <button
                               onClick={() => { setShowProfileMenu(false); setShowSubMenu(false); navigate('/tenant/billing?tab=subscriptions'); }}
                               style={{ width: '100%', display: 'block', padding: '8px', background: 'transparent', border: 'none', color: 'var(--text-secondary)', fontSize: '13px', fontWeight: '500', cursor: 'pointer', borderRadius: '4px', textAlign: 'left' }}
                               onMouseOver={(e) => { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.color = 'var(--primary-blue)'; }}
@@ -344,8 +418,8 @@ const TenantLayout = () => {
 
                       <div style={{ height: '1px', background: 'var(--border-color)', margin: '4px 0' }}></div>
 
-                      <button 
-                        onClick={handleLogout} 
+                      <button
+                        onClick={handleLogout}
                         style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', background: 'transparent', border: 'none', color: '#EF4444', fontSize: '14px', fontWeight: '500', cursor: 'pointer', borderRadius: '6px', textAlign: 'left' }}
                         onMouseOver={(e) => e.currentTarget.style.background = '#FEF2F2'}
                         onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
@@ -364,18 +438,18 @@ const TenantLayout = () => {
       {/* Sidebar */}
       <aside className="sidebar">
         <div className="sidebar-scrollable" style={{ padding: '20px 12px', flex: 1, display: 'flex', flexDirection: 'column', gap: '4px', overflowY: 'auto' }}>
-          <div style={{ fontSize: '11px', fontWeight: '700', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px', paddingLeft: '12px' }}>
+          {/* <div style={{ fontSize: '11px', fontWeight: '700', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px', paddingLeft: '12px' }}>
             Menu
-          </div>
-          
-          <NavLink to="/tenant/dashboard" className={({isActive}) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
+          </div> */}
+
+          <NavLink to="/tenant/dashboard" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
             <LayoutGrid size={18} />
             <span>Dashboard</span>
           </NavLink>
 
           {/* 2. Businesses */}
           {tenantType >= 4 && (
-            <NavLink to="/tenant/businesses" className={({isActive}) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
+            <NavLink to="/tenant/businesses" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <Building2 size={18} />
               <span>Businesses</span>
             </NavLink>
@@ -383,7 +457,7 @@ const TenantLayout = () => {
 
           {/* 3. Branches */}
           {tenantType >= 3 && (
-            <NavLink to="/tenant/branches" className={({isActive}) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
+            <NavLink to="/tenant/branches" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <Map size={18} />
               <span>Branches</span>
             </NavLink>
@@ -391,7 +465,7 @@ const TenantLayout = () => {
 
           {/* 4. Product / Service */}
           {modules.includes('products_services') && (
-            <NavLink to="/tenant/products" className={({isActive}) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
+            <NavLink to="/tenant/products" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <Package size={18} />
               <span>Products & Services</span>
             </NavLink>
@@ -399,27 +473,27 @@ const TenantLayout = () => {
 
           {/* 5. Stock / Inventory */}
           {modules.includes('inventory') && (
-            <NavLink to="/tenant/inventory" className={({isActive}) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
+            <NavLink to="/tenant/inventory" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <Archive size={18} />
               <span>Stock / Inventory</span>
             </NavLink>
           )}
 
           {/* 6. Customers */}
-          <NavLink to="/tenant/customers" className={({isActive}) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
+          <NavLink to="/tenant/customers" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
             <UserCheck size={18} />
             <span>Customers</span>
           </NavLink>
 
           {/* 7. Expenses - Visible to all businesses */}
-          <NavLink to="/tenant/expenses" className={({isActive}) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
+          <NavLink to="/tenant/expenses" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
             <Receipt size={18} />
             <span>Expenses</span>
           </NavLink>
 
           {/* 8. Purchases */}
           {modules.includes('purchases') && (
-            <NavLink to="/tenant/purchases" className={({isActive}) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
+            <NavLink to="/tenant/purchases" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <ShoppingCart size={18} />
               <span>Purchases</span>
             </NavLink>
@@ -427,20 +501,20 @@ const TenantLayout = () => {
 
           {/* 9. Sales */}
           {modules.includes('sales') && (
-            <NavLink to="/tenant/sales" className={({isActive}) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
+            <NavLink to="/tenant/sales" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <TrendingUp size={18} />
               <span>Billing</span>
             </NavLink>
           )}
 
           {/* 10. Documents */}
-          <NavLink to="/tenant/documents" className={({isActive}) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
+          <NavLink to="/tenant/documents" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
             <FileText size={18} />
             <span>Documents</span>
           </NavLink>
 
           {/* 11. Reminders */}
-          <NavLink to="/tenant/reminders" className={({isActive}) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
+          <NavLink to="/tenant/reminders" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
             <BellRing size={18} />
             <span>Reminders</span>
           </NavLink>
@@ -448,24 +522,24 @@ const TenantLayout = () => {
           {/* 12, 13, 14. Employees, Attendance, Leaves */}
           {tenantType >= 2 && (
             <>
-              <NavLink to="/tenant/employees" className={({isActive}) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
+              <NavLink to="/tenant/employees" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
                 <Users size={18} />
                 <span>Employees</span>
               </NavLink>
 
-              <NavLink to="/tenant/attendance" className={({isActive}) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
+              <NavLink to="/tenant/attendance" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
                 <Clock size={18} />
                 <span>Attendance</span>
               </NavLink>
 
-              <NavLink to="/tenant/leaves" className={({isActive}) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
+              <NavLink to="/tenant/leaves" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
                 <Calendar size={18} />
                 <span>Leave Requests</span>
               </NavLink>
             </>
           )}
         </div>
-        
+
         {/* Sidebar Footer */}
         <div style={{ padding: '16px 14px', borderTop: '1px solid var(--border-color)', marginTop: 'auto' }}>
           <button onClick={handleLogout} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#EF4444', fontWeight: '600', fontSize: '13px', width: '100%', padding: '9px 12px', borderRadius: '8px', transition: 'background 0.15s ease', border: 'none', cursor: 'pointer', background: 'transparent' }} onMouseOver={(e) => e.currentTarget.style.background = '#FEF2F2'} onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}>

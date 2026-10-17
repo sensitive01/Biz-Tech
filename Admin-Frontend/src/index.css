@@ -237,9 +237,12 @@ button {
   z-index: 20;
 }
 
-.content-canvas {
+.content-canvas,
+.content-container {
   padding: 32px;
   flex: 1;
+  box-sizing: border-box;
+  max-width: 100%;
 }
 
 /* Animations */

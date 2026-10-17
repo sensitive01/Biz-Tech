@@ -7,6 +7,7 @@ import {
   Loader2, AlertCircle, Sparkles, Tag 
 } from 'lucide-react';
 import { exportToCSV } from '../utils/exportToCSV';
+import { formatDate } from '../utils/formatDate';
 
 const Reminders = () => {
   const [items, setItems] = useState([]);
@@ -623,7 +624,7 @@ const Reminders = () => {
               />
             </div>
             <button
-              onClick={() => exportToCSV(items, 'reminders.csv')}
+              onClick={() => exportToCSV(items.map(i => ({ ...i, date: formatDate(i.date) })), 'reminders.csv')}
               className="btn-secondary"
               style={{ padding: '8px 14px', fontSize: '13px', borderRadius: '6px' }}
             >
@@ -655,7 +656,7 @@ const Reminders = () => {
                         {item.description && <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '400' }}>{item.description}</p>}
                       </td>
                       <td style={{ padding: '14px 16px', fontSize: '13px', color: 'var(--text-secondary)' }}>
-                        {new Date(item.date).toLocaleDateString()}
+                        {formatDate(item.date)}
                       </td>
                       <td style={{ padding: '14px 16px', fontSize: '13px' }}>
                         {item.repeatMonthly ? (

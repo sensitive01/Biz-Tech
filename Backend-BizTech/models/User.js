@@ -61,7 +61,23 @@ const UserSchema = new mongoose.Schema({
     regNo: String,
     phone: String,
     address: String
-  }]
+  }],
+  subscriptionStatus: {
+    type: String,
+    enum: ['Active', 'Trial', 'Pending Renewal', 'Expired', 'Cancelled'],
+    default: 'Active'
+  },
+  subscriptionBillingCycle: {
+    type: String,
+    enum: ['Monthly', 'Annual'],
+    default: 'Monthly'
+  },
+  subscriptionRenewalDate: {
+    type: Date
+  },
+  subscriptionCustomAmount: {
+    type: Number
+  }
 });
 
 module.exports = mongoose.model('User', UserSchema);

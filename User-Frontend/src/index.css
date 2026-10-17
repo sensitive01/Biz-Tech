@@ -240,16 +240,22 @@ button {
 }
 
 .sidebar-nav-link svg {
-  transition: transform 0.15s ease;
+  color: var(--primary-blue);
+  transition: transform 0.15s ease, color 0.15s ease;
   flex-shrink: 0;
 }
 
 .sidebar-nav-link:hover svg {
   transform: scale(1.05);
+  color: var(--primary-hover);
 }
 
 .sidebar-nav-link.active svg {
-  color: var(--primary-blue);
+  color: #64748B;
+}
+
+.sidebar-nav-link.active:hover svg {
+  color: #64748B;
 }
 
 .main-content {

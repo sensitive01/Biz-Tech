@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Clock, Plus, X, Pencil, Trash2, LogOut, Search, Download, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { exportToCSV } from '../utils/exportToCSV';
+import { formatDate } from '../utils/formatDate';
 
 const Attendance = () => {
   const [records, setRecords] = useState([]);
@@ -185,7 +186,7 @@ const Attendance = () => {
             <input type="date" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} style={{ padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', outline: 'none', fontSize: '13px', color: '#475569' }} />
           </div>
         )}
-          <button onClick={() => exportToCSV(filteredRecords, 'Attendance')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', cursor: 'pointer' }}><Download size={16} /> Export</button>
+          <button onClick={() => exportToCSV(filteredRecords.map(r => ({ ...r, date: formatDate(r.date) })), 'Attendance')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', cursor: 'pointer' }}><Download size={16} /> Export</button>
         </div>
       </div>
 
@@ -210,7 +211,7 @@ const Attendance = () => {
             ) : filteredRecords.map((record, index) => (
               <tr key={record._id} style={{ borderBottom: '1px solid #E2E8F0' }}>
                 <td style={{ padding: '16px 24px', fontSize: '15px', color: '#475569', fontWeight: '500' }}>{index + 1}</td>
-                <td style={{ padding: '16px 24px', color: '#0F172A', fontWeight: '500' }}>{new Date(record.date).toLocaleDateString()}</td>
+                <td style={{ padding: '16px 24px', color: '#0F172A', fontWeight: '500', whiteSpace: 'nowrap' }}>{formatDate(record.date)}</td>
                 <td style={{ padding: '16px 24px', color: '#0F172A', fontWeight: '500' }}>{record.employeeId?.name || 'Unknown'}</td>
                 <td style={{ padding: '16px 24px' }}>
                   <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '600', background: record.status === 'Present' ? '#DCFCE7' : record.status === 'Absent' ? '#FEE2E2' : record.status === 'Late' ? '#FFEDD5' : '#FEF9C3', color: record.status === 'Present' ? '#166534' : record.status === 'Absent' ? '#991B1B' : record.status === 'Late' ? '#9A3412' : '#854D0E' }}>

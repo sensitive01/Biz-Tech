@@ -7,6 +7,8 @@ import AddCustomer from './pages/AddCustomer';
 import Dashboard from './pages/Dashboard';
 import Settings from './pages/Settings';
 import PricingManage from './pages/PricingManage';
+import AdminProfile from './pages/AdminProfile';
+import ManageSubscriptions from './pages/ManageSubscriptions';
 
 function App() {
   return (
@@ -19,6 +21,8 @@ function App() {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="customers" element={<CustomerDirectory />} />
           <Route path="customers/new" element={<AddCustomer />} />
+          <Route path="subscriptions" element={<ManageSubscriptions />} />
+          <Route path="profile" element={<AdminProfile />} />
           <Route path="pricing" element={<PricingManage />} />
           <Route path="settings" element={<Settings />} />
           <Route path="" element={<Navigate to="/admin/dashboard" replace />} />

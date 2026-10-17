@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Calendar as CalendarIcon, Plus, X, Trash2, Check, XCircle, Search, Download, ArrowUp, ArrowDown, ArrowUpDown, Pencil } from 'lucide-react';
 import { exportToCSV } from '../utils/exportToCSV';
+import { formatDate } from '../utils/formatDate';
 
 const LeaveRequests = () => {
   const [leaves, setLeaves] = useState([]);
@@ -175,7 +176,7 @@ const LeaveRequests = () => {
             <input type="date" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} style={{ padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', outline: 'none', fontSize: '13px', color: '#475569' }} />
           </div>
         )}
-          <button onClick={() => exportToCSV(filteredLeaves, 'Leaves')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', cursor: 'pointer' }}><Download size={16} /> Export</button>
+          <button onClick={() => exportToCSV(filteredLeaves.map(l => ({ ...l, startDate: formatDate(l.startDate), endDate: formatDate(l.endDate) })), 'Leaves')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', cursor: 'pointer' }}><Download size={16} /> Export</button>
         </div>
       </div>
 
@@ -202,7 +203,7 @@ const LeaveRequests = () => {
                 <td style={{ padding: '16px 24px', color: '#0F172A', fontWeight: '600' }}>{leave.employeeId?.name || 'Unknown'}</td>
                 <td style={{ padding: '16px 24px' }}>
                   <div style={{ fontWeight: '500', color: '#0F172A' }}>{leave.type}</div>
-                  <div style={{ fontSize: '13px', color: '#64748B', marginTop: '4px' }}>{new Date(leave.startDate).toLocaleDateString()} to {new Date(leave.endDate).toLocaleDateString()}</div>
+                  <div style={{ fontSize: '13px', color: '#64748B', marginTop: '4px' }}>{formatDate(leave.startDate)} to {formatDate(leave.endDate)}</div>
                 </td>
                 <td style={{ padding: '16px 24px', color: '#64748B', fontSize: '14px', maxWidth: '200px' }}>{leave.reason || 'No reason provided'}</td>
                 <td style={{ padding: '16px 24px' }}>
