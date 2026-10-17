@@ -24,6 +24,7 @@ import Expenses from './pages/Expenses';
 import Profile from './pages/Profile';
 import Billing from './pages/Billing';
 import Impersonate from './pages/Impersonate';
+import NotFound from './pages/NotFound';
 
 function App() {
   return (
@@ -57,8 +58,11 @@ function App() {
           <Route path="billing" element={<Billing />} />
           
           <Route path="" element={<Navigate to="/tenant/dashboard" replace />} />
-          <Route path="*" element={<div style={{ padding: '32px' }}>Feature in development...</div>} />
+          <Route path="*" element={<NotFound isNested={true} />} />
         </Route>
+
+        {/* Global 404 Catch-All */}
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </Router>
   );

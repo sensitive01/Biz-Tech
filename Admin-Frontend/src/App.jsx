@@ -9,6 +9,7 @@ import Settings from './pages/Settings';
 import PricingManage from './pages/PricingManage';
 import AdminProfile from './pages/AdminProfile';
 import ManageSubscriptions from './pages/ManageSubscriptions';
+import NotFound from './pages/NotFound';
 
 function App() {
   return (
@@ -26,7 +27,11 @@ function App() {
           <Route path="pricing" element={<PricingManage />} />
           <Route path="settings" element={<Settings />} />
           <Route path="" element={<Navigate to="/admin/dashboard" replace />} />
+          <Route path="*" element={<NotFound isNested={true} />} />
         </Route>
+
+        {/* Global 404 Catch-All */}
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </Router>
   );

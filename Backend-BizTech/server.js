@@ -72,6 +72,15 @@ app.get('/', (req, res) => {
   res.send('BizTech API is running...');
 });
 
+// 404 Not Found Handler
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    error: 'Not Found',
+    message: `The endpoint ${req.method} ${req.originalUrl} does not exist on this server.`
+  });
+});
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
