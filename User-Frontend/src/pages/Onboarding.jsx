@@ -2,6 +2,23 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Store, Users, Map, Package, ArrowRight, ArrowLeft, CheckCircle2, Building2, ShoppingCart, TrendingUp, Briefcase, Menu, X, Trash2, Edit2, Plus } from 'lucide-react';
 
+const DESIGNATION_OPTIONS = [
+  'Store Manager',
+  'Branch Manager',
+  'Assistant Manager',
+  'Shift Supervisor',
+  'Sales Executive',
+  'Cashier',
+  'Accountant',
+  'Inventory Specialist',
+  'Customer Support',
+  'Technician',
+  'Delivery Executive',
+  'Security Guard',
+  'General Staff',
+  'Other'
+];
+
 const Onboarding = () => {
   const navigate = useNavigate();
   const [tenantType, setTenantType] = useState(() => Number(localStorage.getItem('tenantType')) || 1);
@@ -12,56 +29,30 @@ const Onboarding = () => {
   const [isEditingBranch, setIsEditingBranch] = useState(false);
 
   // State for the new selections
-  const [selections, setSelections] = useState(() => JSON.parse(localStorage.getItem('onb_selections')) || {
+  const [selections, setSelections] = useState({
     offering: [],
     operation: []
   });
 
   // State for Single Business (Type 1, 2, 3)
-  const [singleBusiness, setSingleBusiness] = useState(() => {
-    try {
-      const saved = localStorage.getItem('onb_single_business');
-      if (saved) return JSON.parse(saved);
-    } catch (e) {}
-    return { name: '', regNo: '', phone: '', address: '' };
-  });
+  const [singleBusiness, setSingleBusiness] = useState({ name: '', regNo: '', phone: '', address: '' });
 
   // State for Businesses (Type 4)
-  const [businesses, setBusinesses] = useState(() => JSON.parse(localStorage.getItem('onb_businesses')) || []);
+  const [businesses, setBusinesses] = useState([]);
   const [showBusinessForm, setShowBusinessForm] = useState(true);
   const [newBusiness, setNewBusiness] = useState({ name: '', regNo: '', phone: '', address: '' });
 
   // State for Branches
-  const [branches, setBranches] = useState(() => JSON.parse(localStorage.getItem('onb_branches')) || []);
+  const [branches, setBranches] = useState([]);
   const [showBranchForm, setShowBranchForm] = useState(false);
   const [newBranch, setNewBranch] = useState({ name: '', location: '', manager: '', phone: '', type: 'Store', business: '' });
 
   // State for Employees
-  const [employees, setEmployees] = useState(() => JSON.parse(localStorage.getItem('onb_employees')) || []);
+  const [employees, setEmployees] = useState([]);
   const [showEmployeeForm, setShowEmployeeForm] = useState(false);
-  const [newEmployee, setNewEmployee] = useState({ name: '', role: '', email: '', phone: '', shiftFrom: '', shiftTo: '', salary: '', branch: 'Main Branch', business: '' });
+  const [newEmployee, setNewEmployee] = useState({ name: '', designation: '', customDesignation: '', role: '', email: '', phone: '', shiftFrom: '', shiftTo: '', salary: '', branch: 'Main Branch', business: '' });
 
-  useEffect(() => {
-    localStorage.setItem('onb_selections', JSON.stringify(selections));
-  }, [selections]);
-
-  useEffect(() => {
-    localStorage.setItem('onb_single_business', JSON.stringify(singleBusiness));
-  }, [singleBusiness]);
-
-  useEffect(() => {
-    localStorage.setItem('onb_businesses', JSON.stringify(businesses));
-  }, [businesses]);
-
-  useEffect(() => {
-    localStorage.setItem('onb_branches', JSON.stringify(branches));
-  }, [branches]);
-
-  useEffect(() => {
-    localStorage.setItem('onb_employees', JSON.stringify(employees));
-  }, [employees]);
-
-  // Fetch prefilled data on mount (from registration and previous setup)
+  // Fetch prefilled data on mount (strictly scoped to the authenticated tenant)
   useEffect(() => {
     const fetchPrefilledData = async () => {
       const token = localStorage.getItem('token');
@@ -85,41 +76,42 @@ const Onboarding = () => {
               setTenantType(typeNum);
             }
 
-            setSingleBusiness(prev => ({
-              name: prev.name || user.businessName || '',
-              regNo: prev.regNo || user.regNo || '',
-              phone: prev.phone || user.businessPhone || user.phone || '',
-              address: prev.address || user.address || ''
-            }));
+            setSingleBusiness({
+              name: user.businessName || '',
+              regNo: user.regNo || '',
+              phone: user.businessPhone || user.phone || '',
+              address: user.address || ''
+            });
 
             setNewBusiness(prev => ({
               ...prev,
-              phone: prev.phone || user.businessPhone || user.phone || ''
+              phone: user.businessPhone || user.phone || ''
             }));
 
             if (user.businesses && Array.isArray(user.businesses) && user.businesses.length > 0) {
-              setBusinesses(prev => prev.length > 0 ? prev : user.businesses);
+              setBusinesses(user.businesses);
               setShowBusinessForm(false);
+            } else {
+              setBusinesses([]);
+              setShowBusinessForm(true);
             }
 
             if (user.modules && Array.isArray(user.modules) && user.modules.length > 0) {
-              setSelections(prev => {
-                const off = new Set(prev.offering);
-                const op = new Set(prev.operation);
-                if (user.modules.includes('products_services') || user.modules.includes('inventory')) {
-                  off.add('product');
-                }
-                if (user.modules.includes('purchases')) op.add('purchase');
-                if (user.modules.includes('sales')) op.add('sale');
-                return {
-                  offering: Array.from(off),
-                  operation: Array.from(op)
-                };
+              const off = new Set();
+              const op = new Set();
+              if (user.modules.includes('products_services') || user.modules.includes('inventory')) {
+                off.add('product');
+              }
+              if (user.modules.includes('purchases')) op.add('purchase');
+              if (user.modules.includes('sales')) op.add('sale');
+              setSelections({
+                offering: Array.from(off),
+                operation: Array.from(op)
               });
             }
           }
 
-          if (existingBranches && existingBranches.length > 0) {
+          if (existingBranches && Array.isArray(existingBranches)) {
             const mappedBranches = existingBranches.map(b => ({
               name: b.name,
               location: b.location || '',
@@ -128,15 +120,13 @@ const Onboarding = () => {
               type: b.type || 'Store',
               business: b.businessName || ''
             }));
-            setBranches(prev => {
-              if (!prev || prev.length === 0) return mappedBranches;
-              const names = new Set(prev.map(p => p.name));
-              const additions = mappedBranches.filter(m => !names.has(m.name));
-              return [...prev, ...additions];
-            });
+            setBranches(mappedBranches);
+            if (mappedBranches.length > 0) {
+              setShowBranchForm(false);
+            }
           }
 
-          if (existingEmployees && existingEmployees.length > 0) {
+          if (existingEmployees && Array.isArray(existingEmployees)) {
             const mappedEmployees = existingEmployees.map(e => ({
               name: e.name,
               role: e.position || e.role || '',
@@ -148,12 +138,7 @@ const Onboarding = () => {
               branch: e.branchName || 'Main Office',
               business: e.businessName || ''
             }));
-            setEmployees(prev => {
-              if (!prev || prev.length === 0) return mappedEmployees;
-              const emails = new Set(prev.map(p => p.email));
-              const additions = mappedEmployees.filter(m => !emails.has(m.email));
-              return [...prev, ...additions];
-            });
+            setEmployees(mappedEmployees);
           }
         }
       } catch (err) {
@@ -848,8 +833,11 @@ const Onboarding = () => {
                       <td style={{ padding: '12px 16px', fontWeight: '500' }}>{emp.name}</td>
                       <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-title)' }}>{emp.role || 'Staff'}</span>
-                          <span style={{ fontSize: '12px', color: 'var(--primary-blue)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-title)' }}>{emp.designation || emp.role || 'Staff'}</span>
+                          {emp.role && emp.designation && emp.role !== emp.designation && (
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Role: {emp.role}</span>
+                          )}
+                          <span style={{ fontSize: '12px', color: 'var(--primary-blue)', display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
                             <Map size={12} /> {emp.branch || 'Main Branch'} {tenantType === 4 && emp.business ? `(${emp.business})` : ''}
                           </span>
                         </div>
@@ -884,6 +872,8 @@ const Onboarding = () => {
                 onClick={() => {
                   setNewEmployee({
                     name: '',
+                    designation: '',
+                    customDesignation: '',
                     role: '',
                     email: '',
                     phone: '',
@@ -910,8 +900,38 @@ const Onboarding = () => {
                   <input type="text" className="input-field" placeholder="Enter employee name" value={newEmployee.name} onChange={e => setNewEmployee({...newEmployee, name: e.target.value})} />
                 </div>
                 <div className="input-group">
-                  <label className="input-label">Role</label>
-                  <input type="text" className="input-field" placeholder="e.g. Store Manager, Cashier" value={newEmployee.role} onChange={e => setNewEmployee({...newEmployee, role: e.target.value})} />
+                  <label className="input-label">Designation *</label>
+                  <select 
+                    className="input-field"
+                    value={newEmployee.designation} 
+                    onChange={e => {
+                      const val = e.target.value;
+                      setNewEmployee(prev => ({
+                        ...prev,
+                        designation: val,
+                        role: prev.role || (val !== 'Other' ? val : '')
+                      }));
+                    }}
+                  >
+                    <option value="">-- Select Designation --</option>
+                    {DESIGNATION_OPTIONS.map(opt => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                  {newEmployee.designation === 'Other' && (
+                    <input 
+                      type="text" 
+                      className="input-field" 
+                      style={{ marginTop: '6px' }}
+                      placeholder="Enter custom designation" 
+                      value={newEmployee.customDesignation} 
+                      onChange={e => setNewEmployee({...newEmployee, customDesignation: e.target.value})} 
+                    />
+                  )}
+                </div>
+                <div className="input-group">
+                  <label className="input-label">Position / Role</label>
+                  <input type="text" className="input-field" placeholder="e.g. Lead Cashier, Senior Associate" value={newEmployee.role} onChange={e => setNewEmployee({...newEmployee, role: e.target.value})} />
                 </div>
 
                 {/* Branch / Business assignment tailored per tenantType */}
@@ -1020,16 +1040,27 @@ const Onboarding = () => {
                       ? (branches[0]?.name || 'Main Branch')
                       : (newEmployee.branch || branches[0]?.name || 'Main Branch');
 
+                    const finalDesignation = newEmployee.designation === 'Other'
+                      ? (newEmployee.customDesignation?.trim() || 'Other')
+                      : (newEmployee.designation?.trim() || newEmployee.role?.trim() || 'Staff');
+                    const finalRole = newEmployee.role?.trim() || finalDesignation;
+
                     const empData = {
                       ...newEmployee,
                       name: newEmployee.name.trim(),
+                      designation: finalDesignation,
+                      role: finalRole,
                       branch: assignedBranch,
                       business: tenantType === 4 ? newEmployee.business : ''
                     };
+                    delete empData.customDesignation;
+
                     const updated = [...employees, empData];
                     setEmployees(updated);
                     setNewEmployee({
                       name: '',
+                      designation: '',
+                      customDesignation: '',
                       role: '',
                       email: '',
                       phone: '',
@@ -1050,6 +1081,8 @@ const Onboarding = () => {
               onClick={() => {
                 setNewEmployee({
                   name: '',
+                  designation: '',
+                  customDesignation: '',
                   role: '',
                   email: '',
                   phone: '',

@@ -8,6 +8,9 @@ const branchSchema = new mongoose.Schema({
   type: { type: String, default: 'Store' },
   businessName: { type: String, default: '' },
   tenantId: { type: String, default: 'default_tenant' },
+  email: { type: String, unique: true, sparse: true, lowercase: true, trim: true },
+  password: { type: String },
+  isLoginEnabled: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now }
 });
 

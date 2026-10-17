@@ -29,6 +29,9 @@ const Login = () => {
       const data = await response.json();
 
       if (response.ok) {
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('onb_')) localStorage.removeItem(key);
+        });
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
         localStorage.setItem('tenantType', data.user.businessType.toString());

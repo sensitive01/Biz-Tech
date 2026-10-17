@@ -101,54 +101,116 @@ router.post('/register', async (req, res) => {
 });
 
 // @route   POST /api/auth/login
-// @desc    Authenticate user & get token
+// @desc    Authenticate user or branch & get token
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ message: 'Please provide email and password' });
+    }
 
-    // Check if user exists
-    let user = await User.findOne({ email });
-    if (!user) {
+    const cleanEmail = email.trim().toLowerCase();
+
+    // 1. Check if user exists (Owner Account)
+    let user = await User.findOne({ email: cleanEmail });
+    if (user) {
+      // Validate password
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) {
+        return res.status(400).json({ message: 'Invalid Credentials' });
+      }
+
+      // Ensure existing user has uniqueId
+      if (!user.userId) {
+        user.userId = user.get('uniqueId') || await generateUserId();
+        await user.save();
+      }
+
+      // Create JWT payload
+      const payload = {
+        user: {
+          id: user.id,
+          businessType: user.businessType,
+          role: 'owner'
+        }
+      };
+
+      // Sign Token
+      return jwt.sign(
+        payload,
+        process.env.JWT_SECRET || 'fallback_secret',
+        { expiresIn: '1d' },
+        (err, token) => {
+          if (err) throw err;
+          res.json({ 
+            token, 
+            user: { 
+              id: user.id, 
+              userId: user.userId,
+              fullName: user.fullName, 
+              email: user.email, 
+              role: 'owner',
+              businessType: user.businessType, 
+              businessName: user.businessName,
+              modules: user.modules 
+            } 
+          });
+        }
+      );
+    }
+
+    // 2. Check if a Branch exists with this email (Branch Login)
+    const branch = await Branch.findOne({ email: cleanEmail });
+    if (!branch || !branch.password) {
       return res.status(400).json({ message: 'Invalid Credentials' });
     }
 
-    // Validate password
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
+    if (branch.isLoginEnabled === false) {
+      return res.status(403).json({ message: 'Login access for this branch is currently disabled by the owner.' });
+    }
+
+    const isBranchMatch = await bcrypt.compare(password, branch.password);
+    if (!isBranchMatch) {
       return res.status(400).json({ message: 'Invalid Credentials' });
     }
 
-    // Ensure existing user has uniqueId
-    if (!user.userId) {
-      user.userId = user.get('uniqueId') || await generateUserId();
-      await user.save();
+    // Find parent tenant
+    let parentUser = null;
+    if (branch.tenantId && branch.tenantId !== 'default_tenant') {
+      parentUser = await User.findById(branch.tenantId);
     }
 
-    // Create JWT payload
     const payload = {
       user: {
-        id: user.id,
-        businessType: user.businessType
+        id: parentUser ? parentUser.id : branch.tenantId,
+        branchId: branch._id.toString(),
+        branchName: branch.name,
+        role: 'branch',
+        businessType: parentUser ? parentUser.businessType : 3
       }
     };
 
-      // Sign Token
-    jwt.sign(
+    return jwt.sign(
       payload,
       process.env.JWT_SECRET || 'fallback_secret',
       { expiresIn: '1d' },
       (err, token) => {
         if (err) throw err;
-        res.json({ 
-          token, 
-          user: { 
-            id: user.id, 
-            userId: user.userId,
-            fullName: user.fullName, 
-            email, 
-            businessType: user.businessType, 
-            modules: user.modules 
-          } 
+        res.json({
+          token,
+          user: {
+            id: parentUser ? parentUser.id : branch.tenantId,
+            userId: `BR-${branch.name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase()}`,
+            fullName: branch.manager || branch.name,
+            email: branch.email,
+            role: 'branch',
+            branchId: branch._id,
+            branchName: branch.name,
+            branchLocation: branch.location,
+            businessType: parentUser ? parentUser.businessType : 3,
+            businessName: parentUser ? parentUser.businessName : 'BizTech Store',
+            modules: parentUser ? parentUser.modules : ['products_services', 'inventory', 'sales', 'expenses']
+          }
         });
       }
     );
@@ -248,10 +310,11 @@ router.post('/onboarding', async (req, res) => {
         if (!e.name || !e.email) continue;
         const salary = typeof e.salary === 'number' ? e.salary : (parseInt((e.salary || '').replace(/[^0-9]/g, ''), 10) || 0);
         await Employee.findOneAndUpdate(
-          { email: e.email },
+          { email: e.email, tenantId: userId },
           {
             name: e.name,
             email: e.email,
+            designation: e.designation || e.role || e.position || 'Staff',
             position: e.role || e.position || 'Staff',
             contactNumber: e.phone || e.contactNumber || '',
             salary,
@@ -291,12 +354,8 @@ router.get('/onboarding-data', async (req, res) => {
       await user.save();
     }
 
-    const branches = await Branch.find({
-      $or: [{ tenantId: user.id }, { tenantId: 'default_tenant' }]
-    });
-    const employees = await Employee.find({
-      $or: [{ tenantId: user.id }, { tenantId: 'default_tenant' }]
-    });
+    const branches = await Branch.find({ tenantId: user.id }).select('-password');
+    const employees = await Employee.find({ tenantId: user.id });
 
     res.json({
       user,
@@ -310,13 +369,37 @@ router.get('/onboarding-data', async (req, res) => {
 });
 
 // @route   GET /api/auth/me
-// @desc    Get user profile
+// @desc    Get user or branch profile
 router.get('/me', async (req, res) => {
   try {
     const token = req.header('Authorization')?.split(' ')[1];
     if (!token) return res.status(401).json({ message: 'No token, authorization denied' });
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
+    
+    // Check if this is a Branch session
+    if (decoded?.user?.role === 'branch') {
+      const branch = await Branch.findById(decoded.user.branchId);
+      const parentUser = await User.findById(decoded.user.id).select('-password');
+      if (!branch) return res.status(404).json({ message: 'Branch not found' });
+
+      return res.json({
+        _id: parentUser ? parentUser._id : decoded.user.id,
+        id: parentUser ? parentUser.id : decoded.user.id,
+        userId: `BR-${branch.name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase()}`,
+        fullName: branch.manager || branch.name,
+        email: branch.email,
+        phone: branch.contactNumber,
+        role: 'branch',
+        branchId: branch._id,
+        branchName: branch.name,
+        branchLocation: branch.location,
+        businessType: parentUser ? parentUser.businessType : 3,
+        businessName: parentUser ? parentUser.businessName : 'BizTech Store',
+        modules: parentUser ? parentUser.modules : ['products_services', 'inventory', 'sales', 'expenses']
+      });
+    }
+
     let user = await User.findById(decoded.user.id).select('-password');
     if (!user) return res.status(404).json({ message: 'User not found' });
 

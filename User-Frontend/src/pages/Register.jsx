@@ -28,6 +28,9 @@ const Register = () => {
       if (!res.ok) {
         setError(data.message || 'Error checking email');
       } else {
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('onb_')) localStorage.removeItem(key);
+        });
         navigate('/select-type', { state: { ...formData } });
       }
     } catch (err) {

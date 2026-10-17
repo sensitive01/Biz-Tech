@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const employeeSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
+  designation: { type: String, default: '' },
   position: { type: String, required: true },
   contactNumber: { type: String, default: '' },
   salary: { type: Number, default: 0 },

@@ -19,9 +19,11 @@ const LeaveRequests = () => {
 
   const fetchData = async () => {
     try {
+      const token = localStorage.getItem('token');
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
       const [leaveRes, empRes] = await Promise.all([
-        fetch(`${import.meta.env.VITE_API_URL}/api/leaves`),
-        fetch(`${import.meta.env.VITE_API_URL}/api/employees`)
+        fetch(`${import.meta.env.VITE_API_URL}/api/leaves`, { headers }),
+        fetch(`${import.meta.env.VITE_API_URL}/api/employees`, { headers })
       ]);
       if (leaveRes.ok) setLeaves(await leaveRes.json());
       if (empRes.ok) setEmployees(await empRes.json());
@@ -55,7 +57,11 @@ const LeaveRequests = () => {
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this leave request?')) return;
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/leaves/${id}`, { method: 'DELETE' });
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/leaves/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       if (res.ok) fetchData();
     } catch (err) { console.error(err); }
   };
@@ -63,6 +69,7 @@ const LeaveRequests = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      const token = localStorage.getItem('token');
       const url = editingLeave
         ? `${import.meta.env.VITE_API_URL}/api/leaves/${editingLeave._id}`
         : `${import.meta.env.VITE_API_URL}/api/leaves`;
@@ -70,7 +77,10 @@ const LeaveRequests = () => {
 
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify(formData)
       });
       if (res.ok) {
@@ -85,9 +95,13 @@ const LeaveRequests = () => {
 
   const updateStatus = async (id, status) => {
     try {
+      const token = localStorage.getItem('token');
       const res = await fetch(`${import.meta.env.VITE_API_URL}/api/leaves/${id}/status`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ status })
       });
       if (res.ok) fetchData();

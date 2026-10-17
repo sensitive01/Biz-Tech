@@ -39,9 +39,11 @@ const Attendance = () => {
 
   const fetchData = async () => {
     try {
+      const token = localStorage.getItem('token');
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
       const [attRes, empRes] = await Promise.all([
-        fetch(`${import.meta.env.VITE_API_URL}/api/attendance`),
-        fetch(`${import.meta.env.VITE_API_URL}/api/employees`)
+        fetch(`${import.meta.env.VITE_API_URL}/api/attendance`, { headers }),
+        fetch(`${import.meta.env.VITE_API_URL}/api/employees`, { headers })
       ]);
       if (attRes.ok) setRecords(await attRes.json());
       if (empRes.ok) setEmployees(await empRes.json());
@@ -57,6 +59,7 @@ const Attendance = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      const token = localStorage.getItem('token');
       const url = editingRecord
         ? `${import.meta.env.VITE_API_URL}/api/attendance/${editingRecord._id}`
         : `${import.meta.env.VITE_API_URL}/api/attendance`;
@@ -64,7 +67,10 @@ const Attendance = () => {
 
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify(formData)
       });
       if (res.ok) {
@@ -80,7 +86,11 @@ const Attendance = () => {
   const confirmDelete = async () => {
     if (!deleteRecordId) return;
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/attendance/${deleteRecordId}`, { method: 'DELETE' });
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/attendance/${deleteRecordId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       if (res.ok) {
         setDeleteRecordId(null);
         fetchData();
@@ -92,9 +102,13 @@ const Attendance = () => {
     e.preventDefault();
     if (!checkoutData) return;
     try {
+      const token = localStorage.getItem('token');
       const res = await fetch(`${import.meta.env.VITE_API_URL}/api/attendance/${checkoutData.id}/checkout`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ checkOut: checkoutData.time })
       });
       if (res.ok) {
