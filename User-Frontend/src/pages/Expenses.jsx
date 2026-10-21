@@ -2,7 +2,8 @@ import { exportToCSV } from '../utils/exportToCSV';
 import { formatDate } from '../utils/formatDate';
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowUp, ArrowDown, Receipt, Plus, X, Eye, Pencil, Trash2, AlertTriangle, Search, Filter, ArrowUpDown, Download } from 'lucide-react';
+import { ArrowUp, ArrowDown, Receipt, Plus, X, Eye, Pencil, Trash2, AlertTriangle, Search, Filter, ArrowUpDown, Download, IndianRupee, Tag } from 'lucide-react';
+import TablePagination from '../components/TablePagination';
 
 const Expenses = () => {
   const [items, setItems] = useState([]);
@@ -13,6 +14,9 @@ const Expenses = () => {
   const [deleteId, setDeleteId] = useState(null);
   const [search, setSearch] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const requestSort = (key) => {
     let direction = 'asc';
@@ -175,6 +179,13 @@ const Expenses = () => {
       return 0;
     });
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, filterDays, customStartDate, customEndDate, itemsPerPage]);
+
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedItems = filteredItems.slice(startIndex, startIndex + itemsPerPage);
+
   return (
     <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto', animation: 'fadeIn 0.3s ease-out' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
@@ -187,6 +198,30 @@ const Expenses = () => {
         <button onClick={handleOpenAdd} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', background: 'var(--primary-blue)', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}>
           <Plus size={18} /> Add New Expenses
         </button>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '32px' }}>
+        <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Receipt size={24} /></div>
+          <div>
+            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Total Expenses</p>
+            <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{items.length}</h3>
+          </div>
+        </div>
+        <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#FEF2F2', color: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><IndianRupee size={24} /></div>
+          <div>
+            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Total Amount Spent</p>
+            <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>₹{items.reduce((acc, i) => acc + (Number(i.amount) || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
+          </div>
+        </div>
+        <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#F5F3FF', color: '#8B5CF6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Tag size={24} /></div>
+          <div>
+            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Expense Categories</p>
+            <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{new Set(items.map(i => i.category).filter(Boolean)).size}</h3>
+          </div>
+        </div>
       </div>
 
       <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', flexWrap: 'wrap', justifyContent: 'space-between' }}>
@@ -230,7 +265,7 @@ const Expenses = () => {
                 <div style={{ display: 'flex', alignItems: 'center' }}>Date {renderSortIcon('date')}</div>
               </th>
                 <th onClick={() => requestSort('amount')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',  padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
-                <div style={{ display: 'flex', alignItems: 'center' }}>Amount {renderSortIcon('amount')}</div>
+                <div style={{ display: 'flex', alignItems: 'center' }}>Amount (₹) {renderSortIcon('amount')}</div>
               </th>
                 <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', textAlign: 'right' }}>Actions</th>
               </tr>
@@ -248,14 +283,14 @@ const Expenses = () => {
                   </td>
                 </tr>
               ) : (
-                filteredItems.map((item, index) => (
+                paginatedItems.map((item, index) => (
                   <tr key={item._id} style={{ borderBottom: '1px solid #E2E8F0', transition: 'background 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
-                    <td style={{ padding: '16px 24px', fontSize: '15px', color: '#475569', fontWeight: '500' }}>{index + 1}</td>
+                    <td style={{ padding: '16px 24px', fontSize: '15px', color: '#475569', fontWeight: '500' }}>{startIndex + index + 1}</td>
                     <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px' }}>{item.title}</td>
                     <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px' }}>{item.category}</td>
                     <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px' }}>{item.description}</td>
                     <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px', whiteSpace: 'nowrap' }}>{formatDate(item.date)}</td>
-                    <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px' }}>{item.amount}</td>
+                    <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px' }}>₹{item.amount}</td>
                     <td style={{ padding: '16px 24px', textAlign: 'right' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
                         <button onClick={() => setViewItem(item)} title="View" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#EFF6FF', color: '#3B82F6', border: 'none', borderRadius: '6px', cursor: 'pointer' }}><Eye size={16} /></button>
@@ -269,6 +304,15 @@ const Expenses = () => {
             </tbody>
           </table>
         </div>
+
+        <TablePagination
+          currentPage={currentPage}
+          setCurrentPage={setCurrentPage}
+          totalItems={filteredItems.length}
+          itemsPerPage={itemsPerPage}
+          setItemsPerPage={setItemsPerPage}
+          itemName="expenses"
+        />
       </div>
 
       {showModal && createPortal(
@@ -308,8 +352,8 @@ const Expenses = () => {
                   <input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} required style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Amount</label>
-                  <input placeholder="Enter the amount" type="number" value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})} required style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }} />
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Amount (₹)</label>
+                  <input placeholder="Enter the amount (₹)" type="number" value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})} required style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }} />
                 </div>
               </div>
               <div>
@@ -352,7 +396,7 @@ const Expenses = () => {
                 </div>
                 <div style={{ flex: 1, padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
                   <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Amount</p>
-                  <p style={{ margin: 0, fontSize: '16px', color: '#0F172A' }}>{viewItem.amount}</p>
+                  <p style={{ margin: 0, fontSize: '16px', color: '#0F172A' }}>₹{viewItem.amount}</p>
                 </div>
               </div>
               {viewItem.proofUrl && (

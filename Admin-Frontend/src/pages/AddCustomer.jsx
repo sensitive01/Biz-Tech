@@ -20,6 +20,10 @@ const AddCustomer = () => {
       setError('Please fill all required fields and select an operational structure.');
       return;
     }
+    if (phone.length !== 10) {
+      setError('Phone number must be exactly 10 digits.');
+      return;
+    }
 
     setLoading(true);
     setError('');
@@ -208,7 +212,22 @@ const AddCustomer = () => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '16px' }}>
             <div className="input-group" style={{ marginBottom: 0 }}>
               <label className="input-label">Phone Number <span style={{ color: '#EF4444' }}>*</span></label>
-              <input type="tel" className="input-field" placeholder="Enter phone number" value={phone} onChange={e => setPhone(e.target.value)} />
+              <input 
+                type="tel" 
+                inputMode="numeric"
+                maxLength={10}
+                pattern="[0-9]{10}"
+                className="input-field" 
+                placeholder="Enter 10-digit number" 
+                value={phone} 
+                onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))} 
+                style={{ marginTop: '4px' }}
+              />
+              {phone && phone.length > 0 && phone.length < 10 && (
+                <span style={{ fontSize: '12px', color: '#EF4444', marginTop: '2px', display: 'block' }}>
+                  Please enter a full 10-digit number
+                </span>
+              )}
             </div>
             <div className="input-group" style={{ marginBottom: 0 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

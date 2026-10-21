@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { exportToCSV } from '../utils/exportToCSV';
 import { formatDate } from '../utils/formatDate';
+import TablePagination from '../components/TablePagination';
 
 const Reminders = () => {
   const [items, setItems] = useState([]);
@@ -24,6 +25,12 @@ const Reminders = () => {
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
   const [search, setSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, itemsPerPage]);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -280,6 +287,16 @@ const Reminders = () => {
       d.getFullYear() === selectedDate.getFullYear();
   };
 
+  const filteredReminders = useMemo(() => {
+    return items.filter(i => 
+      (i.title || '').toLowerCase().includes(search.toLowerCase()) || 
+      (i.description || '').toLowerCase().includes(search.toLowerCase())
+    );
+  }, [items, search]);
+
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedReminders = filteredReminders.slice(startIndex, startIndex + itemsPerPage);
+
   if (loading) {
     return (
       <div style={{ padding: '60px 24px', textAlign: 'center', color: 'var(--text-secondary)' }}>
@@ -342,7 +359,36 @@ const Reminders = () => {
         </div>
       </div>
 
-
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '32px' }}>
+        <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CalendarIcon size={24} /></div>
+          <div>
+            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Total Scheduled</p>
+            <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{items.length}</h3>
+          </div>
+        </div>
+        <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#FFFBEB', color: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Bell size={24} /></div>
+          <div>
+            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Pending Action</p>
+            <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{items.filter(i => i.status !== 'Completed').length}</h3>
+          </div>
+        </div>
+        <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#F0FDF4', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CheckCircle2 size={24} /></div>
+          <div>
+            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Completed</p>
+            <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{items.filter(i => i.status === 'Completed').length}</h3>
+          </div>
+        </div>
+        <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#F5F3FF', color: '#8B5CF6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Repeat size={24} /></div>
+          <div>
+            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Monthly Recurring</p>
+            <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{items.filter(i => i.repeatMonthly).length}</h3>
+          </div>
+        </div>
+      </div>
 
       {/* Mode 1: Calendar View */}
       {viewMode === 'calendar' ? (
@@ -624,7 +670,7 @@ const Reminders = () => {
               />
             </div>
             <button
-              onClick={() => exportToCSV(items.map(i => ({ ...i, date: formatDate(i.date) })), 'reminders.csv')}
+              onClick={() => exportToCSV(filteredReminders.map(i => ({ ...i, date: formatDate(i.date) })), 'reminders.csv')}
               className="btn-secondary"
               style={{ padding: '8px 14px', fontSize: '13px', borderRadius: '6px' }}
             >
@@ -632,85 +678,94 @@ const Reminders = () => {
             </button>
           </div>
 
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-            <thead>
-              <tr style={{ background: '#F8FAFC', borderBottom: '1px solid var(--border-color)' }}>
-                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)', width: '60px' }}>S.NO</th>
-                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)' }}>TITLE</th>
-                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)' }}>EVENT DATE</th>
-                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)' }}>RECURRENCE</th>
-                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)' }}>ADVANCE ALERT</th>
-                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)' }}>STATUS</th>
-                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)', textAlign: 'right' }}>ACTIONS</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items
-                .filter(i => (i.title || '').toLowerCase().includes(search.toLowerCase()) || (i.description || '').toLowerCase().includes(search.toLowerCase()))
-                .map((item, idx) => {
-                  return (
-                    <tr key={item._id} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                      <td style={{ padding: '14px 16px', fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '500' }}>{idx + 1}</td>
-                      <td style={{ padding: '14px 16px', fontWeight: '600', color: 'var(--text-title)' }}>
-                        {item.title}
-                        {item.description && <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '400' }}>{item.description}</p>}
-                      </td>
-                      <td style={{ padding: '14px 16px', fontSize: '13px', color: 'var(--text-secondary)' }}>
-                        {formatDate(item.date)}
-                      </td>
-                      <td style={{ padding: '14px 16px', fontSize: '13px' }}>
-                        {item.repeatMonthly ? (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#6D28D9', fontWeight: '600', background: '#F5F3FF', padding: '2px 8px', borderRadius: '4px', fontSize: '12px' }}>
-                            <Repeat size={12} /> Monthly (Current Year)
-                          </span>
-                        ) : (
-                          <span style={{ color: 'var(--text-muted)' }}>One-time</span>
-                        )}
-                      </td>
-                      <td style={{ padding: '14px 16px', fontSize: '13px' }}>
-                        {item.notifyBeforeDays > 0 ? (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#B45309', fontWeight: '600', background: '#FEF3C7', padding: '2px 8px', borderRadius: '4px', fontSize: '12px' }}>
-                            <Bell size={12} /> {item.notifyBeforeDays} days prior
-                          </span>
-                        ) : (
-                          <span style={{ color: 'var(--text-muted)' }}>On day only</span>
-                        )}
-                      </td>
-                      <td style={{ padding: '14px 16px' }}>
-                        <button
-                          onClick={() => handleToggleComplete(item)}
-                          style={{
-                            padding: '3px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: '600',
-                            border: 'none', cursor: 'pointer',
-                            background: item.status === 'Completed' ? '#ECFDF5' : '#F1F5F9',
-                            color: item.status === 'Completed' ? '#059669' : '#475569'
-                          }}
-                        >
-                          {item.status || 'Pending'}
-                        </button>
-                      </td>
-                      <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                        <div style={{ display: 'inline-flex', gap: '6px' }}>
-                          <button onClick={() => handleOpenEditModal(item)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}>
-                            <Pencil size={16} />
-                          </button>
-                          <button onClick={() => setDeleteId(item._id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444' }}>
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              {items.length === 0 && (
-                <tr>
-                  <td colSpan="7" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                    No reminders registered yet.
-                  </td>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', minWidth: '700px', borderCollapse: 'collapse', textAlign: 'left' }}>
+              <thead>
+                <tr style={{ background: '#F8FAFC', borderBottom: '1px solid var(--border-color)' }}>
+                  <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)', width: '60px' }}>S.NO</th>
+                  <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)' }}>TITLE</th>
+                  <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)' }}>EVENT DATE</th>
+                  <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)' }}>RECURRENCE</th>
+                  <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)' }}>ADVANCE ALERT</th>
+                  <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)' }}>STATUS</th>
+                  <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)', textAlign: 'right' }}>ACTIONS</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filteredReminders.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      No reminders found.
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedReminders.map((item, idx) => {
+                    return (
+                      <tr key={item._id} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                        <td style={{ padding: '14px 16px', fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '500' }}>{startIndex + idx + 1}</td>
+                        <td style={{ padding: '14px 16px', fontWeight: '600', color: 'var(--text-title)' }}>
+                          {item.title}
+                          {item.description && <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '400' }}>{item.description}</p>}
+                        </td>
+                        <td style={{ padding: '14px 16px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                          {formatDate(item.date)}
+                        </td>
+                        <td style={{ padding: '14px 16px', fontSize: '13px' }}>
+                          {item.repeatMonthly ? (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#6D28D9', fontWeight: '600', background: '#F5F3FF', padding: '2px 8px', borderRadius: '4px', fontSize: '12px' }}>
+                              <Repeat size={12} /> Monthly (Current Year)
+                            </span>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)' }}>One-time</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '14px 16px', fontSize: '13px' }}>
+                          {item.notifyBeforeDays > 0 ? (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#B45309', fontWeight: '600', background: '#FEF3C7', padding: '2px 8px', borderRadius: '4px', fontSize: '12px' }}>
+                              <Bell size={12} /> {item.notifyBeforeDays} days prior
+                            </span>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)' }}>On day only</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '14px 16px' }}>
+                          <button
+                            onClick={() => handleToggleComplete(item)}
+                            style={{
+                              padding: '3px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: '600',
+                              border: 'none', cursor: 'pointer',
+                              background: item.status === 'Completed' ? '#ECFDF5' : '#F1F5F9',
+                              color: item.status === 'Completed' ? '#059669' : '#475569'
+                            }}
+                          >
+                            {item.status || 'Pending'}
+                          </button>
+                        </td>
+                        <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                          <div style={{ display: 'inline-flex', gap: '6px' }}>
+                            <button onClick={() => handleOpenEditModal(item)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}>
+                              <Pencil size={16} />
+                            </button>
+                            <button onClick={() => setDeleteId(item._id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444' }}>
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+          <TablePagination
+            currentPage={currentPage}
+            setCurrentPage={setCurrentPage}
+            totalItems={filteredReminders.length}
+            itemsPerPage={itemsPerPage}
+            setItemsPerPage={setItemsPerPage}
+            itemName="reminders"
+          />
         </div>
       )}
 

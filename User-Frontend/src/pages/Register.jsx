@@ -14,6 +14,10 @@ const Register = () => {
   const handleRegister = async (e) => {
     e.preventDefault();
     setError('');
+    if (!formData.phone || formData.phone.length !== 10) {
+      setError('Please enter a valid 10-digit phone number');
+      return;
+    }
     setLoading(true);
 
     try {
@@ -92,8 +96,23 @@ const Register = () => {
               <label className="input-label">Phone Number</label>
               <div className="input-with-icon">
                 <Phone className="input-icon" size={18} />
-                <input type="tel" className="input-field" placeholder="Enter your Phone number" required value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} />
+                <input 
+                  type="tel" 
+                  inputMode="numeric"
+                  maxLength={10}
+                  pattern="[0-9]{10}"
+                  className="input-field" 
+                  placeholder="Enter 10-digit number" 
+                  required 
+                  value={formData.phone} 
+                  onChange={(e) => setFormData({...formData, phone: e.target.value.replace(/\D/g, '').slice(0, 10)})} 
+                />
               </div>
+              {formData.phone && formData.phone.length > 0 && formData.phone.length < 10 && (
+                <span style={{ fontSize: '12px', color: '#EF4444', marginTop: '2px', display: 'block' }}>
+                  Please enter a full 10-digit number
+                </span>
+              )}
             </div>
           </div>
 

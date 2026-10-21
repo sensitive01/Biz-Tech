@@ -31,6 +31,12 @@ const Impersonate = () => {
       }
       localStorage.setItem('impersonatedByAdmin', 'true');
       localStorage.setItem('adminReturnUrl', adminReturnUrl);
+      const isEmbedded = searchParams.get('embedded') === 'true';
+      if (isEmbedded) {
+        localStorage.setItem('isEmbedded', 'true');
+      } else {
+        localStorage.removeItem('isEmbedded');
+      }
 
       // Notify any listeners
       window.dispatchEvent(new Event('userProfileUpdated'));

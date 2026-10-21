@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Users, Mail, Briefcase, Store, X, Eye, Pencil, Trash2, AlertTriangle, UserPlus, Phone, DollarSign, Calendar, Activity, Search, Download, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { Plus, Users, Mail, Briefcase, Store, X, Eye, Pencil, Trash2, AlertTriangle, UserPlus, Phone, IndianRupee, Calendar, Activity, Search, Download, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { exportToCSV } from '../utils/exportToCSV';
+import TablePagination from '../components/TablePagination';
 
 const DESIGNATION_OPTIONS = [
   'Store Manager',
@@ -29,13 +30,17 @@ const Employees = () => {
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
   const [showModal, setShowModal] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [viewEmployee, setViewEmployee] = useState(null);
   const [deleteEmployeeId, setDeleteEmployeeId] = useState(null);
-  
+
   const tenantType = Number(localStorage.getItem('tenantType')) || 1;
-  
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -51,17 +56,17 @@ const Employees = () => {
 
   const handleOpenAdd = () => {
     setEditingEmployee(null);
-    setFormData({ 
-      name: '', 
-      email: '', 
-      designation: '', 
-      customDesignation: '', 
-      position: '', 
-      contactNumber: '', 
-      salary: '', 
-      dateOfJoining: '', 
-      status: 'Active', 
-      branchId: '' 
+    setFormData({
+      name: '',
+      email: '',
+      designation: '',
+      customDesignation: '',
+      position: '',
+      contactNumber: '',
+      salary: '',
+      dateOfJoining: '',
+      status: 'Active',
+      branchId: ''
     });
     setShowModal(true);
   };
@@ -93,12 +98,12 @@ const Employees = () => {
         fetch(`${import.meta.env.VITE_API_URL}/api/employees`, { headers }),
         (tenantType === 3 || tenantType === 4) ? fetch(`${import.meta.env.VITE_API_URL}/api/branches`, { headers }) : Promise.resolve(null)
       ]);
-      
+
       if (empRes.ok) {
         const empData = await empRes.json();
         setEmployees(empData);
       }
-      
+
       if (branchRes && branchRes.ok) {
         const branchData = await branchRes.json();
         setBranches(branchData);
@@ -116,6 +121,10 @@ const Employees = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (formData.contactNumber && formData.contactNumber.length !== 10) {
+      alert('Contact number must be exactly 10 digits.');
+      return;
+    }
     try {
       const token = localStorage.getItem('token');
       const url = editingEmployee
@@ -139,7 +148,7 @@ const Employees = () => {
 
       const res = await fetch(url, {
         method,
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
@@ -148,17 +157,17 @@ const Employees = () => {
       if (res.ok) {
         setShowModal(false);
         setEditingEmployee(null);
-        setFormData({ 
-          name: '', 
-          email: '', 
-          designation: '', 
-          customDesignation: '', 
-          position: '', 
-          contactNumber: '', 
-          salary: '', 
-          dateOfJoining: '', 
-          status: 'Active', 
-          branchId: '' 
+        setFormData({
+          name: '',
+          email: '',
+          designation: '',
+          customDesignation: '',
+          position: '',
+          contactNumber: '',
+          salary: '',
+          dateOfJoining: '',
+          status: 'Active',
+          branchId: ''
         });
         fetchData();
       } else {
@@ -218,7 +227,7 @@ const Employees = () => {
       }
       return true;
     })
-    .filter(i => 
+    .filter(i =>
       (i.name || '').toLowerCase().includes(search.toLowerCase()) ||
       (i.email || '').toLowerCase().includes(search.toLowerCase()) ||
       (i.designation || '').toLowerCase().includes(search.toLowerCase()) ||
@@ -228,7 +237,7 @@ const Employees = () => {
       if (!sortConfig.key) return 0;
       let aVal = a[sortConfig.key] || '';
       let bVal = b[sortConfig.key] || '';
-      
+
       if (sortConfig.key === 'designation') {
         aVal = a.designation || a.position || '';
         bVal = b.designation || b.position || '';
@@ -236,15 +245,22 @@ const Employees = () => {
 
       if (typeof aVal === 'string') aVal = aVal.toLowerCase();
       if (typeof bVal === 'string') bVal = bVal.toLowerCase();
-      
+
       if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
       if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
       return 0;
     });
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, filterDays, customStartDate, customEndDate, itemsPerPage]);
+
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedEmployees = filteredEmployees.slice(startIndex, startIndex + itemsPerPage);
+
   return (
     <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto', animation: 'fadeIn 0.3s ease-out' }}>
-      
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#0F172A', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -254,12 +270,36 @@ const Employees = () => {
             Manage your staff, assign designations, and track employee details.
           </p>
         </div>
-        <button 
-          onClick={handleOpenAdd} 
+        <button
+          onClick={handleOpenAdd}
           style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', background: '#2563EB', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
         >
           <Plus size={18} /> Add New Employee
         </button>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '32px' }}>
+        <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Users size={24} /></div>
+          <div>
+            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Total Employees</p>
+            <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{employees.length}</h3>
+          </div>
+        </div>
+        <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#F0FDF4', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Store size={24} /></div>
+          <div>
+            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Assigned Branches</p>
+            <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{new Set(employees.map(e => e.branchId?._id || e.branchId).filter(Boolean)).size}</h3>
+          </div>
+        </div>
+        <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#F5F3FF', color: '#8B5CF6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Briefcase size={24} /></div>
+          <div>
+            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Designations</p>
+            <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{new Set(employees.map(e => e.designation).filter(Boolean)).size}</h3>
+          </div>
+        </div>
       </div>
 
       <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', flexWrap: 'wrap', justifyContent: 'space-between' }}>
@@ -272,15 +312,15 @@ const Employees = () => {
             <option value="all">Filter: All Time</option>
             <option value="7">Last 7 Days</option>
             <option value="30">Last 30 Days</option>
-          <option value="custom">Custom Range</option>
-        </select>
-        {filterDays === 'custom' && (
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-            <input type="date" value={customStartDate} onChange={(e) => setCustomStartDate(e.target.value)} style={{ padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', outline: 'none', fontSize: '13px', color: '#475569' }} />
-            <span style={{ fontSize: '13px', color: '#64748B' }}>to</span>
-            <input type="date" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} style={{ padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', outline: 'none', fontSize: '13px', color: '#475569' }} />
-          </div>
-        )}
+            <option value="custom">Custom Range</option>
+          </select>
+          {filterDays === 'custom' && (
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <input type="date" value={customStartDate} onChange={(e) => setCustomStartDate(e.target.value)} style={{ padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', outline: 'none', fontSize: '13px', color: '#475569' }} />
+              <span style={{ fontSize: '13px', color: '#64748B' }}>to</span>
+              <input type="date" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} style={{ padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', outline: 'none', fontSize: '13px', color: '#475569' }} />
+            </div>
+          )}
           <button onClick={() => exportToCSV(filteredEmployees, 'Employees')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', cursor: 'pointer' }}><Download size={16} /> Export</button>
         </div>
       </div>
@@ -320,10 +360,10 @@ const Employees = () => {
                   </td>
                 </tr>
               ) : (
-                filteredEmployees.map((employee, index) => (
+                paginatedEmployees.map((employee, index) => (
                   <tr key={employee._id} style={{ borderBottom: '1px solid #E2E8F0', transition: 'background 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
                     <td style={{ padding: '16px 24px', fontSize: '15px', color: '#475569', fontWeight: '500' }}>
-                      {index + 1}
+                      {startIndex + index + 1}
                     </td>
                     <td style={{ padding: '16px 24px' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -336,7 +376,7 @@ const Employees = () => {
                     <td style={{ padding: '16px 24px' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0F172A', fontSize: '14px', fontWeight: '600' }}>
-                          <Briefcase size={15} color="#2563EB" /> 
+                          <Briefcase size={15} color="#2563EB" />
                           <span>{employee.designation || employee.position || 'Staff'}</span>
                         </div>
                         {employee.position && employee.designation && employee.position !== employee.designation && (
@@ -345,7 +385,7 @@ const Employees = () => {
                       </div>
                     </td>
                     <td style={{ padding: '16px 24px' }}>
-                      <span style={{ 
+                      <span style={{
                         display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '600',
                         background: employee.status === 'Active' ? '#DCFCE7' : employee.status === 'On Leave' ? '#FEF9C3' : '#FEE2E2',
                         color: employee.status === 'Active' ? '#166534' : employee.status === 'On Leave' ? '#854D0E' : '#991B1B'
@@ -362,29 +402,29 @@ const Employees = () => {
                     )}
                     <td style={{ padding: '16px 24px', textAlign: 'right' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
-                        <button 
+                        <button
                           onClick={() => setViewEmployee(employee)}
                           style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#EFF6FF', color: '#3B82F6', border: 'none', borderRadius: '6px', cursor: 'pointer', transition: 'background 0.2s' }}
                           title="View Employee"
-                          onMouseOver={(e) => e.currentTarget.style.background = '#DBEAFE'} 
+                          onMouseOver={(e) => e.currentTarget.style.background = '#DBEAFE'}
                           onMouseOut={(e) => e.currentTarget.style.background = '#EFF6FF'}
                         >
                           <Eye size={16} />
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleEdit(employee)}
                           style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#EFF6FF', color: '#2563EB', border: 'none', borderRadius: '6px', cursor: 'pointer', transition: 'background 0.2s' }}
                           title="Edit Employee"
-                          onMouseOver={(e) => e.currentTarget.style.background = '#DBEAFE'} 
+                          onMouseOver={(e) => e.currentTarget.style.background = '#DBEAFE'}
                           onMouseOut={(e) => e.currentTarget.style.background = '#EFF6FF'}
                         >
                           <Pencil size={15} />
                         </button>
-                        <button 
+                        <button
                           onClick={() => setDeleteEmployeeId(employee._id)}
                           style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#FEE2E2', color: '#EF4444', border: 'none', borderRadius: '6px', cursor: 'pointer', transition: 'background 0.2s' }}
                           title="Delete Employee"
-                          onMouseOver={(e) => e.currentTarget.style.background = '#FECACA'} 
+                          onMouseOver={(e) => e.currentTarget.style.background = '#FECACA'}
                           onMouseOut={(e) => e.currentTarget.style.background = '#FEE2E2'}
                         >
                           <Trash2 size={16} />
@@ -397,6 +437,15 @@ const Employees = () => {
             </tbody>
           </table>
         </div>
+
+        <TablePagination
+          currentPage={currentPage}
+          setCurrentPage={setCurrentPage}
+          totalItems={filteredEmployees.length}
+          itemsPerPage={itemsPerPage}
+          setItemsPerPage={setItemsPerPage}
+          itemName="employees"
+        />
       </div>
 
       {/* Add / Edit Employee Modal */}
@@ -417,15 +466,15 @@ const Employees = () => {
               </div>
               <button onClick={() => { setShowModal(false); setEditingEmployee(null); }} style={{ background: '#F1F5F9', border: 'none', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748B', cursor: 'pointer' }}><X size={18} /></button>
             </div>
-            
+
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflowY: 'auto' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>Full Name *</label>
-                  <input 
-                    type="text" 
-                    value={formData.name} 
-                    onChange={e => setFormData({...formData, name: e.target.value})} 
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={e => setFormData({ ...formData, name: e.target.value })}
                     placeholder="Enter Employee Name"
                     required
                     style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box' }}
@@ -433,10 +482,10 @@ const Employees = () => {
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>Email Address *</label>
-                  <input 
-                    type="email" 
-                    value={formData.email} 
-                    onChange={e => setFormData({...formData, email: e.target.value})} 
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={e => setFormData({ ...formData, email: e.target.value })}
                     placeholder="Enter Email Address"
                     required
                     style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box' }}
@@ -444,12 +493,12 @@ const Employees = () => {
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>Designation *</label>
-                  <select 
-                    value={formData.designation} 
+                  <select
+                    value={formData.designation}
                     onChange={e => {
                       const val = e.target.value;
                       setFormData(prev => ({
-                        ...prev, 
+                        ...prev,
                         designation: val,
                         position: prev.position || (val !== 'Other' ? val : '')
                       }));
@@ -463,11 +512,11 @@ const Employees = () => {
                     ))}
                   </select>
                   {formData.designation === 'Other' && (
-                    <input 
+                    <input
                       type="text"
                       placeholder="Enter custom designation"
                       value={formData.customDesignation}
-                      onChange={e => setFormData({...formData, customDesignation: e.target.value})}
+                      onChange={e => setFormData({ ...formData, customDesignation: e.target.value })}
                       required
                       style={{ width: '100%', padding: '9px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', color: '#0F172A', boxSizing: 'border-box', marginTop: '6px' }}
                     />
@@ -475,49 +524,60 @@ const Employees = () => {
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>Position / Role</label>
-                  <input 
-                    type="text" 
-                    value={formData.position} 
-                    onChange={e => setFormData({...formData, position: e.target.value})} 
+                  <input
+                    type="text"
+                    value={formData.position}
+                    onChange={e => setFormData({ ...formData, position: e.target.value })}
                     placeholder="e.g. Lead Cashier / Sales"
                     style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box' }}
                   />
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>Contact Number</label>
-                  <input 
-                    type="text" 
-                    value={formData.contactNumber} 
-                    onChange={e => setFormData({...formData, contactNumber: e.target.value})} 
-                    placeholder="Enter Contact Number"
+                  <input
+                    type="tel"
+                    inputMode="numeric"
+                    maxLength={10}
+                    pattern="[0-9]{10}"
+                    value={formData.contactNumber}
+                    onChange={e => {
+                      const numericVal = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      setFormData({ ...formData, contactNumber: numericVal });
+                    }}
+                    placeholder="Enter 10-digit number"
                     style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box' }}
                   />
+                  {formData.contactNumber && formData.contactNumber.length > 0 && formData.contactNumber.length < 10 && (
+                    <span style={{ fontSize: '12px', color: '#EF4444', marginTop: '4px', display: 'block' }}>
+                      Please enter a full 10-digit number
+                    </span>
+                  )}
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>Salary ($)</label>
-                  <input 
-                    type="number" 
-                    value={formData.salary} 
-                    onChange={e => setFormData({...formData, salary: e.target.value})} 
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>Salary (₹)</label>
+                  <input
+                    type="number"
+                    value={formData.salary}
+                    onChange={e => setFormData({ ...formData, salary: e.target.value })}
                     placeholder="e.g. 50000"
                     style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box' }}
                   />
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>Date of Joining</label>
-                  <input 
-                    type="date" 
-                    value={formData.dateOfJoining} 
-                    onChange={e => setFormData({...formData, dateOfJoining: e.target.value})} 
+                  <input
+                    type="date"
+                    value={formData.dateOfJoining}
+                    onChange={e => setFormData({ ...formData, dateOfJoining: e.target.value })}
                     style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box' }}
                   />
                 </div>
                 {editingEmployee && (
                   <div>
                     <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>Status</label>
-                    <select 
-                      value={formData.status} 
-                      onChange={e => setFormData({...formData, status: e.target.value})} 
+                    <select
+                      value={formData.status}
+                      onChange={e => setFormData({ ...formData, status: e.target.value })}
                       style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box', background: 'white' }}
                     >
                       <option value="Active">Active</option>
@@ -529,9 +589,9 @@ const Employees = () => {
                 {(tenantType === 3 || tenantType === 4) && (
                   <div style={{ gridColumn: editingEmployee ? '1 / span 2' : 'auto' }}>
                     <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>Assign to Branch *</label>
-                    <select 
-                      value={formData.branchId} 
-                      onChange={e => setFormData({...formData, branchId: e.target.value})} 
+                    <select
+                      value={formData.branchId}
+                      onChange={e => setFormData({ ...formData, branchId: e.target.value })}
                       required
                       style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box', background: 'white' }}
                     >
@@ -543,7 +603,7 @@ const Employees = () => {
                   </div>
                 )}
               </div>
-              
+
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '14px', paddingTop: '14px', borderTop: '1px solid #F1F5F9' }}>
                 <button type="button" onClick={() => { setShowModal(false); setEditingEmployee(null); }} style={{ padding: '9px 18px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '8px', color: '#475569', fontWeight: '600', fontSize: '14px', cursor: 'pointer', transition: 'background 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
                   Cancel
@@ -574,7 +634,7 @@ const Employees = () => {
               </div>
               <button onClick={() => setViewEmployee(null)} style={{ background: '#F1F5F9', border: 'none', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748B', cursor: 'pointer' }}><X size={18} /></button>
             </div>
-            
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', flex: 1, overflowY: 'auto' }}>
               <div style={{ padding: '12px 14px', background: '#F8FAFC', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
                 <p style={{ margin: '0 0 4px 0', fontSize: '11px', color: '#64748B', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Full Name</p>
@@ -605,7 +665,7 @@ const Employees = () => {
               <div style={{ padding: '12px 14px', background: '#F8FAFC', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
                 <p style={{ margin: '0 0 4px 0', fontSize: '11px', color: '#64748B', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Salary</p>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: 0, fontSize: '14px', color: '#0F172A', fontWeight: '500' }}>
-                  <DollarSign size={15} color="#64748B" /> {viewEmployee.salary ? `$${viewEmployee.salary}` : 'N/A'}
+                  <IndianRupee size={15} color="#64748B" /> {viewEmployee.salary ? `₹${Number(viewEmployee.salary).toLocaleString()}` : 'N/A'}
                 </div>
               </div>
               <div style={{ padding: '12px 14px', background: '#F8FAFC', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
@@ -629,10 +689,10 @@ const Employees = () => {
                 </div>
               )}
             </div>
-            
+
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px', paddingTop: '14px', borderTop: '1px solid #F1F5F9', flexShrink: 0 }}>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => {
                   const target = viewEmployee;
                   setViewEmployee(null);
@@ -644,9 +704,9 @@ const Employees = () => {
               >
                 <Pencil size={14} /> Edit
               </button>
-              <button 
-                type="button" 
-                onClick={() => setViewEmployee(null)} 
+              <button
+                type="button"
+                onClick={() => setViewEmployee(null)}
                 style={{ padding: '8px 22px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '600', fontSize: '13px', cursor: 'pointer' }}
               >
                 Close
@@ -666,7 +726,7 @@ const Employees = () => {
             </div>
             <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#0F172A', margin: '0 0 12px 0' }}>Delete Employee</h2>
             <p style={{ color: '#64748B', margin: '0 0 24px 0', lineHeight: '1.5' }}>Are you sure you want to delete this employee? This action cannot be undone.</p>
-            
+
             <div style={{ display: 'flex', gap: '16px' }}>
               <button type="button" onClick={() => setDeleteEmployeeId(null)} style={{ flex: 1, padding: '14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '10px', color: '#475569', fontWeight: '600', fontSize: '15px', cursor: 'pointer', transition: 'background 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
                 Cancel

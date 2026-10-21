@@ -7,7 +7,7 @@ import {
   CheckCircle2, Clock, AlertTriangle, ArrowUpDown, 
   ArrowUp, ArrowDown, Edit2, LogIn, ExternalLink, 
   IndianRupee, TrendingUp, CreditCard, X, Save, 
-  Loader2, Check, RefreshCw 
+  Loader2, Check, RefreshCw, ChevronLeft, ChevronRight, Eye 
 } from 'lucide-react';
 import { exportToCSV } from '../utils/exportToCSV';
 
@@ -27,6 +27,9 @@ const ManageSubscriptions = () => {
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [selectedType, setSelectedType] = useState('All');
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Modal State for Editing Subscription
   const [editingSub, setEditingSub] = useState(null);
@@ -183,6 +186,22 @@ const ManageSubscriptions = () => {
     }
     return items;
   }, [filteredSubscriptions, sortConfig]);
+
+  const totalPages = Math.ceil(sortedSubscriptions.length / itemsPerPage) || 1;
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedSubscriptions = useMemo(() => {
+    return sortedSubscriptions.slice(startIndex, startIndex + itemsPerPage);
+  }, [sortedSubscriptions, startIndex, itemsPerPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedStatus, selectedType, itemsPerPage]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(1);
+    }
+  }, [totalPages, currentPage]);
 
   const requestSort = (key) => {
     let direction = 'asc';
@@ -357,8 +376,9 @@ const ManageSubscriptions = () => {
       </div>
 
       {/* Subscription Table */}
-      <div className="card" style={{ padding: '0', overflowX: 'auto', background: 'white', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '1000px' }}>
+      <div className="card" style={{ padding: '0', overflow: 'hidden', background: 'white', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+        <div style={{ overflowX: 'auto', width: '100%' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '1000px' }}>
           <thead>
             <tr style={{ background: '#F8FAFC', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               <th style={{ padding: '16px 20px', fontWeight: '600', width: '50px' }}>S.NO</th>
@@ -398,18 +418,18 @@ const ManageSubscriptions = () => {
                 </td>
               </tr>
             ) : (
-              sortedSubscriptions.map((sub, idx) => {
+              paginatedSubscriptions.map((sub, idx) => {
                 const badgeStyle = getStatusBadgeStyle(sub.status);
                 return (
                   <tr key={sub._id} style={{ borderBottom: '1px solid var(--border-color)', transition: 'background 0.2s' }}>
-                    <td style={{ padding: '16px 20px', color: 'var(--text-secondary)', fontWeight: '500' }}>{idx + 1}</td>
+                    <td style={{ padding: '16px 20px', color: 'var(--text-secondary)', fontWeight: '500' }}>{startIndex + idx + 1}</td>
                     
                     <td style={{ padding: '16px 20px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <div 
-                          onClick={() => handleManageUser(sub)}
+                          onClick={() => navigate(`/admin/customers/${sub._id}`)}
                           style={{ width: '38px', height: '38px', borderRadius: '8px', background: `var(--badge-type${sub.type}-bg)`, color: sub.type === 1 ? 'var(--primary-blue)' : `var(--badge-type${sub.type}-text)`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-                          title="Manage User Workspace"
+                          title="View Customer Page"
                         >
                           {sub.type === 1 && <Store size={18} />}
                           {sub.type === 2 && <Users size={18} />}
@@ -418,12 +438,13 @@ const ManageSubscriptions = () => {
                         </div>
                         <div>
                           <div 
-                            onClick={() => handleManageUser(sub)}
+                            onClick={() => navigate(`/admin/customers/${sub._id}`)}
                             style={{ fontWeight: '600', color: 'var(--primary-blue)', fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-                            title="Manage Workspace"
+                            title="View Customer Page"
+                            onMouseOver={(e) => e.currentTarget.style.textDecoration = 'underline'}
+                            onMouseOut={(e) => e.currentTarget.style.textDecoration = 'none'}
                           >
                             {sub.businessName}
-                            <ExternalLink size={12} style={{ opacity: 0.7 }} />
                           </div>
                           <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{sub.contactEmail} &bull; {sub.userId}</div>
                         </div>
@@ -485,14 +506,13 @@ const ManageSubscriptions = () => {
                         </button>
                         <button 
                           type="button" 
-                          onClick={() => handleManageUser(sub)}
-                          disabled={impersonatingId === sub._id}
+                          onClick={() => navigate(`/admin/customers/${sub._id}`)}
                           className="btn-primary"
                           style={{ padding: '6px 12px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                          title="Open Tenant Workspace"
+                          title="View Customer Page"
                         >
-                          {impersonatingId === sub._id ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <LogIn size={13} />}
-                          Manage
+                          <Eye size={13} />
+                          View Data
                         </button>
                       </div>
                     </td>
@@ -502,6 +522,115 @@ const ManageSubscriptions = () => {
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Pagination Footer */}
+        <div style={{ 
+          padding: '16px 24px', 
+          background: '#F8FAFC', 
+          borderTop: '1px solid var(--border-color)', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '16px'
+        }}>
+          {/* Left: Summary */}
+          <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
+            Showing{' '}
+            <strong>{sortedSubscriptions.length === 0 ? 0 : startIndex + 1}</strong>
+            {' '}-{' '}
+            <strong>{Math.min(startIndex + itemsPerPage, sortedSubscriptions.length)}</strong>
+            {' '}of{' '}
+            <strong>{sortedSubscriptions.length}</strong> subscriptions
+          </div>
+
+          {/* Right: Show section in front of Previous and Next buttons */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+            {/* Section to adjust data count placed in front of Previous button */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label htmlFor="subscriptionPageSize" style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '500' }}>
+                Show:
+              </label>
+              <select
+                id="subscriptionPageSize"
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                style={{
+                  padding: '6px 10px',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '6px',
+                  background: 'white',
+                  color: 'var(--text-title)',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  outline: 'none'
+                }}
+              >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+              </select>
+              <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>per page</span>
+            </div>
+
+            {/* Previous and Next Navigation */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button 
+                type="button"
+                onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+                disabled={currentPage === 1}
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '4px',
+                  padding: '6px 12px', 
+                  border: '1px solid var(--border-color)', 
+                  borderRadius: '6px', 
+                  background: 'white', 
+                  color: currentPage === 1 ? 'var(--text-muted)' : 'var(--text-title)',
+                  cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                  fontSize: '13px',
+                  fontWeight: '500',
+                  opacity: currentPage === 1 ? 0.6 : 1,
+                  transition: 'all 0.15s'
+                }}
+              >
+                <ChevronLeft size={16} />
+                <span>Previous</span>
+              </button>
+
+              <button 
+                type="button"
+                onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+                disabled={currentPage === totalPages || sortedSubscriptions.length === 0}
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '4px',
+                  padding: '6px 12px', 
+                  border: '1px solid var(--border-color)', 
+                  borderRadius: '6px', 
+                  background: 'white', 
+                  color: (currentPage === totalPages || sortedSubscriptions.length === 0) ? 'var(--text-muted)' : 'var(--text-title)',
+                  cursor: (currentPage === totalPages || sortedSubscriptions.length === 0) ? 'not-allowed' : 'pointer',
+                  fontSize: '13px',
+                  fontWeight: '500',
+                  opacity: (currentPage === totalPages || sortedSubscriptions.length === 0) ? 0.6 : 1,
+                  transition: 'all 0.15s'
+                }}
+              >
+                <span>Next</span>
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Edit Subscription Modal */}

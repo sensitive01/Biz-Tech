@@ -23,9 +23,11 @@ import {
   Mail, 
   CheckCircle2, 
   ShieldCheck, 
-  Building2 
+  Building2,
+  UserCheck
 } from 'lucide-react';
 import { exportToCSV } from '../utils/exportToCSV';
+import TablePagination from '../components/TablePagination';
 
 const Branches = () => {
   const [branches, setBranches] = useState([]);
@@ -36,6 +38,9 @@ const Branches = () => {
   const [deleteBranchId, setDeleteBranchId] = useState(null);
   const [search, setSearch] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const tenantType = Number(localStorage.getItem('tenantType')) || 1;
   const [userBusinesses, setUserBusinesses] = useState([]);
@@ -250,8 +255,19 @@ const Branches = () => {
       return 0;
     });
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, filterDays, customStartDate, customEndDate, itemsPerPage]);
+
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedBranches = filteredBranches.slice(startIndex, startIndex + itemsPerPage);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!formData.contactNumber || formData.contactNumber.length !== 10) {
+      alert('Contact number must be exactly 10 digits.');
+      return;
+    }
     try {
       const token = localStorage.getItem('token');
       const url = editingBranch
@@ -325,6 +341,30 @@ const Branches = () => {
         </button>
       </div>
 
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '32px' }}>
+        <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Store size={24} /></div>
+          <div>
+            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Total Branches</p>
+            <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{branches.length}</h3>
+          </div>
+        </div>
+        <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#F0FDF4', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><UserCheck size={24} /></div>
+          <div>
+            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Assigned Managers</p>
+            <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{branches.filter(b => b.managerId || b.manager).length}</h3>
+          </div>
+        </div>
+        <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#F5F3FF', color: '#8B5CF6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Building2 size={24} /></div>
+          <div>
+            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Linked Businesses</p>
+            <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{new Set(branches.map(b => b.businessId?._id || b.businessId).filter(Boolean)).size || (branches.length > 0 ? 1 : 0)}</h3>
+          </div>
+        </div>
+      </div>
+
       <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', flexWrap: 'wrap', justifyContent: 'space-between' }}>
         <div style={{ flex: '0 1 300px', minWidth: '250px', position: 'relative' }}>
           <Search size={18} color="#94A3B8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
@@ -396,10 +436,10 @@ const Branches = () => {
                   </td>
                 </tr>
               ) : (
-                filteredBranches.map((branch, index) => (
+                paginatedBranches.map((branch, index) => (
                   <tr key={branch._id} style={{ borderBottom: '1px solid #E2E8F0', transition: 'background 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
                     <td style={{ padding: '16px 24px', fontSize: '15px', color: '#475569', fontWeight: '500' }}>
-                      {index + 1}
+                      {startIndex + index + 1}
                     </td>
                     <td style={{ padding: '16px 24px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -541,6 +581,15 @@ const Branches = () => {
             </tbody>
           </table>
         </div>
+
+        <TablePagination
+          currentPage={currentPage}
+          setCurrentPage={setCurrentPage}
+          totalItems={filteredBranches.length}
+          itemsPerPage={itemsPerPage}
+          setItemsPerPage={setItemsPerPage}
+          itemName="branches"
+        />
       </div>
 
       {/* Add / Edit Branch Modal */}
@@ -634,13 +683,24 @@ const Branches = () => {
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>Contact Number *</label>
                   <input  
-                    type="text" 
+                    type="tel" 
+                    inputMode="numeric"
+                    maxLength={10}
+                    pattern="[0-9]{10}"
                     value={formData.contactNumber} 
-                    onChange={e => setFormData({...formData, contactNumber: e.target.value})} 
-                    placeholder="Enter contact number"
+                    onChange={e => {
+                      const numericVal = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      setFormData({...formData, contactNumber: numericVal});
+                    }} 
+                    placeholder="Enter 10-digit number"
                     required
                     style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box' }}
                   />
+                  {formData.contactNumber && formData.contactNumber.length > 0 && formData.contactNumber.length < 10 && (
+                    <span style={{ fontSize: '12px', color: '#EF4444', marginTop: '4px', display: 'block' }}>
+                      Please enter a full 10-digit number
+                    </span>
+                  )}
                 </div>
               </div>
               

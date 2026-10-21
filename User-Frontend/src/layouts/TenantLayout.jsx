@@ -116,6 +116,7 @@ const TenantLayout = () => {
   }, [navigate]);
 
   const isImpersonated = localStorage.getItem('impersonatedByAdmin') === 'true';
+  const isEmbedded = localStorage.getItem('isEmbedded') === 'true';
   const adminReturnUrl = localStorage.getItem('adminReturnUrl') || 'http://localhost:5173/admin/customers';
 
   const handleExitImpersonation = () => {
@@ -125,7 +126,12 @@ const TenantLayout = () => {
     localStorage.removeItem('modules');
     localStorage.removeItem('impersonatedByAdmin');
     localStorage.removeItem('adminReturnUrl');
-    window.location.href = adminReturnUrl;
+    localStorage.removeItem('isEmbedded');
+    if (window.top && window.top !== window) {
+      window.top.location.href = adminReturnUrl;
+    } else {
+      window.location.href = adminReturnUrl;
+    }
   };
 
   const handleLogout = () => {
@@ -137,6 +143,7 @@ const TenantLayout = () => {
     localStorage.removeItem('tenantType');
     localStorage.removeItem('user');
     localStorage.removeItem('modules');
+    localStorage.removeItem('isEmbedded');
     Object.keys(localStorage).forEach(key => {
       if (key.startsWith('onb_')) localStorage.removeItem(key);
     });
@@ -146,7 +153,7 @@ const TenantLayout = () => {
   return (
     <div className="admin-layout" style={{ display: 'flex', flexDirection: 'column' }}>
       {/* Admin Impersonation Top Banner */}
-      {isImpersonated && (
+      {isImpersonated && !isEmbedded && (
         <div style={{
           background: 'linear-gradient(90deg, #0F172A 0%, #1E293B 100%)',
           borderBottom: '1px solid #334155',

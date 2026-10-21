@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { exportToCSV } from '../utils/exportToCSV';
+import TablePagination from '../components/TablePagination';
 import { 
   CheckCircle2, 
   CreditCard, 
@@ -14,7 +15,7 @@ import {
   X, 
   Check, 
   Receipt, 
-  DollarSign, 
+  IndianRupee, 
   Calendar,
   AlertCircle
 } from 'lucide-react';
@@ -27,6 +28,12 @@ const Billing = () => {
   const [searchInvoice, setSearchInvoice] = useState('');
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [upgradeModalPlan, setUpgradeModalPlan] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchInvoice, itemsPerPage]);
 
   // Static Available Plans Data
   const plans = [
@@ -111,7 +118,7 @@ const Billing = () => {
       period: 'October 2026',
       date: 'Oct 01, 2026',
       plan: 'Enterprise Suite',
-      amount: '$199.00',
+      amount: '₹199.00',
       method: 'Visa •••• 4242',
       status: 'Paid',
       transactionId: 'TXN-9842109'
@@ -121,7 +128,7 @@ const Billing = () => {
       period: 'September 2026',
       date: 'Sep 01, 2026',
       plan: 'Enterprise Suite',
-      amount: '$199.00',
+      amount: '₹199.00',
       method: 'Visa •••• 4242',
       status: 'Paid',
       transactionId: 'TXN-8741021'
@@ -131,7 +138,7 @@ const Billing = () => {
       period: 'August 2026',
       date: 'Aug 01, 2026',
       plan: 'Enterprise Suite',
-      amount: '$199.00',
+      amount: '₹199.00',
       method: 'Visa •••• 4242',
       status: 'Paid',
       transactionId: 'TXN-7631980'
@@ -141,7 +148,7 @@ const Billing = () => {
       period: 'July 2026',
       date: 'Jul 01, 2026',
       plan: 'Enterprise Suite',
-      amount: '$199.00',
+      amount: '₹199.00',
       method: 'Visa •••• 4242',
       status: 'Paid',
       transactionId: 'TXN-6520843'
@@ -151,7 +158,7 @@ const Billing = () => {
       period: 'June 2026',
       date: 'Jun 01, 2026',
       plan: 'Enterprise Suite',
-      amount: '$199.00',
+      amount: '₹199.00',
       method: 'Visa •••• 4242',
       status: 'Paid',
       transactionId: 'TXN-5419732'
@@ -161,7 +168,7 @@ const Billing = () => {
       period: 'May 2026',
       date: 'May 01, 2026',
       plan: 'Enterprise Suite',
-      amount: '$199.00',
+      amount: '₹199.00',
       method: 'Visa •••• 4242',
       status: 'Paid',
       transactionId: 'TXN-4308621'
@@ -171,7 +178,7 @@ const Billing = () => {
       period: 'April 2026',
       date: 'Apr 01, 2026',
       plan: 'Enterprise Suite',
-      amount: '$199.00',
+      amount: '₹199.00',
       method: 'Visa •••• 4242',
       status: 'Paid',
       transactionId: 'TXN-3297510'
@@ -181,7 +188,7 @@ const Billing = () => {
       period: 'March 2026',
       date: 'Mar 01, 2026',
       plan: 'Enterprise Suite',
-      amount: '$199.00',
+      amount: '₹199.00',
       method: 'Visa •••• 4242',
       status: 'Paid',
       transactionId: 'TXN-2186409'
@@ -191,7 +198,7 @@ const Billing = () => {
       period: 'February 2026',
       date: 'Feb 01, 2026',
       plan: 'Enterprise Suite',
-      amount: '$199.00',
+      amount: '₹199.00',
       method: 'Visa •••• 4242',
       status: 'Paid',
       transactionId: 'TXN-1075398'
@@ -201,7 +208,7 @@ const Billing = () => {
       period: 'January 2026',
       date: 'Jan 01, 2026',
       plan: 'Enterprise Suite',
-      amount: '$199.00',
+      amount: '₹199.00',
       method: 'Visa •••• 4242',
       status: 'Paid',
       transactionId: 'TXN-0964287'
@@ -213,6 +220,9 @@ const Billing = () => {
     inv.period.toLowerCase().includes(searchInvoice.toLowerCase()) ||
     inv.date.toLowerCase().includes(searchInvoice.toLowerCase())
   );
+
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedHistory = filteredHistory.slice(startIndex, startIndex + itemsPerPage);
 
   const handleTabChange = (newTab) => {
     setSearchParams({ tab: newTab });
@@ -336,7 +346,7 @@ const Billing = () => {
               minWidth: '200px'
             }}>
               <div style={{ fontSize: '13px', color: '#BFDBFE', textTransform: 'uppercase', fontWeight: '600', marginBottom: '4px' }}>Monthly Cost</div>
-              <div style={{ fontSize: '36px', fontWeight: '800', color: 'white', lineHeight: '1' }}>$199<span style={{ fontSize: '16px', fontWeight: '500', color: '#93C5FD' }}>/mo</span></div>
+              <div style={{ fontSize: '36px', fontWeight: '800', color: 'white', lineHeight: '1' }}>₹199<span style={{ fontSize: '16px', fontWeight: '500', color: '#93C5FD' }}>/mo</span></div>
               <span style={{ display: 'inline-block', marginTop: '10px', fontSize: '12px', background: '#22C55E', color: 'white', padding: '3px 10px', borderRadius: '99px', fontWeight: '700' }}>
                 Auto-Renew Active
               </span>
@@ -396,7 +406,7 @@ const Billing = () => {
                     </div>
 
                     <div style={{ margin: '12px 0 20px 0', paddingBottom: '16px', borderBottom: '1px solid #F1F5F9' }}>
-                      <span style={{ fontSize: '32px', fontWeight: '800', color: '#0F172A' }}>${plan.price}</span>
+                      <span style={{ fontSize: '32px', fontWeight: '800', color: '#0F172A' }}>₹{plan.price}</span>
                       <span style={{ fontSize: '14px', color: '#64748B', fontWeight: '500' }}>{plan.period}</span>
                     </div>
 
@@ -501,20 +511,20 @@ const Billing = () => {
 
             <div style={{ background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
               <div style={{ fontSize: '13px', color: '#64748B', fontWeight: '500', marginBottom: '6px' }}>Monthly Rate</div>
-              <div style={{ fontSize: '20px', fontWeight: '700', color: '#0F172A' }}>$199.00 / mo</div>
+              <div style={{ fontSize: '20px', fontWeight: '700', color: '#0F172A' }}>₹199.00 / mo</div>
               <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px' }}>Auto-billed on 1st of month</div>
             </div>
 
             <div style={{ background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
               <div style={{ fontSize: '13px', color: '#64748B', fontWeight: '500', marginBottom: '6px' }}>Total Paid (2026 YTD)</div>
-              <div style={{ fontSize: '20px', fontWeight: '700', color: '#0F172A' }}>$1,990.00</div>
+              <div style={{ fontSize: '20px', fontWeight: '700', color: '#0F172A' }}>₹1,990.00</div>
               <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px' }}>10 Consecutive Monthly Invoices</div>
             </div>
 
             <div style={{ background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
               <div style={{ fontSize: '13px', color: '#64748B', fontWeight: '500', marginBottom: '6px' }}>Next Due Date</div>
               <div style={{ fontSize: '20px', fontWeight: '700', color: 'var(--primary-blue)' }}>Nov 01, 2026</div>
-              <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px' }}>Amount: $199.00</div>
+              <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px' }}>Amount: ₹199.00</div>
             </div>
           </div>
 
@@ -577,14 +587,14 @@ const Billing = () => {
                       </td>
                     </tr>
                   ) : (
-                    filteredHistory.map((item, index) => (
+                    paginatedHistory.map((item, index) => (
                       <tr 
                         key={item.id} 
                         style={{ borderBottom: '1px solid #F1F5F9', transition: 'background 0.2s' }}
                         onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'}
                         onMouseOut={(e) => e.currentTarget.style.background = 'white'}
                       >
-                        <td style={{ padding: '16px 20px', fontSize: '14px', color: '#64748B', fontWeight: '500' }}>{index + 1}</td>
+                        <td style={{ padding: '16px 20px', fontSize: '14px', color: '#64748B', fontWeight: '500' }}>{startIndex + index + 1}</td>
                         <td style={{ padding: '16px 20px', fontSize: '14px', fontWeight: '600', color: 'var(--primary-blue)', fontFamily: 'monospace' }}>
                           {item.id}
                         </td>
@@ -629,6 +639,14 @@ const Billing = () => {
                 </tbody>
               </table>
             </div>
+            <TablePagination
+              currentPage={currentPage}
+              setCurrentPage={setCurrentPage}
+              totalItems={filteredHistory.length}
+              itemsPerPage={itemsPerPage}
+              setItemsPerPage={setItemsPerPage}
+              itemName="invoices"
+            />
           </div>
 
         </div>
@@ -712,7 +730,7 @@ const Billing = () => {
               Switch to {upgradeModalPlan.name}?
             </h3>
             <p style={{ fontSize: '14px', color: '#64748B', margin: '0 0 20px 0', lineHeight: '1.5' }}>
-              Your account will be updated to the <strong>{upgradeModalPlan.name}</strong> at <strong>${upgradeModalPlan.price}/month</strong> starting next billing cycle.
+              Your account will be updated to the <strong>{upgradeModalPlan.name}</strong> at <strong>₹{upgradeModalPlan.price}/month</strong> starting next billing cycle.
             </p>
             <div style={{ display: 'flex', gap: '12px' }}>
               <button onClick={() => setUpgradeModalPlan(null)} style={{ flex: 1, padding: '12px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '8px', color: '#475569', fontWeight: '600', cursor: 'pointer' }}>

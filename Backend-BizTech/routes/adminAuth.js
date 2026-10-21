@@ -5,6 +5,11 @@ const jwt = require('jsonwebtoken');
 const Admin = require('../models/Admin');
 const User = require('../models/User');
 const Pricing = require('../models/Pricing');
+const Branch = require('../models/Branch');
+const Employee = require('../models/Employee');
+const Customer = require('../models/Customer');
+const Inventory = require('../models/Inventory');
+const Sale = require('../models/Sale');
 
 // Helper to find or seed the default superadmin
 const getAdminFromRequest = async (req) => {
@@ -223,6 +228,84 @@ router.delete('/users/:id', async (req, res) => {
   }
 });
 
+// @route   GET /api/admin/users/:id/details
+// @desc    Get complete customer data (profile, branches, staff, businesses, metrics, session)
+router.get('/users/:id/details', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: 'Customer not found' });
+    }
+
+    const tenantIdStr = user._id.toString();
+    const tenantIdObj = user._id;
+    const matchTenant = { $in: [tenantIdStr, tenantIdObj] };
+
+    const [branches, employees, customersCount, inventoryCount, salesCount] = await Promise.all([
+      Branch.find({ tenantId: matchTenant }).select('-password').sort({ createdAt: -1 }),
+      Employee.find({ tenantId: matchTenant }).sort({ createdAt: -1 }),
+      Customer.countDocuments({ tenantId: matchTenant }).catch(() => 0),
+      Inventory.countDocuments({ tenantId: matchTenant }).catch(() => 0),
+      Sale.countDocuments({ tenantId: matchTenant }).catch(() => 0)
+    ]);
+
+    // Generate user impersonation token for the embedded workspace viewer
+    const payload = {
+      user: {
+        id: user.id,
+        businessType: user.businessType,
+        role: 'owner',
+        impersonatedByAdmin: true
+      }
+    };
+
+    const token = jwt.sign(
+      payload,
+      process.env.JWT_SECRET || 'fallback_secret',
+      { expiresIn: '1d' }
+    );
+
+    res.json({
+      user: {
+        _id: user._id,
+        id: user._id.toString().substring(user._id.toString().length - 6).toUpperCase(),
+        userId: user.userId || `BT-${user._id.toString().substring(user._id.toString().length - 4)}`,
+        fullName: user.fullName,
+        email: user.email,
+        phone: user.phone,
+        businessName: user.businessName || `${user.fullName}'s Business`,
+        businessType: user.businessType || 1,
+        industry: user.industry || 'Not specified',
+        address: user.address || 'Not specified',
+        regNo: user.regNo || 'N/A',
+        businessPhone: user.businessPhone || user.phone || 'N/A',
+        createdAt: user.createdAt,
+        modules: user.modules || [],
+        businesses: user.businesses || [],
+        subscriptionStatus: user.subscriptionStatus || 'Active',
+        subscriptionBillingCycle: user.subscriptionBillingCycle || 'Monthly',
+        subscriptionRenewalDate: user.subscriptionRenewalDate,
+        subscriptionCustomAmount: user.subscriptionCustomAmount
+      },
+      branches: branches || [],
+      employees: employees || [],
+      businesses: user.businesses || [],
+      counts: {
+        branches: branches ? branches.length : 0,
+        employees: employees ? employees.length : 0,
+        businesses: (user.businesses && user.businesses.length > 0) ? user.businesses.length : 1,
+        customers: customersCount || 0,
+        inventory: inventoryCount || 0,
+        sales: salesCount || 0
+      },
+      impersonationToken: token
+    });
+  } catch (err) {
+    console.error('Error fetching customer details:', err);
+    res.status(500).json({ message: 'Server error fetching user details' });
+  }
+});
+
 // @route   POST /api/admin/impersonate/:id
 // @desc    Impersonate a tenant (generates user session token for admin)
 router.post('/impersonate/:id', async (req, res) => {
@@ -236,6 +319,7 @@ router.post('/impersonate/:id', async (req, res) => {
       user: {
         id: user.id,
         businessType: user.businessType,
+        role: 'owner',
         impersonatedByAdmin: true
       }
     };

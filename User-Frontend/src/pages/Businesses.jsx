@@ -1,7 +1,8 @@
 import { exportToCSV } from '../utils/exportToCSV';
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowUp, ArrowDown, Building2, Plus, Phone, X, Eye, Pencil, Trash2, AlertTriangle, Search, Filter, ArrowUpDown, Download } from 'lucide-react';
+import { ArrowUp, ArrowDown, Building2, Plus, Phone, X, Eye, Pencil, Trash2, AlertTriangle, Search, Filter, ArrowUpDown, Download, FileText, ShieldCheck } from 'lucide-react';
+import TablePagination from '../components/TablePagination';
 
 const Businesses = () => {
   const [businesses, setBusinesses] = useState([]);
@@ -12,6 +13,9 @@ const Businesses = () => {
   const [deleteId, setDeleteId] = useState(null);
   const [search, setSearch] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const requestSort = (key) => {
     let direction = 'asc';
@@ -71,6 +75,10 @@ const Businesses = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!formData.phone || formData.phone.length !== 10) {
+      alert('Contact phone must be exactly 10 digits.');
+      return;
+    }
     try {
       const token = localStorage.getItem('token');
       const url = editingBusiness
@@ -157,6 +165,13 @@ const Businesses = () => {
       return 0;
     });
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, filterDays, customStartDate, customEndDate, itemsPerPage]);
+
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedBusinesses = filteredBusinesses.slice(startIndex, startIndex + itemsPerPage);
+
   return (
     <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto', animation: 'fadeIn 0.3s ease-out' }}>
       
@@ -175,6 +190,30 @@ const Businesses = () => {
         >
           <Plus size={18} /> Add New Business
         </button>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '32px' }}>
+        <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Building2 size={24} /></div>
+          <div>
+            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Total Businesses</p>
+            <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{businesses.length}</h3>
+          </div>
+        </div>
+        <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#F0FDF4', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ShieldCheck size={24} /></div>
+          <div>
+            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Registered Entities</p>
+            <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{businesses.filter(b => b.regNo).length}</h3>
+          </div>
+        </div>
+        <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#F5F3FF', color: '#8B5CF6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Phone size={24} /></div>
+          <div>
+            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Contact Verified</p>
+            <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{businesses.filter(b => b.phone).length}</h3>
+          </div>
+        </div>
       </div>
 
       <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', flexWrap: 'wrap', justifyContent: 'space-between' }}>
@@ -245,10 +284,10 @@ const Businesses = () => {
                   </td>
                 </tr>
               ) : (
-                filteredBusinesses.map((b, index) => (
+                paginatedBusinesses.map((b, index) => (
                   <tr key={b._id || index} style={{ borderBottom: '1px solid #E2E8F0', transition: 'background 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
                     <td style={{ padding: '16px 24px', fontSize: '15px', color: '#475569', fontWeight: '500' }}>
-                      {index + 1}
+                      {startIndex + index + 1}
                     </td>
                     <td style={{ padding: '16px 24px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -297,6 +336,15 @@ const Businesses = () => {
             </tbody>
           </table>
         </div>
+
+        <TablePagination
+          currentPage={currentPage}
+          setCurrentPage={setCurrentPage}
+          totalItems={filteredBusinesses.length}
+          itemsPerPage={itemsPerPage}
+          setItemsPerPage={setItemsPerPage}
+          itemName="businesses"
+        />
       </div>
 
       {showModal && createPortal(
@@ -317,8 +365,26 @@ const Businesses = () => {
                 <input placeholder="Enter registration number" type="text" value={formData.regNo} onChange={e => setFormData({...formData, regNo: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }} />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Contact Phone</label>
-                <input placeholder="Enter phone number" type="text" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} required style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }} />
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Contact Phone *</label>
+                <input 
+                  type="tel" 
+                  inputMode="numeric"
+                  maxLength={10}
+                  pattern="[0-9]{10}"
+                  placeholder="Enter 10-digit number" 
+                  value={formData.phone} 
+                  onChange={e => {
+                    const numericVal = e.target.value.replace(/\D/g, '').slice(0, 10);
+                    setFormData({...formData, phone: numericVal});
+                  }} 
+                  required 
+                  style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }} 
+                />
+                {formData.phone && formData.phone.length > 0 && formData.phone.length < 10 && (
+                  <span style={{ fontSize: '12px', color: '#EF4444', marginTop: '4px', display: 'block' }}>
+                    Please enter a full 10-digit number
+                  </span>
+                )}
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Address</label>

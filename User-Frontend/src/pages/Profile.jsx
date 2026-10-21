@@ -172,6 +172,10 @@ const Profile = () => {
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();
+    if (formData.phone && formData.phone.length !== 10) {
+      alert('Phone number must be exactly 10 digits.');
+      return;
+    }
     setSaving(true);
     setSaveSuccess(false);
 
@@ -524,13 +528,21 @@ const Profile = () => {
                   <Phone size={14} color="var(--primary-blue)" /> Phone Number
                 </label>
                 <input 
-                  type="text" 
+                  type="tel" 
+                  inputMode="numeric"
+                  maxLength={10}
+                  pattern="[0-9]{10}"
                   className="input-field" 
                   value={formData.phone} 
-                  onChange={e => setFormData({ ...formData, phone: e.target.value })} 
-                  placeholder="e.g. +91 9876543210"
-                  style={{ height: '42px', fontSize: '14px' }}
+                  onChange={e => setFormData({ ...formData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })} 
+                  placeholder="Enter 10-digit number"
+                  style={{ height: '42px', fontSize: '14px', marginTop: '4px' }}
                 />
+                {formData.phone && formData.phone.length > 0 && formData.phone.length < 10 && (
+                  <span style={{ fontSize: '12px', color: '#EF4444', marginTop: '2px', display: 'block' }}>
+                    Please enter a full 10-digit number
+                  </span>
+                )}
               </div>
             </div>
           )}

@@ -2,6 +2,7 @@ import { exportToCSV } from '../utils/exportToCSV';
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowUp, ArrowDown, Plus, Search, Package, Tag, Trash2, Pencil, X, AlertTriangle, ArrowUpDown, Download } from 'lucide-react';
+import TablePagination from '../components/TablePagination';
 
 const getImageUrl = (image) => {
   if (!image) return '';
@@ -15,6 +16,9 @@ const Products = () => {
   const [activeTab, setActiveTab] = useState('categories');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const requestSort = (key) => {
     let direction = 'asc';
@@ -248,6 +252,13 @@ const Products = () => {
 
   const filteredData = getFilteredData();
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchQuery, filterDays, customStartDate, customEndDate, itemsPerPage]);
+
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedData = filteredData.slice(startIndex, startIndex + itemsPerPage);
+
   return (
     <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto', animation: 'fadeIn 0.3s ease-out' }}>
       
@@ -388,9 +399,9 @@ const Products = () => {
                   </td>
                 </tr>
               ) : (
-                filteredData.map((item, index) => (
+                paginatedData.map((item, index) => (
                   <tr key={item._id} style={{ borderBottom: '1px solid #E2E8F0' }}>
-                    <td style={{ padding: '16px 24px', fontSize: '15px', color: '#475569', fontWeight: '500' }}>{index + 1}</td>
+                    <td style={{ padding: '16px 24px', fontSize: '15px', color: '#475569', fontWeight: '500' }}>{startIndex + index + 1}</td>
                     <td style={{ padding: '16px 24px', fontWeight: '600', color: '#0F172A' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         {item.image ? (
@@ -507,6 +518,15 @@ const Products = () => {
             </tbody>
           </table>
         </div>
+
+        <TablePagination
+          currentPage={currentPage}
+          setCurrentPage={setCurrentPage}
+          totalItems={filteredData.length}
+          itemsPerPage={itemsPerPage}
+          setItemsPerPage={setItemsPerPage}
+          itemName={activeTab === 'categories' ? 'categories' : activeTab === 'subcategories' ? 'subcategories' : 'products'}
+        />
       </div>
 
       {showModal && createPortal(

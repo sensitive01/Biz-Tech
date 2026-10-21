@@ -266,6 +266,13 @@ const Onboarding = () => {
   };
 
   const handleNext = async () => {
+    const currentStepObj = activeSteps[currentStep];
+    if (currentStepObj?.id === 'business' && tenantType !== 4) {
+      if (singleBusiness.phone && singleBusiness.phone.length !== 10) {
+        alert('Contact phone must be exactly 10 digits.');
+        return;
+      }
+    }
     await saveProgress();
     if (currentStep < activeSteps.length - 1) {
       setCurrentStep(prev => prev + 1);
@@ -337,7 +344,21 @@ const Onboarding = () => {
                   </div>
                   <div className="input-group">
                     <label className="input-label">Contact Phone</label>
-                    <input type="text" className="input-field" placeholder="+91 9876543210" value={newBusiness.phone} onChange={e => setNewBusiness({...newBusiness, phone: e.target.value})} />
+                    <input 
+                      type="tel" 
+                      inputMode="numeric"
+                      maxLength={10}
+                      pattern="[0-9]{10}"
+                      className="input-field" 
+                      placeholder="Enter 10-digit number" 
+                      value={newBusiness.phone} 
+                      onChange={e => setNewBusiness({...newBusiness, phone: e.target.value.replace(/\D/g, '').slice(0, 10)})} 
+                    />
+                    {newBusiness.phone && newBusiness.phone.length > 0 && newBusiness.phone.length < 10 && (
+                      <span style={{ fontSize: '12px', color: '#EF4444', marginTop: '2px', display: 'block' }}>
+                        Please enter a full 10-digit number
+                      </span>
+                    )}
                   </div>
                   <div className="input-group" style={{ gridColumn: '1 / span 2' }}>
                     <label className="input-label">Primary Address</label>
@@ -348,6 +369,10 @@ const Onboarding = () => {
                   {businesses.length > 0 && <button onClick={() => setShowBusinessForm(false)} className="btn-secondary" style={{ padding: '8px 16px' }}>Cancel</button>}
                   <button onClick={() => {
                     if(newBusiness.name) {
+                      if (newBusiness.phone && newBusiness.phone.length !== 10) {
+                        alert('Contact phone must be exactly 10 digits.');
+                        return;
+                      }
                       setBusinesses([...businesses, newBusiness]);
                       setNewBusiness({ name: '', regNo: '', phone: '', address: '' });
                       setShowBusinessForm(false);
@@ -389,12 +414,20 @@ const Onboarding = () => {
             <div className="input-group">
               <label className="input-label">Contact Phone</label>
               <input 
-                type="text" 
+                type="tel" 
+                inputMode="numeric"
+                maxLength={10}
+                pattern="[0-9]{10}"
                 className="input-field" 
-                placeholder="+91 9876543210" 
+                placeholder="Enter 10-digit number" 
                 value={singleBusiness.phone} 
-                onChange={e => setSingleBusiness({...singleBusiness, phone: e.target.value})} 
+                onChange={e => setSingleBusiness({...singleBusiness, phone: e.target.value.replace(/\D/g, '').slice(0, 10)})} 
               />
+              {singleBusiness.phone && singleBusiness.phone.length > 0 && singleBusiness.phone.length < 10 && (
+                <span style={{ fontSize: '12px', color: '#EF4444', marginTop: '2px', display: 'block' }}>
+                  Please enter a full 10-digit number
+                </span>
+              )}
             </div>
             <div className="input-group" style={{ gridColumn: '1 / span 2' }}>
               <label className="input-label">Primary Address</label>
@@ -536,12 +569,20 @@ const Onboarding = () => {
                   <div className="input-group">
                     <label className="input-label">Contact Phone</label>
                     <input
-                      type="text"
+                      type="tel"
+                      inputMode="numeric"
+                      maxLength={10}
+                      pattern="[0-9]{10}"
                       className="input-field"
-                      placeholder="+91 9876543210"
+                      placeholder="Enter 10-digit number"
                       value={newBranch.phone}
-                      onChange={e => setNewBranch({ ...newBranch, phone: e.target.value })}
+                      onChange={e => setNewBranch({ ...newBranch, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
                     />
+                    {newBranch.phone && newBranch.phone.length > 0 && newBranch.phone.length < 10 && (
+                      <span style={{ fontSize: '12px', color: '#EF4444', marginTop: '2px', display: 'block' }}>
+                        Please enter a full 10-digit number
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
@@ -559,6 +600,10 @@ const Onboarding = () => {
                     type="button"
                     onClick={() => {
                       if (newBranch.name.trim()) {
+                        if (newBranch.phone && newBranch.phone.length !== 10) {
+                          alert('Contact phone must be exactly 10 digits.');
+                          return;
+                        }
                         const branchData = { ...newBranch, name: newBranch.name.trim() };
                         setBranches([branchData]);
                         setIsEditingBranch(false);
@@ -682,13 +727,31 @@ const Onboarding = () => {
                 </div>
                 <div className="input-group">
                   <label className="input-label">Contact Phone</label>
-                  <input type="text" className="input-field" placeholder="+91 9876543210" value={newBranch.phone} onChange={e => setNewBranch({...newBranch, phone: e.target.value})} />
+                  <input 
+                    type="tel" 
+                    inputMode="numeric"
+                    maxLength={10}
+                    pattern="[0-9]{10}"
+                    className="input-field" 
+                    placeholder="Enter 10-digit number" 
+                    value={newBranch.phone} 
+                    onChange={e => setNewBranch({...newBranch, phone: e.target.value.replace(/\D/g, '').slice(0, 10)})} 
+                  />
+                  {newBranch.phone && newBranch.phone.length > 0 && newBranch.phone.length < 10 && (
+                    <span style={{ fontSize: '12px', color: '#EF4444', marginTop: '2px', display: 'block' }}>
+                      Please enter a full 10-digit number
+                    </span>
+                  )}
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
                 <button onClick={() => setShowBranchForm(false)} className="btn-secondary" style={{ padding: '8px 16px' }}>Cancel</button>
                 <button onClick={() => {
                   if(newBranch.name.trim()) {
+                    if (newBranch.phone && newBranch.phone.length !== 10) {
+                      alert('Contact phone must be exactly 10 digits.');
+                      return;
+                    }
                     const branchData = { ...newBranch, name: newBranch.name.trim() };
                     const updated = [...branches, branchData];
                     setBranches(updated);
@@ -1017,7 +1080,21 @@ const Onboarding = () => {
                 </div>
                 <div className="input-group">
                   <label className="input-label">Phone Number</label>
-                  <input type="text" className="input-field" placeholder="+91 9876543210" value={newEmployee.phone} onChange={e => setNewEmployee({...newEmployee, phone: e.target.value})} />
+                  <input 
+                    type="tel" 
+                    inputMode="numeric"
+                    maxLength={10}
+                    pattern="[0-9]{10}"
+                    className="input-field" 
+                    placeholder="Enter 10-digit number" 
+                    value={newEmployee.phone} 
+                    onChange={e => setNewEmployee({...newEmployee, phone: e.target.value.replace(/\D/g, '').slice(0, 10)})} 
+                  />
+                  {newEmployee.phone && newEmployee.phone.length > 0 && newEmployee.phone.length < 10 && (
+                    <span style={{ fontSize: '12px', color: '#EF4444', marginTop: '2px', display: 'block' }}>
+                      Please enter a full 10-digit number
+                    </span>
+                  )}
                 </div>
                 <div className="input-group">
                   <label className="input-label">Shift Timing</label>
@@ -1036,6 +1113,10 @@ const Onboarding = () => {
                 <button onClick={() => setShowEmployeeForm(false)} className="btn-secondary" style={{ padding: '8px 16px' }}>Cancel</button>
                 <button onClick={() => {
                   if (newEmployee.name.trim()) {
+                    if (newEmployee.phone && newEmployee.phone.length !== 10) {
+                      alert('Phone number must be exactly 10 digits.');
+                      return;
+                    }
                     const assignedBranch = tenantType === 2
                       ? (branches[0]?.name || 'Main Branch')
                       : (newEmployee.branch || branches[0]?.name || 'Main Branch');

@@ -1,7 +1,8 @@
 import { exportToCSV } from '../utils/exportToCSV';
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowUp, ArrowDown, UserCheck, Plus, X, Eye, Pencil, Trash2, AlertTriangle, Search, ArrowUpDown, Download } from 'lucide-react';
+import { ArrowUp, ArrowDown, UserCheck, Plus, X, Eye, Pencil, Trash2, AlertTriangle, Search, ArrowUpDown, Download, Users, Building2 } from 'lucide-react';
+import TablePagination from '../components/TablePagination';
 
 const Customers = () => {
   const [items, setItems] = useState([]);
@@ -12,6 +13,9 @@ const Customers = () => {
   const [deleteId, setDeleteId] = useState(null);
   const [search, setSearch] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const requestSort = (key) => {
     let direction = 'asc';
@@ -90,6 +94,10 @@ const Customers = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!formData.phone || formData.phone.length !== 10) {
+      alert('Phone number must be exactly 10 digits.');
+      return;
+    }
     try {
       const token = localStorage.getItem('token');
       const url = editingItem
@@ -176,6 +184,13 @@ const Customers = () => {
       return 0;
     });
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, filterDays, customStartDate, customEndDate, itemsPerPage]);
+
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedItems = filteredItems.slice(startIndex, startIndex + itemsPerPage);
+
   const renderCustomerTypeBadge = (type) => {
     switch (type) {
       case 'Wholesale':
@@ -202,6 +217,30 @@ const Customers = () => {
         <button onClick={handleOpenAdd} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', background: 'var(--primary-blue)', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}>
           <Plus size={18} /> Add New Customer
         </button>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '32px' }}>
+        <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Users size={24} /></div>
+          <div>
+            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Total Customers</p>
+            <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{items.length}</h3>
+          </div>
+        </div>
+        <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#F5F3FF', color: '#8B5CF6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Building2 size={24} /></div>
+          <div>
+            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Commercial / Wholesale</p>
+            <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{items.filter(c => c.customerType === 'Commercial' || c.customerType === 'Wholesale').length}</h3>
+          </div>
+        </div>
+        <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#F0FDF4', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><UserCheck size={24} /></div>
+          <div>
+            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Retail / Individual</p>
+            <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{items.filter(c => c.customerType === 'Retail' || c.customerType === 'Individual' || !c.customerType).length}</h3>
+          </div>
+        </div>
       </div>
 
       <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', flexWrap: 'wrap', justifyContent: 'space-between' }}>
@@ -271,9 +310,9 @@ const Customers = () => {
                   </td>
                 </tr>
               ) : (
-                filteredItems.map((item, index) => (
+                paginatedItems.map((item, index) => (
                   <tr key={item._id} style={{ borderBottom: '1px solid #E2E8F0', transition: 'background 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
-                    <td style={{ padding: '16px 20px', fontSize: '14px', color: '#475569', fontWeight: '500' }}>{index + 1}</td>
+                    <td style={{ padding: '16px 20px', fontSize: '14px', color: '#475569', fontWeight: '500' }}>{startIndex + index + 1}</td>
                     <td style={{ padding: '16px 20px', color: '#0F172A', fontSize: '14px', fontWeight: '600' }}>{item.name}</td>
                     <td style={{ padding: '16px 20px', color: '#475569', fontSize: '14px' }}>{item.companyName || '-'}</td>
                     <td style={{ padding: '16px 20px' }}>
@@ -298,6 +337,15 @@ const Customers = () => {
             </tbody>
           </table>
         </div>
+
+        <TablePagination
+          currentPage={currentPage}
+          setCurrentPage={setCurrentPage}
+          totalItems={filteredItems.length}
+          itemsPerPage={itemsPerPage}
+          setItemsPerPage={setItemsPerPage}
+          itemName="customers"
+        />
       </div>
 
       {showModal && createPortal(
@@ -335,7 +383,25 @@ const Customers = () => {
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>Phone *</label>
-                  <input placeholder="Enter phone number" type="text" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} required style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box' }} />
+                  <input 
+                    type="tel"
+                    inputMode="numeric"
+                    maxLength={10}
+                    pattern="[0-9]{10}"
+                    placeholder="Enter 10-digit number" 
+                    value={formData.phone} 
+                    onChange={e => {
+                      const numericVal = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      setFormData({...formData, phone: numericVal});
+                    }} 
+                    required 
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box' }} 
+                  />
+                  {formData.phone && formData.phone.length > 0 && formData.phone.length < 10 && (
+                    <span style={{ fontSize: '12px', color: '#EF4444', marginTop: '4px', display: 'block' }}>
+                      Please enter a full 10-digit number
+                    </span>
+                  )}
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>Email</label>

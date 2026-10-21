@@ -66,6 +66,10 @@ const AdminProfile = () => {
 
   const handleProfileSubmit = async (e) => {
     e.preventDefault();
+    if (formData.phone && formData.phone.length !== 10) {
+      setErrorMsg('Phone number must be exactly 10 digits.');
+      return;
+    }
     setSaving(true);
     setErrorMsg('');
     setSuccessMsg('');
@@ -341,13 +345,22 @@ const AdminProfile = () => {
               <div className="input-group" style={{ marginBottom: 0 }}>
                 <label className="input-label" style={{ fontWeight: '600', fontSize: '13px' }}>Phone Number</label>
                 <input 
-                  type="text" 
+                  type="tel" 
+                  inputMode="numeric"
+                  maxLength={10}
+                  pattern="[0-9]{10}"
                   className="input-field"
                   disabled={!isEditing}
                   value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  style={{ background: isEditing ? 'white' : '#F8FAFC', cursor: isEditing ? 'text' : 'not-allowed' }}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                  placeholder="Enter 10-digit number"
+                  style={{ background: isEditing ? 'white' : '#F8FAFC', cursor: isEditing ? 'text' : 'not-allowed', marginTop: '4px' }}
                 />
+                {formData.phone && formData.phone.length > 0 && formData.phone.length < 10 && (
+                  <span style={{ fontSize: '12px', color: '#EF4444', marginTop: '2px', display: 'block' }}>
+                    Please enter a full 10-digit number
+                  </span>
+                )}
               </div>
             </div>
 

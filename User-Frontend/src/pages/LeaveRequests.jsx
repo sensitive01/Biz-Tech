@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Calendar as CalendarIcon, Plus, X, Trash2, Check, XCircle, Search, Download, ArrowUp, ArrowDown, ArrowUpDown, Pencil } from 'lucide-react';
+import { Calendar as CalendarIcon, Plus, X, Trash2, Check, XCircle, Search, Download, ArrowUp, ArrowDown, ArrowUpDown, Pencil, Clock, CheckCircle2 } from 'lucide-react';
 import { exportToCSV } from '../utils/exportToCSV';
 import { formatDate } from '../utils/formatDate';
+import TablePagination from '../components/TablePagination';
 
 const LeaveRequests = () => {
   const [leaves, setLeaves] = useState([]);
@@ -16,6 +17,12 @@ const LeaveRequests = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingLeave, setEditingLeave] = useState(null);
   const [formData, setFormData] = useState({ employeeId: '', type: 'Annual Leave', startDate: '', endDate: '', reason: '' });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, filterDays, customStartDate, customEndDate, itemsPerPage]);
 
   const fetchData = async () => {
     try {
@@ -157,6 +164,9 @@ const LeaveRequests = () => {
       return 0;
     });
 
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedLeaves = filteredLeaves.slice(startIndex, startIndex + itemsPerPage);
+
   return (
     <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto', animation: 'fadeIn 0.3s ease-out' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
@@ -169,6 +179,37 @@ const LeaveRequests = () => {
         <button onClick={handleOpenAdd} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', background: '#2563EB', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}>
           <Plus size={18} /> New Request
         </button>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '32px' }}>
+        <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#FFFBEB', color: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Clock size={24} /></div>
+          <div>
+            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Pending Review</p>
+            <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{leaves.filter(l => l.status === 'Pending').length}</h3>
+          </div>
+        </div>
+        <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#F0FDF4', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CheckCircle2 size={24} /></div>
+          <div>
+            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Approved</p>
+            <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{leaves.filter(l => l.status === 'Approved').length}</h3>
+          </div>
+        </div>
+        <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#FEF2F2', color: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><XCircle size={24} /></div>
+          <div>
+            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Rejected</p>
+            <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{leaves.filter(l => l.status === 'Rejected').length}</h3>
+          </div>
+        </div>
+        <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CalendarIcon size={24} /></div>
+          <div>
+            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Total Requests</p>
+            <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{leaves.length}</h3>
+          </div>
+        </div>
       </div>
 
       <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', flexWrap: 'wrap', justifyContent: 'space-between' }}>
@@ -195,56 +236,66 @@ const LeaveRequests = () => {
       </div>
 
       <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-          <thead>
-            <tr style={{ background: '#F8FAFC' }}>
-              <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', width: '60px' }}>S.No</th>
-              <th onClick={() => requestSort('employee')} style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', alignItems: 'center' }}>Employee {renderSortIcon('employee')}</div></th>
-              <th onClick={() => requestSort('type')} style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', alignItems: 'center' }}>Type & Dates {renderSortIcon('type')}</div></th>
-              <th onClick={() => requestSort('reason')} style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', alignItems: 'center' }}>Reason {renderSortIcon('reason')}</div></th>
-              <th onClick={() => requestSort('status')} style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', alignItems: 'center' }}>Status {renderSortIcon('status')}</div></th>
-              <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', textAlign: 'right' }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan="6" style={{ padding: '32px', textAlign: 'center', color: '#64748B' }}>Loading...</td></tr>
-            ) : filteredLeaves.length === 0 ? (
-              <tr><td colSpan="6" style={{ padding: '64px 32px', textAlign: 'center', color: '#64748B' }}>No leave requests match your search.</td></tr>
-            ) : filteredLeaves.map((leave, index) => (
-              <tr key={leave._id} style={{ borderBottom: '1px solid #E2E8F0' }}>
-                <td style={{ padding: '16px 24px', fontSize: '15px', color: '#475569', fontWeight: '500' }}>{index + 1}</td>
-                <td style={{ padding: '16px 24px', color: '#0F172A', fontWeight: '600' }}>{leave.employeeId?.name || 'Unknown'}</td>
-                <td style={{ padding: '16px 24px' }}>
-                  <div style={{ fontWeight: '500', color: '#0F172A' }}>{leave.type}</div>
-                  <div style={{ fontSize: '13px', color: '#64748B', marginTop: '4px' }}>{formatDate(leave.startDate)} to {formatDate(leave.endDate)}</div>
-                </td>
-                <td style={{ padding: '16px 24px', color: '#64748B', fontSize: '14px', maxWidth: '200px' }}>{leave.reason || 'No reason provided'}</td>
-                <td style={{ padding: '16px 24px' }}>
-                  <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '600', background: leave.status === 'Approved' ? '#DCFCE7' : leave.status === 'Rejected' ? '#FEE2E2' : '#F1F5F9', color: leave.status === 'Approved' ? '#166534' : leave.status === 'Rejected' ? '#991B1B' : '#475569' }}>
-                    {leave.status}
-                  </span>
-                </td>
-                <td style={{ padding: '16px 24px', textAlign: 'right' }}>
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', alignItems: 'center' }}>
-                    {leave.status === 'Pending' && (
-                      <>
-                        <button onClick={() => updateStatus(leave._id, 'Approved')} style={{ background: '#DCFCE7', color: '#166534', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '13px' }}><Check size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }} />Approve</button>
-                        <button onClick={() => updateStatus(leave._id, 'Rejected')} style={{ background: '#FEE2E2', color: '#991B1B', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '13px' }}><XCircle size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }} />Reject</button>
-                      </>
-                    )}
-                    <button title="Edit" onClick={() => handleEdit(leave)} style={{ background: '#EFF6FF', border: 'none', color: '#2563EB', cursor: 'pointer', padding: '8px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s' }}>
-                      <Pencil size={15} />
-                    </button>
-                    <button title="Delete" onClick={() => handleDelete(leave._id)} style={{ background: '#FEE2E2', border: 'none', color: '#EF4444', cursor: 'pointer', padding: '8px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s' }}>
-                      <Trash2 size={15} />
-                    </button>
-                  </div>
-                </td>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+            <thead>
+              <tr style={{ background: '#F8FAFC' }}>
+                <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', width: '60px' }}>S.No</th>
+                <th onClick={() => requestSort('employee')} style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', alignItems: 'center' }}>Employee {renderSortIcon('employee')}</div></th>
+                <th onClick={() => requestSort('type')} style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', alignItems: 'center' }}>Type & Dates {renderSortIcon('type')}</div></th>
+                <th onClick={() => requestSort('reason')} style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', alignItems: 'center' }}>Reason {renderSortIcon('reason')}</div></th>
+                <th onClick={() => requestSort('status')} style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', alignItems: 'center' }}>Status {renderSortIcon('status')}</div></th>
+                <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', textAlign: 'right' }}>Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan="6" style={{ padding: '32px', textAlign: 'center', color: '#64748B' }}>Loading...</td></tr>
+              ) : filteredLeaves.length === 0 ? (
+                <tr><td colSpan="6" style={{ padding: '64px 32px', textAlign: 'center', color: '#64748B' }}>No leave requests match your search.</td></tr>
+              ) : paginatedLeaves.map((leave, index) => (
+                <tr key={leave._id} style={{ borderBottom: '1px solid #E2E8F0' }}>
+                  <td style={{ padding: '16px 24px', fontSize: '15px', color: '#475569', fontWeight: '500' }}>{startIndex + index + 1}</td>
+                  <td style={{ padding: '16px 24px', color: '#0F172A', fontWeight: '600' }}>{leave.employeeId?.name || 'Unknown'}</td>
+                  <td style={{ padding: '16px 24px' }}>
+                    <div style={{ fontWeight: '500', color: '#0F172A' }}>{leave.type}</div>
+                    <div style={{ fontSize: '13px', color: '#64748B', marginTop: '4px' }}>{formatDate(leave.startDate)} to {formatDate(leave.endDate)}</div>
+                  </td>
+                  <td style={{ padding: '16px 24px', color: '#64748B', fontSize: '14px', maxWidth: '200px' }}>{leave.reason || 'No reason provided'}</td>
+                  <td style={{ padding: '16px 24px' }}>
+                    <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '600', background: leave.status === 'Approved' ? '#DCFCE7' : leave.status === 'Rejected' ? '#FEE2E2' : '#F1F5F9', color: leave.status === 'Approved' ? '#166534' : leave.status === 'Rejected' ? '#991B1B' : '#475569' }}>
+                      {leave.status}
+                    </span>
+                  </td>
+                  <td style={{ padding: '16px 24px', textAlign: 'right' }}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', alignItems: 'center' }}>
+                      {leave.status === 'Pending' && (
+                        <>
+                          <button onClick={() => updateStatus(leave._id, 'Approved')} style={{ background: '#DCFCE7', color: '#166534', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '13px' }}><Check size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }} />Approve</button>
+                          <button onClick={() => updateStatus(leave._id, 'Rejected')} style={{ background: '#FEE2E2', color: '#991B1B', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '13px' }}><XCircle size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }} />Reject</button>
+                        </>
+                      )}
+                      <button title="Edit" onClick={() => handleEdit(leave)} style={{ background: '#EFF6FF', border: 'none', color: '#2563EB', cursor: 'pointer', padding: '8px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s' }}>
+                        <Pencil size={15} />
+                      </button>
+                      <button title="Delete" onClick={() => handleDelete(leave._id)} style={{ background: '#FEE2E2', border: 'none', color: '#EF4444', cursor: 'pointer', padding: '8px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s' }}>
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <TablePagination
+          currentPage={currentPage}
+          setCurrentPage={setCurrentPage}
+          totalItems={filteredLeaves.length}
+          itemsPerPage={itemsPerPage}
+          setItemsPerPage={setItemsPerPage}
+          itemName="leave requests"
+        />
       </div>
 
       {showModal && createPortal(
