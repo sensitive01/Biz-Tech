@@ -289,6 +289,7 @@ const Branches = () => {
         setEditingBranch(null);
         setFormData({ name: '', location: '', manager: '', contactNumber: '', businessName: '' });
         fetchBranches();
+        window.dispatchEvent(new Event('branchDataUpdated'));
       } else {
         const errData = await res.json().catch(() => ({}));
         alert(errData.error || (editingBranch ? 'Failed to update branch' : 'Failed to add branch'));
@@ -312,6 +313,7 @@ const Branches = () => {
       if (res.ok) {
         setDeleteBranchId(null);
         fetchBranches();
+        window.dispatchEvent(new Event('branchDataUpdated'));
       } else {
         alert('Failed to delete branch');
       }
@@ -327,40 +329,57 @@ const Branches = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#0F172A', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <Store size={28} color="#2563EB" /> Branches Management
+            <Store size={28} color="#2563EB" /> {tenantType === 2 ? 'Branch Management' : 'Branches Management'}
           </h1>
           <p style={{ color: '#64748B', fontSize: '15px', margin: 0 }}>
-            Manage your store locations, assign managers, and track branch contact details.
+            {tenantType === 2 
+              ? 'Manage your single store location, assign managers, and update branch contact details.' 
+              : 'Manage your store locations, assign managers, and track branch contact details.'}
           </p>
         </div>
-        <button 
-          onClick={handleOpenAdd} 
-          style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', background: '#2563EB', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
-        >
-          <Plus size={18} /> Add New Branch
-        </button>
+        {tenantType === 2 ? (
+          branches.length === 0 ? (
+            <button 
+              onClick={handleOpenAdd} 
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', background: '#2563EB', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
+            >
+              <Plus size={18} /> Configure Branch
+            </button>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '8px', color: '#1D4ED8', fontSize: '13px', fontWeight: '600' }}>
+              <CheckCircle2 size={16} /> Single Branch Archetype (Type 2)
+            </div>
+          )
+        ) : (
+          <button 
+            onClick={handleOpenAdd} 
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', background: '#2563EB', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
+          >
+            <Plus size={18} /> Add New Branch
+          </button>
+        )}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '32px' }}>
         <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
           <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Store size={24} /></div>
           <div>
-            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Total Branches</p>
-            <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{branches.length}</h3>
+            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>{tenantType === 2 ? 'Branch Location' : 'Total Branches'}</p>
+            <h3 style={{ margin: 0, fontSize: tenantType === 2 ? '18px' : '24px', color: '#0F172A', fontWeight: '700' }}>{tenantType === 2 ? (branches[0]?.name || 'Not Configured') : branches.length}</h3>
           </div>
         </div>
         <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
           <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#F0FDF4', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><UserCheck size={24} /></div>
           <div>
-            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Assigned Managers</p>
-            <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{branches.filter(b => b.managerId || b.manager).length}</h3>
+            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Assigned Manager</p>
+            <h3 style={{ margin: 0, fontSize: tenantType === 2 ? '18px' : '24px', color: '#0F172A', fontWeight: '700' }}>{tenantType === 2 ? (branches[0]?.manager || 'Unassigned') : branches.filter(b => b.managerId || b.manager).length}</h3>
           </div>
         </div>
         <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
           <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#F5F3FF', color: '#8B5CF6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Building2 size={24} /></div>
           <div>
-            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Linked Businesses</p>
-            <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{new Set(branches.map(b => b.businessId?._id || b.businessId).filter(Boolean)).size || (branches.length > 0 ? 1 : 0)}</h3>
+            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>{tenantType === 2 ? 'Branch Contact' : 'Linked Businesses'}</p>
+            <h3 style={{ margin: 0, fontSize: tenantType === 2 ? '18px' : '24px', color: '#0F172A', fontWeight: '700' }}>{tenantType === 2 ? (branches[0]?.contactNumber || 'Not Provided') : (new Set(branches.map(b => b.businessId?._id || b.businessId).filter(Boolean)).size || (branches.length > 0 ? 1 : 0))}</h3>
           </div>
         </div>
       </div>

@@ -52,6 +52,20 @@ const Onboarding = () => {
   const [showEmployeeForm, setShowEmployeeForm] = useState(false);
   const [newEmployee, setNewEmployee] = useState({ name: '', designation: '', customDesignation: '', role: '', email: '', phone: '', shiftFrom: '', shiftTo: '', salary: '', branch: 'Main Branch', business: '' });
 
+  // Intercept browser back button while on onboarding to navigate to landing page
+  useEffect(() => {
+    const handlePopState = () => {
+      navigate('/', { replace: true });
+    };
+
+    window.history.pushState(null, '', window.location.href);
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [navigate]);
+
   // Fetch prefilled data on mount (strictly scoped to the authenticated tenant)
   useEffect(() => {
     const fetchPrefilledData = async () => {
@@ -277,17 +291,21 @@ const Onboarding = () => {
     if (currentStep < activeSteps.length - 1) {
       setCurrentStep(prev => prev + 1);
     } else {
-      navigate('/tenant/dashboard');
+      navigate('/tenant/dashboard', { replace: true });
     }
   };
 
   const handleBack = () => {
-    if (currentStep > 0) setCurrentStep(prev => prev - 1);
+    if (currentStep > 0) {
+      setCurrentStep(prev => prev - 1);
+    } else {
+      navigate('/');
+    }
   };
 
   const handleSkip = async () => {
     await saveProgress();
-    navigate('/tenant/dashboard');
+    navigate('/tenant/dashboard', { replace: true });
   };
 
   const renderStepContent = () => {
@@ -1209,7 +1227,7 @@ const Onboarding = () => {
       {/* Left Sidebar Progress */}
       <div className={`onboarding-sidebar ${isSidebarOpen ? 'open' : ''}`}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '64px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }} onClick={() => navigate('/')}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '8px', overflow: 'hidden' }}>
               <img src="/logo.jpg" alt="BizTech Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
@@ -1265,7 +1283,7 @@ const Onboarding = () => {
         
         {/* Header */}
         <div className={`onboarding-header ${isSidebarOpen ? 'hide-on-desktop' : ''}`}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }} onClick={() => navigate('/')}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '8px', overflow: 'hidden' }}>
               <img src="/logo.jpg" alt="BizTech Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
@@ -1287,8 +1305,7 @@ const Onboarding = () => {
           
           <button 
             onClick={handleBack} 
-            disabled={currentStep === 0}
-            style={{ padding: '12px 24px', background: 'white', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-title)', fontWeight: '600', fontSize: '15px', cursor: currentStep === 0 ? 'not-allowed' : 'pointer', opacity: currentStep === 0 ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: '8px' }}
+            style={{ padding: '12px 24px', background: 'white', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-title)', fontWeight: '600', fontSize: '15px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
           >
             <ArrowLeft size={18} /> Back
           </button>

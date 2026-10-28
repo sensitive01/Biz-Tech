@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { User, Mail, Phone, Lock, Eye, EyeOff, Loader2 } from 'lucide-react';
 import LanguageSelector from '../components/LanguageSelector';
@@ -10,6 +10,14 @@ const Register = () => {
   const [formData, setFormData] = useState({ fullName: '', email: '', phone: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    // Starting a new registration clears any existing session so the user can register fresh
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('tenantType');
+    localStorage.removeItem('modules');
+  }, []);
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -35,6 +43,10 @@ const Register = () => {
         Object.keys(localStorage).forEach(key => {
           if (key.startsWith('onb_')) localStorage.removeItem(key);
         });
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('tenantType');
+        localStorage.removeItem('modules');
         navigate('/select-type', { state: { ...formData } });
       }
     } catch (err) {

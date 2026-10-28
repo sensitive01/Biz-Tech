@@ -321,8 +321,8 @@ router.post('/onboarding', async (req, res) => {
             shiftFrom: e.shiftFrom || '',
             shiftTo: e.shiftTo || '',
             businessName: e.business || e.businessName || '',
-            branchName: e.branch || e.branchName || 'Main Office',
-            branchId: branchMap[e.branch || e.branchName] || null,
+            branchName: e.branch || e.branchName || (createdBranches[0] ? createdBranches[0].name : 'Main Office'),
+            branchId: branchMap[e.branch || e.branchName] || (createdBranches.length > 0 ? createdBranches[0]._id : null),
             tenantId: userId
           },
           { upsert: true, new: true }

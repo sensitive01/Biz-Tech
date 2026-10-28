@@ -9,6 +9,7 @@ const TenantLayout = () => {
   const [activeAlerts, setActiveAlerts] = useState([]);
   const [showAlertMenu, setShowAlertMenu] = useState(false);
   const tenantType = Number(localStorage.getItem('tenantType')) || 1;
+  const [currentBranch, setCurrentBranch] = useState(null);
   const [modules, setModules] = useState([]);
   const [currentUser, setCurrentUser] = useState(() => {
     try {
@@ -107,6 +108,32 @@ const TenantLayout = () => {
       setModules([]);
     }
   }, []);
+
+  useEffect(() => {
+    const fetchSingleBranch = async () => {
+      if (tenantType !== 2) return;
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/branches`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            setCurrentBranch(data[0]);
+          }
+        }
+      } catch (e) {
+        console.error('Error fetching single branch in layout:', e);
+      }
+    };
+
+    fetchSingleBranch();
+    const handleBranchUpdate = () => fetchSingleBranch();
+    window.addEventListener('branchDataUpdated', handleBranchUpdate);
+    return () => window.removeEventListener('branchDataUpdated', handleBranchUpdate);
+  }, [tenantType]);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -237,6 +264,33 @@ const TenantLayout = () => {
               <span>Branch: <strong>{currentUser?.branchName}</strong></span>
               {currentUser?.branchLocation && (
                 <span style={{ color: '#64748B', fontSize: '12px', fontWeight: '400' }}>• {currentUser?.branchLocation}</span>
+              )}
+            </div>
+          ) : tenantType === 2 && currentBranch ? (
+            <div 
+              onClick={() => navigate('/tenant/branches')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '6px 14px',
+                borderRadius: '20px',
+                background: '#EFF6FF',
+                border: '1px solid #BFDBFE',
+                color: '#1D4ED8',
+                fontSize: '13px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+              title="Manage your single branch location"
+              onMouseOver={(e) => e.currentTarget.style.background = '#DBEAFE'}
+              onMouseOut={(e) => e.currentTarget.style.background = '#EFF6FF'}
+            >
+              <Store size={15} />
+              <span>Branch: <strong>{currentBranch.name}</strong></span>
+              {currentBranch.location && (
+                <span style={{ color: '#64748B', fontSize: '12px', fontWeight: '400' }}>• {currentBranch.location}</span>
               )}
             </div>
           ) : <div />}
@@ -488,11 +542,11 @@ const TenantLayout = () => {
             </NavLink>
           )}
 
-          {/* 3. Branches - Owner Only */}
-          {tenantType >= 3 && currentUser?.role !== 'branch' && (
+          {/* 3. Branches - Type 2 (Single Branch) and Type 3 & 4 (Multi Branch) */}
+          {tenantType >= 2 && currentUser?.role !== 'branch' && (
             <NavLink to="/tenant/branches" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <Map size={18} />
-              <span>Branches</span>
+              <span>{tenantType === 2 ? 'Branch' : 'Branches'}</span>
             </NavLink>
           )}
 

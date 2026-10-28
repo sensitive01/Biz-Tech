@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Calendar as CalendarIcon, Plus, X, Trash2, Check, XCircle, Search, Download, ArrowUp, ArrowDown, ArrowUpDown, Pencil, Clock, CheckCircle2 } from 'lucide-react';
+import { Calendar as CalendarIcon, Plus, X, Trash2, Check, XCircle, Search, Download, ArrowUp, ArrowDown, ArrowUpDown, Pencil, Clock, CheckCircle2, Store } from 'lucide-react';
 import { exportToCSV } from '../utils/exportToCSV';
 import { formatDate } from '../utils/formatDate';
 import TablePagination from '../components/TablePagination';
@@ -256,7 +256,14 @@ const LeaveRequests = () => {
               ) : paginatedLeaves.map((leave, index) => (
                 <tr key={leave._id} style={{ borderBottom: '1px solid #E2E8F0' }}>
                   <td style={{ padding: '16px 24px', fontSize: '15px', color: '#475569', fontWeight: '500' }}>{startIndex + index + 1}</td>
-                  <td style={{ padding: '16px 24px', color: '#0F172A', fontWeight: '600' }}>{leave.employeeId?.name || 'Unknown'}</td>
+                  <td style={{ padding: '16px 24px', color: '#0F172A', fontWeight: '600' }}>
+                    <div>{leave.employeeId?.name || 'Unknown'}</div>
+                    {(leave.employeeId?.branchName || leave.employeeId?.branchId?.name) && (
+                      <div style={{ fontSize: '12px', color: '#64748B', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px', fontWeight: '400' }}>
+                        <Store size={12} color="#94A3B8" /> {leave.employeeId?.branchName || leave.employeeId?.branchId?.name}
+                      </div>
+                    )}
+                  </td>
                   <td style={{ padding: '16px 24px' }}>
                     <div style={{ fontWeight: '500', color: '#0F172A' }}>{leave.type}</div>
                     <div style={{ fontSize: '13px', color: '#64748B', marginTop: '4px' }}>{formatDate(leave.startDate)} to {formatDate(leave.endDate)}</div>
@@ -310,7 +317,11 @@ const LeaveRequests = () => {
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Employee</label>
                 <select required value={formData.employeeId} onChange={e => setFormData({...formData, employeeId: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }}>
                   <option value="">Select Employee</option>
-                  {employees.map(emp => <option key={emp._id} value={emp._id}>{emp.name}</option>)}
+                  {employees.map(emp => (
+                    <option key={emp._id} value={emp._id}>
+                      {emp.name} {emp.branchName ? `(${emp.branchName})` : emp.branchId?.name ? `(${emp.branchId.name})` : ''}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>

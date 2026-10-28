@@ -2,9 +2,9 @@ const mongoose = require('mongoose');
 
 const branchSchema = new mongoose.Schema({
   name: { type: String, required: true },
-  location: { type: String, required: true },
-  manager: { type: String, required: true },
-  contactNumber: { type: String, required: true },
+  location: { type: String, default: '' },
+  manager: { type: String, default: '' },
+  contactNumber: { type: String, default: '' },
   type: { type: String, default: 'Store' },
   businessName: { type: String, default: '' },
   tenantId: { type: String, default: 'default_tenant' },

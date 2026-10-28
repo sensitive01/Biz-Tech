@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Clock, Plus, X, Pencil, Trash2, LogOut, Search, Download, ArrowUp, ArrowDown, ArrowUpDown, UserCheck, UserX, Calendar } from 'lucide-react';
+import { Clock, Plus, X, Pencil, Trash2, LogOut, Search, Download, ArrowUp, ArrowDown, ArrowUpDown, UserCheck, UserX, Calendar, Store } from 'lucide-react';
 import { exportToCSV } from '../utils/exportToCSV';
 import { formatDate } from '../utils/formatDate';
 import TablePagination from '../components/TablePagination';
@@ -270,7 +270,14 @@ const Attendance = () => {
               <tr key={record._id} style={{ borderBottom: '1px solid #E2E8F0' }}>
                 <td style={{ padding: '16px 24px', fontSize: '15px', color: '#475569', fontWeight: '500' }}>{startIndex + index + 1}</td>
                 <td style={{ padding: '16px 24px', color: '#0F172A', fontWeight: '500', whiteSpace: 'nowrap' }}>{formatDate(record.date)}</td>
-                <td style={{ padding: '16px 24px', color: '#0F172A', fontWeight: '500' }}>{record.employeeId?.name || 'Unknown'}</td>
+                <td style={{ padding: '16px 24px', color: '#0F172A', fontWeight: '500' }}>
+                  <div>{record.employeeId?.name || 'Unknown'}</div>
+                  {(record.employeeId?.branchName || record.employeeId?.branchId?.name) && (
+                    <div style={{ fontSize: '12px', color: '#64748B', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                      <Store size={12} color="#94A3B8" /> {record.employeeId?.branchName || record.employeeId?.branchId?.name}
+                    </div>
+                  )}
+                </td>
                 <td style={{ padding: '16px 24px' }}>
                   <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '600', background: record.status === 'Present' ? '#DCFCE7' : record.status === 'Absent' ? '#FEE2E2' : record.status === 'Late' ? '#FFEDD5' : '#FEF9C3', color: record.status === 'Present' ? '#166534' : record.status === 'Absent' ? '#991B1B' : record.status === 'Late' ? '#9A3412' : '#854D0E' }}>
                     {record.status}
@@ -313,7 +320,11 @@ const Attendance = () => {
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Employee</label>
                 <select required value={formData.employeeId} onChange={e => setFormData({...formData, employeeId: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }}>
                   <option value="">Select Employee</option>
-                  {employees.map(emp => <option key={emp._id} value={emp._id}>{emp.name}</option>)}
+                  {employees.map(emp => (
+                    <option key={emp._id} value={emp._id}>
+                      {emp.name} {emp.branchName ? `(${emp.branchName})` : emp.branchId?.name ? `(${emp.branchId.name})` : ''}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div style={{ display: 'flex', gap: '16px' }}>

@@ -14,6 +14,7 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [singleBranch, setSingleBranch] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
@@ -118,6 +119,22 @@ const Profile = () => {
           regNo: data.regNo || '',
           address: data.address || ''
         });
+
+        if (Number(data.businessType) === 2) {
+          try {
+            const bRes = await fetch(`${import.meta.env.VITE_API_URL}/api/branches`, {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (bRes.ok) {
+              const bData = await bRes.json();
+              if (Array.isArray(bData) && bData.length > 0) {
+                setSingleBranch(bData[0]);
+              }
+            }
+          } catch (e) {
+            console.error('Error fetching branch for profile:', e);
+          }
+        }
       } catch (err) {
         console.error('Error fetching profile:', err);
         setError('Failed to load profile data.');
@@ -600,6 +617,35 @@ const Profile = () => {
                   {user?.address || 'Not configured'}
                 </p>
               </div>
+
+              {Number(user?.businessType) === 2 && singleBranch && (
+                <div style={{ padding: '18px 20px', borderRadius: '12px', background: '#F0FDF4', border: '1px solid #BBF7D0', gridColumn: '1 / -1' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#166534', marginBottom: '6px' }}>
+                        <Store size={16} />
+                        <span style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Single Branch Location</span>
+                        <span style={{ fontSize: '11px', background: '#DCFCE7', color: '#15803D', padding: '2px 8px', borderRadius: '10px', fontWeight: '600' }}>Type 2 Archetype</span>
+                      </div>
+                      <p style={{ margin: '0 0 6px 0', fontSize: '16px', fontWeight: '700', color: '#0F172A' }}>
+                        {singleBranch.name} <span style={{ fontSize: '13px', fontWeight: '500', color: '#64748B' }}>({singleBranch.type || 'Retail Store'})</span>
+                      </p>
+                      <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', fontSize: '13px', color: '#334155' }}>
+                        <span>📍 {singleBranch.location || 'Location not specified'}</span>
+                        <span>👤 Manager: <strong>{singleBranch.manager || 'Not Assigned'}</strong></span>
+                        {singleBranch.contactNumber && <span>📞 {singleBranch.contactNumber}</span>}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/tenant/branches')}
+                      style={{ padding: '7px 14px', background: 'white', border: '1px solid #86EFAC', borderRadius: '8px', color: '#15803D', fontSize: '12px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      Manage Branch &rarr;
+                    </button>
+                  </div>
+                </div>
+              )}
 
             </div>
           ) : (

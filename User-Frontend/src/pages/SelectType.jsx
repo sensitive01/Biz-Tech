@@ -26,6 +26,14 @@ const SelectType = () => {
     fetchPricing();
   }, []);
 
+  useEffect(() => {
+    // If user is already authenticated and has no pending registration form, redirect to landing
+    const token = localStorage.getItem('token');
+    if (token && !location.state) {
+      navigate('/', { replace: true });
+    }
+  }, [location.state, navigate]);
+
   const types = [
     { id: 1, title: 'Type 1: Sole Operator', desc: '1 Owner • 1 Shop • No employee management needed', icon: <Store size={24} /> },
     { id: 2, title: 'Type 2: Single Branch + Staff', desc: '1 Owner • 1 Shop • Includes staff attendance & leaves', icon: <Users size={24} /> },
@@ -78,7 +86,7 @@ const SelectType = () => {
       }
 
       setLoading(false);
-      navigate('/onboarding');
+      navigate('/onboarding', { replace: true });
       return;
     }
     
@@ -107,7 +115,7 @@ const SelectType = () => {
         localStorage.setItem('user', JSON.stringify(data.user));
         localStorage.setItem('tenantType', selectedType.toString());
         localStorage.setItem('modules', JSON.stringify(data.user.modules || []));
-        navigate('/onboarding');
+        navigate('/onboarding', { replace: true });
       } else {
         setError(data.message || 'Registration failed');
       }
@@ -119,12 +127,29 @@ const SelectType = () => {
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'var(--bg-color)' }}>
-      <div className="card animate-fade-in auth-card" style={{ maxWidth: '600px' }}>
-        <h1 style={{ fontSize: '24px', marginBottom: '8px', textAlign: 'center' }}>Select Your Business Archetype</h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '32px', textAlign: 'center' }}>
-          Choose the structure that best fits your business to customize your dashboard.
-        </p>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', position: 'relative', background: 'var(--bg-color)' }}>
+      {/* Header */}
+      <div className="auth-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 10, padding: '24px 32px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }} onClick={() => navigate('/')}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '8px', overflow: 'hidden' }}>
+            <img src="/logo.jpg" alt="BizTech Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          </div>
+          <span style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-title)', fontFamily: 'Plus Jakarta Sans' }}>BizTech</span>
+        </div>
+        <button 
+          onClick={() => navigate('/')}
+          style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', fontSize: '14px', fontWeight: '500', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+        >
+          &larr; Back to Home
+        </button>
+      </div>
+
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+        <div className="card animate-fade-in auth-card" style={{ maxWidth: '600px', width: '100%' }}>
+          <h1 style={{ fontSize: '24px', marginBottom: '8px', textAlign: 'center' }}>Select Your Business Archetype</h1>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '32px', textAlign: 'center' }}>
+            Choose the structure that best fits your business to customize your dashboard.
+          </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '32px' }}>
           {types.map(t => {
@@ -164,6 +189,7 @@ const SelectType = () => {
         </button>
       </div>
     </div>
+  </div>
   );
 };
 

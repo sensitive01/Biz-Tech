@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Employee = require('../models/Employee');
+const Branch = require('../models/Branch');
 const jwt = require('jsonwebtoken');
 
 // Authentication middleware for strict tenant isolation
@@ -42,14 +43,30 @@ router.get('/', auth, async (req, res) => {
 router.post('/', auth, async (req, res) => {
   try {
     let branchId = req.body.branchId;
+    let branchName = req.body.branchName;
     if (req.user.role === 'branch' && req.user.branchId) {
       branchId = req.user.branchId;
+    }
+
+    if (!branchId) {
+      // Check if tenant has a single branch (e.g. Type 2 archetype)
+      const singleBranch = await Branch.findOne({ tenantId: req.user.id });
+      if (singleBranch) {
+        branchId = singleBranch._id;
+        branchName = singleBranch.name;
+      }
+    } else if (!branchName) {
+      const branchObj = await Branch.findById(branchId);
+      if (branchObj) {
+        branchName = branchObj.name;
+      }
     }
 
     const newEmployee = new Employee({
       ...req.body,
       tenantId: req.user.id,
-      branchId
+      branchId,
+      branchName: branchName || req.body.branchName || ''
     });
 
     const savedEmployee = await newEmployee.save();
@@ -78,6 +95,13 @@ router.put('/:id', auth, async (req, res) => {
 
     const updateData = { ...req.body };
     delete updateData.tenantId; // Never reassign tenantId
+
+    if (updateData.branchId && !updateData.branchName) {
+      const branchObj = await Branch.findById(updateData.branchId);
+      if (branchObj) {
+        updateData.branchName = branchObj.name;
+      }
+    }
 
     const updated = await Employee.findOneAndUpdate(
       filter,

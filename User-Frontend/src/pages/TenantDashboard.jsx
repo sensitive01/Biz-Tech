@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { IndianRupee, Users, Store, Activity, Calendar, FileText, Settings, ArrowUpRight, ArrowDownRight, CreditCard, Clock, CheckCircle2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { IndianRupee, Users, Store, Activity, Calendar, FileText, Settings, ArrowUpRight, ArrowDownRight, CreditCard, Clock, CheckCircle2, MapPin, UserCheck, Phone } from 'lucide-react';
 
 const TenantDashboard = () => {
+  const navigate = useNavigate();
   const tenantType = Number(localStorage.getItem('tenantType')) || 1;
   const [pricingPlan, setPricingPlan] = useState(null);
+  const [singleBranch, setSingleBranch] = useState(null);
+  const [employeeCount, setEmployeeCount] = useState(0);
 
   useEffect(() => {
     const fetchPricing = async () => {
@@ -22,6 +26,39 @@ const TenantDashboard = () => {
     fetchPricing();
   }, [tenantType]);
 
+  useEffect(() => {
+    const fetchDashboardBranchData = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        const headers = { 'Authorization': `Bearer ${token}` };
+
+        if (tenantType === 2) {
+          const [branchRes, empRes] = await Promise.all([
+            fetch(`${import.meta.env.VITE_API_URL}/api/branches`, { headers }),
+            fetch(`${import.meta.env.VITE_API_URL}/api/employees`, { headers })
+          ]);
+          if (branchRes.ok) {
+            const branchData = await branchRes.json();
+            if (Array.isArray(branchData) && branchData.length > 0) {
+              setSingleBranch(branchData[0]);
+            }
+          }
+          if (empRes.ok) {
+            const empData = await empRes.json();
+            if (Array.isArray(empData)) {
+              setEmployeeCount(empData.length);
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Error fetching dashboard branch data:', e);
+      }
+    };
+
+    fetchDashboardBranchData();
+  }, [tenantType]);
+
   // Mock data tailored for each archetype
   const getStats = () => {
     if (tenantType === 1) return [
@@ -31,10 +68,10 @@ const TenantDashboard = () => {
       { title: 'Monthly Revenue', value: '₹2.4L', trend: '+8%', up: true, icon: <Activity size={20} />, color: '#8B5CF6', bg: '#EDE9FE' },
     ];
     if (tenantType === 2) return [
-      { title: 'Total Employees', value: '18', trend: 'Stable', up: true, icon: <Users size={20} />, color: '#3B82F6', bg: '#DBEAFE' },
-      { title: 'Active Shifts', value: '6', trend: 'Current', up: true, icon: <Clock size={20} />, color: '#10B981', bg: '#D1FAE5' },
-      { title: 'Pending Leaves', value: '3', trend: 'Requires Action', up: false, icon: <Calendar size={20} />, color: '#F59E0B', bg: '#FEF3C7' },
-      { title: 'Weekly Payroll', value: '₹45,200', trend: '-1.5%', up: true, icon: <IndianRupee size={20} />, color: '#8B5CF6', bg: '#EDE9FE' },
+      { title: 'Branch Location', value: singleBranch?.location || singleBranch?.name || 'Main Store', trend: singleBranch?.type || 'Store', up: true, icon: <Store size={20} />, color: '#2563EB', bg: '#EFF6FF' },
+      { title: 'Branch Workforce', value: `${employeeCount} Active Staff`, trend: 'Assigned', up: true, icon: <Users size={20} />, color: '#10B981', bg: '#D1FAE5' },
+      { title: 'Branch Manager', value: singleBranch?.manager || 'Assigned', trend: 'Supervisor', up: true, icon: <UserCheck size={20} />, color: '#8B5CF6', bg: '#EDE9FE' },
+      { title: 'Contact Phone', value: singleBranch?.contactNumber || 'Available', trend: 'Verified', up: true, icon: <Phone size={20} />, color: '#F59E0B', bg: '#FEF3C7' },
     ];
     return [
       { title: 'Active Branches', value: '12', trend: '+2 this year', up: true, icon: <Store size={20} />, color: '#3B82F6', bg: '#DBEAFE' },
@@ -87,6 +124,75 @@ const TenantDashboard = () => {
           </button>
         </div>
       </div>
+
+      {/* Single Branch Card for Type 2 */}
+      {tenantType === 2 && (
+        <div style={{
+          background: 'white',
+          borderRadius: '16px',
+          border: '1px solid #E2E8F0',
+          padding: '24px 28px',
+          marginBottom: '28px',
+          boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '20px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '18px' }}>
+            <div style={{
+              width: '54px', height: '54px', borderRadius: '14px',
+              background: '#EFF6FF', color: '#2563EB',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0
+            }}>
+              <Store size={28} />
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+                <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#0F172A', margin: 0 }}>
+                  {singleBranch?.name || 'Main Branch'}
+                </h2>
+                <span style={{
+                  fontSize: '12px', fontWeight: '600',
+                  background: '#DBEAFE', color: '#1D4ED8',
+                  padding: '2px 10px', borderRadius: '12px'
+                }}>
+                  {singleBranch?.type || 'Retail Store'} • Single Branch Archetype
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap', fontSize: '14px', color: '#64748B' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <MapPin size={15} color="#2563EB" /> {singleBranch?.location || 'Address not specified'}
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <UserCheck size={15} color="#16A34A" /> Manager: <strong>{singleBranch?.manager || 'Not Assigned'}</strong>
+                </span>
+                {singleBranch?.contactNumber && (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Phone size={15} color="#F59E0B" /> {singleBranch.contactNumber}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate('/tenant/branches')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              padding: '10px 20px', background: '#F8FAFC',
+              border: '1px solid #CBD5E1', borderRadius: '8px',
+              color: '#1E293B', fontWeight: '600', fontSize: '13px',
+              cursor: 'pointer', transition: 'all 0.2s'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.background = '#EFF6FF'; e.currentTarget.style.borderColor = '#93C5FD'; e.currentTarget.style.color = '#2563EB'; }}
+            onMouseOut={(e) => { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.borderColor = '#CBD5E1'; e.currentTarget.style.color = '#1E293B'; }}
+          >
+            Manage Branch &rarr;
+          </button>
+        </div>
+      )}
 
       {/* Stats Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '24px', marginBottom: '32px' }}>

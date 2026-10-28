@@ -96,7 +96,7 @@ const Employees = () => {
       const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
       const [empRes, branchRes] = await Promise.all([
         fetch(`${import.meta.env.VITE_API_URL}/api/employees`, { headers }),
-        (tenantType === 3 || tenantType === 4) ? fetch(`${import.meta.env.VITE_API_URL}/api/branches`, { headers }) : Promise.resolve(null)
+        (tenantType >= 2) ? fetch(`${import.meta.env.VITE_API_URL}/api/branches`, { headers }) : Promise.resolve(null)
       ]);
 
       if (empRes.ok) {
@@ -144,6 +144,10 @@ const Employees = () => {
         designation: finalDesignation,
         position: finalPosition
       };
+      if (tenantType === 2 && !payload.branchId && branches.length > 0) {
+        payload.branchId = branches[0]._id;
+        payload.branchName = branches[0].name;
+      }
       delete payload.customDesignation;
 
       const res = await fetch(url, {
@@ -334,7 +338,7 @@ const Employees = () => {
                 <th onClick={() => requestSort('name')} style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', alignItems: 'center' }}>Name {renderSortIcon('name')}</div></th>
                 <th onClick={() => requestSort('designation')} style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', alignItems: 'center' }}>Designation {renderSortIcon('designation')}</div></th>
                 <th onClick={() => requestSort('status')} style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', alignItems: 'center' }}>Status {renderSortIcon('status')}</div></th>
-                {(tenantType === 3 || tenantType === 4) && (
+                {(tenantType >= 2) && (
                   <th onClick={() => requestSort('branch')} style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', alignItems: 'center' }}>Branch {renderSortIcon('branch')}</div></th>
                 )}
                 <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'right' }}>Action</th>
@@ -343,11 +347,11 @@ const Employees = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={(tenantType === 3 || tenantType === 4) ? "6" : "5"} style={{ padding: '32px', textAlign: 'center', color: '#64748B' }}>Loading employees...</td>
+                  <td colSpan={(tenantType >= 2) ? "6" : "5"} style={{ padding: '32px', textAlign: 'center', color: '#64748B' }}>Loading employees...</td>
                 </tr>
               ) : filteredEmployees.length === 0 ? (
                 <tr>
-                  <td colSpan={(tenantType === 3 || tenantType === 4) ? "6" : "5"} style={{ padding: '64px 32px', textAlign: 'center' }}>
+                  <td colSpan={(tenantType >= 2) ? "6" : "5"} style={{ padding: '64px 32px', textAlign: 'center' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                       <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
                         <Users size={32} color="#3B82F6" />
@@ -393,10 +397,10 @@ const Employees = () => {
                         {employee.status || 'Active'}
                       </span>
                     </td>
-                    {(tenantType === 3 || tenantType === 4) && (
+                    {(tenantType >= 2) && (
                       <td style={{ padding: '16px 24px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#475569', fontSize: '14px' }}>
-                          <Store size={16} color="#94A3B8" /> {employee.branchId ? employee.branchId.name : 'Unassigned'}
+                          <Store size={16} color="#94A3B8" /> {employee.branchId ? (employee.branchId.name || employee.branchId) : (branches[0]?.name || employee.branchName || 'Main Branch')}
                         </div>
                       </td>
                     )}
@@ -586,6 +590,19 @@ const Employees = () => {
                     </select>
                   </div>
                 )}
+                {tenantType === 2 && (
+                  <div style={{ gridColumn: editingEmployee ? '1 / span 2' : 'auto' }}>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>Assigned Branch</label>
+                    <div style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', background: '#F8FAFC', fontSize: '14px', color: '#0F172A', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Store size={16} color="#2563EB" />
+                      <span style={{ fontWeight: '600' }}>{branches[0]?.name || 'Main Branch'}</span>
+                      {branches[0]?.location && (
+                        <span style={{ fontSize: '12px', color: '#64748B' }}>• {branches[0].location}</span>
+                      )}
+                      <span style={{ fontSize: '11px', background: '#EFF6FF', color: '#2563EB', padding: '2px 8px', borderRadius: '4px', marginLeft: 'auto', fontWeight: '600' }}>Single Branch</span>
+                    </div>
+                  </div>
+                )}
                 {(tenantType === 3 || tenantType === 4) && (
                   <div style={{ gridColumn: editingEmployee ? '1 / span 2' : 'auto' }}>
                     <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>Assign to Branch *</label>
@@ -680,11 +697,11 @@ const Employees = () => {
                   <Activity size={15} color="#64748B" /> {viewEmployee.status || 'Active'}
                 </div>
               </div>
-              {(tenantType === 3 || tenantType === 4) && (
+              {(tenantType >= 2) && (
                 <div style={{ gridColumn: '1 / span 2', padding: '12px 14px', background: '#F8FAFC', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
                   <p style={{ margin: '0 0 4px 0', fontSize: '11px', color: '#64748B', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Assigned Branch</p>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: 0, fontSize: '14px', color: '#0F172A', fontWeight: '500' }}>
-                    <Store size={15} color="#2563EB" /> {viewEmployee.branchId ? (viewEmployee.branchId.name || viewEmployee.branchId) : 'Unassigned'}
+                    <Store size={15} color="#2563EB" /> {viewEmployee.branchId ? (viewEmployee.branchId.name || viewEmployee.branchId) : (branches[0]?.name || viewEmployee.branchName || 'Main Branch')}
                   </div>
                 </div>
               )}
