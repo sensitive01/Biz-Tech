@@ -45,15 +45,28 @@ const Products = () => {
   const [editingItem, setEditingItem] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
 
-  const [catForm, setCatForm] = useState({ name: '', description: '', image: null, existingImage: null, itemType: 'Product', transactionType: 'Sales' });
-  const [subCatForm, setSubCatForm] = useState({ name: '', categoryId: '', itemType: 'Product', transactionType: 'Sales', description: '' });
-  const [prodForm, setProdForm] = useState({ name: '', sku: '', categoryId: '', subCategoryId: '', price: '', stock: '', image: null, existingImage: null, itemType: 'Product', description: '' });
+  const storedUser = (() => {
+    try {
+      const u = localStorage.getItem('user');
+      return u ? JSON.parse(u) : null;
+    } catch {
+      return null;
+    }
+  })();
+  const offeringType = storedUser?.businessOfferingType || 'both';
+  const operationsType = storedUser?.businessOperationsType || 'both';
+  const defaultItemType = offeringType === 'service' ? 'Service' : 'Product';
+  const defaultTransactionType = operationsType === 'purchases' ? 'Purchase' : 'Sales';
+
+  const [catForm, setCatForm] = useState({ name: '', description: '', image: null, existingImage: null, itemType: defaultItemType, transactionType: defaultTransactionType });
+  const [subCatForm, setSubCatForm] = useState({ name: '', categoryId: '', itemType: defaultItemType, transactionType: defaultTransactionType, description: '' });
+  const [prodForm, setProdForm] = useState({ name: '', sku: '', categoryId: '', subCategoryId: '', price: '', stock: '', image: null, existingImage: null, itemType: defaultItemType, description: '' });
 
   const handleOpenAdd = () => {
     setEditingItem(null);
-    setCatForm({ name: '', description: '', image: null, existingImage: null, itemType: 'Product', transactionType: 'Sales' });
-    setSubCatForm({ name: '', categoryId: '', itemType: 'Product', transactionType: 'Sales', description: '' });
-    setProdForm({ name: '', sku: '', categoryId: '', subCategoryId: '', price: '', stock: '', image: null, existingImage: null, itemType: 'Product', description: '' });
+    setCatForm({ name: '', description: '', image: null, existingImage: null, itemType: defaultItemType, transactionType: defaultTransactionType });
+    setSubCatForm({ name: '', categoryId: '', itemType: defaultItemType, transactionType: defaultTransactionType, description: '' });
+    setProdForm({ name: '', sku: '', categoryId: '', subCategoryId: '', price: '', stock: '', image: null, existingImage: null, itemType: defaultItemType, description: '' });
     setShowModal(true);
   };
 
@@ -222,6 +235,23 @@ const Products = () => {
       }
         return true;
       })
+      .filter(item => {
+        if (offeringType === 'product') {
+          const itemType = item.itemType || item.categoryId?.itemType;
+          if (itemType && itemType !== 'Product') return false;
+        } else if (offeringType === 'service') {
+          const itemType = item.itemType || item.categoryId?.itemType;
+          if (itemType && itemType !== 'Service') return false;
+        }
+        if (operationsType === 'sales') {
+          const txType = item.transactionType || item.categoryId?.transactionType;
+          if (txType && txType !== 'Sales') return false;
+        } else if (operationsType === 'purchases') {
+          const txType = item.transactionType || item.categoryId?.transactionType;
+          if (txType && txType !== 'Purchase') return false;
+        }
+        return true;
+      })
       .filter(item => (item.name || '').toLowerCase().includes(searchQuery.toLowerCase()))
       .sort((a, b) => {
       if (!sortConfig.key) return 0;
@@ -266,12 +296,14 @@ const Products = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#0F172A', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <Package size={28} color="var(--primary-blue)" /> Products & Services
+            <Package size={28} color="var(--primary-blue)" /> {offeringType === 'service' ? 'Services' : offeringType === 'product' ? 'Products' : 'Products & Services'}
           </h1>
-          <p style={{ color: '#64748B', fontSize: '15px', margin: 0 }}>Manage your inventory catalogue, service offerings, and categorizations.</p>
+          <p style={{ color: '#64748B', fontSize: '15px', margin: 0 }}>
+            {offeringType === 'service' ? 'Manage your service catalogue, offerings, and categorizations.' : offeringType === 'product' ? 'Manage your inventory catalogue, products, and categorizations.' : 'Manage your inventory catalogue, service offerings, and categorizations.'}
+          </p>
         </div>
         <button onClick={handleOpenAdd} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', background: 'var(--primary-blue)', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}>
-          <Plus size={18} /> Add New {activeTab === 'categories' ? 'Category' : activeTab === 'subcategories' ? 'Sub Category' : 'Product/Service'}
+          <Plus size={18} /> Add New {activeTab === 'categories' ? 'Category' : activeTab === 'subcategories' ? 'Sub Category' : offeringType === 'service' ? 'Service' : offeringType === 'product' ? 'Product' : 'Product/Service'}
         </button>
       </div>
 
@@ -293,7 +325,7 @@ const Products = () => {
         <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
           <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#F0FDF4', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Package size={24} /></div>
           <div>
-            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Products/Services</p>
+            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>{offeringType === 'service' ? 'Services' : offeringType === 'product' ? 'Products' : 'Products/Services'}</p>
             <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A' }}>{products.length}</h3>
           </div>
         </div>
@@ -304,7 +336,9 @@ const Products = () => {
           <div style={{ display: 'flex', gap: '8px', background: '#F8FAFC', padding: '4px', borderRadius: '10px', alignSelf: 'flex-start' }}>
             <button onClick={() => setActiveTab('categories')} style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '14px', fontWeight: '600', background: activeTab === 'categories' ? 'white' : 'transparent', color: activeTab === 'categories' ? '#0F172A' : '#64748B', border: 'none', boxShadow: activeTab === 'categories' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: 'all 0.2s' }}>Categories</button>
             <button onClick={() => setActiveTab('subcategories')} style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '14px', fontWeight: '600', background: activeTab === 'subcategories' ? 'white' : 'transparent', color: activeTab === 'subcategories' ? '#0F172A' : '#64748B', border: 'none', boxShadow: activeTab === 'subcategories' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: 'all 0.2s' }}>Sub Categories</button>
-            <button onClick={() => setActiveTab('products')} style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '14px', fontWeight: '600', background: activeTab === 'products' ? 'white' : 'transparent', color: activeTab === 'products' ? '#0F172A' : '#64748B', border: 'none', boxShadow: activeTab === 'products' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: 'all 0.2s' }}>Products & Services</button>
+            <button onClick={() => setActiveTab('products')} style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '14px', fontWeight: '600', background: activeTab === 'products' ? 'white' : 'transparent', color: activeTab === 'products' ? '#0F172A' : '#64748B', border: 'none', boxShadow: activeTab === 'products' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: 'all 0.2s' }}>
+              {offeringType === 'service' ? 'Services' : offeringType === 'product' ? 'Products' : 'Products & Services'}
+            </button>
           </div>
           
           <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'space-between' }}>
@@ -551,15 +585,15 @@ const Products = () => {
                     <div>
                       <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Item Type</label>
                       <select value={catForm.itemType} onChange={e => setCatForm({...catForm, itemType: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }}>
-                        <option value="Product">Product</option>
-                        <option value="Service">Service</option>
+                        {offeringType !== 'service' && <option value="Product">Product</option>}
+                        {offeringType !== 'product' && <option value="Service">Service</option>}
                       </select>
                     </div>
                     <div>
                       <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Transaction Type</label>
                       <select value={catForm.transactionType} onChange={e => setCatForm({...catForm, transactionType: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }}>
-                        <option value="Sales">Sales</option>
-                        <option value="Purchase">Purchase</option>
+                        {operationsType !== 'purchases' && <option value="Sales">Sales</option>}
+                        {operationsType !== 'sales' && <option value="Purchase">Purchase</option>}
                       </select>
                     </div>
                   </div>

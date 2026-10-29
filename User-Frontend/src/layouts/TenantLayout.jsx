@@ -595,12 +595,14 @@ const TenantLayout = () => {
           {currentUser?.role !== 'employee' && modules.includes('products_services') && (
             <NavLink to="/tenant/products" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <Package size={18} />
-              <span>Products & Services</span>
+              <span>
+                {currentUser?.businessOfferingType === 'service' ? 'Services' : currentUser?.businessOfferingType === 'product' ? 'Products' : 'Products & Services'}
+              </span>
             </NavLink>
           )}
 
-          {/* 5. Stock / Inventory */}
-          {currentUser?.role !== 'employee' && modules.includes('inventory') && (
+          {/* 5. Stock / Inventory (hidden for pure service businesses) */}
+          {currentUser?.role !== 'employee' && modules.includes('inventory') && currentUser?.businessOfferingType !== 'service' && (
             <NavLink to="/tenant/inventory" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <Archive size={18} />
               <span>Stock / Inventory</span>
@@ -623,16 +625,16 @@ const TenantLayout = () => {
             </NavLink>
           )}
 
-          {/* 8. Purchases */}
-          {currentUser?.role !== 'employee' && modules.includes('purchases') && (
+          {/* 8. Purchases (hidden for sales-only businesses) */}
+          {currentUser?.role !== 'employee' && modules.includes('purchases') && currentUser?.businessOperationsType !== 'sales' && (
             <NavLink to="/tenant/purchases" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <ShoppingCart size={18} />
               <span>Purchases</span>
             </NavLink>
           )}
 
-          {/* 9. Sales */}
-          {currentUser?.role !== 'employee' && modules.includes('sales') && (
+          {/* 9. Sales / Billing (hidden for purchases-only businesses) */}
+          {currentUser?.role !== 'employee' && modules.includes('sales') && currentUser?.businessOperationsType !== 'purchases' && (
             <NavLink to="/tenant/sales" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <TrendingUp size={18} />
               <span>Billing</span>

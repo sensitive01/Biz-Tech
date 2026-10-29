@@ -4,7 +4,8 @@ import { createPortal } from 'react-dom';
 import { 
   ArrowUp, ArrowDown, Building2, Plus, Phone, X, Eye, Pencil, Trash2, 
   AlertTriangle, Search, Filter, ArrowUpDown, Download, FileText, ShieldCheck,
-  KeyRound, Mail, Lock, EyeOff, CheckCircle2, User, Tag, MapPin, Briefcase
+  KeyRound, Mail, Lock, EyeOff, CheckCircle2, User, Tag, MapPin, Briefcase,
+  Package, Wrench, Boxes, TrendingUp, ShoppingCart, Repeat
 } from 'lucide-react';
 import TablePagination from '../components/TablePagination';
 
@@ -73,7 +74,9 @@ const Businesses = () => {
     email: '', 
     taxNumber: '', 
     city: '', 
-    address: '' 
+    address: '',
+    offeringType: 'both',
+    operationsType: 'both'
   });
 
   const handleOpenAdd = () => {
@@ -87,7 +90,9 @@ const Businesses = () => {
       email: '', 
       taxNumber: '', 
       city: '', 
-      address: '' 
+      address: '',
+      offeringType: 'both',
+      operationsType: 'both'
     });
     setShowModal(true);
   };
@@ -105,7 +110,9 @@ const Businesses = () => {
       email: b.email || '',
       taxNumber: b.taxNumber || '',
       city: b.city || '',
-      address: b.address || ''
+      address: b.address || '',
+      offeringType: b.offeringType || 'both',
+      operationsType: b.operationsType || 'both'
     });
     setShowModal(true);
   };
@@ -223,7 +230,9 @@ const Businesses = () => {
         email: formData.email.trim(),
         taxNumber: formData.taxNumber.trim(),
         city: formData.city.trim(),
-        address: formData.address.trim()
+        address: formData.address.trim(),
+        offeringType: formData.offeringType || 'both',
+        operationsType: formData.operationsType || 'both'
       };
 
       const res = await fetch(url, {
@@ -243,7 +252,9 @@ const Businesses = () => {
           email: '', 
           taxNumber: '', 
           city: '', 
-          address: '' 
+          address: '',
+          offeringType: 'both',
+          operationsType: 'both'
         });
         fetchBusinesses();
       } else {
@@ -435,6 +446,9 @@ const Businesses = () => {
                 <th onClick={() => requestSort('category')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '16px 20px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                   <div style={{ display: 'flex', alignItems: 'center' }}>Category {renderSortIcon('category')}</div>
                 </th>
+                <th style={{ padding: '16px 20px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Model & Operations
+                </th>
                 <th onClick={() => requestSort('contactPerson')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '16px 20px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                   <div style={{ display: 'flex', alignItems: 'center' }}>Contact Person {renderSortIcon('contactPerson')}</div>
                 </th>
@@ -453,11 +467,11 @@ const Businesses = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="8" style={{ padding: '32px', textAlign: 'center', color: '#64748B' }}>Loading businesses...</td>
+                  <td colSpan="9" style={{ padding: '32px', textAlign: 'center', color: '#64748B' }}>Loading businesses...</td>
                 </tr>
               ) : filteredBusinesses.length === 0 ? (
                 <tr>
-                  <td colSpan="8" style={{ padding: '64px 32px', textAlign: 'center' }}>
+                  <td colSpan="9" style={{ padding: '64px 32px', textAlign: 'center' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                       <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
                         <Building2 size={32} color="#3B82F6" />
@@ -508,6 +522,39 @@ const Businesses = () => {
                       ) : (
                         <span style={{ color: '#94A3B8', fontSize: '13px' }}>-</span>
                       )}
+                    </td>
+
+                    <td style={{ padding: '16px 20px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <span style={{ 
+                          display: 'inline-flex', 
+                          alignItems: 'center', 
+                          gap: '4px', 
+                          fontSize: '11px', 
+                          fontWeight: '600', 
+                          padding: '2px 8px', 
+                          borderRadius: '6px', 
+                          background: b.offeringType === 'service' ? '#F3E8FF' : b.offeringType === 'product' ? '#EFF6FF' : '#F0FDF4', 
+                          color: b.offeringType === 'service' ? '#7E22CE' : b.offeringType === 'product' ? '#1D4ED8' : '#15803D',
+                          width: 'fit-content'
+                        }}>
+                          {b.offeringType === 'service' ? '🛠️ Services' : b.offeringType === 'product' ? '📦 Products' : '🔄 Prod & Serv'}
+                        </span>
+                        <span style={{ 
+                          display: 'inline-flex', 
+                          alignItems: 'center', 
+                          gap: '4px', 
+                          fontSize: '11px', 
+                          fontWeight: '600', 
+                          padding: '2px 8px', 
+                          borderRadius: '6px', 
+                          background: b.operationsType === 'sales' ? '#EFF6FF' : b.operationsType === 'purchases' ? '#FEF3C7' : '#F1F5F9', 
+                          color: b.operationsType === 'sales' ? '#1D4ED8' : b.operationsType === 'purchases' ? '#B45309' : '#334155',
+                          width: 'fit-content'
+                        }}>
+                          {b.operationsType === 'sales' ? '📈 Sales Only' : b.operationsType === 'purchases' ? '🛒 Purchases' : '🔁 Sales & Purch'}
+                        </span>
+                      </div>
                     </td>
 
                     <td style={{ padding: '16px 20px', color: '#334155', fontSize: '14px', fontWeight: '500' }}>
@@ -772,6 +819,167 @@ const Businesses = () => {
                   />
                 </div>
 
+                {/* Offering & Operations Configuration - Full Width */}
+                <div style={{ gridColumn: '1 / span 2', padding: '14px 16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    {/* Offering / Catalog Type */}
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                        <Package size={15} color="#2563EB" />
+                        <label style={{ fontSize: '13px', fontWeight: '600', color: '#1E293B', margin: 0 }}>
+                          Offering Model <span style={{ color: '#EF4444' }}>*</span>
+                        </label>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, offeringType: 'product' })}
+                          style={{
+                            padding: '10px 6px',
+                            borderRadius: '8px',
+                            border: formData.offeringType === 'product' ? '2px solid #2563EB' : '1px solid #CBD5E1',
+                            background: formData.offeringType === 'product' ? '#EFF6FF' : '#FFFFFF',
+                            color: formData.offeringType === 'product' ? '#1D4ED8' : '#475569',
+                            fontWeight: formData.offeringType === 'product' ? '600' : '500',
+                            fontSize: '12px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '5px',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <Package size={16} />
+                          <span>Products</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, offeringType: 'service' })}
+                          style={{
+                            padding: '10px 6px',
+                            borderRadius: '8px',
+                            border: formData.offeringType === 'service' ? '2px solid #2563EB' : '1px solid #CBD5E1',
+                            background: formData.offeringType === 'service' ? '#EFF6FF' : '#FFFFFF',
+                            color: formData.offeringType === 'service' ? '#1D4ED8' : '#475569',
+                            fontWeight: formData.offeringType === 'service' ? '600' : '500',
+                            fontSize: '12px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '5px',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <Wrench size={16} />
+                          <span>Services</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, offeringType: 'both' })}
+                          style={{
+                            padding: '10px 6px',
+                            borderRadius: '8px',
+                            border: (formData.offeringType === 'both' || !formData.offeringType) ? '2px solid #2563EB' : '1px solid #CBD5E1',
+                            background: (formData.offeringType === 'both' || !formData.offeringType) ? '#EFF6FF' : '#FFFFFF',
+                            color: (formData.offeringType === 'both' || !formData.offeringType) ? '#1D4ED8' : '#475569',
+                            fontWeight: (formData.offeringType === 'both' || !formData.offeringType) ? '600' : '500',
+                            fontSize: '12px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '5px',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <Boxes size={16} />
+                          <span>Both</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Operations Flow */}
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                        <Repeat size={15} color="#2563EB" />
+                        <label style={{ fontSize: '13px', fontWeight: '600', color: '#1E293B', margin: 0 }}>
+                          Trade Operations <span style={{ color: '#EF4444' }}>*</span>
+                        </label>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, operationsType: 'sales' })}
+                          style={{
+                            padding: '10px 6px',
+                            borderRadius: '8px',
+                            border: formData.operationsType === 'sales' ? '2px solid #2563EB' : '1px solid #CBD5E1',
+                            background: formData.operationsType === 'sales' ? '#EFF6FF' : '#FFFFFF',
+                            color: formData.operationsType === 'sales' ? '#1D4ED8' : '#475569',
+                            fontWeight: formData.operationsType === 'sales' ? '600' : '500',
+                            fontSize: '12px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '5px',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <TrendingUp size={16} />
+                          <span>Sales</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, operationsType: 'purchases' })}
+                          style={{
+                            padding: '10px 6px',
+                            borderRadius: '8px',
+                            border: formData.operationsType === 'purchases' ? '2px solid #2563EB' : '1px solid #CBD5E1',
+                            background: formData.operationsType === 'purchases' ? '#EFF6FF' : '#FFFFFF',
+                            color: formData.operationsType === 'purchases' ? '#1D4ED8' : '#475569',
+                            fontWeight: formData.operationsType === 'purchases' ? '600' : '500',
+                            fontSize: '12px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '5px',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <ShoppingCart size={16} />
+                          <span>Purchases</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, operationsType: 'both' })}
+                          style={{
+                            padding: '10px 6px',
+                            borderRadius: '8px',
+                            border: (formData.operationsType === 'both' || !formData.operationsType) ? '2px solid #2563EB' : '1px solid #CBD5E1',
+                            background: (formData.operationsType === 'both' || !formData.operationsType) ? '#EFF6FF' : '#FFFFFF',
+                            color: (formData.operationsType === 'both' || !formData.operationsType) ? '#1D4ED8' : '#475569',
+                            fontWeight: (formData.operationsType === 'both' || !formData.operationsType) ? '600' : '500',
+                            fontSize: '12px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '5px',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <Repeat size={16} />
+                          <span>Both</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Contact Phone */}
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>
@@ -1020,6 +1228,18 @@ const Businesses = () => {
               <div style={{ padding: '12px 14px', background: '#F8FAFC', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
                 <p style={{ margin: '0 0 4px 0', fontSize: '11px', color: '#64748B', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Category</p>
                 <p style={{ margin: 0, fontSize: '14px', color: '#0F172A', fontWeight: '500' }}>{viewBusiness.category || 'General'}</p>
+              </div>
+              <div style={{ padding: '12px 14px', background: '#F8FAFC', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
+                <p style={{ margin: '0 0 4px 0', fontSize: '11px', color: '#64748B', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Offering Model</p>
+                <p style={{ margin: 0, fontSize: '14px', color: '#0F172A', fontWeight: '600' }}>
+                  {viewBusiness.offeringType === 'service' ? '🛠️ Services Only' : viewBusiness.offeringType === 'product' ? '📦 Products Only' : '🔄 Products & Services'}
+                </p>
+              </div>
+              <div style={{ padding: '12px 14px', background: '#F8FAFC', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
+                <p style={{ margin: '0 0 4px 0', fontSize: '11px', color: '#64748B', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Trade Operations</p>
+                <p style={{ margin: 0, fontSize: '14px', color: '#0F172A', fontWeight: '600' }}>
+                  {viewBusiness.operationsType === 'sales' ? '📈 Sales Only' : viewBusiness.operationsType === 'purchases' ? '🛒 Purchases Only' : '🔁 Sales & Purchases'}
+                </p>
               </div>
               <div style={{ padding: '12px 14px', background: '#F8FAFC', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
                 <p style={{ margin: '0 0 4px 0', fontSize: '11px', color: '#64748B', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Contact Person</p>

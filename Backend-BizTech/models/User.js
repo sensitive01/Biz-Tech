@@ -68,6 +68,16 @@ const UserSchema = new mongoose.Schema({
     password: { type: String },
     isLoginEnabled: { type: Boolean, default: true },
     regNo: String,
+    offeringType: {
+      type: String,
+      enum: ['product', 'service', 'both'],
+      default: 'both'
+    },
+    operationsType: {
+      type: String,
+      enum: ['sales', 'purchases', 'both'],
+      default: 'both'
+    },
     createdAt: { type: Date, default: Date.now }
   }],
   subscriptionStatus: {

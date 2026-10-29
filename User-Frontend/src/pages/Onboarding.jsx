@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Store, Users, Map, Package, ArrowRight, ArrowLeft, CheckCircle2, Building2, ShoppingCart, TrendingUp, Briefcase, Menu, X, Trash2, Edit2, Plus } from 'lucide-react';
+import { Store, Users, Map, Package, ArrowRight, ArrowLeft, CheckCircle2, Building2, ShoppingCart, TrendingUp, Briefcase, Menu, X, Trash2, Edit2, Plus, Boxes, Repeat } from 'lucide-react';
 
 const DESIGNATION_OPTIONS = [
   'Store Manager',
@@ -40,7 +40,15 @@ const Onboarding = () => {
   // State for Businesses (Type 4)
   const [businesses, setBusinesses] = useState([]);
   const [showBusinessForm, setShowBusinessForm] = useState(true);
-  const [newBusiness, setNewBusiness] = useState({ name: '', regNo: '', phone: '', address: '' });
+  const [editingBusinessIndex, setEditingBusinessIndex] = useState(null);
+  const [newBusiness, setNewBusiness] = useState({ 
+    name: '', 
+    regNo: '', 
+    phone: '', 
+    address: '',
+    offeringType: 'both',
+    operationsType: 'both'
+  });
 
   // State for Branches
   const [branches, setBranches] = useState([]);
@@ -103,7 +111,11 @@ const Onboarding = () => {
             }));
 
             if (user.businesses && Array.isArray(user.businesses) && user.businesses.length > 0) {
-              setBusinesses(user.businesses);
+              setBusinesses(user.businesses.map(b => ({
+                ...b,
+                offeringType: b.offeringType || 'both',
+                operationsType: b.operationsType || 'both'
+              })));
               setShowBusinessForm(false);
             } else {
               setBusinesses([]);
@@ -192,9 +204,14 @@ const Onboarding = () => {
       steps.push({ id: 'branches', title: 'Register Branches', desc: 'Add multiple locations', icon: <Map size={24} /> });
     }
 
-    // Steps 3 & 4: Offerings & Operations (All types)
-    steps.push({ id: 'offering', title: 'Products & Services', desc: 'What do you offer?', icon: <Package size={24} /> });
-    steps.push({ id: 'operation', title: 'Operations Type', desc: 'Purchase or Sale', icon: <TrendingUp size={24} /> });
+    // Steps 3 & 4: Offerings & Operations
+    if (tenantType === 4) {
+      steps.push({ id: 'offering', title: 'Products & Services', desc: 'Per business offerings', icon: <Package size={24} /> });
+      steps.push({ id: 'operation', title: 'Operations Type', desc: 'Per business operations', icon: <TrendingUp size={24} /> });
+    } else {
+      steps.push({ id: 'offering', title: 'Products & Services', desc: 'What do you offer?', icon: <Package size={24} /> });
+      steps.push({ id: 'operation', title: 'Operations Type', desc: 'Purchase or Sale', icon: <TrendingUp size={24} /> });
+    }
 
     // Step 5: Employees (Type 1 has NO employee step!)
     if (tenantType === 2) {
@@ -219,18 +236,29 @@ const Onboarding = () => {
     const token = localStorage.getItem('token');
     if (!token) return;
 
-    let modules = ['expenses'];
-    if (selections.offering.includes('product')) modules.push('products_services', 'inventory');
-    if (selections.offering.includes('service')) {
-      if (!modules.includes('products_services')) modules.push('products_services');
-    }
-    if (selections.operation.includes('purchase')) modules.push('purchases');
-    if (selections.operation.includes('sale')) modules.push('sales');
-    modules = [...new Set(modules)];
-
     let payloadBranches = branches;
     let payloadEmployees = employees;
-    let payloadBusinesses = tenantType === 4 ? businesses : [];
+    let payloadBusinesses = tenantType === 4 ? (customPayload.businesses || businesses) : [];
+
+    let modules = ['expenses'];
+    if (tenantType === 4) {
+      payloadBusinesses.forEach(biz => {
+        const off = biz.offeringType || 'both';
+        const op = biz.operationsType || 'both';
+        if (off === 'product' || off === 'both') modules.push('products_services', 'inventory');
+        if (off === 'service' || off === 'both') modules.push('products_services');
+        if (op === 'purchase' || op === 'both' || op === 'purchases') modules.push('purchases');
+        if (op === 'sale' || op === 'both' || op === 'sales') modules.push('sales');
+      });
+    } else {
+      if (selections.offering.includes('product')) modules.push('products_services', 'inventory');
+      if (selections.offering.includes('service')) {
+        if (!modules.includes('products_services')) modules.push('products_services');
+      }
+      if (selections.operation.includes('purchase')) modules.push('purchases');
+      if (selections.operation.includes('sale')) modules.push('sales');
+    }
+    modules = [...new Set(modules)];
 
     if (tenantType === 1) {
       // Type 1: Sole Operator has no branches and no employees
@@ -316,32 +344,105 @@ const Onboarding = () => {
         return (
           <div className="animate-fade-in" style={{ padding: '24px' }}>
             <h2 style={{ fontSize: '28px', marginBottom: '8px' }}>Register Businesses</h2>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '32px' }}>Add all primary business entities in your conglomerate.</p>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '32px' }}>Add all primary business entities in your conglomerate and define their offering & operations.</p>
             
             {businesses.length > 0 && !showBusinessForm && (
-              <div style={{ marginBottom: '24px' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden' }}>
+              <div style={{ width: '100%', overflowX: 'auto', marginBottom: '24px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '640px' }}>
                   <thead style={{ background: '#F8FAFC' }}>
                     <tr>
-                      <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', width: '60px' }}>S.No</th>
-                      <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)' }}>Business Name</th>
-                      <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)' }}>Contact</th>
-                      <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)' }}>Reg No</th>
+                      <th style={{ padding: '12px 14px', textAlign: 'center', fontSize: '13px', color: 'var(--text-secondary)', width: '45px' }}>S.No</th>
+                      <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', minWidth: '130px' }}>Business Name</th>
+                      <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', minWidth: '110px' }}>Contact</th>
+                      <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', minWidth: '130px' }}>Offering Model</th>
+                      <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', minWidth: '130px' }}>Trade Operations</th>
+                      <th style={{ padding: '12px 14px', textAlign: 'right', fontSize: '13px', color: 'var(--text-secondary)', width: '70px' }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {businesses.map((b, idx) => (
                       <tr key={idx} style={{ borderTop: '1px solid var(--border-color)' }}>
-                        <td style={{ padding: '12px 16px', fontSize: '14px', color: 'var(--text-secondary)', fontWeight: '500' }}>{idx + 1}</td>
-                        <td style={{ padding: '12px 16px', fontWeight: '500' }}>{b.name}</td>
-                        <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{b.phone}</td>
-                        <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{b.regNo || '-'}</td>
+                        <td style={{ padding: '12px 14px', fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '500', textAlign: 'center' }}>{idx + 1}</td>
+                        <td style={{ padding: '12px 14px', fontWeight: '600', color: '#0F172A' }}>
+                          <div style={{ whiteSpace: 'nowrap' }}>{b.name}</div>
+                          {b.regNo && <div style={{ fontSize: '11px', color: '#64748B', whiteSpace: 'nowrap' }}>Reg: {b.regNo}</div>}
+                        </td>
+                        <td style={{ padding: '12px 14px', color: 'var(--text-secondary)', fontSize: '13px', whiteSpace: 'nowrap' }}>{b.phone || '-'}</td>
+                        <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontSize: '11px',
+                            fontWeight: '600',
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            background: b.offeringType === 'service' ? '#F3E8FF' : b.offeringType === 'product' ? '#EFF6FF' : '#F0FDF4',
+                            color: b.offeringType === 'service' ? '#7E22CE' : b.offeringType === 'product' ? '#1D4ED8' : '#15803D'
+                          }}>
+                            {b.offeringType === 'service' ? '🛠️ Services' : b.offeringType === 'product' ? '📦 Products' : '🔄 Both'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontSize: '11px',
+                            fontWeight: '600',
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            background: b.operationsType === 'sales' ? '#EFF6FF' : b.operationsType === 'purchases' ? '#FEF3C7' : '#F1F5F9',
+                            color: b.operationsType === 'sales' ? '#1D4ED8' : b.operationsType === 'purchases' ? '#B45309' : '#334155'
+                          }}>
+                            {b.operationsType === 'sales' ? '📈 Sales Only' : b.operationsType === 'purchases' ? '🛒 Purchases Only' : '🔁 Both'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '12px 14px', textAlign: 'right' }}>
+                          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                            <button
+                              onClick={() => {
+                                setNewBusiness({
+                                  name: b.name || '',
+                                  regNo: b.regNo || '',
+                                  phone: b.phone || '',
+                                  address: b.address || '',
+                                  offeringType: b.offeringType || 'both',
+                                  operationsType: b.operationsType || 'both'
+                                });
+                                setEditingBusinessIndex(idx);
+                                setShowBusinessForm(true);
+                              }}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#2563EB', padding: '4px' }}
+                              title="Edit Business"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (window.confirm(`Remove ${b.name}?`)) {
+                                  const updated = businesses.filter((_, i) => i !== idx);
+                                  setBusinesses(updated);
+                                  saveProgress({ businesses: updated });
+                                }
+                              }}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', padding: '4px' }}
+                              title="Delete Business"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
                 <button 
-                  onClick={() => setShowBusinessForm(true)}
+                  onClick={() => {
+                    setNewBusiness({ name: '', regNo: '', phone: '', address: '', offeringType: 'both', operationsType: 'both' });
+                    setEditingBusinessIndex(null);
+                    setShowBusinessForm(true);
+                  }}
                   style={{ marginTop: '16px', padding: '8px 16px', background: 'white', border: '1px solid var(--primary-blue)', color: 'var(--primary-blue)', borderRadius: '6px', fontWeight: '600', cursor: 'pointer' }}
                 >
                   + Add Another Business
@@ -351,9 +452,12 @@ const Onboarding = () => {
 
             {showBusinessForm && (
               <div style={{ padding: '24px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                <h4 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: '700', color: '#0F172A' }}>
+                  {editingBusinessIndex !== null ? 'Edit Business Entity' : 'New Business Entity'}
+                </h4>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
                   <div className="input-group" style={{ gridColumn: '1 / span 2' }}>
-                    <label className="input-label">Shop / Business Name</label>
+                    <label className="input-label">Shop / Business Name *</label>
                     <input type="text" className="input-field" placeholder="Enter business name" value={newBusiness.name} onChange={e => setNewBusiness({...newBusiness, name: e.target.value})} />
                   </div>
                   <div className="input-group">
@@ -378,24 +482,203 @@ const Onboarding = () => {
                       </span>
                     )}
                   </div>
+
+                  {/* Offering & Operations Configuration - Full Width */}
+                  <div style={{ gridColumn: '1 / span 2', padding: '16px', background: 'white', borderRadius: '10px', border: '1px solid var(--border-color)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    {/* Offering Model */}
+                    <div>
+                      <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                        <Package size={15} color="#2563EB" />
+                        <span>Offering Model *</span>
+                      </label>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+                        <button
+                          type="button"
+                          onClick={() => setNewBusiness({ ...newBusiness, offeringType: 'product' })}
+                          style={{
+                            padding: '9px 4px',
+                            borderRadius: '8px',
+                            border: newBusiness.offeringType === 'product' ? '2px solid #2563EB' : '1px solid #CBD5E1',
+                            background: newBusiness.offeringType === 'product' ? '#EFF6FF' : '#FFFFFF',
+                            color: newBusiness.offeringType === 'product' ? '#1D4ED8' : '#475569',
+                            fontWeight: newBusiness.offeringType === 'product' ? '600' : '500',
+                            fontSize: '12px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '4px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <Package size={16} />
+                          <span>Products</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNewBusiness({ ...newBusiness, offeringType: 'service' })}
+                          style={{
+                            padding: '9px 4px',
+                            borderRadius: '8px',
+                            border: newBusiness.offeringType === 'service' ? '2px solid #2563EB' : '1px solid #CBD5E1',
+                            background: newBusiness.offeringType === 'service' ? '#EFF6FF' : '#FFFFFF',
+                            color: newBusiness.offeringType === 'service' ? '#1D4ED8' : '#475569',
+                            fontWeight: newBusiness.offeringType === 'service' ? '600' : '500',
+                            fontSize: '12px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '4px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <Briefcase size={16} />
+                          <span>Services</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNewBusiness({ ...newBusiness, offeringType: 'both' })}
+                          style={{
+                            padding: '9px 4px',
+                            borderRadius: '8px',
+                            border: (newBusiness.offeringType === 'both' || !newBusiness.offeringType) ? '2px solid #2563EB' : '1px solid #CBD5E1',
+                            background: (newBusiness.offeringType === 'both' || !newBusiness.offeringType) ? '#EFF6FF' : '#FFFFFF',
+                            color: (newBusiness.offeringType === 'both' || !newBusiness.offeringType) ? '#1D4ED8' : '#475569',
+                            fontWeight: (newBusiness.offeringType === 'both' || !newBusiness.offeringType) ? '600' : '500',
+                            fontSize: '12px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '4px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <Boxes size={16} />
+                          <span>Both</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Trade Operations */}
+                    <div>
+                      <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                        <Repeat size={15} color="#2563EB" />
+                        <span>Trade Operations *</span>
+                      </label>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+                        <button
+                          type="button"
+                          onClick={() => setNewBusiness({ ...newBusiness, operationsType: 'sales' })}
+                          style={{
+                            padding: '9px 4px',
+                            borderRadius: '8px',
+                            border: newBusiness.operationsType === 'sales' ? '2px solid #2563EB' : '1px solid #CBD5E1',
+                            background: newBusiness.operationsType === 'sales' ? '#EFF6FF' : '#FFFFFF',
+                            color: newBusiness.operationsType === 'sales' ? '#1D4ED8' : '#475569',
+                            fontWeight: newBusiness.operationsType === 'sales' ? '600' : '500',
+                            fontSize: '12px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '4px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <TrendingUp size={16} />
+                          <span>Sales Only</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNewBusiness({ ...newBusiness, operationsType: 'purchases' })}
+                          style={{
+                            padding: '9px 4px',
+                            borderRadius: '8px',
+                            border: newBusiness.operationsType === 'purchases' ? '2px solid #2563EB' : '1px solid #CBD5E1',
+                            background: newBusiness.operationsType === 'purchases' ? '#EFF6FF' : '#FFFFFF',
+                            color: newBusiness.operationsType === 'purchases' ? '#1D4ED8' : '#475569',
+                            fontWeight: newBusiness.operationsType === 'purchases' ? '600' : '500',
+                            fontSize: '12px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '4px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <ShoppingCart size={16} />
+                          <span>Purchases</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNewBusiness({ ...newBusiness, operationsType: 'both' })}
+                          style={{
+                            padding: '9px 4px',
+                            borderRadius: '8px',
+                            border: (newBusiness.operationsType === 'both' || !newBusiness.operationsType) ? '2px solid #2563EB' : '1px solid #CBD5E1',
+                            background: (newBusiness.operationsType === 'both' || !newBusiness.operationsType) ? '#EFF6FF' : '#FFFFFF',
+                            color: (newBusiness.operationsType === 'both' || !newBusiness.operationsType) ? '#1D4ED8' : '#475569',
+                            fontWeight: (newBusiness.operationsType === 'both' || !newBusiness.operationsType) ? '600' : '500',
+                            fontSize: '12px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '4px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <Repeat size={16} />
+                          <span>Both</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="input-group" style={{ gridColumn: '1 / span 2' }}>
                     <label className="input-label">Primary Address</label>
                     <textarea className="input-field" rows="3" placeholder="Street address, City, State, Zip..." value={newBusiness.address} onChange={e => setNewBusiness({...newBusiness, address: e.target.value})}></textarea>
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                  {businesses.length > 0 && <button onClick={() => setShowBusinessForm(false)} className="btn-secondary" style={{ padding: '8px 16px' }}>Cancel</button>}
+                  {businesses.length > 0 && (
+                    <button 
+                      onClick={() => {
+                        setShowBusinessForm(false);
+                        setEditingBusinessIndex(null);
+                        setNewBusiness({ name: '', regNo: '', phone: '', address: '', offeringType: 'both', operationsType: 'both' });
+                      }} 
+                      className="btn-secondary" 
+                      style={{ padding: '8px 16px' }}
+                    >
+                      Cancel
+                    </button>
+                  )}
                   <button onClick={() => {
-                    if(newBusiness.name) {
+                    if (newBusiness.name.trim()) {
                       if (newBusiness.phone && newBusiness.phone.length !== 10) {
                         alert('Contact phone must be exactly 10 digits.');
                         return;
                       }
-                      setBusinesses([...businesses, newBusiness]);
-                      setNewBusiness({ name: '', regNo: '', phone: '', address: '' });
+                      const businessData = {
+                        ...newBusiness,
+                        name: newBusiness.name.trim(),
+                        offeringType: newBusiness.offeringType || 'both',
+                        operationsType: newBusiness.operationsType || 'both'
+                      };
+                      let updated;
+                      if (editingBusinessIndex !== null) {
+                        updated = [...businesses];
+                        updated[editingBusinessIndex] = businessData;
+                      } else {
+                        updated = [...businesses, businessData];
+                      }
+                      setBusinesses(updated);
+                      setNewBusiness({ name: '', regNo: '', phone: '', address: '', offeringType: 'both', operationsType: 'both' });
+                      setEditingBusinessIndex(null);
                       setShowBusinessForm(false);
+                      saveProgress({ businesses: updated });
                     }
-                  }} className="btn-primary" style={{ padding: '8px 16px' }}>Save Business</button>
+                  }} className="btn-primary" style={{ padding: '8px 16px' }} disabled={!newBusiness.name.trim()}>
+                    {editingBusinessIndex !== null ? 'Update Business' : 'Save Business'}
+                  </button>
                 </div>
               </div>
             )}
@@ -650,39 +933,41 @@ const Onboarding = () => {
           </p>
           
           {branches.length > 0 && !showBranchForm && (
-            <div style={{ marginBottom: '24px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden' }}>
+            <div style={{ width: '100%', overflowX: 'auto', marginBottom: '24px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '640px' }}>
                 <thead style={{ background: '#F8FAFC' }}>
                   <tr>
-                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', width: '60px' }}>S.No</th>
-                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)' }}>Branch Name</th>
-                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)' }}>Type</th>
-                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)' }}>Location</th>
-                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)' }}>Contact</th>
-                    <th style={{ padding: '12px 16px', textAlign: 'center', fontSize: '13px', color: 'var(--text-secondary)', width: '60px' }}>Action</th>
+                    <th style={{ padding: '12px 14px', textAlign: 'center', fontSize: '13px', color: 'var(--text-secondary)', width: '45px' }}>S.No</th>
+                    <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', minWidth: '140px' }}>Branch Name</th>
+                    <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', width: '90px' }}>Type</th>
+                    <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', minWidth: '140px' }}>Location</th>
+                    <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', minWidth: '130px' }}>Contact</th>
+                    <th style={{ padding: '12px 14px', textAlign: 'center', fontSize: '13px', color: 'var(--text-secondary)', width: '50px' }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {branches.map((b, idx) => (
                     <tr key={idx} style={{ borderTop: '1px solid var(--border-color)' }}>
-                      <td style={{ padding: '12px 16px', fontSize: '14px', color: 'var(--text-secondary)', fontWeight: '500' }}>{idx + 1}</td>
-                      <td style={{ padding: '12px 16px', fontWeight: '500' }}>
+                      <td style={{ padding: '12px 14px', fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '500', textAlign: 'center' }}>{idx + 1}</td>
+                      <td style={{ padding: '12px 14px', fontWeight: '600', color: '#0F172A' }}>
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span>{b.name}</span>
+                          <span style={{ whiteSpace: 'nowrap' }}>{b.name}</span>
                           {tenantType === 4 && b.business && (
-                            <span style={{ fontSize: '12px', color: 'var(--primary-blue)' }}>{b.business}</span>
+                            <span style={{ fontSize: '12px', color: 'var(--primary-blue)', whiteSpace: 'nowrap' }}>{b.business}</span>
                           )}
                         </div>
                       </td>
-                      <td style={{ padding: '12px 16px' }}><span style={{ fontSize: '12px', background: '#F1F5F9', padding: '4px 8px', borderRadius: '4px', fontWeight: '500' }}>{b.type}</span></td>
-                      <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{b.location}</td>
-                      <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>
+                      <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
+                        <span style={{ fontSize: '12px', background: '#F1F5F9', padding: '4px 8px', borderRadius: '4px', fontWeight: '500' }}>{b.type}</span>
+                      </td>
+                      <td style={{ padding: '12px 14px', color: 'var(--text-secondary)', fontSize: '13px' }}>{b.location || '—'}</td>
+                      <td style={{ padding: '12px 14px', color: 'var(--text-secondary)' }}>
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ fontSize: '13px' }}>{b.manager || 'No manager'}</span>
-                          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{b.phone}</span>
+                          <span style={{ fontSize: '13px', whiteSpace: 'nowrap' }}>{b.manager || 'No manager'}</span>
+                          <span style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{b.phone}</span>
                         </div>
                       </td>
-                      <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                      <td style={{ padding: '12px 14px', textAlign: 'center' }}>
                         <button
                           type="button"
                           onClick={() => {
@@ -794,6 +1079,176 @@ const Onboarding = () => {
     }  
 
     if (stepId === 'offering') {
+      if (tenantType === 4) {
+        return (
+          <div className="animate-fade-in" style={{ padding: '24px' }}>
+            <h2 style={{ fontSize: '28px', marginBottom: '8px' }}>Products & Services by Business</h2>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '28px' }}>
+              Select whether each business offers physical products, services, or both. Each business in your conglomerate operates independently.
+            </p>
+
+            {businesses.length === 0 ? (
+              <div style={{ padding: '36px', textAlign: 'center', background: '#F8FAFC', borderRadius: '12px', border: '1px dashed var(--border-color)' }}>
+                <Building2 size={32} color="var(--primary-blue)" style={{ margin: '0 auto 12px auto' }} />
+                <h4 style={{ margin: '0 0 8px 0', fontSize: '16px' }}>No businesses registered yet</h4>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '16px' }}>Please go back to Step 1 to register your conglomerate businesses first.</p>
+                <button type="button" onClick={() => setCurrentStep(0)} className="btn-primary" style={{ padding: '8px 16px' }}>
+                  Go to Step 1
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {businesses.map((biz, idx) => {
+                  const currentOff = biz.offeringType || 'both';
+                  return (
+                    <div 
+                      key={idx}
+                      style={{ 
+                        background: 'white', 
+                        border: '1px solid var(--border-color)', 
+                        borderRadius: '12px', 
+                        padding: '20px',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#EFF6FF', color: 'var(--primary-blue)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Building2 size={20} />
+                          </div>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <h4 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: '#0F172A' }}>{biz.name}</h4>
+                              <span style={{ fontSize: '11px', color: 'var(--text-secondary)', background: '#F1F5F9', padding: '2px 8px', borderRadius: '10px' }}>
+                                Business #{idx + 1}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                              {biz.phone ? `Phone: ${biz.phone}` : ''} {biz.regNo ? `• Reg No: ${biz.regNo}` : ''}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            padding: '4px 10px',
+                            borderRadius: '20px',
+                            background: currentOff === 'service' ? '#F3E8FF' : currentOff === 'product' ? '#EFF6FF' : '#F0FDF4',
+                            color: currentOff === 'service' ? '#7E22CE' : currentOff === 'product' ? '#1D4ED8' : '#15803D'
+                          }}>
+                            {currentOff === 'service' ? '🛠️ Services Only' : currentOff === 'product' ? '📦 Products Only' : '🔄 Products & Services'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '10px' }}>
+                        {/* Products */}
+                        <div
+                          onClick={() => {
+                            const updated = businesses.map((b, i) => i === idx ? { ...b, offeringType: 'product' } : b);
+                            setBusinesses(updated);
+                            saveProgress({ businesses: updated });
+                          }}
+                          style={{
+                            padding: '12px 12px',
+                            borderRadius: '10px',
+                            border: `2px solid ${currentOff === 'product' ? 'var(--primary-blue)' : 'var(--border-color)'}`,
+                            background: currentOff === 'product' ? '#EFF6FF' : 'white',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                            position: 'relative',
+                            minWidth: 0,
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <div style={{ width: '34px', height: '34px', flexShrink: 0, borderRadius: '8px', background: currentOff === 'product' ? 'white' : '#F8FAFC', color: currentOff === 'product' ? 'var(--primary-blue)' : '#64748B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Package size={17} />
+                          </div>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ fontSize: '13px', fontWeight: '600', color: currentOff === 'product' ? 'var(--primary-blue)' : '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Products Only</div>
+                            <div style={{ fontSize: '11px', color: '#64748B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Physical stock</div>
+                          </div>
+                          {currentOff === 'product' && <CheckCircle2 size={16} color="var(--primary-blue)" style={{ flexShrink: 0, marginLeft: 'auto' }} />}
+                        </div>
+
+                        {/* Services */}
+                        <div
+                          onClick={() => {
+                            const updated = businesses.map((b, i) => i === idx ? { ...b, offeringType: 'service' } : b);
+                            setBusinesses(updated);
+                            saveProgress({ businesses: updated });
+                          }}
+                          style={{
+                            padding: '12px 12px',
+                            borderRadius: '10px',
+                            border: `2px solid ${currentOff === 'service' ? '#7E22CE' : 'var(--border-color)'}`,
+                            background: currentOff === 'service' ? '#FAF5FF' : 'white',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                            position: 'relative',
+                            minWidth: 0,
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <div style={{ width: '34px', height: '34px', flexShrink: 0, borderRadius: '8px', background: currentOff === 'service' ? 'white' : '#F8FAFC', color: currentOff === 'service' ? '#7E22CE' : '#64748B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Briefcase size={17} />
+                          </div>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ fontSize: '13px', fontWeight: '600', color: currentOff === 'service' ? '#7E22CE' : '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Services Only</div>
+                            <div style={{ fontSize: '11px', color: '#64748B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Billable services</div>
+                          </div>
+                          {currentOff === 'service' && <CheckCircle2 size={16} color="#7E22CE" style={{ flexShrink: 0, marginLeft: 'auto' }} />}
+                        </div>
+
+                        {/* Both */}
+                        <div
+                          onClick={() => {
+                            const updated = businesses.map((b, i) => i === idx ? { ...b, offeringType: 'both' } : b);
+                            setBusinesses(updated);
+                            saveProgress({ businesses: updated });
+                          }}
+                          style={{
+                            padding: '12px 12px',
+                            borderRadius: '10px',
+                            border: `2px solid ${currentOff === 'both' ? '#15803D' : 'var(--border-color)'}`,
+                            background: currentOff === 'both' ? '#F0FDF4' : 'white',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                            position: 'relative',
+                            minWidth: 0,
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <div style={{ width: '34px', height: '34px', flexShrink: 0, borderRadius: '8px', background: currentOff === 'both' ? 'white' : '#F8FAFC', color: currentOff === 'both' ? '#15803D' : '#64748B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Boxes size={17} />
+                          </div>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ fontSize: '13px', fontWeight: '600', color: currentOff === 'both' ? '#15803D' : '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Both Offerings</div>
+                            <div style={{ fontSize: '11px', color: '#64748B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Products + services</div>
+                          </div>
+                          {currentOff === 'both' && <CheckCircle2 size={16} color="#15803D" style={{ flexShrink: 0, marginLeft: 'auto' }} />}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      }
+
       const isProduct = selections.offering.includes('product');
       const isService = selections.offering.includes('service');
 
@@ -838,6 +1293,176 @@ const Onboarding = () => {
     }
 
     if (stepId === 'operation') {
+      if (tenantType === 4) {
+        return (
+          <div className="animate-fade-in" style={{ padding: '24px' }}>
+            <h2 style={{ fontSize: '28px', marginBottom: '8px' }}>Trade Operations by Business</h2>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '28px' }}>
+              Select trade workflows (Sales, Purchases, or Both) for each business separately. Each business can have independent sales or purchasing modules.
+            </p>
+
+            {businesses.length === 0 ? (
+              <div style={{ padding: '36px', textAlign: 'center', background: '#F8FAFC', borderRadius: '12px', border: '1px dashed var(--border-color)' }}>
+                <Building2 size={32} color="var(--primary-blue)" style={{ margin: '0 auto 12px auto' }} />
+                <h4 style={{ margin: '0 0 8px 0', fontSize: '16px' }}>No businesses registered yet</h4>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '16px' }}>Please go back to Step 1 to register your conglomerate businesses first.</p>
+                <button type="button" onClick={() => setCurrentStep(0)} className="btn-primary" style={{ padding: '8px 16px' }}>
+                  Go to Step 1
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {businesses.map((biz, idx) => {
+                  const currentOp = biz.operationsType || 'both';
+                  return (
+                    <div 
+                      key={idx}
+                      style={{ 
+                        background: 'white', 
+                        border: '1px solid var(--border-color)', 
+                        borderRadius: '12px', 
+                        padding: '20px',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#EFF6FF', color: 'var(--primary-blue)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Building2 size={20} />
+                          </div>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <h4 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: '#0F172A' }}>{biz.name}</h4>
+                              <span style={{ fontSize: '11px', color: 'var(--text-secondary)', background: '#F1F5F9', padding: '2px 8px', borderRadius: '10px' }}>
+                                Business #{idx + 1}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                              {biz.phone ? `Phone: ${biz.phone}` : ''} {biz.regNo ? `• Reg No: ${biz.regNo}` : ''}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            padding: '4px 10px',
+                            borderRadius: '20px',
+                            background: currentOp === 'sales' ? '#ECFDF5' : currentOp === 'purchases' ? '#FEF3C7' : '#EFF6FF',
+                            color: currentOp === 'sales' ? '#047857' : currentOp === 'purchases' ? '#B45309' : '#1D4ED8'
+                          }}>
+                            {currentOp === 'sales' ? '📈 Sales Only' : currentOp === 'purchases' ? '🛒 Purchases Only' : '🔁 Sales & Purchases'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '10px' }}>
+                        {/* Sales Only */}
+                        <div
+                          onClick={() => {
+                            const updated = businesses.map((b, i) => i === idx ? { ...b, operationsType: 'sales' } : b);
+                            setBusinesses(updated);
+                            saveProgress({ businesses: updated });
+                          }}
+                          style={{
+                            padding: '12px 12px',
+                            borderRadius: '10px',
+                            border: `2px solid ${currentOp === 'sales' ? '#047857' : 'var(--border-color)'}`,
+                            background: currentOp === 'sales' ? '#ECFDF5' : 'white',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                            position: 'relative',
+                            minWidth: 0,
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <div style={{ width: '34px', height: '34px', flexShrink: 0, borderRadius: '8px', background: currentOp === 'sales' ? 'white' : '#F8FAFC', color: currentOp === 'sales' ? '#047857' : '#64748B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <TrendingUp size={17} />
+                          </div>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ fontSize: '13px', fontWeight: '600', color: currentOp === 'sales' ? '#047857' : '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Sales Only</div>
+                            <div style={{ fontSize: '11px', color: '#64748B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Invoices & revenue</div>
+                          </div>
+                          {currentOp === 'sales' && <CheckCircle2 size={16} color="#047857" style={{ flexShrink: 0, marginLeft: 'auto' }} />}
+                        </div>
+
+                        {/* Purchases Only */}
+                        <div
+                          onClick={() => {
+                            const updated = businesses.map((b, i) => i === idx ? { ...b, operationsType: 'purchases' } : b);
+                            setBusinesses(updated);
+                            saveProgress({ businesses: updated });
+                          }}
+                          style={{
+                            padding: '12px 12px',
+                            borderRadius: '10px',
+                            border: `2px solid ${currentOp === 'purchases' ? '#B45309' : 'var(--border-color)'}`,
+                            background: currentOp === 'purchases' ? '#FEF3C7' : 'white',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                            position: 'relative',
+                            minWidth: 0,
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <div style={{ width: '34px', height: '34px', flexShrink: 0, borderRadius: '8px', background: currentOp === 'purchases' ? 'white' : '#F8FAFC', color: currentOp === 'purchases' ? '#B45309' : '#64748B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <ShoppingCart size={17} />
+                          </div>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ fontSize: '13px', fontWeight: '600', color: currentOp === 'purchases' ? '#B45309' : '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Purchases Only</div>
+                            <div style={{ fontSize: '11px', color: '#64748B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Procurement & bills</div>
+                          </div>
+                          {currentOp === 'purchases' && <CheckCircle2 size={16} color="#B45309" style={{ flexShrink: 0, marginLeft: 'auto' }} />}
+                        </div>
+
+                        {/* Both */}
+                        <div
+                          onClick={() => {
+                            const updated = businesses.map((b, i) => i === idx ? { ...b, operationsType: 'both' } : b);
+                            setBusinesses(updated);
+                            saveProgress({ businesses: updated });
+                          }}
+                          style={{
+                            padding: '12px 12px',
+                            borderRadius: '10px',
+                            border: `2px solid ${currentOp === 'both' ? 'var(--primary-blue)' : 'var(--border-color)'}`,
+                            background: currentOp === 'both' ? '#EFF6FF' : 'white',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                            position: 'relative',
+                            minWidth: 0,
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <div style={{ width: '34px', height: '34px', flexShrink: 0, borderRadius: '8px', background: currentOp === 'both' ? 'white' : '#F8FAFC', color: currentOp === 'both' ? 'var(--primary-blue)' : '#64748B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Repeat size={17} />
+                          </div>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ fontSize: '13px', fontWeight: '600', color: currentOp === 'both' ? 'var(--primary-blue)' : '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Both Operations</div>
+                            <div style={{ fontSize: '11px', color: '#64748B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Full buy & sell cycles</div>
+                          </div>
+                          {currentOp === 'both' && <CheckCircle2 size={16} color="var(--primary-blue)" style={{ flexShrink: 0, marginLeft: 'auto' }} />}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      }
+
       const isPurchase = selections.operation.includes('purchase');
       const isSale = selections.operation.includes('sale');
 
@@ -894,44 +1519,48 @@ const Onboarding = () => {
           </p>
           
           {employees.length > 0 && !showEmployeeForm && (
-            <div style={{ marginBottom: '24px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden' }}>
+            <div style={{ width: '100%', overflowX: 'auto', marginBottom: '24px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '680px' }}>
                 <thead style={{ background: '#F8FAFC' }}>
                   <tr>
-                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', width: '60px' }}>S.No</th>
-                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)' }}>Name</th>
-                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)' }}>Role & Branch</th>
-                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)' }}>Contact</th>
-                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)' }}>Shift</th>
-                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)' }}>Salary</th>
-                    <th style={{ padding: '12px 16px', textAlign: 'center', fontSize: '13px', color: 'var(--text-secondary)', width: '60px' }}>Action</th>
+                    <th style={{ padding: '12px 14px', textAlign: 'center', fontSize: '13px', color: 'var(--text-secondary)', width: '45px' }}>S.No</th>
+                    <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', minWidth: '110px' }}>Name</th>
+                    <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', minWidth: '170px' }}>Role & Branch</th>
+                    <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', minWidth: '160px' }}>Contact</th>
+                    <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', minWidth: '110px' }}>Shift</th>
+                    <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', minWidth: '90px' }}>Salary</th>
+                    <th style={{ padding: '12px 14px', textAlign: 'center', fontSize: '13px', color: 'var(--text-secondary)', width: '50px' }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {employees.map((emp, idx) => (
                     <tr key={idx} style={{ borderTop: '1px solid var(--border-color)' }}>
-                      <td style={{ padding: '12px 16px', fontSize: '14px', color: 'var(--text-secondary)', fontWeight: '500' }}>{idx + 1}</td>
-                      <td style={{ padding: '12px 16px', fontWeight: '500' }}>{emp.name}</td>
-                      <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-title)' }}>{emp.designation || emp.role || 'Staff'}</span>
+                      <td style={{ padding: '12px 14px', fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '500', textAlign: 'center' }}>{idx + 1}</td>
+                      <td style={{ padding: '12px 14px', fontWeight: '600', color: '#0F172A', whiteSpace: 'nowrap' }}>{emp.name}</td>
+                      <td style={{ padding: '12px 14px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                          <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-title)', whiteSpace: 'nowrap' }}>{emp.designation || emp.role || 'Staff'}</span>
                           {emp.role && emp.designation && emp.role !== emp.designation && (
-                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Role: {emp.role}</span>
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Role: {emp.role}</span>
                           )}
-                          <span style={{ fontSize: '12px', color: 'var(--primary-blue)', display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
-                            <Map size={12} /> {emp.branch || 'Main Branch'} {tenantType === 4 && emp.business ? `(${emp.business})` : ''}
+                          <span style={{ fontSize: '12px', color: 'var(--primary-blue)', display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
+                            <Map size={12} style={{ flexShrink: 0 }} /> {emp.branch || 'Main Branch'} {tenantType === 4 && emp.business ? `(${emp.business})` : ''}
                           </span>
                         </div>
                       </td>
-                      <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ fontSize: '13px' }}>{emp.email}</span>
-                          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{emp.phone}</span>
+                      <td style={{ padding: '12px 14px', color: 'var(--text-secondary)' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                          <span style={{ fontSize: '13px', color: '#334155', whiteSpace: 'nowrap' }}>{emp.email}</span>
+                          <span style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{emp.phone}</span>
                         </div>
                       </td>
-                      <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{emp.shiftFrom && emp.shiftTo ? `${emp.shiftFrom} - ${emp.shiftTo}` : '—'}</td>
-                      <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{emp.salary}</td>
-                      <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                      <td style={{ padding: '12px 14px', color: 'var(--text-secondary)', whiteSpace: 'nowrap', fontSize: '13px' }}>
+                        {emp.shiftFrom && emp.shiftTo ? `${emp.shiftFrom} - ${emp.shiftTo}` : '—'}
+                      </td>
+                      <td style={{ padding: '12px 14px', color: '#0F172A', fontWeight: '500', whiteSpace: 'nowrap', fontSize: '13px' }}>
+                        {emp.salary || '—'}
+                      </td>
+                      <td style={{ padding: '12px 14px', textAlign: 'center' }}>
                         <button
                           type="button"
                           onClick={() => {
@@ -1295,7 +1924,7 @@ const Onboarding = () => {
         </div>
 
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
-          <div className="card" style={{ width: '100%', maxWidth: '700px', minHeight: '400px', display: 'flex', flexDirection: 'column' }}>
+          <div className="card" style={{ width: '100%', maxWidth: '880px', minHeight: '400px', display: 'flex', flexDirection: 'column', transition: 'max-width 0.3s ease' }}>
             {renderStepContent()}
           </div>
         </div>

@@ -184,6 +184,8 @@ router.post('/login', async (req, res) => {
             id: parentUserWithBiz.id,
             businessId: business._id.toString(),
             businessName: business.name,
+            businessOfferingType: business.offeringType || 'both',
+            businessOperationsType: business.operationsType || 'both',
             role: 'business',
             businessType: 4
           }
@@ -210,6 +212,8 @@ router.post('/login', async (req, res) => {
                 businessPhone: business.phone,
                 businessAddress: business.address,
                 businessRegNo: business.regNo,
+                businessOfferingType: business.offeringType || 'both',
+                businessOperationsType: business.operationsType || 'both',
                 businessType: 4,
                 modules: parentUserWithBiz.modules || ['products_services', 'inventory', 'sales', 'expenses']
               }
@@ -237,11 +241,18 @@ router.post('/login', async (req, res) => {
         parentUser = await User.findById(branch.tenantId);
       }
 
+      const matchedBiz = parentUser?.businesses?.find(b => b.name === branch.businessName);
+      const bizOfferingType = matchedBiz?.offeringType || 'both';
+      const bizOperationsType = matchedBiz?.operationsType || 'both';
+
       const payload = {
         user: {
           id: parentUser ? parentUser.id : branch.tenantId,
           branchId: branch._id.toString(),
           branchName: branch.name,
+          businessName: branch.businessName || '',
+          businessOfferingType: bizOfferingType,
+          businessOperationsType: bizOperationsType,
           role: 'branch',
           businessType: parentUser ? parentUser.businessType : 3
         }
@@ -265,7 +276,9 @@ router.post('/login', async (req, res) => {
               branchName: branch.name,
               branchLocation: branch.location,
               businessType: parentUser ? parentUser.businessType : 3,
-              businessName: parentUser ? parentUser.businessName : 'BizTech Store',
+              businessName: branch.businessName || (parentUser ? parentUser.businessName : 'BizTech Store'),
+              businessOfferingType: bizOfferingType,
+              businessOperationsType: bizOperationsType,
               modules: parentUser ? parentUser.modules : ['products_services', 'inventory', 'sales', 'expenses']
             }
           });
@@ -290,6 +303,10 @@ router.post('/login', async (req, res) => {
         parentUser = await User.findById(employee.tenantId);
       }
 
+      const matchedBiz = parentUser?.businesses?.find(b => b.name === employee.businessName);
+      const bizOfferingType = matchedBiz?.offeringType || 'both';
+      const bizOperationsType = matchedBiz?.operationsType || 'both';
+
       const payload = {
         user: {
           id: parentUser ? parentUser.id : employee.tenantId,
@@ -298,6 +315,8 @@ router.post('/login', async (req, res) => {
           branchId: employee.branchId ? employee.branchId.toString() : null,
           branchName: employee.branchName || '',
           businessName: employee.businessName || '',
+          businessOfferingType: bizOfferingType,
+          businessOperationsType: bizOperationsType,
           businessType: parentUser ? parentUser.businessType : 2
         }
       };
@@ -320,6 +339,8 @@ router.post('/login', async (req, res) => {
               branchId: employee.branchId,
               branchName: employee.branchName,
               businessName: employee.businessName,
+              businessOfferingType: bizOfferingType,
+              businessOperationsType: bizOperationsType,
               designation: employee.designation || employee.position || 'Staff',
               position: employee.position || employee.designation || 'Staff',
               status: employee.status || 'Active',
@@ -516,6 +537,8 @@ router.get('/me', async (req, res) => {
         businessName: business.name,
         businessAddress: business.address,
         businessRegNo: business.regNo,
+        businessOfferingType: business.offeringType || 'both',
+        businessOperationsType: business.operationsType || 'both',
         businessType: 4,
         modules: parentUser.modules || ['products_services', 'inventory', 'sales', 'expenses']
       });
@@ -526,6 +549,10 @@ router.get('/me', async (req, res) => {
       const branch = await Branch.findById(decoded.user.branchId);
       const parentUser = await User.findById(decoded.user.id).select('-password');
       if (!branch) return res.status(404).json({ message: 'Branch not found' });
+
+      const matchedBiz = parentUser?.businesses?.find(b => b.name === branch.businessName);
+      const bizOfferingType = matchedBiz?.offeringType || 'both';
+      const bizOperationsType = matchedBiz?.operationsType || 'both';
 
       return res.json({
         _id: parentUser ? parentUser._id : decoded.user.id,
@@ -539,7 +566,9 @@ router.get('/me', async (req, res) => {
         branchName: branch.name,
         branchLocation: branch.location,
         businessType: parentUser ? parentUser.businessType : 3,
-        businessName: parentUser ? parentUser.businessName : 'BizTech Store',
+        businessName: branch.businessName || (parentUser ? parentUser.businessName : 'BizTech Store'),
+        businessOfferingType: bizOfferingType,
+        businessOperationsType: bizOperationsType,
         modules: parentUser ? parentUser.modules : ['products_services', 'inventory', 'sales', 'expenses']
       });
     }
@@ -548,6 +577,14 @@ router.get('/me', async (req, res) => {
     if (decoded?.user?.role === 'employee') {
       const employee = await Employee.findById(decoded.user.employeeId);
       if (!employee) return res.status(404).json({ message: 'Employee not found' });
+
+      let parentUser = null;
+      if (employee.tenantId && employee.tenantId !== 'default_tenant') {
+        parentUser = await User.findById(employee.tenantId).select('-password');
+      }
+      const matchedBiz = parentUser?.businesses?.find(b => b.name === employee.businessName);
+      const bizOfferingType = matchedBiz?.offeringType || 'both';
+      const bizOperationsType = matchedBiz?.operationsType || 'both';
 
       return res.json({
         _id: employee._id,
@@ -561,6 +598,8 @@ router.get('/me', async (req, res) => {
         branchId: employee.branchId,
         branchName: employee.branchName,
         businessName: employee.businessName,
+        businessOfferingType: bizOfferingType,
+        businessOperationsType: bizOperationsType,
         designation: employee.designation || employee.position || 'Staff',
         position: employee.position || employee.designation || 'Staff',
         status: employee.status || 'Active',
@@ -656,6 +695,8 @@ router.post('/switch-business', async (req, res) => {
         id: parentUser.id,
         businessId: business._id.toString(),
         businessName: business.name,
+        businessOfferingType: business.offeringType || 'both',
+        businessOperationsType: business.operationsType || 'both',
         role: 'business',
         businessType: 4
       }
@@ -682,6 +723,8 @@ router.post('/switch-business', async (req, res) => {
             businessPhone: business.phone,
             businessAddress: business.address,
             businessRegNo: business.regNo,
+            businessOfferingType: business.offeringType || 'both',
+            businessOperationsType: business.operationsType || 'both',
             businessType: 4,
             modules: parentUser.modules
           }
