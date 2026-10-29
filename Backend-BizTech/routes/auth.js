@@ -152,6 +152,12 @@ router.post('/login', async (req, res) => {
               role: 'owner',
               businessType: user.businessType, 
               businessName: user.businessName,
+              businesses: (user.businesses || []).map(b => {
+                const obj = b.toObject ? b.toObject() : { ...b };
+                delete obj.password;
+                obj.hasPassword = Boolean(b.password);
+                return obj;
+              }),
               modules: user.modules 
             } 
           });
@@ -159,61 +165,173 @@ router.post('/login', async (req, res) => {
       );
     }
 
-    // 2. Check if a Branch exists with this email (Branch Login)
-    const branch = await Branch.findOne({ email: cleanEmail });
-    if (!branch || !branch.password) {
-      return res.status(400).json({ message: 'Invalid Credentials' });
-    }
+    // 2. Check if a Business exists with this email (Business Login)
+    const parentUserWithBiz = await User.findOne({ 'businesses.email': cleanEmail });
+    if (parentUserWithBiz) {
+      const business = parentUserWithBiz.businesses.find(b => b.email === cleanEmail);
+      if (business && business.password) {
+        if (business.isLoginEnabled === false) {
+          return res.status(403).json({ message: 'Login access for this business is currently disabled by the owner.' });
+        }
 
-    if (branch.isLoginEnabled === false) {
-      return res.status(403).json({ message: 'Login access for this branch is currently disabled by the owner.' });
-    }
+        const isBizMatch = await bcrypt.compare(password, business.password);
+        if (!isBizMatch) {
+          return res.status(400).json({ message: 'Invalid Credentials' });
+        }
 
-    const isBranchMatch = await bcrypt.compare(password, branch.password);
-    if (!isBranchMatch) {
-      return res.status(400).json({ message: 'Invalid Credentials' });
-    }
-
-    // Find parent tenant
-    let parentUser = null;
-    if (branch.tenantId && branch.tenantId !== 'default_tenant') {
-      parentUser = await User.findById(branch.tenantId);
-    }
-
-    const payload = {
-      user: {
-        id: parentUser ? parentUser.id : branch.tenantId,
-        branchId: branch._id.toString(),
-        branchName: branch.name,
-        role: 'branch',
-        businessType: parentUser ? parentUser.businessType : 3
-      }
-    };
-
-    return jwt.sign(
-      payload,
-      process.env.JWT_SECRET || 'fallback_secret',
-      { expiresIn: '1d' },
-      (err, token) => {
-        if (err) throw err;
-        res.json({
-          token,
+        const payload = {
           user: {
-            id: parentUser ? parentUser.id : branch.tenantId,
-            userId: `BR-${branch.name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase()}`,
-            fullName: branch.manager || branch.name,
-            email: branch.email,
-            role: 'branch',
-            branchId: branch._id,
-            branchName: branch.name,
-            branchLocation: branch.location,
-            businessType: parentUser ? parentUser.businessType : 3,
-            businessName: parentUser ? parentUser.businessName : 'BizTech Store',
-            modules: parentUser ? parentUser.modules : ['products_services', 'inventory', 'sales', 'expenses']
+            id: parentUserWithBiz.id,
+            businessId: business._id.toString(),
+            businessName: business.name,
+            role: 'business',
+            businessType: 4
           }
-        });
+        };
+
+        const bizCode = `BZ-${business.name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase()}`;
+
+        return jwt.sign(
+          payload,
+          process.env.JWT_SECRET || 'fallback_secret',
+          { expiresIn: '1d' },
+          (err, token) => {
+            if (err) throw err;
+            res.json({
+              token,
+              user: {
+                id: parentUserWithBiz.id,
+                userId: bizCode,
+                fullName: business.name,
+                email: business.email,
+                role: 'business',
+                businessId: business._id,
+                businessName: business.name,
+                businessPhone: business.phone,
+                businessAddress: business.address,
+                businessRegNo: business.regNo,
+                businessType: 4,
+                modules: parentUserWithBiz.modules || ['products_services', 'inventory', 'sales', 'expenses']
+              }
+            });
+          }
+        );
       }
-    );
+    }
+
+    // 3. Check if a Branch exists with this email (Branch Login)
+    const branch = await Branch.findOne({ email: cleanEmail });
+    if (branch && branch.password) {
+      if (branch.isLoginEnabled === false) {
+        return res.status(403).json({ message: 'Login access for this branch is currently disabled by the owner.' });
+      }
+
+      const isBranchMatch = await bcrypt.compare(password, branch.password);
+      if (!isBranchMatch) {
+        return res.status(400).json({ message: 'Invalid Credentials' });
+      }
+
+      // Find parent tenant
+      let parentUser = null;
+      if (branch.tenantId && branch.tenantId !== 'default_tenant') {
+        parentUser = await User.findById(branch.tenantId);
+      }
+
+      const payload = {
+        user: {
+          id: parentUser ? parentUser.id : branch.tenantId,
+          branchId: branch._id.toString(),
+          branchName: branch.name,
+          role: 'branch',
+          businessType: parentUser ? parentUser.businessType : 3
+        }
+      };
+
+      return jwt.sign(
+        payload,
+        process.env.JWT_SECRET || 'fallback_secret',
+        { expiresIn: '1d' },
+        (err, token) => {
+          if (err) throw err;
+          res.json({
+            token,
+            user: {
+              id: parentUser ? parentUser.id : branch.tenantId,
+              userId: `BR-${branch.name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase()}`,
+              fullName: branch.manager || branch.name,
+              email: branch.email,
+              role: 'branch',
+              branchId: branch._id,
+              branchName: branch.name,
+              branchLocation: branch.location,
+              businessType: parentUser ? parentUser.businessType : 3,
+              businessName: parentUser ? parentUser.businessName : 'BizTech Store',
+              modules: parentUser ? parentUser.modules : ['products_services', 'inventory', 'sales', 'expenses']
+            }
+          });
+        }
+      );
+    }
+
+    // 4. Check if an Employee exists with this email (Employee Login)
+    const employee = await Employee.findOne({ email: cleanEmail });
+    if (employee && employee.password) {
+      if (employee.isLoginEnabled === false) {
+        return res.status(403).json({ message: 'Login access for this employee is currently disabled.' });
+      }
+
+      const isEmpMatch = await bcrypt.compare(password, employee.password);
+      if (!isEmpMatch) {
+        return res.status(400).json({ message: 'Invalid Credentials' });
+      }
+
+      let parentUser = null;
+      if (employee.tenantId && employee.tenantId !== 'default_tenant') {
+        parentUser = await User.findById(employee.tenantId);
+      }
+
+      const payload = {
+        user: {
+          id: parentUser ? parentUser.id : employee.tenantId,
+          employeeId: employee._id.toString(),
+          role: 'employee',
+          branchId: employee.branchId ? employee.branchId.toString() : null,
+          branchName: employee.branchName || '',
+          businessName: employee.businessName || '',
+          businessType: parentUser ? parentUser.businessType : 2
+        }
+      };
+
+      return jwt.sign(
+        payload,
+        process.env.JWT_SECRET || 'fallback_secret',
+        { expiresIn: '1d' },
+        (err, token) => {
+          if (err) throw err;
+          res.json({
+            token,
+            user: {
+              id: parentUser ? parentUser.id : employee.tenantId,
+              userId: `EMP-${employee.name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase()}`,
+              fullName: employee.name,
+              email: employee.email,
+              role: 'employee',
+              employeeId: employee._id,
+              branchId: employee.branchId,
+              branchName: employee.branchName,
+              businessName: employee.businessName,
+              designation: employee.designation || employee.position || 'Staff',
+              position: employee.position || employee.designation || 'Staff',
+              status: employee.status || 'Active',
+              businessType: parentUser ? parentUser.businessType : 2,
+              modules: ['attendance', 'leaves']
+            }
+          });
+        }
+      );
+    }
+
+    return res.status(400).json({ message: 'Invalid Credentials' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: err.message, stack: err.stack });
@@ -377,6 +495,32 @@ router.get('/me', async (req, res) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
     
+    // Check if this is a Business session
+    if (decoded?.user?.role === 'business') {
+      const parentUser = await User.findById(decoded.user.id).select('-password');
+      if (!parentUser) return res.status(404).json({ message: 'Owner tenant not found' });
+
+      const business = parentUser.businesses.id(decoded.user.businessId) || 
+                       parentUser.businesses.find(b => b.name === decoded.user.businessName);
+      if (!business) return res.status(404).json({ message: 'Business not found' });
+
+      return res.json({
+        _id: parentUser._id,
+        id: parentUser.id,
+        userId: `BZ-${business.name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase()}`,
+        fullName: business.name,
+        email: business.email || parentUser.email,
+        phone: business.phone,
+        role: 'business',
+        businessId: business._id,
+        businessName: business.name,
+        businessAddress: business.address,
+        businessRegNo: business.regNo,
+        businessType: 4,
+        modules: parentUser.modules || ['products_services', 'inventory', 'sales', 'expenses']
+      });
+    }
+
     // Check if this is a Branch session
     if (decoded?.user?.role === 'branch') {
       const branch = await Branch.findById(decoded.user.branchId);
@@ -400,6 +544,30 @@ router.get('/me', async (req, res) => {
       });
     }
 
+    // Check if this is an Employee session
+    if (decoded?.user?.role === 'employee') {
+      const employee = await Employee.findById(decoded.user.employeeId);
+      if (!employee) return res.status(404).json({ message: 'Employee not found' });
+
+      return res.json({
+        _id: employee._id,
+        id: decoded.user.id,
+        employeeId: employee._id,
+        userId: `EMP-${employee.name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase()}`,
+        fullName: employee.name,
+        email: employee.email,
+        phone: employee.contactNumber,
+        role: 'employee',
+        branchId: employee.branchId,
+        branchName: employee.branchName,
+        businessName: employee.businessName,
+        designation: employee.designation || employee.position || 'Staff',
+        position: employee.position || employee.designation || 'Staff',
+        status: employee.status || 'Active',
+        modules: ['attendance', 'leaves']
+      });
+    }
+
     let user = await User.findById(decoded.user.id).select('-password');
     if (!user) return res.status(404).json({ message: 'User not found' });
 
@@ -408,10 +576,121 @@ router.get('/me', async (req, res) => {
       await user.save();
     }
 
-    res.json(user);
+    const sanitizedUser = user.toObject();
+    if (sanitizedUser.businesses) {
+      sanitizedUser.businesses = sanitizedUser.businesses.map(b => {
+        const hasPassword = Boolean(b.password);
+        delete b.password;
+        b.hasPassword = hasPassword;
+        return b;
+      });
+    }
+
+    res.json(sanitizedUser);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server Error' });
+  }
+});
+
+// @route   POST /api/auth/switch-business
+// @desc    Switch active session into a business or back to owner
+router.post('/switch-business', async (req, res) => {
+  try {
+    const token = req.header('Authorization')?.split(' ')[1];
+    if (!token) return res.status(401).json({ message: 'No token, authorization denied' });
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
+    const { businessId, switchToOwner } = req.body;
+
+    const parentUser = await User.findById(decoded.user.id);
+    if (!parentUser) return res.status(404).json({ message: 'User not found' });
+
+    // Switch back to owner
+    if (switchToOwner) {
+      const payload = {
+        user: {
+          id: parentUser.id,
+          businessType: parentUser.businessType,
+          role: 'owner'
+        }
+      };
+
+      return jwt.sign(
+        payload,
+        process.env.JWT_SECRET || 'fallback_secret',
+        { expiresIn: '1d' },
+        (err, newToken) => {
+          if (err) throw err;
+          res.json({
+            token: newToken,
+            user: {
+              id: parentUser.id,
+              userId: parentUser.userId,
+              fullName: parentUser.fullName,
+              email: parentUser.email,
+              role: 'owner',
+              businessType: parentUser.businessType,
+              businessName: parentUser.businessName,
+              businesses: (parentUser.businesses || []).map(b => {
+                const obj = b.toObject ? b.toObject() : { ...b };
+                delete obj.password;
+                obj.hasPassword = Boolean(b.password);
+                return obj;
+              }),
+              modules: parentUser.modules
+            }
+          });
+        }
+      );
+    }
+
+    // Switch into specific business
+    const business = parentUser.businesses.id(businessId) || parentUser.businesses.find(b => b.name === businessId);
+    if (!business) {
+      return res.status(404).json({ message: 'Business not found' });
+    }
+
+    const payload = {
+      user: {
+        id: parentUser.id,
+        businessId: business._id.toString(),
+        businessName: business.name,
+        role: 'business',
+        businessType: 4
+      }
+    };
+
+    const bizCode = `BZ-${business.name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase()}`;
+
+    return jwt.sign(
+      payload,
+      process.env.JWT_SECRET || 'fallback_secret',
+      { expiresIn: '1d' },
+      (err, newToken) => {
+        if (err) throw err;
+        res.json({
+          token: newToken,
+          user: {
+            id: parentUser.id,
+            userId: bizCode,
+            fullName: business.name,
+            email: business.email || parentUser.email,
+            role: 'business',
+            businessId: business._id,
+            businessName: business.name,
+            businessPhone: business.phone,
+            businessAddress: business.address,
+            businessRegNo: business.regNo,
+            businessType: 4,
+            modules: parentUser.modules
+          }
+        });
+      }
+    );
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message || 'Server Error' });
   }
 });
 

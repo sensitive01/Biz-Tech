@@ -33,11 +33,13 @@ const Expenses = () => {
   const [filterDays, setFilterDays] = useState('all');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
-  const [formData, setFormData] = useState({ title: '', category: '', customCategory: '', description: '', date: '', amount: '', proof: null });
+  const [isCustomCategory, setIsCustomCategory] = useState(false);
+  const [formData, setFormData] = useState({ title: '', category: '', description: '', date: '', amount: '', proof: null });
 
   const handleOpenAdd = () => {
     setEditingItem(null);
-    setFormData({ title: '', category: '', customCategory: '', description: '', date: '', amount: '', proof: null });
+    setIsCustomCategory(false);
+    setFormData({ title: '', category: '', description: '', date: '', amount: '', proof: null });
     setShowModal(true);
   };
 
@@ -45,10 +47,10 @@ const Expenses = () => {
     setEditingItem(item);
     const predefined = ['Office Supplies', 'Travel', 'Meals', 'Software'];
     const isOther = item.category && !predefined.includes(item.category);
+    setIsCustomCategory(Boolean(isOther));
     setFormData({
       title: item.title || '',
-      category: isOther ? 'Other' : (item.category || ''),
-      customCategory: isOther ? item.category : '',
+      category: item.category || '',
       description: item.description || '',
       date: item.date ? item.date.substring(0, 10) : '',
       amount: item.amount || '',
@@ -80,14 +82,16 @@ const Expenses = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isCustomCategory && !formData.category.trim()) {
+      alert('Please specify the category name.');
+      return;
+    }
     try {
       const token = localStorage.getItem('token');
       const formDataToSend = new FormData();
       formDataToSend.append('title', formData.title);
-      formDataToSend.append('category', formData.category);
-      if (formData.category === 'Other') {
-        formDataToSend.append('customCategory', formData.customCategory);
-      }
+      formDataToSend.append('category', formData.category.trim());
+      formDataToSend.append('customCategory', formData.category.trim());
       formDataToSend.append('description', formData.description);
       formDataToSend.append('date', formData.date);
       formDataToSend.append('amount', formData.amount);
@@ -108,7 +112,8 @@ const Expenses = () => {
       if (res.ok) {
         setShowModal(false);
         setEditingItem(null);
-        setFormData({ title: '', category: '', customCategory: '', description: '', date: '', amount: '', proof: null });
+        setIsCustomCategory(false);
+        setFormData({ title: '', category: '', description: '', date: '', amount: '', proof: null });
         fetchItems();
       } else {
         alert(editingItem ? 'Failed to update item' : 'Failed to add item');
@@ -329,17 +334,83 @@ const Expenses = () => {
                 <input placeholder="Enter the title" type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} required style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }} />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Category</label>
-                <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} required style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }}>
-                  <option value="">Select a category</option>
-                  <option value="Office Supplies">Office Supplies</option>
-                  <option value="Travel">Travel</option>
-                  <option value="Meals">Meals</option>
-                  <option value="Software">Software</option>
-                  <option value="Other">Other</option>
-                </select>
-                {formData.category === 'Other' && (
-                  <input placeholder="Specify other category" type="text" value={formData.customCategory} onChange={e => setFormData({...formData, customCategory: e.target.value})} required style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box', marginTop: '12px' }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <label style={{ fontSize: '14px', fontWeight: '600', color: '#1E293B', margin: 0 }}>
+                    Category {isCustomCategory && <span style={{ color: '#EF4444' }}>*</span>}
+                  </label>
+                  {isCustomCategory && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCustomCategory(false);
+                        setFormData({ ...formData, category: '' });
+                      }}
+                      style={{ background: 'none', border: 'none', color: '#2563EB', fontSize: '13px', fontWeight: '600', cursor: 'pointer', padding: 0 }}
+                    >
+                      Choose from list
+                    </button>
+                  )}
+                </div>
+
+                {!isCustomCategory ? (
+                  <select 
+                    value={formData.category} 
+                    onChange={e => {
+                      if (e.target.value === 'Other') {
+                        setIsCustomCategory(true);
+                        setFormData({ ...formData, category: '' });
+                      } else {
+                        setFormData({ ...formData, category: e.target.value });
+                      }
+                    }} 
+                    required 
+                    style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box', background: 'white' }}
+                  >
+                    <option value="">Select a category</option>
+                    <option value="Office Supplies">Office Supplies</option>
+                    <option value="Travel">Travel</option>
+                    <option value="Meals">Meals</option>
+                    <option value="Software">Software</option>
+                    <option value="Other">Other</option>
+                  </select>
+                ) : (
+                  <div style={{ position: 'relative' }}>
+                    <input 
+                      placeholder="Type category name (Mandatory) *" 
+                      type="text" 
+                      value={formData.category} 
+                      onChange={e => setFormData({ ...formData, category: e.target.value })} 
+                      required 
+                      autoFocus 
+                      style={{ width: '100%', padding: '12px 38px 12px 16px', borderRadius: '10px', border: '1px solid #2563EB', background: '#F8FAFC', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }} 
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCustomCategory(false);
+                        setFormData({ ...formData, category: '' });
+                      }}
+                      title="Back to dropdown"
+                      style={{
+                        position: 'absolute',
+                        right: '12px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: '#E2E8F0',
+                        border: 'none',
+                        borderRadius: '50%',
+                        width: '22px',
+                        height: '22px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        color: '#475569'
+                      }}
+                    >
+                      <X size={13} />
+                    </button>
+                  </div>
                 )}
               </div>
               <div>

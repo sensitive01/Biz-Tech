@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Clock, Plus, X, Pencil, Trash2, LogOut, Search, Download, ArrowUp, ArrowDown, ArrowUpDown, UserCheck, UserX, Calendar, Store } from 'lucide-react';
+import { Clock, Plus, X, Pencil, Trash2, LogOut, Search, Download, ArrowUp, ArrowDown, ArrowUpDown, UserCheck, UserX, Calendar, Store, Building2 } from 'lucide-react';
 import { exportToCSV } from '../utils/exportToCSV';
 import { formatDate } from '../utils/formatDate';
 import TablePagination from '../components/TablePagination';
@@ -275,6 +275,11 @@ const Attendance = () => {
                   {(record.employeeId?.branchName || record.employeeId?.branchId?.name) && (
                     <div style={{ fontSize: '12px', color: '#64748B', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
                       <Store size={12} color="#94A3B8" /> {record.employeeId?.branchName || record.employeeId?.branchId?.name}
+                    </div>
+                  )}
+                  {record.employeeId?.businessName && (
+                    <div style={{ fontSize: '11px', color: '#7C3AED', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px', fontWeight: '500' }}>
+                      <Building2 size={11} color="#7C3AED" /> {record.employeeId?.businessName}
                     </div>
                   )}
                 </td>

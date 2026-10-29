@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Attendance = require('../models/Attendance');
+const Employee = require('../models/Employee');
 const jwt = require('jsonwebtoken');
 
 // Auth middleware for tenant isolation
@@ -18,7 +19,15 @@ const auth = (req, res, next) => {
 
 router.get('/', auth, async (req, res) => {
   try {
-    const records = await Attendance.find({ tenantId: req.user.id }).populate('employeeId').sort({ date: -1 });
+    let query = { tenantId: req.user.id };
+    if (req.user.role === 'branch' && req.user.branchId) {
+      const branchEmployees = await Employee.find({ tenantId: req.user.id, branchId: req.user.branchId }).select('_id');
+      query.employeeId = { $in: branchEmployees.map(e => e._id) };
+    } else if (req.user.role === 'business' && req.user.businessName) {
+      const bizEmployees = await Employee.find({ tenantId: req.user.id, businessName: req.user.businessName }).select('_id');
+      query.employeeId = { $in: bizEmployees.map(e => e._id) };
+    }
+    const records = await Attendance.find(query).populate('employeeId').sort({ date: -1 });
     res.json(records);
   } catch (err) {
     res.status(500).json({ error: err.message });

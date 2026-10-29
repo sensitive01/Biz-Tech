@@ -58,9 +58,17 @@ const UserSchema = new mongoose.Schema({
   },
   businesses: [{
     name: String,
-    regNo: String,
+    category: { type: String, default: '' },
+    contactPerson: { type: String, default: '' },
+    taxNumber: { type: String, default: '' },
+    city: { type: String, default: '' },
     phone: String,
-    address: String
+    address: String,
+    email: { type: String, lowercase: true, trim: true },
+    password: { type: String },
+    isLoginEnabled: { type: Boolean, default: true },
+    regNo: String,
+    createdAt: { type: Date, default: Date.now }
   }],
   subscriptionStatus: {
     type: String,

@@ -33,6 +33,8 @@ const Customers = () => {
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
   
+  const [isCustomType, setIsCustomType] = useState(false);
+  
   const [formData, setFormData] = useState({
     name: '',
     companyName: '',
@@ -45,6 +47,7 @@ const Customers = () => {
 
   const handleOpenAdd = () => {
     setEditingItem(null);
+    setIsCustomType(false);
     setFormData({
       name: '',
       companyName: '',
@@ -59,6 +62,9 @@ const Customers = () => {
 
   const handleEdit = (item) => {
     setEditingItem(item);
+    const standardTypes = ['Retail', 'Wholesale', 'Corporate', 'Individual'];
+    const isOther = item.customerType && !standardTypes.includes(item.customerType);
+    setIsCustomType(Boolean(isOther));
     setFormData({
       name: item.name || '',
       companyName: item.companyName || '',
@@ -98,6 +104,10 @@ const Customers = () => {
       alert('Phone number must be exactly 10 digits.');
       return;
     }
+    if (isCustomType && !formData.customerType.trim()) {
+      alert('Please specify the customer type.');
+      return;
+    }
     try {
       const token = localStorage.getItem('token');
       const url = editingItem
@@ -105,14 +115,25 @@ const Customers = () => {
         : `${import.meta.env.VITE_API_URL}/api/customers`;
       const method = editingItem ? 'PUT' : 'POST';
 
+      const payload = {
+        name: formData.name.trim(),
+        companyName: formData.companyName.trim(),
+        customerType: formData.customerType.trim() || 'Retail',
+        gstin: formData.gstin.trim(),
+        email: formData.email.trim(),
+        phone: formData.phone.trim(),
+        address: formData.address.trim()
+      };
+
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
       if (res.ok) {
         setShowModal(false);
         setEditingItem(null);
+        setIsCustomType(false);
         setFormData({ name: '', companyName: '', customerType: 'Retail', gstin: '', email: '', phone: '', address: '' });
         fetchItems();
       } else {
@@ -369,13 +390,82 @@ const Customers = () => {
                   <input placeholder="e.g. Acme Corp / Retail Shop" type="text" value={formData.companyName} onChange={e => setFormData({...formData, companyName: e.target.value})} style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box' }} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>Customer Type</label>
-                  <select value={formData.customerType} onChange={e => setFormData({...formData, customerType: e.target.value})} style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box', background: 'white' }}>
-                    <option value="Retail">Retail</option>
-                    <option value="Wholesale">Wholesale</option>
-                    <option value="Corporate">Corporate</option>
-                    <option value="Individual">Individual</option>
-                  </select>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <label style={{ fontSize: '13px', fontWeight: '600', color: '#1E293B', margin: 0 }}>
+                      Customer Type {isCustomType && <span style={{ color: '#EF4444' }}>*</span>}
+                    </label>
+                    {isCustomType && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsCustomType(false);
+                          setFormData({ ...formData, customerType: 'Retail' });
+                        }}
+                        style={{ background: 'none', border: 'none', color: '#2563EB', fontSize: '12px', fontWeight: '600', cursor: 'pointer', padding: 0 }}
+                      >
+                        Choose from list
+                      </button>
+                    )}
+                  </div>
+
+                  {!isCustomType ? (
+                    <select 
+                      value={formData.customerType} 
+                      onChange={e => {
+                        if (e.target.value === 'Other') {
+                          setIsCustomType(true);
+                          setFormData({ ...formData, customerType: '' });
+                        } else {
+                          setFormData({ ...formData, customerType: e.target.value });
+                        }
+                      }} 
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box', background: 'white' }}
+                    >
+                      <option value="Retail">Retail</option>
+                      <option value="Wholesale">Wholesale</option>
+                      <option value="Corporate">Corporate</option>
+                      <option value="Individual">Individual</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  ) : (
+                    <div style={{ position: 'relative' }}>
+                      <input 
+                        placeholder="Type customer type (Mandatory) *" 
+                        type="text" 
+                        value={formData.customerType} 
+                        onChange={e => setFormData({ ...formData, customerType: e.target.value })} 
+                        required 
+                        autoFocus
+                        style={{ width: '100%', padding: '10px 36px 10px 14px', borderRadius: '8px', border: '1px solid #2563EB', background: '#F8FAFC', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box' }} 
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsCustomType(false);
+                          setFormData({ ...formData, customerType: 'Retail' });
+                        }}
+                        title="Back to dropdown"
+                        style={{
+                          position: 'absolute',
+                          right: '10px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          background: '#E2E8F0',
+                          border: 'none',
+                          borderRadius: '50%',
+                          width: '20px',
+                          height: '20px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          color: '#475569'
+                        }}
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>GSTIN / Tax No</label>

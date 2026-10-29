@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Users, Mail, Briefcase, Store, X, Eye, Pencil, Trash2, AlertTriangle, UserPlus, Phone, IndianRupee, Calendar, Activity, Search, Download, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { 
+  Plus, Users, Mail, Briefcase, Store, X, Eye, Pencil, Trash2, 
+  AlertTriangle, UserPlus, Phone, IndianRupee, Calendar, Activity, 
+  Search, Download, ArrowUp, ArrowDown, ArrowUpDown, Building2,
+  KeyRound, Lock, EyeOff, CheckCircle2
+} from 'lucide-react';
 import { exportToCSV } from '../utils/exportToCSV';
 import TablePagination from '../components/TablePagination';
 
@@ -39,7 +44,73 @@ const Employees = () => {
   const [viewEmployee, setViewEmployee] = useState(null);
   const [deleteEmployeeId, setDeleteEmployeeId] = useState(null);
 
+  // Employee Login Credentials State
+  const [loginModalEmployee, setLoginModalEmployee] = useState(null);
+  const [loginPassword, setLoginPassword] = useState('');
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [isLoginEnabled, setIsLoginEnabled] = useState(true);
+  const [savingCredentials, setSavingCredentials] = useState(false);
+  const [credentialsError, setCredentialsError] = useState('');
+  const [credentialsSuccess, setCredentialsSuccess] = useState('');
+
   const tenantType = Number(localStorage.getItem('tenantType')) || 1;
+
+  const handleOpenLoginModal = (employee) => {
+    setLoginModalEmployee(employee);
+    setLoginPassword('');
+    setShowLoginPassword(false);
+    setIsLoginEnabled(employee.isLoginEnabled !== false);
+    setCredentialsError('');
+    setCredentialsSuccess('');
+  };
+
+  const handleSaveCredentials = async (e) => {
+    e.preventDefault();
+    if (!loginModalEmployee?.hasPassword && !loginPassword) {
+      setCredentialsError('Please set a password for this employee (min 6 characters)');
+      return;
+    }
+    if (loginPassword && loginPassword.length < 6) {
+      setCredentialsError('Password must be at least 6 characters long');
+      return;
+    }
+
+    setSavingCredentials(true);
+    setCredentialsError('');
+    setCredentialsSuccess('');
+
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/employees/${loginModalEmployee._id}/credentials`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          password: loginPassword || undefined,
+          isLoginEnabled
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setCredentialsError(data.error || 'Failed to update credentials');
+        setSavingCredentials(false);
+        return;
+      }
+
+      setCredentialsSuccess('Employee login credentials saved successfully!');
+      fetchData();
+      setTimeout(() => {
+        setLoginModalEmployee(null);
+        setSavingCredentials(false);
+      }, 900);
+    } catch (err) {
+      setCredentialsError('Connection error. Please try again.');
+      setSavingCredentials(false);
+    }
+  };
 
   const [formData, setFormData] = useState({
     name: '',
@@ -341,17 +412,18 @@ const Employees = () => {
                 {(tenantType >= 2) && (
                   <th onClick={() => requestSort('branch')} style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', alignItems: 'center' }}>Branch {renderSortIcon('branch')}</div></th>
                 )}
+                <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Login Access</th>
                 <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'right' }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={(tenantType >= 2) ? "6" : "5"} style={{ padding: '32px', textAlign: 'center', color: '#64748B' }}>Loading employees...</td>
+                  <td colSpan={(tenantType >= 2) ? "7" : "6"} style={{ padding: '32px', textAlign: 'center', color: '#64748B' }}>Loading employees...</td>
                 </tr>
               ) : filteredEmployees.length === 0 ? (
                 <tr>
-                  <td colSpan={(tenantType >= 2) ? "6" : "5"} style={{ padding: '64px 32px', textAlign: 'center' }}>
+                  <td colSpan={(tenantType >= 2) ? "7" : "6"} style={{ padding: '64px 32px', textAlign: 'center' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                       <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
                         <Users size={32} color="#3B82F6" />
@@ -402,10 +474,87 @@ const Employees = () => {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#475569', fontSize: '14px' }}>
                           <Store size={16} color="#94A3B8" /> {employee.branchId ? (employee.branchId.name || employee.branchId) : (branches[0]?.name || employee.branchName || 'Main Branch')}
                         </div>
+                        {employee.businessName && (
+                          <div style={{ fontSize: '11px', color: '#7C3AED', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px', fontWeight: '500' }}>
+                            <Building2 size={11} color="#7C3AED" /> {employee.businessName}
+                          </div>
+                        )}
                       </td>
                     )}
+                    <td style={{ padding: '16px 24px' }}>
+                      {employee.hasPassword ? (
+                        <div 
+                          onClick={() => handleOpenLoginModal(employee)}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '5px 12px',
+                            borderRadius: '20px',
+                            background: employee.isLoginEnabled !== false ? '#EFF6FF' : '#FEF2F2',
+                            border: `1px solid ${employee.isLoginEnabled !== false ? '#BFDBFE' : '#FECACA'}`,
+                            color: employee.isLoginEnabled !== false ? '#1E40AF' : '#991B1B',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease'
+                          }}
+                          title="Click to manage employee login access"
+                        >
+                          <span style={{
+                            width: '6px',
+                            height: '6px',
+                            borderRadius: '50%',
+                            backgroundColor: employee.isLoginEnabled !== false ? '#10B981' : '#EF4444',
+                            display: 'inline-block'
+                          }}></span>
+                          <KeyRound size={12} />
+                          <span>{employee.isLoginEnabled !== false ? 'Active' : 'Disabled'}</span>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleOpenLoginModal(employee)}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '5px 12px',
+                            borderRadius: '6px',
+                            background: '#F8FAFC',
+                            border: '1px dashed #CBD5E1',
+                            color: '#475569',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease'
+                          }}
+                          onMouseOver={(e) => {
+                            e.currentTarget.style.borderColor = '#2563EB';
+                            e.currentTarget.style.color = '#2563EB';
+                            e.currentTarget.style.background = '#EFF6FF';
+                          }}
+                          onMouseOut={(e) => {
+                            e.currentTarget.style.borderColor = '#CBD5E1';
+                            e.currentTarget.style.color = '#475569';
+                            e.currentTarget.style.background = '#F8FAFC';
+                          }}
+                        >
+                          <KeyRound size={13} />
+                          <span>Setup Login</span>
+                        </button>
+                      )}
+                    </td>
                     <td style={{ padding: '16px 24px', textAlign: 'right' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                        <button
+                          onClick={() => handleOpenLoginModal(employee)}
+                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: employee.hasPassword ? '#EFF6FF' : '#F1F5F9', color: employee.hasPassword ? '#2563EB' : '#64748B', border: 'none', borderRadius: '6px', cursor: 'pointer', transition: 'background 0.2s' }}
+                          title={employee.hasPassword ? "Manage Login Access" : "Setup Login Access"}
+                          onMouseOver={(e) => e.currentTarget.style.background = '#DBEAFE'}
+                          onMouseOut={(e) => e.currentTarget.style.background = employee.hasPassword ? '#EFF6FF' : '#F1F5F9'}
+                        >
+                          <KeyRound size={15} />
+                        </button>
                         <button
                           onClick={() => setViewEmployee(employee)}
                           style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#EFF6FF', color: '#3B82F6', border: 'none', borderRadius: '6px', cursor: 'pointer', transition: 'background 0.2s' }}
@@ -697,6 +846,28 @@ const Employees = () => {
                   <Activity size={15} color="#64748B" /> {viewEmployee.status || 'Active'}
                 </div>
               </div>
+              <div style={{ padding: '12px 14px', background: '#F8FAFC', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
+                <p style={{ margin: '0 0 4px 0', fontSize: '11px', color: '#64748B', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Login Access</p>
+                <span style={{ 
+                  display: 'inline-flex', 
+                  alignItems: 'center', 
+                  gap: '5px', 
+                  fontSize: '11px', 
+                  fontWeight: '700', 
+                  padding: '2px 8px', 
+                  borderRadius: '12px',
+                  background: !viewEmployee.hasPassword ? '#F1F5F9' : viewEmployee.isLoginEnabled !== false ? '#DCFCE7' : '#FEE2E2',
+                  color: !viewEmployee.hasPassword ? '#64748B' : viewEmployee.isLoginEnabled !== false ? '#15803D' : '#B91C1C'
+                }}>
+                  <span style={{
+                    width: '6px',
+                    height: '6px',
+                    borderRadius: '50%',
+                    background: !viewEmployee.hasPassword ? '#94A3B8' : viewEmployee.isLoginEnabled !== false ? '#22C55E' : '#EF4444'
+                  }}></span>
+                  {!viewEmployee.hasPassword ? 'Not Configured' : viewEmployee.isLoginEnabled !== false ? 'Active' : 'Disabled'}
+                </span>
+              </div>
               {(tenantType >= 2) && (
                 <div style={{ gridColumn: '1 / span 2', padding: '12px 14px', background: '#F8FAFC', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
                   <p style={{ margin: '0 0 4px 0', fontSize: '11px', color: '#64748B', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Assigned Branch</p>
@@ -752,6 +923,123 @@ const Employees = () => {
                 Yes, Delete
               </button>
             </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Employee Login Credentials Modal */}
+      {loginModalEmployee && createPortal(
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.45)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
+          <div style={{ background: 'white', padding: '24px 28px', borderRadius: '18px', width: '100%', maxWidth: '480px', maxHeight: 'calc(100vh - 40px)', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out', boxSizing: 'border-box' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <KeyRound size={20} color="#2563EB" />
+                </div>
+                <div>
+                  <h2 style={{ fontSize: '19px', fontWeight: '700', color: '#0F172A', margin: 0 }}>Employee Login Access</h2>
+                  <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#64748B' }}>Configure employee credentials for portal access</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setLoginModalEmployee(null)} 
+                style={{ background: '#F1F5F9', border: 'none', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748B', cursor: 'pointer' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Employee Summary Banner */}
+            <div style={{ padding: '12px 16px', background: '#F8FAFC', borderRadius: '10px', border: '1px solid #E2E8F0', marginBottom: '20px' }}>
+              <div style={{ fontSize: '14px', fontWeight: '700', color: '#0F172A' }}>{loginModalEmployee.name}</div>
+              <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>
+                Email: {loginModalEmployee.email} &bull; Designation: {loginModalEmployee.designation || loginModalEmployee.position || 'Staff'}
+              </div>
+            </div>
+
+            {credentialsError && (
+              <div style={{ color: '#DC2626', background: '#FEF2F2', border: '1px solid #FECACA', padding: '10px 14px', borderRadius: '8px', fontSize: '13px', marginBottom: '16px' }}>
+                {credentialsError}
+              </div>
+            )}
+
+            {credentialsSuccess && (
+              <div style={{ color: '#059669', background: '#ECFDF5', border: '1px solid #A7F3D0', padding: '10px 14px', borderRadius: '8px', fontSize: '13px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <CheckCircle2 size={16} />
+                <span>{credentialsSuccess}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveCredentials} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>
+                  Login Email
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <Mail size={16} color="#94A3B8" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
+                  <input 
+                    type="email" 
+                    value={loginModalEmployee.email} 
+                    disabled
+                    style={{ width: '100%', padding: '11px 14px 11px 40px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '14px', color: '#64748B', background: '#F8FAFC', boxSizing: 'border-box' }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>
+                  {loginModalEmployee.hasPassword ? 'New Password (leave blank to keep current)' : 'Set Password *'}
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <Lock size={16} color="#94A3B8" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
+                  <input 
+                    type={showLoginPassword ? "text" : "password"} 
+                    value={loginPassword} 
+                    onChange={e => setLoginPassword(e.target.value)} 
+                    placeholder={loginModalEmployee.hasPassword ? "••••••••••••" : "Minimum 6 characters"}
+                    required={!loginModalEmployee.hasPassword}
+                    style={{ width: '100%', padding: '11px 40px 11px 40px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box' }}
+                  />
+                  <div 
+                    onClick={() => setShowLoginPassword(!showLoginPassword)}
+                    style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', color: '#94A3B8' }}
+                  >
+                    {showLoginPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', background: '#F8FAFC', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                <input
+                  type="checkbox"
+                  id="enableEmployeeLogin"
+                  checked={isLoginEnabled}
+                  onChange={(e) => setIsLoginEnabled(e.target.checked)}
+                  style={{ width: '16px', height: '16px', accentColor: '#2563EB', cursor: 'pointer' }}
+                />
+                <label htmlFor="enableEmployeeLogin" style={{ fontSize: '13px', fontWeight: '500', color: '#334155', cursor: 'pointer' }}>
+                  Login Access Active
+                </label>
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
+                <button 
+                  type="button" 
+                  onClick={() => setLoginModalEmployee(null)} 
+                  style={{ flex: 1, padding: '12px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '8px', color: '#475569', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={savingCredentials}
+                  style={{ flex: 1, padding: '12px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '600', fontSize: '14px', cursor: 'pointer', opacity: savingCredentials ? 0.7 : 1 }}
+                >
+                  {savingCredentials ? 'Saving...' : 'Save Credentials'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>,
         document.body

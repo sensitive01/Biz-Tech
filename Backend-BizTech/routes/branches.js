@@ -32,6 +32,11 @@ router.get('/', auth, async (req, res) => {
       query._id = req.user.branchId;
     }
 
+    // If logged in as a business, scope to this business
+    if (req.user.role === 'business' && req.user.businessName) {
+      query.businessName = { $regex: new RegExp(`^${req.user.businessName.trim()}$`, 'i') };
+    }
+
     const branches = await Branch.find(query).select('-password').sort({ createdAt: -1 });
     res.json(branches);
   } catch (err) {
@@ -46,9 +51,13 @@ router.post('/', auth, async (req, res) => {
     const tenantId = req.user.id;
     const branchData = { ...req.body, tenantId };
 
+    if (req.user.role === 'business' && req.user.businessName) {
+      branchData.businessName = req.user.businessName;
+    }
+
     if (branchData.email) {
       branchData.email = branchData.email.trim().toLowerCase();
-      // Ensure unique email across users and branches
+      // Ensure unique email across users, branches and businesses
       const userExists = await User.findOne({ email: branchData.email });
       if (userExists) {
         return res.status(400).json({ error: 'This email is already in use by a business account.' });
@@ -56,6 +65,10 @@ router.post('/', auth, async (req, res) => {
       const branchExists = await Branch.findOne({ email: branchData.email });
       if (branchExists) {
         return res.status(400).json({ error: 'This email is already assigned to another branch.' });
+      }
+      const bizExists = await User.findOne({ 'businesses.email': branchData.email });
+      if (bizExists) {
+        return res.status(400).json({ error: 'This email is already assigned to a business entity.' });
       }
     }
 
@@ -78,11 +91,16 @@ router.post('/', auth, async (req, res) => {
 });
 
 // @route   PUT /api/branches/:id/credentials
-// @desc    Set or update branch login credentials (Owner only for their own branch)
+// @desc    Set or update branch login credentials (Owner or Business managing own branch)
 router.put('/:id/credentials', auth, async (req, res) => {
   try {
     const { email, password, isLoginEnabled } = req.body;
-    const branch = await Branch.findOne({ _id: req.params.id, tenantId: req.user.id });
+    const filter = { _id: req.params.id, tenantId: req.user.id };
+    if (req.user.role === 'business' && req.user.businessName) {
+      filter.businessName = { $regex: new RegExp(`^${req.user.businessName.trim()}$`, 'i') };
+    }
+
+    const branch = await Branch.findOne(filter);
     if (!branch) {
       return res.status(404).json({ error: 'Branch not found or unauthorized' });
     }
@@ -98,6 +116,11 @@ router.put('/:id/credentials', auth, async (req, res) => {
       const branchExists = await Branch.findOne({ email: cleanEmail, _id: { $ne: branch._id } });
       if (branchExists) {
         return res.status(400).json({ error: 'This email is already assigned to another branch.' });
+      }
+      // Check if email in use by any business
+      const bizExists = await User.findOne({ 'businesses.email': cleanEmail });
+      if (bizExists) {
+        return res.status(400).json({ error: 'This email is already assigned to a business entity.' });
       }
       branch.email = cleanEmail;
     }
@@ -126,9 +149,14 @@ router.put('/:id/credentials', auth, async (req, res) => {
 });
 
 // @route   PUT /api/branches/:id
-// @desc    Update branch details (Owner only for their own branch)
+// @desc    Update branch details (Owner or Business managing own branch)
 router.put('/:id', auth, async (req, res) => {
   try {
+    const filter = { _id: req.params.id, tenantId: req.user.id };
+    if (req.user.role === 'business' && req.user.businessName) {
+      filter.businessName = { $regex: new RegExp(`^${req.user.businessName.trim()}$`, 'i') };
+    }
+
     const updateData = { ...req.body };
     delete updateData.tenantId; // Never allow reassigning tenantId
 
@@ -140,7 +168,7 @@ router.put('/:id', auth, async (req, res) => {
     }
 
     const updated = await Branch.findOneAndUpdate(
-      { _id: req.params.id, tenantId: req.user.id },
+      filter,
       updateData,
       { new: true, runValidators: true }
     ).select('-password');
@@ -155,13 +183,15 @@ router.put('/:id', auth, async (req, res) => {
 });
 
 // @route   DELETE /api/branches/:id
-// @desc    Delete branch (Owner only for their own branch)
+// @desc    Delete branch (Owner or Business managing own branch)
 router.delete('/:id', auth, async (req, res) => {
   try {
-    const deletedBranch = await Branch.findOneAndDelete({
-      _id: req.params.id,
-      tenantId: req.user.id
-    });
+    const filter = { _id: req.params.id, tenantId: req.user.id };
+    if (req.user.role === 'business' && req.user.businessName) {
+      filter.businessName = { $regex: new RegExp(`^${req.user.businessName.trim()}$`, 'i') };
+    }
+
+    const deletedBranch = await Branch.findOneAndDelete(filter);
 
     if (!deletedBranch) {
       return res.status(404).json({ error: 'Branch not found or unauthorized' });

@@ -247,7 +247,48 @@ const TenantLayout = () => {
 
         {/* Header Right Content */}
         <div style={{ flex: 1, height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px' }}>
-          {currentUser?.role === 'branch' ? (
+          {currentUser?.role === 'employee' ? (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '6px 14px',
+              borderRadius: '20px',
+              background: '#ECFDF5',
+              border: '1px solid #A7F3D0',
+              color: '#065F46',
+              fontSize: '13px',
+              fontWeight: '600'
+            }}>
+              <UserCheck size={15} color="#059669" />
+              <span>Employee: <strong>{currentUser?.fullName}</strong></span>
+              {currentUser?.designation && (
+                <span style={{ color: '#047857', fontSize: '12px', fontWeight: '500' }}>({currentUser?.designation})</span>
+              )}
+              {currentUser?.branchName && (
+                <span style={{ color: '#64748B', fontSize: '12px', fontWeight: '400' }}>• {currentUser?.branchName}</span>
+              )}
+            </div>
+          ) : currentUser?.role === 'business' ? (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '6px 14px',
+              borderRadius: '20px',
+              background: '#F5F3FF',
+              border: '1px solid #DDD6FE',
+              color: '#6D28D9',
+              fontSize: '13px',
+              fontWeight: '600'
+            }}>
+              <Building2 size={15} color="#7C3AED" />
+              <span>Business: <strong>{currentUser?.businessName}</strong></span>
+              {currentUser?.businessAddress && (
+                <span style={{ color: '#64748B', fontSize: '12px', fontWeight: '400' }}>• {currentUser?.businessAddress}</span>
+              )}
+            </div>
+          ) : currentUser?.role === 'branch' ? (
             <div style={{
               display: 'flex',
               alignItems: 'center',
@@ -466,7 +507,7 @@ const TenantLayout = () => {
                         <UserCheck size={16} /> My Profile
                       </button>
 
-                      {currentUser?.role !== 'branch' && (
+                      {currentUser?.role !== 'branch' && currentUser?.role !== 'business' && currentUser?.role !== 'employee' && (
                         <div style={{ position: 'relative' }}>
                           <button
                             onClick={(e) => { e.stopPropagation(); setShowSubMenu(!showSubMenu); }}
@@ -535,7 +576,7 @@ const TenantLayout = () => {
           </NavLink>
 
           {/* 2. Businesses - Owner Only */}
-          {tenantType >= 4 && currentUser?.role !== 'branch' && (
+          {tenantType >= 4 && currentUser?.role !== 'branch' && currentUser?.role !== 'business' && currentUser?.role !== 'employee' && (
             <NavLink to="/tenant/businesses" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <Building2 size={18} />
               <span>Businesses</span>
@@ -543,7 +584,7 @@ const TenantLayout = () => {
           )}
 
           {/* 3. Branches - Type 2 (Single Branch) and Type 3 & 4 (Multi Branch) */}
-          {tenantType >= 2 && currentUser?.role !== 'branch' && (
+          {tenantType >= 2 && currentUser?.role !== 'branch' && currentUser?.role !== 'employee' && (
             <NavLink to="/tenant/branches" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <Map size={18} />
               <span>{tenantType === 2 ? 'Branch' : 'Branches'}</span>
@@ -551,7 +592,7 @@ const TenantLayout = () => {
           )}
 
           {/* 4. Product / Service */}
-          {modules.includes('products_services') && (
+          {currentUser?.role !== 'employee' && modules.includes('products_services') && (
             <NavLink to="/tenant/products" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <Package size={18} />
               <span>Products & Services</span>
@@ -559,7 +600,7 @@ const TenantLayout = () => {
           )}
 
           {/* 5. Stock / Inventory */}
-          {modules.includes('inventory') && (
+          {currentUser?.role !== 'employee' && modules.includes('inventory') && (
             <NavLink to="/tenant/inventory" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <Archive size={18} />
               <span>Stock / Inventory</span>
@@ -567,19 +608,23 @@ const TenantLayout = () => {
           )}
 
           {/* 6. Customers */}
-          <NavLink to="/tenant/customers" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
-            <UserCheck size={18} />
-            <span>Customers</span>
-          </NavLink>
+          {currentUser?.role !== 'employee' && (
+            <NavLink to="/tenant/customers" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
+              <UserCheck size={18} />
+              <span>Customers</span>
+            </NavLink>
+          )}
 
-          {/* 7. Expenses - Visible to all businesses */}
-          <NavLink to="/tenant/expenses" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
-            <Receipt size={18} />
-            <span>Expenses</span>
-          </NavLink>
+          {/* 7. Expenses - Visible to non-employees */}
+          {currentUser?.role !== 'employee' && (
+            <NavLink to="/tenant/expenses" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
+              <Receipt size={18} />
+              <span>Expenses</span>
+            </NavLink>
+          )}
 
           {/* 8. Purchases */}
-          {modules.includes('purchases') && (
+          {currentUser?.role !== 'employee' && modules.includes('purchases') && (
             <NavLink to="/tenant/purchases" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <ShoppingCart size={18} />
               <span>Purchases</span>
@@ -587,7 +632,7 @@ const TenantLayout = () => {
           )}
 
           {/* 9. Sales */}
-          {modules.includes('sales') && (
+          {currentUser?.role !== 'employee' && modules.includes('sales') && (
             <NavLink to="/tenant/sales" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <TrendingUp size={18} />
               <span>Billing</span>
@@ -595,25 +640,32 @@ const TenantLayout = () => {
           )}
 
           {/* 10. Documents */}
-          <NavLink to="/tenant/documents" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
-            <FileText size={18} />
-            <span>Documents</span>
-          </NavLink>
+          {currentUser?.role !== 'employee' && (
+            <NavLink to="/tenant/documents" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
+              <FileText size={18} />
+              <span>Documents</span>
+            </NavLink>
+          )}
 
           {/* 11. Reminders */}
-          <NavLink to="/tenant/reminders" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
-            <BellRing size={18} />
-            <span>Reminders</span>
-          </NavLink>
+          {currentUser?.role !== 'employee' && (
+            <NavLink to="/tenant/reminders" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
+              <BellRing size={18} />
+              <span>Reminders</span>
+            </NavLink>
+          )}
 
-          {/* 12, 13, 14. Employees, Attendance, Leaves */}
+          {/* 12. Employees */}
+          {tenantType >= 2 && currentUser?.role !== 'employee' && (
+            <NavLink to="/tenant/employees" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
+              <Users size={18} />
+              <span>Employees</span>
+            </NavLink>
+          )}
+
+          {/* 13, 14. Attendance & Leaves - Available to Employees and Admins */}
           {tenantType >= 2 && (
             <>
-              <NavLink to="/tenant/employees" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
-                <Users size={18} />
-                <span>Employees</span>
-              </NavLink>
-
               <NavLink to="/tenant/attendance" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
                 <Clock size={18} />
                 <span>Attendance</span>

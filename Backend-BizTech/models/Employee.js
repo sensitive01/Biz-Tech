@@ -15,6 +15,8 @@ const employeeSchema = new mongoose.Schema({
   branchName: { type: String, default: '' },
   branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' }, // Optional, will be set for type 3
   tenantId: { type: String, default: 'default_tenant' },
+  password: { type: String },
+  isLoginEnabled: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now }
 });
 
