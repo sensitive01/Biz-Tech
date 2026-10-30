@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 
 const Impersonate = () => {
@@ -10,7 +10,6 @@ const Impersonate = () => {
   useEffect(() => {
     const token = searchParams.get('token');
     const userParam = searchParams.get('user');
-    const adminReturnUrl = searchParams.get('adminReturnUrl') || 'http://localhost:5173/admin/customers';
 
     if (!token) {
       setError('Missing authentication token for impersonation.');
@@ -30,7 +29,6 @@ const Impersonate = () => {
         localStorage.setItem('modules', JSON.stringify(user.modules || []));
       }
       localStorage.setItem('impersonatedByAdmin', 'true');
-      localStorage.setItem('adminReturnUrl', adminReturnUrl);
       const isEmbedded = searchParams.get('embedded') === 'true';
       if (isEmbedded) {
         localStorage.setItem('isEmbedded', 'true');
@@ -72,9 +70,9 @@ const Impersonate = () => {
         <div style={{ background: 'white', padding: '32px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', textAlign: 'center', maxWidth: '400px' }}>
           <h2 style={{ color: '#EF4444', margin: '0 0 12px 0', fontSize: '20px' }}>Session Error</h2>
           <p style={{ color: '#64748B', margin: '0 0 20px 0', fontSize: '14px' }}>{error}</p>
-          <a href="http://localhost:5173/admin/customers" style={{ display: 'inline-block', padding: '10px 20px', background: '#2563EB', color: 'white', borderRadius: '8px', textDecoration: 'none', fontWeight: '600', fontSize: '14px' }}>
-            Return to Admin
-          </a>
+          <Link to="/login" style={{ display: 'inline-block', padding: '10px 20px', background: '#2563EB', color: 'white', borderRadius: '8px', textDecoration: 'none', fontWeight: '600', fontSize: '14px' }}>
+            Go to Login
+          </Link>
         </div>
       </div>
     );

@@ -32,6 +32,9 @@ const Login = () => {
         Object.keys(localStorage).forEach(key => {
           if (key.startsWith('onb_')) localStorage.removeItem(key);
         });
+        localStorage.removeItem('impersonatedByAdmin');
+        localStorage.removeItem('adminReturnUrl');
+        localStorage.removeItem('isEmbedded');
 
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));

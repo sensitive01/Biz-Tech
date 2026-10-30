@@ -146,9 +146,9 @@ const TenantLayout = () => {
     }
   }, [navigate]);
 
+  const isInsideIframe = typeof window !== 'undefined' && window.top !== window;
   const isImpersonated = localStorage.getItem('impersonatedByAdmin') === 'true';
-  const isEmbedded = localStorage.getItem('isEmbedded') === 'true';
-  const adminReturnUrl = localStorage.getItem('adminReturnUrl') || 'http://localhost:5173/admin/customers';
+  const isEmbedded = localStorage.getItem('isEmbedded') === 'true' || isInsideIframe;
 
   const handleExitImpersonation = () => {
     localStorage.removeItem('token');
@@ -158,27 +158,27 @@ const TenantLayout = () => {
     localStorage.removeItem('impersonatedByAdmin');
     localStorage.removeItem('adminReturnUrl');
     localStorage.removeItem('isEmbedded');
-    if (window.top && window.top !== window) {
-      window.top.location.href = adminReturnUrl;
-    } else {
-      window.location.href = adminReturnUrl;
-    }
+    localStorage.removeItem('activeBusiness');
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('onb_')) localStorage.removeItem(key);
+    });
+    navigate('/login', { replace: true });
   };
 
   const handleLogout = () => {
-    if (isImpersonated) {
-      handleExitImpersonation();
-      return;
-    }
+    // Clear all session & impersonation keys so user frontend returns cleanly to user login
     localStorage.removeItem('token');
     localStorage.removeItem('tenantType');
     localStorage.removeItem('user');
     localStorage.removeItem('modules');
+    localStorage.removeItem('impersonatedByAdmin');
+    localStorage.removeItem('adminReturnUrl');
     localStorage.removeItem('isEmbedded');
+    localStorage.removeItem('activeBusiness');
     Object.keys(localStorage).forEach(key => {
       if (key.startsWith('onb_')) localStorage.removeItem(key);
     });
-    navigate('/', { replace: true });
+    navigate('/login', { replace: true });
   };
 
   const location = useLocation();
@@ -261,7 +261,7 @@ const TenantLayout = () => {
             onMouseOver={(e) => e.currentTarget.style.background = '#DC2626'}
             onMouseOut={(e) => e.currentTarget.style.background = '#EF4444'}
           >
-            <LogOut size={14} /> Exit to Admin Portal
+            <LogOut size={14} /> Exit Impersonation
           </button>
         </div>
       )}
