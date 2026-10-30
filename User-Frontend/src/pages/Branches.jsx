@@ -261,6 +261,7 @@ const Branches = () => {
 
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedBranches = filteredBranches.slice(startIndex, startIndex + itemsPerPage);
+  const hasBusinessCol = tenantType >= 4 || branches.some(b => b.businessName);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -324,7 +325,7 @@ const Branches = () => {
   };
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto', animation: 'fadeIn 0.3s ease-out' }}>
+    <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto', width: '100%', boxSizing: 'border-box', animation: 'fadeIn 0.3s ease-out' }}>
       
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
@@ -410,39 +411,43 @@ const Branches = () => {
 
       <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', minWidth: '800px', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ background: '#F8FAFC' }}>
-                <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: '60px' }}>S.No</th>
-                <th onClick={() => requestSort('name')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                <th style={{ padding: '14px 10px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: '52px', textAlign: 'center', verticalAlign: 'middle' }}>S.No</th>
+                <th onClick={() => requestSort('name')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: hasBusinessCol ? '22%' : '26%', minWidth: '170px', verticalAlign: 'middle' }}>
                   <div style={{ display: 'flex', alignItems: 'center' }}>Branch Name {renderSortIcon('name')}</div>
                 </th>
-                {tenantType >= 4 && (
-                  <th onClick={() => requestSort('businessName')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                {hasBusinessCol && (
+                  <th onClick={() => requestSort('businessName')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: '16%', minWidth: '135px', verticalAlign: 'middle' }}>
                     <div style={{ display: 'flex', alignItems: 'center' }}>Business {renderSortIcon('businessName')}</div>
                   </th>
                 )}
-                <th onClick={() => requestSort('location')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                <th onClick={() => requestSort('location')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: hasBusinessCol ? '18%' : '22%', minWidth: '145px', verticalAlign: 'middle' }}>
                   <div style={{ display: 'flex', alignItems: 'center' }}>Location {renderSortIcon('location')}</div>
                 </th>
-                <th onClick={() => requestSort('manager')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                <th onClick={() => requestSort('manager')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: hasBusinessCol ? '15%' : '18%', minWidth: '130px', verticalAlign: 'middle' }}>
                   <div style={{ display: 'flex', alignItems: 'center' }}>Manager {renderSortIcon('manager')}</div>
                 </th>
-                <th onClick={() => requestSort('contactNumber')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                <th onClick={() => requestSort('contactNumber')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: hasBusinessCol ? '14%' : '17%', minWidth: '125px', verticalAlign: 'middle' }}>
                   <div style={{ display: 'flex', alignItems: 'center' }}>Contact {renderSortIcon('contactNumber')}</div>
                 </th>
-                <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Login Access</th>
-                <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'right' }}>Action</th>
+                <th style={{ padding: '14px 12px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: '145px', textAlign: 'center', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                  Login Access
+                </th>
+                <th style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: '105px', textAlign: 'center', verticalAlign: 'middle' }}>
+                  Action
+                </th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={tenantType >= 4 ? "8" : "7"} style={{ padding: '32px', textAlign: 'center', color: '#64748B' }}>Loading branches...</td>
+                  <td colSpan={hasBusinessCol ? "8" : "7"} style={{ padding: '32px', textAlign: 'center', color: '#64748B' }}>Loading branches...</td>
                 </tr>
               ) : filteredBranches.length === 0 ? (
                 <tr>
-                  <td colSpan={tenantType >= 4 ? "8" : "7"} style={{ padding: '64px 32px', textAlign: 'center' }}>
+                  <td colSpan={hasBusinessCol ? "8" : "7"} style={{ padding: '64px 32px', textAlign: 'center' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                       <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
                         <Store size={32} color="#3B82F6" />
@@ -457,84 +462,98 @@ const Branches = () => {
               ) : (
                 paginatedBranches.map((branch, index) => (
                   <tr key={branch._id} style={{ borderBottom: '1px solid #E2E8F0', transition: 'background 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
-                    <td style={{ padding: '16px 24px', fontSize: '15px', color: '#475569', fontWeight: '500' }}>
+                    <td style={{ padding: '14px 10px', fontSize: '14px', color: '#64748B', fontWeight: '500', textAlign: 'center', verticalAlign: 'middle' }}>
                       {startIndex + index + 1}
                     </td>
-                    <td style={{ padding: '16px 24px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <div style={{ width: '40px', height: '40px', borderRadius: '8px', background: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <Store size={20} color="#475569" />
+                    <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #DBEAFE', flexShrink: 0 }}>
+                          <Store size={18} color="#2563EB" />
                         </div>
-                        <span style={{ fontSize: '15px', fontWeight: '600', color: '#0F172A' }}>{branch.name}</span>
+                        <div>
+                          <span style={{ fontSize: '14px', fontWeight: '600', color: '#0F172A', display: 'block' }}>{branch.name}</span>
+                          <span style={{ fontSize: '11px', color: '#64748B', fontWeight: '500' }}>{branch.type || 'Branch'}</span>
+                        </div>
                       </div>
                     </td>
-                    {tenantType >= 4 && (
-                      <td style={{ padding: '16px 24px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#475569', fontSize: '14px' }}>
-                          <Building2 size={15} color="#94A3B8" />
-                          <span>{branch.businessName || <span style={{ color: '#94A3B8', fontStyle: 'italic' }}>Default</span>}</span>
-                        </div>
+                    {hasBusinessCol && (
+                      <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
+                        {branch.businessName ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#7C3AED', fontSize: '13px', fontWeight: '600' }}>
+                            <Building2 size={15} color="#7C3AED" />
+                            <span>{branch.businessName}</span>
+                          </div>
+                        ) : (
+                          <span style={{ color: '#94A3B8', fontSize: '13px' }}>—</span>
+                        )}
                       </td>
                     )}
-                    <td style={{ padding: '16px 24px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#475569', fontSize: '14px' }}>
-                        <MapPin size={16} color="#94A3B8" /> {branch.location}
+                    <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#475569', fontSize: '13px' }}>
+                        <MapPin size={15} color="#94A3B8" />
+                        <span>{branch.location || '—'}</span>
                       </div>
                     </td>
-                    <td style={{ padding: '16px 24px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#475569', fontSize: '14px' }}>
-                        <Users size={16} color="#94A3B8" /> {branch.manager}
+                    <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#475569', fontSize: '13px' }}>
+                        <Users size={15} color="#94A3B8" />
+                        <span>{branch.manager || '—'}</span>
                       </div>
                     </td>
-                    <td style={{ padding: '16px 24px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#475569', fontSize: '14px' }}>
-                        <Phone size={16} color="#94A3B8" /> {branch.contactNumber}
+                    <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#475569', fontSize: '13px' }}>
+                        <Phone size={15} color="#94A3B8" />
+                        <span>{branch.contactNumber || '—'}</span>
                       </div>
                     </td>
-                    <td style={{ padding: '16px 24px' }}>
+                    <td style={{ padding: '14px 12px', textAlign: 'center', verticalAlign: 'middle' }}>
                       {branch.email ? (
-                        <div 
+                        <button
                           onClick={() => handleOpenLoginModal(branch)}
+                          className="notranslate"
+                          translate="no"
                           style={{
                             display: 'inline-flex',
                             alignItems: 'center',
-                            gap: '6px',
-                            padding: '5px 12px',
-                            borderRadius: '20px',
-                            background: branch.isLoginEnabled !== false ? '#EFF6FF' : '#FEF2F2',
-                            border: `1px solid ${branch.isLoginEnabled !== false ? '#BFDBFE' : '#FECACA'}`,
-                            color: branch.isLoginEnabled !== false ? '#1E40AF' : '#991B1B',
-                            fontSize: '12px',
+                            justifyContent: 'center',
+                            gap: '7px',
+                            background: '#EFF6FF',
+                            border: '1px solid #BFDBFE',
+                            color: '#1D4ED8',
+                            padding: '7px 14px',
+                            borderRadius: '8px',
+                            fontSize: '13px',
                             fontWeight: '600',
+                            whiteSpace: 'nowrap',
                             cursor: 'pointer',
-                            transition: 'all 0.15s ease'
+                            transition: 'all 0.15s ease',
+                            boxShadow: '0 1px 2px rgba(37, 99, 235, 0.05)'
                           }}
-                          title="Click to manage login credentials"
+                          onMouseOver={(e) => { e.currentTarget.style.background = '#DBEAFE'; }}
+                          onMouseOut={(e) => { e.currentTarget.style.background = '#EFF6FF'; }}
+                          title={branch.email}
                         >
-                          <span style={{
-                            width: '6px',
-                            height: '6px',
-                            borderRadius: '50%',
-                            backgroundColor: branch.isLoginEnabled !== false ? '#10B981' : '#EF4444',
-                            display: 'inline-block'
-                          }}></span>
-                          <KeyRound size={12} />
-                          <span>{branch.email}</span>
-                        </div>
+                          <KeyRound size={15} />
+                          <span>Manage Login</span>
+                        </button>
                       ) : (
                         <button
                           onClick={() => handleOpenLoginModal(branch)}
+                          className="notranslate"
+                          translate="no"
                           style={{
                             display: 'inline-flex',
                             alignItems: 'center',
-                            gap: '6px',
-                            padding: '5px 12px',
-                            borderRadius: '6px',
+                            justifyContent: 'center',
+                            gap: '7px',
+                            padding: '7px 14px',
+                            borderRadius: '8px',
                             background: '#F8FAFC',
                             border: '1px dashed #CBD5E1',
                             color: '#475569',
-                            fontSize: '12px',
+                            fontSize: '13px',
                             fontWeight: '600',
+                            whiteSpace: 'nowrap',
                             cursor: 'pointer',
                             transition: 'all 0.15s ease'
                           }}
@@ -554,43 +573,34 @@ const Branches = () => {
                         </button>
                       )}
                     </td>
-                    <td style={{ padding: '16px 24px', textAlign: 'right' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
-                        {/* <button 
-                          onClick={() => handleOpenLoginModal(branch)}
-                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: branch.email ? '#EFF6FF' : '#F1F5F9', color: branch.email ? '#2563EB' : '#64748B', border: 'none', borderRadius: '6px', cursor: 'pointer', transition: 'background 0.2s' }}
-                          title={branch.email ? "Manage Branch Login" : "Setup Branch Login"}
-                          onMouseOver={(e) => e.currentTarget.style.background = '#DBEAFE'} 
-                          onMouseOut={(e) => e.currentTarget.style.background = branch.email ? '#EFF6FF' : '#F1F5F9'}
-                        >
-                          <KeyRound size={15} />
-                        </button> */}
+                    <td style={{ padding: '14px 16px', textAlign: 'center', verticalAlign: 'middle' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
                         <button 
                           onClick={() => setViewBranch(branch)}
-                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#EFF6FF', color: '#3B82F6', border: 'none', borderRadius: '6px', cursor: 'pointer', transition: 'background 0.2s' }}
+                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#EFF6FF', color: '#3B82F6', border: '1px solid #DBEAFE', borderRadius: '6px', cursor: 'pointer', transition: 'all 0.15s' }}
                           title="View Branch"
                           onMouseOver={(e) => e.currentTarget.style.background = '#DBEAFE'} 
                           onMouseOut={(e) => e.currentTarget.style.background = '#EFF6FF'}
                         >
-                          <Eye size={16} />
+                          <Eye size={15} />
                         </button>
                         <button 
                           onClick={() => handleEdit(branch)}
-                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#EFF6FF', color: '#2563EB', border: 'none', borderRadius: '6px', cursor: 'pointer', transition: 'background 0.2s' }}
+                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#F1F5F9', color: '#475569', border: '1px solid #E2E8F0', borderRadius: '6px', cursor: 'pointer', transition: 'all 0.15s' }}
                           title="Edit Branch"
-                          onMouseOver={(e) => e.currentTarget.style.background = '#DBEAFE'} 
-                          onMouseOut={(e) => e.currentTarget.style.background = '#EFF6FF'}
+                          onMouseOver={(e) => { e.currentTarget.style.background = '#E2E8F0'; e.currentTarget.style.color = '#0F172A'; }}
+                          onMouseOut={(e) => { e.currentTarget.style.background = '#F1F5F9'; e.currentTarget.style.color = '#475569'; }}
                         >
-                          <Pencil size={15} />
+                          <Pencil size={14} />
                         </button>
                         <button 
                           onClick={() => setDeleteBranchId(branch._id)}
-                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#FEF2F2', color: '#EF4444', border: 'none', borderRadius: '6px', cursor: 'pointer', transition: 'background 0.2s' }}
+                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#FEF2F2', color: '#EF4444', border: '1px solid #FECACA', borderRadius: '6px', cursor: 'pointer', transition: 'all 0.15s' }}
                           title="Delete Branch"
                           onMouseOver={(e) => e.currentTarget.style.background = '#FEE2E2'} 
                           onMouseOut={(e) => e.currentTarget.style.background = '#FEF2F2'}
                         >
-                          <Trash2 size={15} />
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     </td>

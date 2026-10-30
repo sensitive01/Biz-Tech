@@ -4,6 +4,7 @@ const Employee = require('../models/Employee');
 const Branch = require('../models/Branch');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { checkEmailInUse } = require('../utils/emailValidator');
 
 // Authentication middleware for strict tenant isolation
 const auth = (req, res, next) => {
@@ -21,6 +22,15 @@ const auth = (req, res, next) => {
   }
 };
 
+const DEFAULT_EMPLOYEE_MODULES = [
+  'attendance',
+  'leaves',
+  'customers',
+  'expenses',
+  'documents',
+  'reminders'
+];
+
 // Helper to sanitize employee object before returning to client
 const sanitizeEmployee = (emp) => {
   const obj = emp.toObject ? emp.toObject() : { ...emp };
@@ -28,6 +38,11 @@ const sanitizeEmployee = (emp) => {
   delete obj.password;
   if (obj.isLoginEnabled === undefined) {
     obj.isLoginEnabled = true;
+  }
+  if (!Array.isArray(obj.modules) || obj.modules.length === 0) {
+    obj.modules = [...DEFAULT_EMPLOYEE_MODULES];
+  } else {
+    obj.modules = Array.from(new Set([...obj.modules, ...DEFAULT_EMPLOYEE_MODULES]));
   }
   return obj;
 };
@@ -112,8 +127,21 @@ router.post('/', auth, async (req, res) => {
       tenantId: req.user.id,
       branchId,
       branchName: branchName || req.body.branchName || '',
-      businessName
+      businessName,
+      modules: Array.isArray(req.body.modules) && req.body.modules.length > 0
+        ? Array.from(new Set([...req.body.modules, ...DEFAULT_EMPLOYEE_MODULES]))
+        : [...DEFAULT_EMPLOYEE_MODULES, 'products_services', 'inventory', 'purchases', 'sales']
     };
+
+    if (employeeData.email && employeeData.email.trim()) {
+      employeeData.email = employeeData.email.trim().toLowerCase();
+      const emailCheck = await checkEmailInUse(employeeData.email);
+      if (emailCheck.taken) {
+        return res.status(400).json({ error: emailCheck.message });
+      }
+    } else {
+      return res.status(400).json({ error: 'Employee email address is required.' });
+    }
 
     if (employeeData.password) {
       if (employeeData.password.length < 6) {
@@ -143,7 +171,7 @@ router.post('/', auth, async (req, res) => {
 // @desc    Set or update employee login credentials (Owner, Business, or Branch)
 router.put('/:id/credentials', auth, async (req, res) => {
   try {
-    const { password, isLoginEnabled } = req.body;
+    const { password, isLoginEnabled, modules } = req.body;
     const filter = { _id: req.params.id, tenantId: req.user.id };
 
     if (req.user.role === 'branch' && req.user.branchId) {
@@ -172,6 +200,15 @@ router.put('/:id/credentials', auth, async (req, res) => {
       return res.status(404).json({ error: 'Employee not found or unauthorized' });
     }
 
+    if (req.body.email && req.body.email.trim()) {
+      const cleanEmail = req.body.email.trim().toLowerCase();
+      const emailCheck = await checkEmailInUse(cleanEmail, { type: 'employee', id: employee._id });
+      if (emailCheck.taken) {
+        return res.status(400).json({ error: emailCheck.message });
+      }
+      employee.email = cleanEmail;
+    }
+
     if (password) {
       if (password.length < 6) {
         return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
@@ -182,6 +219,10 @@ router.put('/:id/credentials', auth, async (req, res) => {
 
     if (typeof isLoginEnabled === 'boolean') {
       employee.isLoginEnabled = isLoginEnabled;
+    }
+
+    if (Array.isArray(modules)) {
+      employee.modules = Array.from(new Set([...modules, ...DEFAULT_EMPLOYEE_MODULES]));
     }
 
     await employee.save();
@@ -221,6 +262,14 @@ router.put('/:id', auth, async (req, res) => {
 
     const updateData = { ...req.body };
     delete updateData.tenantId; // Never reassign tenantId
+
+    if (updateData.email && updateData.email.trim()) {
+      updateData.email = updateData.email.trim().toLowerCase();
+      const emailCheck = await checkEmailInUse(updateData.email, { type: 'employee', id: req.params.id });
+      if (emailCheck.taken) {
+        return res.status(400).json({ error: emailCheck.message });
+      }
+    }
 
     if (updateData.password) {
       if (updateData.password.length < 6) {

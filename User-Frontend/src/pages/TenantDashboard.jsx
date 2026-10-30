@@ -1,10 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { IndianRupee, Users, Store, Activity, Calendar, FileText, Settings, ArrowUpRight, ArrowDownRight, CreditCard, Clock, CheckCircle2, MapPin, UserCheck, Phone } from 'lucide-react';
+import { IndianRupee, Users, Store, Activity, Calendar, FileText, Settings, ArrowUpRight, ArrowDownRight, CreditCard, Clock, CheckCircle2, MapPin, UserCheck, Phone, Package, Archive, ShoppingCart, TrendingUp, ShieldCheck } from 'lucide-react';
 
 const TenantDashboard = () => {
   const navigate = useNavigate();
   const tenantType = Number(localStorage.getItem('tenantType')) || 1;
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const userStr = localStorage.getItem('user');
+      return userStr ? JSON.parse(userStr) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+  const modules = currentUser?.modules || [];
   const [pricingPlan, setPricingPlan] = useState(null);
   const [singleBranch, setSingleBranch] = useState(null);
   const [employeeCount, setEmployeeCount] = useState(0);
@@ -109,10 +118,18 @@ const TenantDashboard = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#0F172A', marginBottom: '8px', letterSpacing: '-0.5px' }}>
-            {tenantType === 1 ? 'My Business Overview' : tenantType === 2 ? 'Branch Dashboard' : 'Enterprise Command Center'}
+            {currentUser?.role === 'employee' 
+              ? `Welcome back, ${currentUser?.fullName || 'Employee'}!` 
+              : tenantType === 1 
+              ? 'My Business Overview' 
+              : tenantType === 2 
+              ? 'Branch Dashboard' 
+              : 'Enterprise Command Center'}
           </h1>
           <p style={{ color: '#64748B', fontSize: '15px', margin: 0 }}>
-            Here's what's happening in your workspace today.
+            {currentUser?.role === 'employee' 
+              ? `Employee Portal • ${currentUser?.designation || 'Staff'} • ${currentUser?.branchName || 'Workspace'}` 
+              : "Here's what's happening in your workspace today."}
           </p>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
@@ -252,45 +269,168 @@ const TenantDashboard = () => {
 
       </div>
       
-      {/* Plan Details Widget - Placed below the table to handle responsive grid naturally */}
-      <div style={{ marginTop: '24px', background: '#0F172A', borderRadius: '16px', padding: '32px', color: 'white', position: 'relative', overflow: 'hidden', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.2)' }}>
-        {/* Decorative background circle */}
-        <div style={{ position: 'absolute', top: '-50px', right: '-50px', width: '200px', height: '200px', borderRadius: '50%', background: 'rgba(37, 99, 235, 0.2)', filter: 'blur(30px)' }}></div>
-        
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px', position: 'relative', zIndex: 1 }}>
-          <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <CreditCard size={20} color="#60A5FA" />
-          </div>
-          <h2 style={{ fontSize: '18px', fontWeight: '600', margin: 0 }}>Active Subscription</h2>
-        </div>
-
-        {pricingPlan ? (
-          <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '24px' }}>
-            <div>
-              <p style={{ color: '#94A3B8', fontSize: '14px', marginBottom: '4px' }}>Current Plan</p>
-              <h3 style={{ fontSize: '24px', fontWeight: '700', marginBottom: '8px' }}>{pricingPlan.customerType}</h3>
-              <p style={{ color: '#CBD5E1', fontSize: '14px', maxWidth: '400px', margin: 0 }}>
-                {pricingPlan.description || 'You are on the standard plan structure with full access to permitted features.'}
-              </p>
-            </div>
-            
-            <div style={{ display: 'flex', alignItems: 'center', gap: '32px' }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-                <span style={{ fontSize: '48px', fontWeight: '800', letterSpacing: '-2px' }}>₹{pricingPlan.amount}</span>
-                <span style={{ color: '#94A3B8', fontSize: '16px', fontWeight: '500' }}>/ mo</span>
+      {/* Permitted Sections for Employee OR Plan Details for Owners */}
+      {currentUser?.role === 'employee' ? (
+        <div style={{ marginTop: '24px', background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '28px 32px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <ShieldCheck size={22} />
               </div>
-              <button style={{ padding: '14px 28px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '12px', fontWeight: '600', fontSize: '15px', cursor: 'pointer', transition: 'background 0.2s', whiteSpace: 'nowrap' }} onMouseOver={(e) => e.currentTarget.style.background = '#1D4ED8'} onMouseOut={(e) => e.currentTarget.style.background = '#2563EB'}>
-                Manage Billing
-              </button>
+              <div>
+                <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#0F172A', margin: 0 }}>My Workspace Access</h2>
+                <p style={{ margin: '2px 0 0 0', fontSize: '13px', color: '#64748B' }}>Quick shortcuts to your permitted operational modules</p>
+              </div>
             </div>
+            <span style={{ fontSize: '12px', fontWeight: '700', color: '#2563EB', background: '#EFF6FF', padding: '4px 12px', borderRadius: '20px', border: '1px solid #BFDBFE' }}>
+              {modules.length} Authorized Sections
+            </span>
           </div>
-        ) : (
-          <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', padding: '24px 0' }}>
-            <Activity size={32} color="#60A5FA" style={{ marginBottom: '16px', opacity: 0.5 }} />
-            <p style={{ color: '#94A3B8', fontSize: '14px' }}>Fetching plan details...</p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+            {modules.includes('products_services') && (
+              <div 
+                onClick={() => navigate('/tenant/products')} 
+                style={{ padding: '18px 20px', borderRadius: '12px', border: '1px solid #E2E8F0', background: '#F8FAFC', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '14px' }} 
+                onMouseOver={e => { e.currentTarget.style.background = '#EFF6FF'; e.currentTarget.style.borderColor = '#BFDBFE'; }} 
+                onMouseOut={e => { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.borderColor = '#E2E8F0'; }}
+              >
+                <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#DBEAFE', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Package size={20} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '14px', fontWeight: '700', color: '#0F172A' }}>Product & Service</div>
+                  <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>Catalog, items & pricing</div>
+                </div>
+              </div>
+            )}
+
+            {modules.includes('inventory') && (
+              <div 
+                onClick={() => navigate('/tenant/inventory')} 
+                style={{ padding: '18px 20px', borderRadius: '12px', border: '1px solid #E2E8F0', background: '#F8FAFC', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '14px' }} 
+                onMouseOver={e => { e.currentTarget.style.background = '#ECFEFF'; e.currentTarget.style.borderColor = '#A5F3FC'; }} 
+                onMouseOut={e => { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.borderColor = '#E2E8F0'; }}
+              >
+                <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#CFFAFE', color: '#0891B2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Archive size={20} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '14px', fontWeight: '700', color: '#0F172A' }}>Stock / Inventory</div>
+                  <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>Stock records & adjustments</div>
+                </div>
+              </div>
+            )}
+
+            {modules.includes('purchases') && (
+              <div 
+                onClick={() => navigate('/tenant/purchases')} 
+                style={{ padding: '18px 20px', borderRadius: '12px', border: '1px solid #E2E8F0', background: '#F8FAFC', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '14px' }} 
+                onMouseOver={e => { e.currentTarget.style.background = '#F5F3FF'; e.currentTarget.style.borderColor = '#DDD6FE'; }} 
+                onMouseOut={e => { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.borderColor = '#E2E8F0'; }}
+              >
+                <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#EDE9FE', color: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <ShoppingCart size={20} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '14px', fontWeight: '700', color: '#0F172A' }}>Purchases</div>
+                  <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>Vendor purchase logs</div>
+                </div>
+              </div>
+            )}
+
+            {modules.includes('sales') && (
+              <div 
+                onClick={() => navigate('/tenant/sales')} 
+                style={{ padding: '18px 20px', borderRadius: '12px', border: '1px solid #E2E8F0', background: '#F8FAFC', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '14px' }} 
+                onMouseOver={e => { e.currentTarget.style.background = '#ECFDF5'; e.currentTarget.style.borderColor = '#A7F3D0'; }} 
+                onMouseOut={e => { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.borderColor = '#E2E8F0'; }}
+              >
+                <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#D1FAE5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <TrendingUp size={20} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '14px', fontWeight: '700', color: '#0F172A' }}>Billing & Sales</div>
+                  <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>Customer billing counter</div>
+                </div>
+              </div>
+            )}
+
+            {modules.includes('attendance') && (
+              <div 
+                onClick={() => navigate('/tenant/attendance')} 
+                style={{ padding: '18px 20px', borderRadius: '12px', border: '1px solid #E2E8F0', background: '#F8FAFC', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '14px' }} 
+                onMouseOver={e => { e.currentTarget.style.background = '#EEF2FF'; e.currentTarget.style.borderColor = '#C7D2FE'; }} 
+                onMouseOut={e => { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.borderColor = '#E2E8F0'; }}
+              >
+                <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#E0E7FF', color: '#4F46E5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Clock size={20} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '14px', fontWeight: '700', color: '#0F172A' }}>Attendance</div>
+                  <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>Check in & shift logs</div>
+                </div>
+              </div>
+            )}
+
+            {modules.includes('leaves') && (
+              <div 
+                onClick={() => navigate('/tenant/leaves')} 
+                style={{ padding: '18px 20px', borderRadius: '12px', border: '1px solid #E2E8F0', background: '#F8FAFC', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '14px' }} 
+                onMouseOver={e => { e.currentTarget.style.background = '#FFF7ED'; e.currentTarget.style.borderColor = '#FFEDD5'; }} 
+                onMouseOut={e => { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.borderColor = '#E2E8F0'; }}
+              >
+                <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#FFEDD5', color: '#EA580C', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Calendar size={20} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '14px', fontWeight: '700', color: '#0F172A' }}>Leave Requests</div>
+                  <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>Apply & manage leaves</div>
+                </div>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div style={{ marginTop: '24px', background: '#0F172A', borderRadius: '16px', padding: '32px', color: 'white', position: 'relative', overflow: 'hidden', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.2)' }}>
+          {/* Decorative background circle */}
+          <div style={{ position: 'absolute', top: '-50px', right: '-50px', width: '200px', height: '200px', borderRadius: '50%', background: 'rgba(37, 99, 235, 0.2)', filter: 'blur(30px)' }}></div>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px', position: 'relative', zIndex: 1 }}>
+            <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <CreditCard size={20} color="#60A5FA" />
+            </div>
+            <h2 style={{ fontSize: '18px', fontWeight: '600', margin: 0 }}>Active Subscription</h2>
+          </div>
+
+          {pricingPlan ? (
+            <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '24px' }}>
+              <div>
+                <p style={{ color: '#94A3B8', fontSize: '14px', marginBottom: '4px' }}>Current Plan</p>
+                <h3 style={{ fontSize: '24px', fontWeight: '700', marginBottom: '8px' }}>{pricingPlan.customerType}</h3>
+                <p style={{ color: '#CBD5E1', fontSize: '14px', maxWidth: '400px', margin: 0 }}>
+                  {pricingPlan.description || 'You are on the standard plan structure with full access to permitted features.'}
+                </p>
+              </div>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: '32px' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                  <span style={{ fontSize: '48px', fontWeight: '800', letterSpacing: '-2px' }}>₹{pricingPlan.amount}</span>
+                  <span style={{ color: '#94A3B8', fontSize: '16px', fontWeight: '500' }}>/ mo</span>
+                </div>
+                <button style={{ padding: '14px 28px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '12px', fontWeight: '600', fontSize: '15px', cursor: 'pointer', transition: 'background 0.2s', whiteSpace: 'nowrap' }} onMouseOver={(e) => e.currentTarget.style.background = '#1D4ED8'} onMouseOut={(e) => e.currentTarget.style.background = '#2563EB'}>
+                  Manage Billing
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', padding: '24px 0' }}>
+              <Activity size={32} color="#60A5FA" style={{ marginBottom: '16px', opacity: 0.5 }} />
+              <p style={{ color: '#94A3B8', fontSize: '14px' }}>Fetching plan details...</p>
+            </div>
+          )}
+        </div>
+      )}
 
     </div>
   );

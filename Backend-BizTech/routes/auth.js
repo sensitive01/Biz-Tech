@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Branch = require('../models/Branch');
 const Employee = require('../models/Employee');
+const { checkEmailInUse } = require('../utils/emailValidator');
 
 // Helper to generate a unique human-readable tenant ID
 const generateUserId = async () => {
@@ -24,9 +25,12 @@ const generateUserId = async () => {
 router.post('/check-email', async (req, res) => {
   try {
     const { email } = req.body;
-    let user = await User.findOne({ email });
-    if (user) {
-      return res.status(400).json({ message: 'This email address is already registered. Please sign in instead.' });
+    if (!email || !email.trim()) {
+      return res.status(400).json({ message: 'Please provide a valid email address.' });
+    }
+    const check = await checkEmailInUse(email);
+    if (check.taken) {
+      return res.status(400).json({ message: check.message });
     }
     res.status(200).json({ message: 'Email is available' });
   } catch (err) {
@@ -40,10 +44,10 @@ router.post('/register', async (req, res) => {
   try {
     const { fullName, email, phone, password, businessType, businessName, industry, address } = req.body;
 
-    // Check if user exists
-    let user = await User.findOne({ email });
-    if (user) {
-      return res.status(400).json({ message: 'User already exists' });
+    // Check if email already in use across any account tier (Owner, Business, Branch, Employee)
+    const check = await checkEmailInUse(email);
+    if (check.taken) {
+      return res.status(400).json({ message: check.message });
     }
 
     // Create new user with unique ID
@@ -345,7 +349,9 @@ router.post('/login', async (req, res) => {
               position: employee.position || employee.designation || 'Staff',
               status: employee.status || 'Active',
               businessType: parentUser ? parentUser.businessType : 2,
-              modules: ['attendance', 'leaves']
+              modules: (Array.isArray(employee.modules) && employee.modules.length > 0)
+                ? Array.from(new Set([...employee.modules, 'attendance', 'leaves', 'customers', 'expenses', 'documents', 'reminders']))
+                : ['attendance', 'leaves', 'customers', 'expenses', 'documents', 'reminders']
             }
           });
         }
@@ -603,7 +609,9 @@ router.get('/me', async (req, res) => {
         designation: employee.designation || employee.position || 'Staff',
         position: employee.position || employee.designation || 'Staff',
         status: employee.status || 'Active',
-        modules: ['attendance', 'leaves']
+        modules: (Array.isArray(employee.modules) && employee.modules.length > 0)
+          ? employee.modules
+          : ['attendance', 'leaves']
       });
     }
 

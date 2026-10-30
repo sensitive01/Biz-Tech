@@ -4,6 +4,7 @@ const User = require('../models/User');
 const Branch = require('../models/Branch');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { checkEmailInUse } = require('../utils/emailValidator');
 
 // Middleware to authenticate token
 const auth = (req, res, next) => {
@@ -52,18 +53,9 @@ router.post('/', auth, async (req, res) => {
 
     if (newBiz.email && newBiz.email.trim()) {
       const cleanEmail = newBiz.email.trim().toLowerCase();
-      // Ensure unique email across users, branches and other businesses
-      const userExists = await User.findOne({ email: cleanEmail });
-      if (userExists) {
-        return res.status(400).json({ error: 'This email is already registered to a primary account.' });
-      }
-      const branchExists = await Branch.findOne({ email: cleanEmail });
-      if (branchExists) {
-        return res.status(400).json({ error: 'This email is already assigned to a branch.' });
-      }
-      const bizExists = await User.findOne({ 'businesses.email': cleanEmail });
-      if (bizExists) {
-        return res.status(400).json({ error: 'This email is already assigned to another business.' });
+      const emailCheck = await checkEmailInUse(cleanEmail);
+      if (emailCheck.taken) {
+        return res.status(400).json({ error: emailCheck.message });
       }
       newBiz.email = cleanEmail;
     } else {
@@ -105,27 +97,9 @@ router.put('/:id/credentials', auth, async (req, res) => {
 
     if (email) {
       const cleanEmail = email.trim().toLowerCase();
-      // Check primary accounts
-      const userExists = await User.findOne({ email: cleanEmail });
-      if (userExists) {
-        return res.status(400).json({ error: 'This email is already in use by a primary business account.' });
-      }
-      // Check branch accounts
-      const branchExists = await Branch.findOne({ email: cleanEmail });
-      if (branchExists) {
-        return res.status(400).json({ error: 'This email is already assigned to a branch.' });
-      }
-      // Check other businesses
-      const otherBizUser = await User.findOne({
-        'businesses': {
-          $elemMatch: {
-            email: cleanEmail,
-            _id: { $ne: business._id }
-          }
-        }
-      });
-      if (otherBizUser) {
-        return res.status(400).json({ error: 'This email is already assigned to another business.' });
+      const emailCheck = await checkEmailInUse(cleanEmail, { type: 'business', id: business._id });
+      if (emailCheck.taken) {
+        return res.status(400).json({ error: emailCheck.message });
       }
       business.email = cleanEmail;
     }
@@ -164,24 +138,9 @@ router.put('/:id', auth, async (req, res) => {
 
     if (updateData.email && updateData.email.trim()) {
       const cleanEmail = updateData.email.trim().toLowerCase();
-      const userExists = await User.findOne({ email: cleanEmail });
-      if (userExists) {
-        return res.status(400).json({ error: 'This email is already registered to a primary account.' });
-      }
-      const branchExists = await Branch.findOne({ email: cleanEmail });
-      if (branchExists) {
-        return res.status(400).json({ error: 'This email is already assigned to a branch.' });
-      }
-      const otherBizUser = await User.findOne({
-        'businesses': {
-          $elemMatch: {
-            email: cleanEmail,
-            _id: { $ne: user.businesses[index]._id }
-          }
-        }
-      });
-      if (otherBizUser) {
-        return res.status(400).json({ error: 'This email is already assigned to another business.' });
+      const emailCheck = await checkEmailInUse(cleanEmail, { type: 'business', id: user.businesses[index]._id });
+      if (emailCheck.taken) {
+        return res.status(400).json({ error: emailCheck.message });
       }
       updateData.email = cleanEmail;
     } else if (updateData.email !== undefined) {

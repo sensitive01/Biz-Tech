@@ -361,7 +361,7 @@ const Businesses = () => {
   const paginatedBusinesses = filteredBusinesses.slice(startIndex, startIndex + itemsPerPage);
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto', animation: 'fadeIn 0.3s ease-out' }}>
+    <div style={{ padding: '24px', width: '100%', boxSizing: 'border-box', animation: 'fadeIn 0.3s ease-out' }}>
       
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
@@ -436,32 +436,36 @@ const Businesses = () => {
 
       <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', minWidth: '1050px', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <table style={{ width: '100%', minWidth: '980px', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ background: '#F8FAFC' }}>
-                <th style={{ padding: '16px 20px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: '50px' }}>S.No</th>
-                <th onClick={() => requestSort('name')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '16px 20px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                <th style={{ padding: '14px 10px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: '56px', textAlign: 'center', verticalAlign: 'middle' }}>
+                  S.No
+                </th>
+                <th onClick={() => requestSort('name')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', minWidth: '180px', verticalAlign: 'middle' }}>
                   <div style={{ display: 'flex', alignItems: 'center' }}>Business Name {renderSortIcon('name')}</div>
                 </th>
-                <th onClick={() => requestSort('category')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '16px 20px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                <th onClick={() => requestSort('category')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '14px 12px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: '115px', verticalAlign: 'middle' }}>
                   <div style={{ display: 'flex', alignItems: 'center' }}>Category {renderSortIcon('category')}</div>
                 </th>
-                <th style={{ padding: '16px 20px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                <th style={{ padding: '14px 12px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: '145px', verticalAlign: 'middle' }}>
                   Model & Operations
                 </th>
-                <th onClick={() => requestSort('contactPerson')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '16px 20px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                <th onClick={() => requestSort('contactPerson')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '14px 12px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: '135px', verticalAlign: 'middle' }}>
                   <div style={{ display: 'flex', alignItems: 'center' }}>Contact Person {renderSortIcon('contactPerson')}</div>
                 </th>
-                <th onClick={() => requestSort('phone')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '16px 20px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                <th onClick={() => requestSort('phone')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '14px 12px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: '150px', verticalAlign: 'middle' }}>
                   <div style={{ display: 'flex', alignItems: 'center' }}>Contact Info {renderSortIcon('phone')}</div>
                 </th>
-                <th onClick={() => requestSort('city')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '16px 20px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                <th onClick={() => requestSort('city')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '14px 12px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: '135px', verticalAlign: 'middle' }}>
                   <div style={{ display: 'flex', alignItems: 'center' }}>Location & Tax {renderSortIcon('city')}</div>
                 </th>
-                <th style={{ padding: '16px 20px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                <th style={{ padding: '14px 12px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: '155px', textAlign: 'center', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
                   Login Access
                 </th>
-                <th style={{ padding: '16px 20px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'right' }}>Actions</th>
+                <th style={{ padding: '14px 14px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: '115px', textAlign: 'center', verticalAlign: 'middle' }}>
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -486,24 +490,24 @@ const Businesses = () => {
               ) : (
                 paginatedBusinesses.map((b, index) => (
                   <tr key={b._id || index} style={{ borderBottom: '1px solid #E2E8F0', transition: 'background 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
-                    <td style={{ padding: '16px 20px', fontSize: '15px', color: '#475569', fontWeight: '500' }}>
+                    <td style={{ padding: '14px 10px', fontSize: '13px', color: '#64748B', fontWeight: '600', textAlign: 'center', verticalAlign: 'middle' }}>
                       {startIndex + index + 1}
                     </td>
-                    <td style={{ padding: '16px 20px' }}>
+                    <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563EB', flexShrink: 0 }}>
-                          <Building2 size={20} />
+                        <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563EB', flexShrink: 0, border: '1px solid #DBEAFE' }}>
+                          <Building2 size={18} />
                         </div>
                         <div>
-                          <span style={{ fontSize: '15px', fontWeight: '600', color: '#0F172A', display: 'block' }}>{b.name}</span>
-                          <span style={{ fontSize: '11px', color: '#64748B', fontFamily: 'monospace' }}>
+                          <span style={{ fontSize: '14px', fontWeight: '700', color: '#0F172A', display: 'block', lineHeight: '1.3' }}>{b.name}</span>
+                          <span style={{ fontSize: '11px', color: '#64748B', fontFamily: 'monospace', fontWeight: '500' }}>
                             ID: BZ-{b.name ? b.name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase() : '0000'}
                           </span>
                         </div>
                       </div>
                     </td>
                     
-                    <td style={{ padding: '16px 20px' }}>
+                    <td style={{ padding: '14px 12px', verticalAlign: 'middle' }}>
                       {b.category ? (
                         <span style={{ 
                           display: 'inline-flex', 
@@ -511,20 +515,21 @@ const Businesses = () => {
                           gap: '5px', 
                           fontSize: '12px', 
                           fontWeight: '600', 
-                          padding: '3px 10px', 
-                          borderRadius: '12px', 
+                          padding: '3px 8px', 
+                          borderRadius: '8px', 
                           background: '#F1F5F9', 
-                          color: '#334155' 
+                          color: '#334155',
+                          border: '1px solid #E2E8F0'
                         }}>
-                          <Tag size={12} color="#64748B" />
+                          <Tag size={11} color="#64748B" />
                           {b.category}
                         </span>
                       ) : (
-                        <span style={{ color: '#94A3B8', fontSize: '13px' }}>-</span>
+                        <span style={{ color: '#94A3B8', fontSize: '13px' }}>—</span>
                       )}
                     </td>
 
-                    <td style={{ padding: '16px 20px' }}>
+                    <td style={{ padding: '14px 12px', verticalAlign: 'middle' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                         <span style={{ 
                           display: 'inline-flex', 
@@ -536,9 +541,10 @@ const Businesses = () => {
                           borderRadius: '6px', 
                           background: b.offeringType === 'service' ? '#F3E8FF' : b.offeringType === 'product' ? '#EFF6FF' : '#F0FDF4', 
                           color: b.offeringType === 'service' ? '#7E22CE' : b.offeringType === 'product' ? '#1D4ED8' : '#15803D',
-                          width: 'fit-content'
+                          width: 'fit-content',
+                          border: `1px solid ${b.offeringType === 'service' ? '#E9D5FF' : b.offeringType === 'product' ? '#BFDBFE' : '#BBF7D0'}`
                         }}>
-                          {b.offeringType === 'service' ? '🛠️ Services' : b.offeringType === 'product' ? '📦 Products' : '🔄 Prod & Serv'}
+                          {b.offeringType === 'service' ? '🛠️ Services' : b.offeringType === 'product' ? '📦 Products' : '🔄 Product & Service'}
                         </span>
                         <span style={{ 
                           display: 'inline-flex', 
@@ -548,121 +554,156 @@ const Businesses = () => {
                           fontWeight: '600', 
                           padding: '2px 8px', 
                           borderRadius: '6px', 
-                          background: b.operationsType === 'sales' ? '#EFF6FF' : b.operationsType === 'purchases' ? '#FEF3C7' : '#F1F5F9', 
-                          color: b.operationsType === 'sales' ? '#1D4ED8' : b.operationsType === 'purchases' ? '#B45309' : '#334155',
-                          width: 'fit-content'
+                          background: b.operationsType === 'sales' ? '#EFF6FF' : b.operationsType === 'purchases' ? '#FEF3C7' : '#F8FAFC', 
+                          color: b.operationsType === 'sales' ? '#1D4ED8' : b.operationsType === 'purchases' ? '#B45309' : '#475569',
+                          width: 'fit-content',
+                          border: `1px solid ${b.operationsType === 'sales' ? '#BFDBFE' : b.operationsType === 'purchases' ? '#FDE68A' : '#E2E8F0'}`
                         }}>
-                          {b.operationsType === 'sales' ? '📈 Sales Only' : b.operationsType === 'purchases' ? '🛒 Purchases' : '🔁 Sales & Purch'}
+                          {b.operationsType === 'sales' ? '📈 Sales Only' : b.operationsType === 'purchases' ? '🛒 Purchases' : '🔁 Sales & Purchases'}
                         </span>
                       </div>
                     </td>
 
-                    <td style={{ padding: '16px 20px', color: '#334155', fontSize: '14px', fontWeight: '500' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <User size={15} color="#94A3B8" />
-                        <span>{b.contactPerson || '-'}</span>
-                      </div>
+                    <td style={{ padding: '14px 12px', verticalAlign: 'middle' }}>
+                      {b.contactPerson ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#334155', fontSize: '13px', fontWeight: '500' }}>
+                          <User size={14} color="#64748B" />
+                          <span>{b.contactPerson}</span>
+                        </div>
+                      ) : (
+                        <span style={{ color: '#94A3B8', fontSize: '13px' }}>—</span>
+                      )}
                     </td>
 
-                    <td style={{ padding: '16px 20px' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#0F172A', fontSize: '13px', fontWeight: '500' }}>
-                          <Phone size={14} color="#94A3B8" /> {b.phone || '-'}
-                        </div>
+                    <td style={{ padding: '14px 12px', verticalAlign: 'middle' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        {b.phone ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#0F172A', fontSize: '13px', fontWeight: '600' }}>
+                            <Phone size={13} color="#64748B" /> <span>{b.phone}</span>
+                          </div>
+                        ) : <span style={{ color: '#94A3B8', fontSize: '13px' }}>—</span>}
                         {b.email && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#64748B', fontSize: '12px' }}>
-                            <Mail size={13} color="#94A3B8" />
-                            <span style={{ maxWidth: '170px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.email}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#64748B', fontSize: '12px' }}>
+                            <Mail size={12} color="#94A3B8" />
+                            <span style={{ maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={b.email}>{b.email}</span>
                           </div>
                         )}
                       </div>
                     </td>
 
-                    <td style={{ padding: '16px 20px' }}>
+                    <td style={{ padding: '14px 12px', verticalAlign: 'middle' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#334155', fontSize: '13px', fontWeight: '500' }}>
-                          <MapPin size={14} color="#94A3B8" />
-                          <span>{b.city || '-'}</span>
-                        </div>
+                        {b.city ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#334155', fontSize: '13px', fontWeight: '500' }}>
+                            <MapPin size={13} color="#64748B" />
+                            <span>{b.city}</span>
+                          </div>
+                        ) : (!b.taxNumber && <span style={{ color: '#94A3B8', fontSize: '13px' }}>—</span>)}
                         {b.taxNumber && (
-                          <span style={{ fontSize: '11px', color: '#64748B', fontFamily: 'monospace' }}>
+                          <span style={{ fontSize: '11px', color: '#475569', fontFamily: 'monospace', background: '#F1F5F9', border: '1px solid #E2E8F0', padding: '1px 6px', borderRadius: '4px', width: 'fit-content' }}>
                             GST: {b.taxNumber}
                           </span>
                         )}
                       </div>
                     </td>
 
-                    <td style={{ padding: '16px 20px' }}>
+                    <td style={{ padding: '14px 12px', textAlign: 'center', verticalAlign: 'middle' }}>
                       {b.email ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{ 
-                              display: 'inline-flex', 
-                              alignItems: 'center', 
-                              gap: '5px', 
-                              fontSize: '11px', 
-                              fontWeight: '700', 
-                              padding: '2px 8px', 
-                              borderRadius: '12px',
-                              background: b.isLoginEnabled !== false ? '#DCFCE7' : '#FEE2E2',
-                              color: b.isLoginEnabled !== false ? '#15803D' : '#B91C1C'
-                            }}>
-                              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: b.isLoginEnabled !== false ? '#22C55E' : '#EF4444' }}></span>
-                              {b.isLoginEnabled !== false ? 'Active' : 'Disabled'}
-                            </span>
-                          </div>
-                          <span style={{ fontSize: '12px', color: '#64748B', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <Mail size={12} color="#94A3B8" /> {b.email}
-                          </span>
-                        </div>
-                      ) : (
                         <button
                           onClick={() => handleOpenLoginModal(b)}
+                          className="notranslate"
+                          translate="no"
                           style={{
                             display: 'inline-flex',
                             alignItems: 'center',
-                            gap: '5px',
+                            justifyContent: 'center',
+                            gap: '7px',
                             background: '#EFF6FF',
+                            border: '1px solid #BFDBFE',
+                            color: '#1D4ED8',
+                            padding: '7px 14px',
+                            borderRadius: '8px',
+                            fontSize: '13px',
+                            fontWeight: '600',
+                            whiteSpace: 'nowrap',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                            boxShadow: '0 1px 2px rgba(37, 99, 235, 0.05)'
+                          }}
+                          onMouseOver={(e) => { e.currentTarget.style.background = '#DBEAFE'; }}
+                          onMouseOut={(e) => { e.currentTarget.style.background = '#EFF6FF'; }}
+                        >
+                          <KeyRound size={15} />
+                          <span>Manage Login</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleOpenLoginModal(b)}
+                          className="notranslate"
+                          translate="no"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '7px',
+                            background: '#F8FAFC',
                             border: '1px dashed #93C5FD',
                             color: '#2563EB',
-                            padding: '4px 10px',
-                            borderRadius: '6px',
-                            fontSize: '12px',
+                            padding: '7px 14px',
+                            borderRadius: '8px',
+                            fontSize: '13px',
                             fontWeight: '600',
-                            cursor: 'pointer'
+                            whiteSpace: 'nowrap',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease'
+                          }}
+                          onMouseOver={(e) => { 
+                            e.currentTarget.style.background = '#EFF6FF'; 
+                            e.currentTarget.style.borderColor = '#2563EB'; 
+                          }}
+                          onMouseOut={(e) => { 
+                            e.currentTarget.style.background = '#F8FAFC'; 
+                            e.currentTarget.style.borderColor = '#93C5FD'; 
                           }}
                         >
-                          <KeyRound size={12} /> Set Login
+                          <KeyRound size={15} />
+                          <span>Set Login</span>
                         </button>
                       )}
                     </td>
-                    <td style={{ padding: '16px 20px', textAlign: 'right' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
+                    <td style={{ padding: '14px 14px', textAlign: 'center', verticalAlign: 'middle' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
                         {/* View Business */}
                         <button 
                           onClick={() => setViewBusiness(b)}
-                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#EFF6FF', color: '#3B82F6', border: 'none', borderRadius: '6px', cursor: 'pointer', transition: 'background 0.2s' }}
+                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#EFF6FF', color: '#3B82F6', border: '1px solid #DBEAFE', borderRadius: '6px', cursor: 'pointer', transition: 'all 0.15s' }}
                           title="View Details"
+                          onMouseOver={(e) => e.currentTarget.style.background = '#DBEAFE'}
+                          onMouseOut={(e) => e.currentTarget.style.background = '#EFF6FF'}
                         >
-                          <Eye size={16} />
+                          <Eye size={15} />
                         </button>
 
                         {/* Edit Business */}
                         <button 
                           onClick={() => handleEdit(b)}
-                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#EFF6FF', color: '#2563EB', border: 'none', borderRadius: '6px', cursor: 'pointer', transition: 'background 0.2s' }}
+                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#F1F5F9', color: '#475569', border: '1px solid #E2E8F0', borderRadius: '6px', cursor: 'pointer', transition: 'all 0.15s' }}
                           title="Edit Business"
+                          onMouseOver={(e) => { e.currentTarget.style.background = '#E2E8F0'; e.currentTarget.style.color = '#0F172A'; }}
+                          onMouseOut={(e) => { e.currentTarget.style.background = '#F1F5F9'; e.currentTarget.style.color = '#475569'; }}
                         >
-                          <Pencil size={15} />
+                          <Pencil size={14} />
                         </button>
 
                         {/* Delete Business */}
                         <button 
                           onClick={() => setDeleteId(b._id)}
-                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#FEE2E2', color: '#EF4444', border: 'none', borderRadius: '6px', cursor: 'pointer', transition: 'background 0.2s' }}
+                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#FEF2F2', color: '#EF4444', border: '1px solid #FECACA', borderRadius: '6px', cursor: 'pointer', transition: 'all 0.15s' }}
                           title="Delete Business"
+                          onMouseOver={(e) => e.currentTarget.style.background = '#FEE2E2'}
+                          onMouseOut={(e) => e.currentTarget.style.background = '#FEF2F2'}
                         >
-                          <Trash2 size={16} />
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     </td>

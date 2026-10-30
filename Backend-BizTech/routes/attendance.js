@@ -20,7 +20,9 @@ const auth = (req, res, next) => {
 router.get('/', auth, async (req, res) => {
   try {
     let query = { tenantId: req.user.id };
-    if (req.user.role === 'branch' && req.user.branchId) {
+    if (req.user.role === 'employee' && req.user.employeeId) {
+      query.employeeId = req.user.employeeId;
+    } else if (req.user.role === 'branch' && req.user.branchId) {
       const branchEmployees = await Employee.find({ tenantId: req.user.id, branchId: req.user.branchId }).select('_id');
       query.employeeId = { $in: branchEmployees.map(e => e._id) };
     } else if (req.user.role === 'business' && req.user.businessName) {
@@ -36,7 +38,12 @@ router.get('/', auth, async (req, res) => {
 
 router.post('/', auth, async (req, res) => {
   try {
-    const newRecord = new Attendance({ ...req.body, tenantId: req.user.id });
+    const payload = {
+      ...req.body,
+      tenantId: req.user.id,
+      employeeId: (req.user.role === 'employee' && req.user.employeeId) ? req.user.employeeId : req.body.employeeId
+    };
+    const newRecord = new Attendance(payload);
     const saved = await newRecord.save();
     await saved.populate('employeeId');
     res.status(201).json(saved);

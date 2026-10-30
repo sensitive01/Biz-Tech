@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutGrid, Users, Map, Calendar, LogOut, Bell, ChevronDown, Clock, Package, Archive, TrendingUp, ShoppingCart, Receipt, Building2, UserCheck, FileText, BellRing, Store } from 'lucide-react';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { LayoutGrid, Users, Map, Calendar, LogOut, Bell, ChevronDown, Clock, Package, Archive, TrendingUp, ShoppingCart, Receipt, Building2, UserCheck, FileText, BellRing, Store, Lock } from 'lucide-react';
+import LanguageSelector from '../components/LanguageSelector';
 
 const TenantLayout = () => {
   const navigate = useNavigate();
@@ -96,6 +97,9 @@ const TenantLayout = () => {
         if (userObj && Array.isArray(userObj.modules)) {
           userModules = userObj.modules;
         }
+        if (userObj && userObj.role === 'employee') {
+          userModules = Array.from(new Set([...userModules, 'attendance', 'leaves', 'customers', 'expenses', 'documents', 'reminders']));
+        }
       }
 
       // Fallback
@@ -175,6 +179,33 @@ const TenantLayout = () => {
       if (key.startsWith('onb_')) localStorage.removeItem(key);
     });
     navigate('/', { replace: true });
+  };
+
+  const location = useLocation();
+
+  // Route permission validation for employees
+  const isEmployeeRestricted = () => {
+    if (currentUser?.role !== 'employee') return false;
+    const path = location.pathname.toLowerCase();
+
+    // Admin-only management routes
+    if (path.includes('/tenant/businesses') || 
+        path.includes('/tenant/branches') || 
+        path.includes('/tenant/employees') || 
+        path.includes('/tenant/billing')) {
+      return true;
+    }
+
+    // Selectable operational module permission checks (Product, Inventory, Purchases, Billing)
+    if (path.includes('/tenant/products') && !modules.includes('products_services')) return true;
+    if (path.includes('/tenant/inventory') && !modules.includes('inventory')) return true;
+    if (path.includes('/tenant/purchases') && !modules.includes('purchases')) return true;
+    if (path.includes('/tenant/sales') && !modules.includes('sales')) return true;
+
+    // Remaining sections (customers, expenses, documents, reminders, attendance, leaves)
+    // are default for all employees and are never restricted!
+
+    return false;
   };
 
   return (
@@ -337,6 +368,7 @@ const TenantLayout = () => {
           ) : <div />}
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <LanguageSelector />
             {/* Notification Bell with Badge & Dropdown */}
             <div style={{ position: 'relative' }}>
               <div
@@ -592,7 +624,7 @@ const TenantLayout = () => {
           )}
 
           {/* 4. Product / Service */}
-          {currentUser?.role !== 'employee' && modules.includes('products_services') && (
+          {modules.includes('products_services') && (
             <NavLink to="/tenant/products" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <Package size={18} />
               <span>
@@ -602,7 +634,7 @@ const TenantLayout = () => {
           )}
 
           {/* 5. Stock / Inventory (hidden for pure service businesses) */}
-          {currentUser?.role !== 'employee' && modules.includes('inventory') && currentUser?.businessOfferingType !== 'service' && (
+          {modules.includes('inventory') && currentUser?.businessOfferingType !== 'service' && (
             <NavLink to="/tenant/inventory" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <Archive size={18} />
               <span>Stock / Inventory</span>
@@ -610,15 +642,15 @@ const TenantLayout = () => {
           )}
 
           {/* 6. Customers */}
-          {currentUser?.role !== 'employee' && (
+          {(currentUser?.role === 'employee' || modules.includes('customers') || currentUser?.role !== 'employee') && (
             <NavLink to="/tenant/customers" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <UserCheck size={18} />
               <span>Customers</span>
             </NavLink>
           )}
 
-          {/* 7. Expenses - Visible to non-employees */}
-          {currentUser?.role !== 'employee' && (
+          {/* 7. Expenses */}
+          {(currentUser?.role === 'employee' || modules.includes('expenses') || currentUser?.role !== 'employee') && (
             <NavLink to="/tenant/expenses" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <Receipt size={18} />
               <span>Expenses</span>
@@ -626,7 +658,7 @@ const TenantLayout = () => {
           )}
 
           {/* 8. Purchases (hidden for sales-only businesses) */}
-          {currentUser?.role !== 'employee' && modules.includes('purchases') && currentUser?.businessOperationsType !== 'sales' && (
+          {modules.includes('purchases') && currentUser?.businessOperationsType !== 'sales' && (
             <NavLink to="/tenant/purchases" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <ShoppingCart size={18} />
               <span>Purchases</span>
@@ -634,7 +666,7 @@ const TenantLayout = () => {
           )}
 
           {/* 9. Sales / Billing (hidden for purchases-only businesses) */}
-          {currentUser?.role !== 'employee' && modules.includes('sales') && currentUser?.businessOperationsType !== 'purchases' && (
+          {modules.includes('sales') && currentUser?.businessOperationsType !== 'purchases' && (
             <NavLink to="/tenant/sales" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <TrendingUp size={18} />
               <span>Billing</span>
@@ -642,7 +674,7 @@ const TenantLayout = () => {
           )}
 
           {/* 10. Documents */}
-          {currentUser?.role !== 'employee' && (
+          {(currentUser?.role === 'employee' || modules.includes('documents') || currentUser?.role !== 'employee') && (
             <NavLink to="/tenant/documents" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <FileText size={18} />
               <span>Documents</span>
@@ -650,7 +682,7 @@ const TenantLayout = () => {
           )}
 
           {/* 11. Reminders */}
-          {currentUser?.role !== 'employee' && (
+          {(currentUser?.role === 'employee' || modules.includes('reminders') || currentUser?.role !== 'employee') && (
             <NavLink to="/tenant/reminders" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <BellRing size={18} />
               <span>Reminders</span>
@@ -668,15 +700,19 @@ const TenantLayout = () => {
           {/* 13, 14. Attendance & Leaves - Available to Employees and Admins */}
           {tenantType >= 2 && (
             <>
-              <NavLink to="/tenant/attendance" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
-                <Clock size={18} />
-                <span>Attendance</span>
-              </NavLink>
+              {(currentUser?.role === 'employee' || modules.includes('attendance') || currentUser?.role !== 'employee') && (
+                <NavLink to="/tenant/attendance" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
+                  <Clock size={18} />
+                  <span>Attendance</span>
+                </NavLink>
+              )}
 
-              <NavLink to="/tenant/leaves" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
-                <Calendar size={18} />
-                <span>Leave Requests</span>
-              </NavLink>
+              {(currentUser?.role === 'employee' || modules.includes('leaves') || currentUser?.role !== 'employee') && (
+                <NavLink to="/tenant/leaves" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
+                  <Calendar size={18} />
+                  <span>Leave Requests</span>
+                </NavLink>
+              )}
             </>
           )}
         </div>
@@ -692,7 +728,56 @@ const TenantLayout = () => {
       {/* Main Content */}
       <main className="main-content">
         <div className="content-canvas animate-fade-in" style={{ flex: '1 0 auto' }}>
-          <Outlet />
+          {isEmployeeRestricted() ? (
+            <div style={{
+              maxWidth: '540px',
+              margin: '60px auto',
+              background: 'white',
+              borderRadius: '20px',
+              border: '1px solid #E2E8F0',
+              padding: '40px 32px',
+              textAlign: 'center',
+              boxShadow: '0 10px 25px -5px rgba(0,0,0,0.05)'
+            }}>
+              <div style={{
+                width: '64px',
+                height: '64px',
+                borderRadius: '50%',
+                background: '#FEF2F2',
+                color: '#EF4444',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 20px',
+                border: '1px solid #FECACA'
+              }}>
+                <Lock size={30} />
+              </div>
+              <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#0F172A', marginBottom: '8px' }}>
+                Access Restricted
+              </h2>
+              <p style={{ color: '#64748B', fontSize: '14px', lineHeight: '1.6', marginBottom: '28px' }}>
+                You do not have permission to view or manage this section. Your workspace owner or branch manager must enable this section in your employee login credentials.
+              </p>
+              <button
+                onClick={() => navigate('/tenant/dashboard')}
+                style={{
+                  padding: '11px 24px',
+                  background: '#2563EB',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '10px',
+                  fontWeight: '600',
+                  fontSize: '14px',
+                  cursor: 'pointer'
+                }}
+              >
+                Return to Dashboard
+              </button>
+            </div>
+          ) : (
+            <Outlet />
+          )}
         </div>
       </main>
     </div>

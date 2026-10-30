@@ -4,10 +4,61 @@ import {
   Plus, Users, Mail, Briefcase, Store, X, Eye, Pencil, Trash2, 
   AlertTriangle, UserPlus, Phone, IndianRupee, Calendar, Activity, 
   Search, Download, ArrowUp, ArrowDown, ArrowUpDown, Building2,
-  KeyRound, Lock, EyeOff, CheckCircle2
+  KeyRound, Lock, EyeOff, CheckCircle2, Package, Archive, TrendingUp,
+  ShoppingCart, Receipt, FileText, BellRing, Clock, UserCheck, Check, ShieldCheck
 } from 'lucide-react';
 import { exportToCSV } from '../utils/exportToCSV';
 import TablePagination from '../components/TablePagination';
+
+// The 4 selectable operational modules for employees
+const SELECTABLE_OPERATIONAL_SECTIONS = [
+  {
+    id: 'products_services',
+    label: 'Product & Service',
+    description: 'Manage products, services, categories & pricing',
+    icon: Package,
+    color: '#2563EB',
+    bg: '#EFF6FF',
+    border: '#BFDBFE'
+  },
+  {
+    id: 'inventory',
+    label: 'Stock / Inventory',
+    description: 'Track stock quantities, adjustments & SKU logs',
+    icon: Archive,
+    color: '#0891B2',
+    bg: '#ECFEFF',
+    border: '#A5F3FC'
+  },
+  {
+    id: 'purchases',
+    label: 'Purchases',
+    description: 'Record vendor purchase orders & procurement bills',
+    icon: ShoppingCart,
+    color: '#7C3AED',
+    bg: '#F5F3FF',
+    border: '#DDD6FE'
+  },
+  {
+    id: 'sales',
+    label: 'Billing & Sales',
+    description: 'Generate customer bills, sales receipts & invoices',
+    icon: TrendingUp,
+    color: '#059669',
+    bg: '#ECFDF5',
+    border: '#A7F3D0'
+  }
+];
+
+// All remaining 6 sections are always enabled by default for all employees
+const DEFAULT_EMPLOYEE_MODULES = [
+  'attendance',
+  'leaves',
+  'customers',
+  'expenses',
+  'documents',
+  'reminders'
+];
 
 const DESIGNATION_OPTIONS = [
   'Store Manager',
@@ -49,19 +100,46 @@ const Employees = () => {
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [isLoginEnabled, setIsLoginEnabled] = useState(true);
+  const [selectedModules, setSelectedModules] = useState([]);
+  const [isNewCreationModal, setIsNewCreationModal] = useState(false);
   const [savingCredentials, setSavingCredentials] = useState(false);
   const [credentialsError, setCredentialsError] = useState('');
   const [credentialsSuccess, setCredentialsSuccess] = useState('');
 
   const tenantType = Number(localStorage.getItem('tenantType')) || 1;
 
-  const handleOpenLoginModal = (employee) => {
+  const handleOpenLoginModal = (employee, isNew = false) => {
     setLoginModalEmployee(employee);
     setLoginPassword('');
     setShowLoginPassword(false);
     setIsLoginEnabled(employee.isLoginEnabled !== false);
+    setIsNewCreationModal(isNew);
+    
+    // Filter only the 4 selectable operational modules for UI toggles
+    if (Array.isArray(employee.modules) && employee.modules.length > 0) {
+      setSelectedModules(employee.modules.filter(m => SELECTABLE_OPERATIONAL_SECTIONS.some(s => s.id === m)));
+    } else {
+      // Default: preselect operational modules
+      setSelectedModules(['products_services', 'inventory', 'purchases', 'sales']);
+    }
     setCredentialsError('');
     setCredentialsSuccess('');
+  };
+
+  const toggleModule = (moduleId) => {
+    setSelectedModules(prev => 
+      prev.includes(moduleId)
+        ? prev.filter(id => id !== moduleId)
+        : [...prev, moduleId]
+    );
+  };
+
+  const selectAllOpsModules = () => {
+    setSelectedModules(SELECTABLE_OPERATIONAL_SECTIONS.map(s => s.id));
+  };
+
+  const clearAllOpsModules = () => {
+    setSelectedModules([]);
   };
 
   const handleSaveCredentials = async (e) => {
@@ -79,6 +157,8 @@ const Employees = () => {
     setCredentialsError('');
     setCredentialsSuccess('');
 
+    const finalModules = Array.from(new Set([...selectedModules, ...DEFAULT_EMPLOYEE_MODULES]));
+
     try {
       const token = localStorage.getItem('token');
       const res = await fetch(`${import.meta.env.VITE_API_URL}/api/employees/${loginModalEmployee._id}/credentials`, {
@@ -89,7 +169,8 @@ const Employees = () => {
         },
         body: JSON.stringify({
           password: loginPassword || undefined,
-          isLoginEnabled
+          isLoginEnabled,
+          modules: finalModules
         })
       });
 
@@ -100,11 +181,12 @@ const Employees = () => {
         return;
       }
 
-      setCredentialsSuccess('Employee login credentials saved successfully!');
+      setCredentialsSuccess('Employee login credentials and section access saved successfully!');
       fetchData();
       setTimeout(() => {
         setLoginModalEmployee(null);
         setSavingCredentials(false);
+        setIsNewCreationModal(false);
       }, 900);
     } catch (err) {
       setCredentialsError('Connection error. Please try again.');
@@ -230,7 +312,9 @@ const Employees = () => {
         body: JSON.stringify(payload)
       });
       if (res.ok) {
+        const savedEmp = await res.json().catch(() => ({}));
         setShowModal(false);
+        const wasNewEmployee = !editingEmployee;
         setEditingEmployee(null);
         setFormData({
           name: '',
@@ -244,7 +328,12 @@ const Employees = () => {
           status: 'Active',
           branchId: ''
         });
-        fetchData();
+        await fetchData();
+
+        // Prompt login credentials & section access immediately after creating a new employee
+        if (wasNewEmployee && savedEmp && savedEmp._id) {
+          handleOpenLoginModal(savedEmp, true);
+        }
       } else {
         const data = await res.json().catch(() => ({}));
         alert(data.error || (editingEmployee ? 'Failed to update employee' : 'Failed to add employee'));
@@ -306,7 +395,9 @@ const Employees = () => {
       (i.name || '').toLowerCase().includes(search.toLowerCase()) ||
       (i.email || '').toLowerCase().includes(search.toLowerCase()) ||
       (i.designation || '').toLowerCase().includes(search.toLowerCase()) ||
-      (i.position || '').toLowerCase().includes(search.toLowerCase())
+      (i.position || '').toLowerCase().includes(search.toLowerCase()) ||
+      (i.businessName || '').toLowerCase().includes(search.toLowerCase()) ||
+      (i.branchName || (i.branchId?.name || '')).toLowerCase().includes(search.toLowerCase())
     )
     .sort((a, b) => {
       if (!sortConfig.key) return 0;
@@ -316,6 +407,14 @@ const Employees = () => {
       if (sortConfig.key === 'designation') {
         aVal = a.designation || a.position || '';
         bVal = b.designation || b.position || '';
+      }
+      if (sortConfig.key === 'business') {
+        aVal = a.businessName || '';
+        bVal = b.businessName || '';
+      }
+      if (sortConfig.key === 'branch') {
+        aVal = a.branchId ? (a.branchId.name || a.branchId) : (a.branchName || '');
+        bVal = b.branchId ? (b.branchId.name || b.branchId) : (b.branchName || '');
       }
 
       if (typeof aVal === 'string') aVal = aVal.toLowerCase();
@@ -334,7 +433,7 @@ const Employees = () => {
   const paginatedEmployees = filteredEmployees.slice(startIndex, startIndex + itemsPerPage);
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto', animation: 'fadeIn 0.3s ease-out' }}>
+    <div style={{ padding: '24px', width: '100%', boxSizing: 'border-box', animation: 'fadeIn 0.3s ease-out' }}>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
@@ -402,28 +501,31 @@ const Employees = () => {
 
       <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', minWidth: '800px', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <table style={{ width: '100%', minWidth: '950px', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ background: '#F8FAFC' }}>
-                <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: '60px' }}>S.No</th>
-                <th onClick={() => requestSort('name')} style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', alignItems: 'center' }}>Name {renderSortIcon('name')}</div></th>
-                <th onClick={() => requestSort('designation')} style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', alignItems: 'center' }}>Designation {renderSortIcon('designation')}</div></th>
-                <th onClick={() => requestSort('status')} style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', alignItems: 'center' }}>Status {renderSortIcon('status')}</div></th>
+                <th style={{ padding: '14px 10px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: '56px', textAlign: 'center', verticalAlign: 'middle' }}>S.No</th>
+                <th onClick={() => requestSort('name')} style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', minWidth: '180px', verticalAlign: 'middle' }}><div style={{ display: 'flex', alignItems: 'center' }}>Name {renderSortIcon('name')}</div></th>
+                <th onClick={() => requestSort('designation')} style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', width: '160px', verticalAlign: 'middle' }}><div style={{ display: 'flex', alignItems: 'center' }}>Designation {renderSortIcon('designation')}</div></th>
                 {(tenantType >= 2) && (
-                  <th onClick={() => requestSort('branch')} style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', alignItems: 'center' }}>Branch {renderSortIcon('branch')}</div></th>
+                  <th onClick={() => requestSort('business')} style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', width: '150px', verticalAlign: 'middle' }}><div style={{ display: 'flex', alignItems: 'center' }}>Business {renderSortIcon('business')}</div></th>
                 )}
-                <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Login Access</th>
-                <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'right' }}>Action</th>
+                {(tenantType >= 2) && (
+                  <th onClick={() => requestSort('branch')} style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', width: '150px', verticalAlign: 'middle' }}><div style={{ display: 'flex', alignItems: 'center' }}>Branch {renderSortIcon('branch')}</div></th>
+                )}
+                <th onClick={() => requestSort('status')} style={{ padding: '14px 12px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', width: '110px', verticalAlign: 'middle' }}><div style={{ display: 'flex', alignItems: 'center' }}>Status {renderSortIcon('status')}</div></th>
+                <th style={{ padding: '14px 14px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: '160px', verticalAlign: 'middle' }}>Login Access</th>
+                <th style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: '115px', textAlign: 'center', verticalAlign: 'middle' }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={(tenantType >= 2) ? "7" : "6"} style={{ padding: '32px', textAlign: 'center', color: '#64748B' }}>Loading employees...</td>
+                  <td colSpan={(tenantType >= 2) ? "8" : "6"} style={{ padding: '32px', textAlign: 'center', color: '#64748B' }}>Loading employees...</td>
                 </tr>
               ) : filteredEmployees.length === 0 ? (
                 <tr>
-                  <td colSpan={(tenantType >= 2) ? "7" : "6"} style={{ padding: '64px 32px', textAlign: 'center' }}>
+                  <td colSpan={(tenantType >= 2) ? "8" : "6"} style={{ padding: '64px 32px', textAlign: 'center' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                       <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
                         <Users size={32} color="#3B82F6" />
@@ -438,93 +540,126 @@ const Employees = () => {
               ) : (
                 paginatedEmployees.map((employee, index) => (
                   <tr key={employee._id} style={{ borderBottom: '1px solid #E2E8F0', transition: 'background 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
-                    <td style={{ padding: '16px 24px', fontSize: '15px', color: '#475569', fontWeight: '500' }}>
+                    <td style={{ padding: '14px 10px', fontSize: '14px', color: '#64748B', fontWeight: '500', textAlign: 'center', verticalAlign: 'middle' }}>
                       {startIndex + index + 1}
                     </td>
-                    <td style={{ padding: '16px 24px' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <span style={{ fontSize: '15px', fontWeight: '600', color: '#0F172A' }}>{employee.name}</span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#64748B', fontSize: '13px' }}>
-                          <Mail size={14} /> {employee.email}
+                    <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        <span style={{ fontSize: '14px', fontWeight: '600', color: '#0F172A' }}>{employee.name}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#64748B', fontSize: '12px' }}>
+                          <Mail size={13} /> {employee.email}
                         </div>
                       </div>
                     </td>
-                    <td style={{ padding: '16px 24px' }}>
+                    <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0F172A', fontSize: '14px', fontWeight: '600' }}>
-                          <Briefcase size={15} color="#2563EB" />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#0F172A', fontSize: '13px', fontWeight: '600' }}>
+                          <Briefcase size={14} color="#2563EB" />
                           <span>{employee.designation || employee.position || 'Staff'}</span>
                         </div>
                         {employee.position && employee.designation && employee.position !== employee.designation && (
-                          <span style={{ fontSize: '12px', color: '#64748B', paddingLeft: '23px' }}>Role: {employee.position}</span>
+                          <span style={{ fontSize: '11px', color: '#64748B', paddingLeft: '20px' }}>Role: {employee.position}</span>
                         )}
                       </div>
                     </td>
-                    <td style={{ padding: '16px 24px' }}>
+                    {(tenantType >= 2) && (
+                      <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
+                        {employee.businessName ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#7C3AED', fontSize: '13px', fontWeight: '600' }}>
+                            <Building2 size={15} color="#7C3AED" />
+                            <span>{employee.businessName}</span>
+                          </div>
+                        ) : (
+                          <span style={{ color: '#94A3B8', fontSize: '13px' }}>—</span>
+                        )}
+                      </td>
+                    )}
+                    {(tenantType >= 2) && (
+                      <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#475569', fontSize: '13px' }}>
+                          <Store size={15} color="#94A3B8" />
+                          <span>{employee.branchId ? (employee.branchId.name || employee.branchId) : (branches[0]?.name || employee.branchName || 'Main Branch')}</span>
+                        </div>
+                      </td>
+                    )}
+                    <td style={{ padding: '14px 12px', verticalAlign: 'middle' }}>
                       <span style={{
-                        display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '600',
+                        display: 'inline-flex', alignItems: 'center', padding: '3px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '600',
                         background: employee.status === 'Active' ? '#DCFCE7' : employee.status === 'On Leave' ? '#FEF9C3' : '#FEE2E2',
                         color: employee.status === 'Active' ? '#166534' : employee.status === 'On Leave' ? '#854D0E' : '#991B1B'
                       }}>
                         {employee.status || 'Active'}
                       </span>
                     </td>
-                    {(tenantType >= 2) && (
-                      <td style={{ padding: '16px 24px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#475569', fontSize: '14px' }}>
-                          <Store size={16} color="#94A3B8" /> {employee.branchId ? (employee.branchId.name || employee.branchId) : (branches[0]?.name || employee.branchName || 'Main Branch')}
-                        </div>
-                        {employee.businessName && (
-                          <div style={{ fontSize: '11px', color: '#7C3AED', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px', fontWeight: '500' }}>
-                            <Building2 size={11} color="#7C3AED" /> {employee.businessName}
-                          </div>
-                        )}
-                      </td>
-                    )}
-                    <td style={{ padding: '16px 24px' }}>
+                    <td style={{ padding: '14px 14px', verticalAlign: 'middle' }}>
                       {employee.hasPassword ? (
-                        <div 
-                          onClick={() => handleOpenLoginModal(employee)}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            padding: '5px 12px',
-                            borderRadius: '20px',
-                            background: employee.isLoginEnabled !== false ? '#EFF6FF' : '#FEF2F2',
-                            border: `1px solid ${employee.isLoginEnabled !== false ? '#BFDBFE' : '#FECACA'}`,
-                            color: employee.isLoginEnabled !== false ? '#1E40AF' : '#991B1B',
-                            fontSize: '12px',
-                            fontWeight: '600',
-                            cursor: 'pointer',
-                            transition: 'all 0.15s ease'
-                          }}
-                          title="Click to manage employee login access"
-                        >
-                          <span style={{
-                            width: '6px',
-                            height: '6px',
-                            borderRadius: '50%',
-                            backgroundColor: employee.isLoginEnabled !== false ? '#10B981' : '#EF4444',
-                            display: 'inline-block'
-                          }}></span>
-                          <KeyRound size={12} />
-                          <span>{employee.isLoginEnabled !== false ? 'Active' : 'Disabled'}</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
+                          <button
+                            onClick={() => handleOpenLoginModal(employee)}
+                            className="notranslate"
+                            translate="no"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '7px',
+                              background: '#EFF6FF',
+                              border: '1px solid #BFDBFE',
+                              color: '#1D4ED8',
+                              padding: '7px 14px',
+                              borderRadius: '8px',
+                              fontSize: '13px',
+                              fontWeight: '600',
+                              whiteSpace: 'nowrap',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease',
+                              boxShadow: '0 1px 2px rgba(37, 99, 235, 0.05)'
+                            }}
+                            onMouseOver={(e) => { e.currentTarget.style.background = '#DBEAFE'; }}
+                            onMouseOut={(e) => { e.currentTarget.style.background = '#EFF6FF'; }}
+                            title="Manage Employee Login & Permissions"
+                          >
+                            <KeyRound size={15} />
+                            <span>Manage Login</span>
+                          </button>
+                          {/* <span 
+                            onClick={() => handleOpenLoginModal(employee)}
+                            style={{
+                              fontSize: '11px',
+                              color: '#64748B',
+                              cursor: 'pointer',
+                              fontWeight: '500',
+                              paddingLeft: '2px'
+                            }}
+                            title="Click to configure permitted sections"
+                          >
+                            <span style={{ color: '#2563EB', fontWeight: '600' }}>
+                              {(() => {
+                                const empMods = Array.isArray(employee.modules) ? employee.modules : [];
+                                const opsCount = SELECTABLE_OPERATIONAL_SECTIONS.filter(s => empMods.includes(s.id)).length;
+                                return `${opsCount}/4 Ops`;
+                              })()}
+                            </span>
+                          </span> */}
                         </div>
                       ) : (
                         <button
                           onClick={() => handleOpenLoginModal(employee)}
+                          className="notranslate"
+                          translate="no"
                           style={{
                             display: 'inline-flex',
                             alignItems: 'center',
-                            gap: '6px',
-                            padding: '5px 12px',
-                            borderRadius: '6px',
+                            justifyContent: 'center',
+                            gap: '7px',
+                            padding: '7px 14px',
+                            borderRadius: '8px',
                             background: '#F8FAFC',
                             border: '1px dashed #CBD5E1',
                             color: '#475569',
-                            fontSize: '12px',
+                            fontSize: '13px',
                             fontWeight: '600',
+                            whiteSpace: 'nowrap',
                             cursor: 'pointer',
                             transition: 'all 0.15s ease'
                           }}
@@ -539,48 +674,39 @@ const Employees = () => {
                             e.currentTarget.style.background = '#F8FAFC';
                           }}
                         >
-                          <KeyRound size={13} />
+                          <KeyRound size={15} />
                           <span>Setup Login</span>
                         </button>
                       )}
                     </td>
-                    <td style={{ padding: '16px 24px', textAlign: 'right' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
-                        <button
-                          onClick={() => handleOpenLoginModal(employee)}
-                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: employee.hasPassword ? '#EFF6FF' : '#F1F5F9', color: employee.hasPassword ? '#2563EB' : '#64748B', border: 'none', borderRadius: '6px', cursor: 'pointer', transition: 'background 0.2s' }}
-                          title={employee.hasPassword ? "Manage Login Access" : "Setup Login Access"}
-                          onMouseOver={(e) => e.currentTarget.style.background = '#DBEAFE'}
-                          onMouseOut={(e) => e.currentTarget.style.background = employee.hasPassword ? '#EFF6FF' : '#F1F5F9'}
-                        >
-                          <KeyRound size={15} />
-                        </button>
+                    <td style={{ padding: '14px 16px', textAlign: 'center', verticalAlign: 'middle' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
                         <button
                           onClick={() => setViewEmployee(employee)}
-                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#EFF6FF', color: '#3B82F6', border: 'none', borderRadius: '6px', cursor: 'pointer', transition: 'background 0.2s' }}
+                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#EFF6FF', color: '#3B82F6', border: '1px solid #DBEAFE', borderRadius: '6px', cursor: 'pointer', transition: 'all 0.15s' }}
                           title="View Employee"
                           onMouseOver={(e) => e.currentTarget.style.background = '#DBEAFE'}
                           onMouseOut={(e) => e.currentTarget.style.background = '#EFF6FF'}
                         >
-                          <Eye size={16} />
+                          <Eye size={15} />
                         </button>
                         <button
                           onClick={() => handleEdit(employee)}
-                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#EFF6FF', color: '#2563EB', border: 'none', borderRadius: '6px', cursor: 'pointer', transition: 'background 0.2s' }}
+                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#F1F5F9', color: '#475569', border: '1px solid #E2E8F0', borderRadius: '6px', cursor: 'pointer', transition: 'all 0.15s' }}
                           title="Edit Employee"
-                          onMouseOver={(e) => e.currentTarget.style.background = '#DBEAFE'}
-                          onMouseOut={(e) => e.currentTarget.style.background = '#EFF6FF'}
+                          onMouseOver={(e) => { e.currentTarget.style.background = '#E2E8F0'; e.currentTarget.style.color = '#0F172A'; }}
+                          onMouseOut={(e) => { e.currentTarget.style.background = '#F1F5F9'; e.currentTarget.style.color = '#475569'; }}
                         >
-                          <Pencil size={15} />
+                          <Pencil size={14} />
                         </button>
                         <button
                           onClick={() => setDeleteEmployeeId(employee._id)}
-                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#FEE2E2', color: '#EF4444', border: 'none', borderRadius: '6px', cursor: 'pointer', transition: 'background 0.2s' }}
+                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#FEF2F2', color: '#EF4444', border: '1px solid #FECACA', borderRadius: '6px', cursor: 'pointer', transition: 'all 0.15s' }}
                           title="Delete Employee"
-                          onMouseOver={(e) => e.currentTarget.style.background = '#FECACA'}
-                          onMouseOut={(e) => e.currentTarget.style.background = '#FEE2E2'}
+                          onMouseOver={(e) => e.currentTarget.style.background = '#FEE2E2'}
+                          onMouseOut={(e) => e.currentTarget.style.background = '#FEF2F2'}
                         >
-                          <Trash2 size={16} />
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     </td>
@@ -930,116 +1056,241 @@ const Employees = () => {
 
       {/* Employee Login Credentials Modal */}
       {loginModalEmployee && createPortal(
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.45)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
-          <div style={{ background: 'white', padding: '24px 28px', borderRadius: '18px', width: '100%', maxWidth: '480px', maxHeight: 'calc(100vh - 40px)', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out', boxSizing: 'border-box' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexShrink: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <KeyRound size={20} color="#2563EB" />
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.55)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '16px' }}>
+          <div style={{ background: 'white', padding: '24px 28px', borderRadius: '20px', width: '100%', maxWidth: '640px', maxHeight: 'calc(100vh - 32px)', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.3)', animation: 'fadeIn 0.2s ease-out', boxSizing: 'border-box' }}>
+            
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #DBEAFE', flexShrink: 0 }}>
+                  <KeyRound size={22} color="#2563EB" />
                 </div>
                 <div>
-                  <h2 style={{ fontSize: '19px', fontWeight: '700', color: '#0F172A', margin: 0 }}>Employee Login Access</h2>
-                  <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#64748B' }}>Configure employee credentials for portal access</p>
+                  <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#0F172A', margin: 0, letterSpacing: '-0.3px' }}>
+                    Employee Login & Section Permissions
+                  </h2>
+                  <p style={{ margin: '2px 0 0 0', fontSize: '13px', color: '#64748B' }}>
+                    Configure login credentials and select permitted portal sections
+                  </p>
                 </div>
               </div>
               <button 
-                onClick={() => setLoginModalEmployee(null)} 
-                style={{ background: '#F1F5F9', border: 'none', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748B', cursor: 'pointer' }}
+                onClick={() => { setLoginModalEmployee(null); setIsNewCreationModal(false); }} 
+                style={{ background: '#F1F5F9', border: 'none', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748B', cursor: 'pointer', transition: 'background 0.15s' }}
+                onMouseOver={(e) => e.currentTarget.style.background = '#E2E8F0'}
+                onMouseOut={(e) => e.currentTarget.style.background = '#F1F5F9'}
               >
                 <X size={18} />
               </button>
             </div>
 
-            {/* Employee Summary Banner */}
-            <div style={{ padding: '12px 16px', background: '#F8FAFC', borderRadius: '10px', border: '1px solid #E2E8F0', marginBottom: '20px' }}>
-              <div style={{ fontSize: '14px', fontWeight: '700', color: '#0F172A' }}>{loginModalEmployee.name}</div>
-              <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>
-                Email: {loginModalEmployee.email} &bull; Designation: {loginModalEmployee.designation || loginModalEmployee.position || 'Staff'}
-              </div>
-            </div>
-
-            {credentialsError && (
-              <div style={{ color: '#DC2626', background: '#FEF2F2', border: '1px solid #FECACA', padding: '10px 14px', borderRadius: '8px', fontSize: '13px', marginBottom: '16px' }}>
-                {credentialsError}
-              </div>
-            )}
-
-            {credentialsSuccess && (
-              <div style={{ color: '#059669', background: '#ECFDF5', border: '1px solid #A7F3D0', padding: '10px 14px', borderRadius: '8px', fontSize: '13px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <CheckCircle2 size={16} />
-                <span>{credentialsSuccess}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleSaveCredentials} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>
-                  Login Email
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <Mail size={16} color="#94A3B8" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
-                  <input 
-                    type="email" 
-                    value={loginModalEmployee.email} 
-                    disabled
-                    style={{ width: '100%', padding: '11px 14px 11px 40px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '14px', color: '#64748B', background: '#F8FAFC', boxSizing: 'border-box' }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>
-                  {loginModalEmployee.hasPassword ? 'New Password (leave blank to keep current)' : 'Set Password *'}
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <Lock size={16} color="#94A3B8" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
-                  <input 
-                    type={showLoginPassword ? "text" : "password"} 
-                    value={loginPassword} 
-                    onChange={e => setLoginPassword(e.target.value)} 
-                    placeholder={loginModalEmployee.hasPassword ? "••••••••••••" : "Minimum 6 characters"}
-                    required={!loginModalEmployee.hasPassword}
-                    style={{ width: '100%', padding: '11px 40px 11px 40px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box' }}
-                  />
-                  <div 
-                    onClick={() => setShowLoginPassword(!showLoginPassword)}
-                    style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', color: '#94A3B8' }}
-                  >
-                    {showLoginPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            {/* Scrollable Body */}
+            <div style={{ overflowY: 'auto', flex: 1, paddingRight: '4px', margin: '0 -4px 0 0' }}>
+              
+              {/* New Creation Banner */}
+              {isNewCreationModal && (
+                <div style={{ padding: '12px 16px', background: '#ECFDF5', border: '1px solid #A7F3D0', borderRadius: '12px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <CheckCircle2 size={18} color="#059669" style={{ flexShrink: 0 }} />
+                  <div style={{ fontSize: '13px', color: '#065F46', lineHeight: '1.4' }}>
+                    <strong>Employee profile created successfully!</strong> Set their password below and select what sections (e.g. Product & Service, Stock, Purchases, Billing) they can access.
                   </div>
                 </div>
+              )}
+
+              {/* Employee Summary Banner */}
+              <div style={{ padding: '14px 18px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0', marginBottom: '18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                <div>
+                  <div style={{ fontSize: '15px', fontWeight: '700', color: '#0F172A' }}>{loginModalEmployee.name}</div>
+                  <div style={{ fontSize: '13px', color: '#64748B', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <span>{loginModalEmployee.email}</span>
+                    <span>&bull;</span>
+                    <span style={{ color: '#2563EB', fontWeight: '600' }}>{loginModalEmployee.designation || loginModalEmployee.position || 'Staff'}</span>
+                    {loginModalEmployee.branchName && (
+                      <>
+                        <span>&bull;</span>
+                        <span>{loginModalEmployee.branchName}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: loginModalEmployee.hasPassword ? '#EFF6FF' : '#FEF3C7', color: loginModalEmployee.hasPassword ? '#1D4ED8' : '#B45309', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: '600' }}>
+                  <KeyRound size={12} />
+                  <span>{loginModalEmployee.hasPassword ? 'Password Configured' : 'No Password Yet'}</span>
+                </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', background: '#F8FAFC', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
-                <input
-                  type="checkbox"
-                  id="enableEmployeeLogin"
-                  checked={isLoginEnabled}
-                  onChange={(e) => setIsLoginEnabled(e.target.checked)}
-                  style={{ width: '16px', height: '16px', accentColor: '#2563EB', cursor: 'pointer' }}
-                />
-                <label htmlFor="enableEmployeeLogin" style={{ fontSize: '13px', fontWeight: '500', color: '#334155', cursor: 'pointer' }}>
-                  Login Access Active
-                </label>
-              </div>
+              {credentialsError && (
+                <div style={{ color: '#DC2626', background: '#FEF2F2', border: '1px solid #FECACA', padding: '10px 14px', borderRadius: '10px', fontSize: '13px', marginBottom: '16px' }}>
+                  {credentialsError}
+                </div>
+              )}
 
-              <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
-                <button 
-                  type="button" 
-                  onClick={() => setLoginModalEmployee(null)} 
-                  style={{ flex: 1, padding: '12px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '8px', color: '#475569', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit" 
-                  disabled={savingCredentials}
-                  style={{ flex: 1, padding: '12px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '600', fontSize: '14px', cursor: 'pointer', opacity: savingCredentials ? 0.7 : 1 }}
-                >
-                  {savingCredentials ? 'Saving...' : 'Save Credentials'}
-                </button>
-              </div>
-            </form>
+              {credentialsSuccess && (
+                <div style={{ color: '#059669', background: '#ECFDF5', border: '1px solid #A7F3D0', padding: '10px 14px', borderRadius: '10px', fontSize: '13px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <CheckCircle2 size={16} />
+                  <span>{credentialsSuccess}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleSaveCredentials} id="credentialsForm" style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                
+                {/* Credentials Section */}
+                <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <div style={{ fontSize: '13px', fontWeight: '700', color: '#1E293B', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Lock size={15} color="#2563EB" />
+                    <span>Login Credentials</span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
+                        Login Email
+                      </label>
+                      <div style={{ position: 'relative' }}>
+                        <Mail size={16} color="#94A3B8" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
+                        <input 
+                          type="email" 
+                          value={loginModalEmployee.email} 
+                          disabled
+                          style={{ width: '100%', padding: '10px 14px 10px 40px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '13px', color: '#64748B', background: '#F8FAFC', boxSizing: 'border-box' }}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
+                        {loginModalEmployee.hasPassword ? 'Update Password (optional)' : 'Set Password *'}
+                      </label>
+                      <div style={{ position: 'relative' }}>
+                        <Lock size={16} color="#94A3B8" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
+                        <input 
+                          type={showLoginPassword ? "text" : "password"} 
+                          value={loginPassword} 
+                          onChange={e => setLoginPassword(e.target.value)} 
+                          placeholder={loginModalEmployee.hasPassword ? "Leave blank to keep current" : "Minimum 6 characters"}
+                          required={!loginModalEmployee.hasPassword}
+                          style={{ width: '100%', padding: '10px 40px 10px 40px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', color: '#0F172A', boxSizing: 'border-box' }}
+                        />
+                        <div 
+                          onClick={() => setShowLoginPassword(!showLoginPassword)}
+                          style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', color: '#94A3B8' }}
+                        >
+                          {showLoginPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section Permissions Selection */}
+                <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  
+                  {/* Selectable Operational Modules Header */}
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: '700', color: '#1E293B', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <ShieldCheck size={16} color="#059669" />
+                      <span>Operational Sections (Select Access)</span>
+                    </div>
+                    <p style={{ margin: '3px 0 0 0', fontSize: '12px', color: '#64748B' }}>
+                      Choose which operational tools this employee is allowed to view and manage:
+                    </p>
+                  </div>
+
+                  {/* Quick Presets on the Left & "X of 4 Selected" at the Right End */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                      <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: '600', textTransform: 'uppercase' }}>Quick Presets:</span>
+                      <button
+                        type="button"
+                        onClick={selectAllOpsModules}
+                        style={{ padding: '4px 10px', borderRadius: '6px', background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1D4ED8', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}
+                      >
+                        + Select All 4 Operations
+                      </button>
+                      <button
+                        type="button"
+                        onClick={clearAllOpsModules}
+                        style={{ padding: '4px 10px', borderRadius: '6px', background: '#FEF2F2', border: '1px solid #FECACA', color: '#991B1B', fontSize: '12px', fontWeight: '500', cursor: 'pointer' }}
+                      >
+                        Clear Selection
+                      </button>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#F1F5F9', padding: '4px 12px', borderRadius: '16px', fontSize: '12px', fontWeight: '700', color: '#2563EB', marginLeft: 'auto' }}>
+                      <span>{selectedModules.length} of {SELECTABLE_OPERATIONAL_SECTIONS.length} Selected</span>
+                    </div>
+                  </div>
+
+                  {/* Grid of the 4 Selectable Operational Cards */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '10px' }}>
+                    {SELECTABLE_OPERATIONAL_SECTIONS.map((sec) => {
+                      const Icon = sec.icon;
+                      const isSelected = selectedModules.includes(sec.id);
+                      return (
+                        <div
+                          key={sec.id}
+                          onClick={() => toggleModule(sec.id)}
+                          style={{
+                            padding: '12px 14px',
+                            borderRadius: '10px',
+                            border: isSelected ? '1.5px solid #2563EB' : '1px solid #E2E8F0',
+                            background: isSelected ? '#F0F7FF' : '#FFFFFF',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: '10px',
+                            transition: 'all 0.15s ease',
+                            boxShadow: isSelected ? '0 2px 8px rgba(37, 99, 235, 0.08)' : 'none'
+                          }}
+                        >
+                          <input 
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => {}}
+                            style={{ width: '16px', height: '16px', marginTop: '2px', accentColor: '#2563EB', cursor: 'pointer', flexShrink: 0 }}
+                          />
+                          <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: sec.bg, color: sec.color, border: `1px solid ${sec.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <Icon size={16} />
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: '13px', fontWeight: '700', color: isSelected ? '#1E40AF' : '#1E293B', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <span>{sec.label}</span>
+                              {isSelected && <Check size={14} color="#2563EB" />}
+                            </div>
+                            <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px', lineHeight: '1.3' }}>
+                              {sec.description}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                </div>
+
+              </form>
+            </div>
+
+            {/* Modal Actions Footer */}
+            <div style={{ display: 'flex', gap: '12px', marginTop: '16px', paddingTop: '14px', borderTop: '1px solid #E2E8F0', flexShrink: 0 }}>
+              <button 
+                type="button" 
+                onClick={() => { setLoginModalEmployee(null); setIsNewCreationModal(false); }} 
+                style={{ flex: 1, padding: '12px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '10px', color: '#475569', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button 
+                type="submit" 
+                form="credentialsForm"
+                disabled={savingCredentials}
+                style={{ flex: 2, padding: '12px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', fontSize: '14px', cursor: 'pointer', opacity: savingCredentials ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
+              >
+                <KeyRound size={16} />
+                <span>{savingCredentials ? 'Saving Permissions...' : 'Save Credentials & Section Access'}</span>
+              </button>
+            </div>
+
           </div>
         </div>,
         document.body
