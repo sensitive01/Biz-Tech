@@ -10,6 +10,13 @@ const Employee = require('../models/Employee');
 const Customer = require('../models/Customer');
 const Inventory = require('../models/Inventory');
 const Sale = require('../models/Sale');
+const Expense = require('../models/Expense');
+const Purchase = require('../models/Purchase');
+const Product = require('../models/Product');
+const Attendance = require('../models/Attendance');
+const Leave = require('../models/Leave');
+const Reminder = require('../models/Reminder');
+const Document = require('../models/Document');
 
 // Helper to find or seed the default superadmin
 const getAdminFromRequest = async (req) => {
@@ -229,7 +236,7 @@ router.delete('/users/:id', async (req, res) => {
 });
 
 // @route   GET /api/admin/users/:id/details
-// @desc    Get complete customer data (profile, branches, staff, businesses, metrics, session)
+// @desc    Get complete customer data (profile, branches, staff, businesses, expenses, sales, inventory, customers)
 router.get('/users/:id/details', async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
@@ -241,15 +248,39 @@ router.get('/users/:id/details', async (req, res) => {
     const tenantIdObj = user._id;
     const matchTenant = { $in: [tenantIdStr, tenantIdObj] };
 
-    const [branches, employees, customersCount, inventoryCount, salesCount] = await Promise.all([
+    const [
+      branches,
+      employees,
+      customers,
+      inventory,
+      products,
+      sales,
+      expenses,
+      purchases,
+      attendance,
+      leaves,
+      reminders,
+      documents
+    ] = await Promise.all([
       Branch.find({ tenantId: matchTenant }).select('-password').sort({ createdAt: -1 }),
-      Employee.find({ tenantId: matchTenant }).sort({ createdAt: -1 }),
-      Customer.countDocuments({ tenantId: matchTenant }).catch(() => 0),
-      Inventory.countDocuments({ tenantId: matchTenant }).catch(() => 0),
-      Sale.countDocuments({ tenantId: matchTenant }).catch(() => 0)
+      Employee.find({ tenantId: matchTenant }).select('-password').sort({ createdAt: -1 }),
+      Customer.find({ tenantId: matchTenant }).sort({ createdAt: -1 }),
+      Inventory.find({ tenantId: matchTenant }).sort({ createdAt: -1 }),
+      Product.find({ tenantId: matchTenant }).sort({ createdAt: -1 }),
+      Sale.find({ tenantId: matchTenant }).sort({ createdAt: -1 }),
+      Expense.find({ tenantId: matchTenant }).sort({ createdAt: -1 }),
+      Purchase.find({ tenantId: matchTenant }).sort({ createdAt: -1 }),
+      Attendance.find({ tenantId: matchTenant }).populate('employeeId', 'name email position').sort({ date: -1 }),
+      Leave.find({ tenantId: matchTenant }).populate('employeeId', 'name email position').sort({ createdAt: -1 }),
+      Reminder.find({ tenantId: matchTenant }).sort({ date: -1 }),
+      Document.find({ tenantId: matchTenant }).sort({ createdAt: -1 })
     ]);
 
-    // Generate user impersonation token for the embedded workspace viewer
+    const totalSalesAmount = sales.reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
+    const totalExpensesAmount = expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+    const totalPurchasesAmount = purchases.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+
+    // Generate user impersonation token (optional fallback)
     const payload = {
       user: {
         id: user.id,
@@ -290,13 +321,36 @@ router.get('/users/:id/details', async (req, res) => {
       branches: branches || [],
       employees: employees || [],
       businesses: user.businesses || [],
+      customers: customers || [],
+      inventory: inventory || [],
+      products: products || [],
+      sales: sales || [],
+      expenses: expenses || [],
+      purchases: purchases || [],
+      attendance: attendance || [],
+      leaves: leaves || [],
+      reminders: reminders || [],
+      documents: documents || [],
+      financials: {
+        totalSales: totalSalesAmount,
+        totalExpenses: totalExpensesAmount,
+        totalPurchases: totalPurchasesAmount,
+        netProfit: totalSalesAmount - totalExpensesAmount
+      },
       counts: {
         branches: branches ? branches.length : 0,
         employees: employees ? employees.length : 0,
         businesses: (user.businesses && user.businesses.length > 0) ? user.businesses.length : 1,
-        customers: customersCount || 0,
-        inventory: inventoryCount || 0,
-        sales: salesCount || 0
+        customers: customers ? customers.length : 0,
+        inventory: inventory ? inventory.length : 0,
+        products: products ? products.length : 0,
+        sales: sales ? sales.length : 0,
+        expenses: expenses ? expenses.length : 0,
+        purchases: purchases ? purchases.length : 0,
+        attendance: attendance ? attendance.length : 0,
+        leaves: leaves ? leaves.length : 0,
+        reminders: reminders ? reminders.length : 0,
+        documents: documents ? documents.length : 0
       },
       impersonationToken: token
     });
@@ -490,6 +544,666 @@ router.put('/subscriptions/:id', async (req, res) => {
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');
+  }
+});
+
+// ==========================================
+// ADMIN DIRECT CRUD ENDPOINTS FOR TENANT DATA
+// ==========================================
+
+// --- USER PROFILE UPDATE ---
+router.put('/users/:id', async (req, res) => {
+  try {
+    const { 
+      fullName, businessName, email, phone, industry, 
+      address, regNo, businessPhone, subscriptionStatus, 
+      subscriptionBillingCycle, subscriptionCustomAmount,
+      password 
+    } = req.body;
+
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    if (fullName !== undefined) user.fullName = fullName;
+    if (businessName !== undefined) user.businessName = businessName;
+    if (email !== undefined) user.email = email;
+    if (phone !== undefined) user.phone = phone;
+    if (industry !== undefined) user.industry = industry;
+    if (address !== undefined) user.address = address;
+    if (regNo !== undefined) user.regNo = regNo;
+    if (businessPhone !== undefined) user.businessPhone = businessPhone;
+    if (subscriptionStatus !== undefined) user.subscriptionStatus = subscriptionStatus;
+    if (subscriptionBillingCycle !== undefined) user.subscriptionBillingCycle = subscriptionBillingCycle;
+    if (subscriptionCustomAmount !== undefined) user.subscriptionCustomAmount = Number(subscriptionCustomAmount);
+
+    if (password) {
+      if (password.length < 6) {
+        return res.status(400).json({ message: 'Password must be at least 6 characters long' });
+      }
+      const salt = await bcrypt.genSalt(10);
+      user.password = await bcrypt.hash(password, salt);
+    }
+
+    await user.save();
+    res.json({ message: 'User updated successfully', user });
+  } catch (err) {
+    console.error('Admin update user error:', err);
+    res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
+router.put('/users/:id/credentials', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    if (email) user.email = email.trim().toLowerCase();
+    if (password) {
+      if (password.length < 6) {
+        return res.status(400).json({ message: 'Password must be at least 6 characters long' });
+      }
+      const salt = await bcrypt.genSalt(10);
+      user.password = await bcrypt.hash(password, salt);
+    }
+    await user.save();
+    res.json({ message: 'User credentials updated successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// --- BRANCHES CRUD ---
+router.put('/branches/:id', async (req, res) => {
+  try {
+    const updateData = { ...req.body };
+    if (updateData.password) {
+      if (updateData.password.length < 6) {
+        return res.status(400).json({ message: 'Password must be at least 6 characters long' });
+      }
+      const salt = await bcrypt.genSalt(10);
+      updateData.password = await bcrypt.hash(updateData.password, salt);
+    }
+    const updated = await Branch.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true }
+    ).select('-password');
+    if (!updated) return res.status(404).json({ message: 'Branch not found' });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.put('/branches/:id/credentials', async (req, res) => {
+  try {
+    const { email, password, isLoginEnabled } = req.body;
+    const branch = await Branch.findById(req.params.id);
+    if (!branch) return res.status(404).json({ message: 'Branch not found' });
+
+    if (email) branch.email = email.trim().toLowerCase();
+    if (password) {
+      if (password.length < 6) {
+        return res.status(400).json({ message: 'Password must be at least 6 characters long' });
+      }
+      const salt = await bcrypt.genSalt(10);
+      branch.password = await bcrypt.hash(password, salt);
+    }
+    if (typeof isLoginEnabled === 'boolean') {
+      branch.isLoginEnabled = isLoginEnabled;
+    }
+    await branch.save();
+    const result = branch.toObject();
+    delete result.password;
+    res.json({ message: 'Branch credentials updated successfully', branch: result });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.delete('/branches/:id', async (req, res) => {
+  try {
+    const deleted = await Branch.findByIdAndDelete(req.params.id);
+    if (!deleted) return res.status(404).json({ message: 'Branch not found' });
+    res.json({ message: 'Branch deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// --- EMPLOYEES CRUD ---
+router.put('/employees/:id', async (req, res) => {
+  try {
+    const updateData = { ...req.body };
+    if (updateData.password) {
+      if (updateData.password.length < 6) {
+        return res.status(400).json({ message: 'Password must be at least 6 characters long' });
+      }
+      const salt = await bcrypt.genSalt(10);
+      updateData.password = await bcrypt.hash(updateData.password, salt);
+    }
+    const updated = await Employee.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true }
+    ).select('-password');
+    if (!updated) return res.status(404).json({ message: 'Employee not found' });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.put('/employees/:id/credentials', async (req, res) => {
+  try {
+    const { email, password, isLoginEnabled } = req.body;
+    const employee = await Employee.findById(req.params.id);
+    if (!employee) return res.status(404).json({ message: 'Employee not found' });
+
+    if (email) employee.email = email.trim().toLowerCase();
+    if (password) {
+      if (password.length < 6) {
+        return res.status(400).json({ message: 'Password must be at least 6 characters long' });
+      }
+      const salt = await bcrypt.genSalt(10);
+      employee.password = await bcrypt.hash(password, salt);
+    }
+    if (typeof isLoginEnabled === 'boolean') {
+      employee.isLoginEnabled = isLoginEnabled;
+    }
+    await employee.save();
+    const result = employee.toObject();
+    delete result.password;
+    res.json({ message: 'Employee credentials updated successfully', employee: result });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.delete('/employees/:id', async (req, res) => {
+  try {
+    const deleted = await Employee.findByIdAndDelete(req.params.id);
+    if (!deleted) return res.status(404).json({ message: 'Employee not found' });
+    res.json({ message: 'Employee deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// --- BUSINESSES CRUD (Multi-business conglomerate) ---
+router.put('/businesses/:userId/:bizId', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    const biz = user.businesses.id(req.params.bizId);
+    if (!biz) return res.status(404).json({ message: 'Business not found' });
+
+    const updateData = { ...req.body };
+    if (updateData.password) {
+      if (updateData.password.length < 6) {
+        return res.status(400).json({ message: 'Password must be at least 6 characters long' });
+      }
+      const salt = await bcrypt.genSalt(10);
+      updateData.password = await bcrypt.hash(updateData.password, salt);
+    }
+    Object.assign(biz, updateData);
+    await user.save();
+    res.json({ message: 'Business updated successfully', business: biz });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.put('/businesses/:userId/:bizId/credentials', async (req, res) => {
+  try {
+    const { email, password, isLoginEnabled } = req.body;
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    const biz = user.businesses.id(req.params.bizId);
+    if (!biz) return res.status(404).json({ message: 'Business not found' });
+
+    if (email) biz.email = email.trim().toLowerCase();
+    if (password) {
+      if (password.length < 6) {
+        return res.status(400).json({ message: 'Password must be at least 6 characters long' });
+      }
+      const salt = await bcrypt.genSalt(10);
+      biz.password = await bcrypt.hash(password, salt);
+    }
+    if (typeof isLoginEnabled === 'boolean') {
+      biz.isLoginEnabled = isLoginEnabled;
+    }
+    await user.save();
+    res.json({ message: 'Business credentials updated successfully', business: biz });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.delete('/businesses/:userId/:bizId', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    user.businesses.pull({ _id: req.params.bizId });
+    await user.save();
+    res.json({ message: 'Business deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// --- EXPENSES CRUD ---
+router.put('/expenses/:id', async (req, res) => {
+  try {
+    const updated = await Expense.findByIdAndUpdate(
+      req.params.id,
+      { ...req.body },
+      { new: true }
+    );
+    if (!updated) return res.status(404).json({ message: 'Expense not found' });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.delete('/expenses/:id', async (req, res) => {
+  try {
+    const deleted = await Expense.findByIdAndDelete(req.params.id);
+    if (!deleted) return res.status(404).json({ message: 'Expense not found' });
+    res.json({ message: 'Expense deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// --- SALES CRUD ---
+router.put('/sales/:id', async (req, res) => {
+  try {
+    const updated = await Sale.findByIdAndUpdate(
+      req.params.id,
+      { ...req.body },
+      { new: true }
+    );
+    if (!updated) return res.status(404).json({ message: 'Sale not found' });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.delete('/sales/:id', async (req, res) => {
+  try {
+    const deleted = await Sale.findByIdAndDelete(req.params.id);
+    if (!deleted) return res.status(404).json({ message: 'Sale not found' });
+    res.json({ message: 'Sale deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// --- INVENTORY CRUD ---
+router.put('/inventory/:id', async (req, res) => {
+  try {
+    const updated = await Inventory.findByIdAndUpdate(
+      req.params.id,
+      { ...req.body },
+      { new: true }
+    );
+    if (!updated) return res.status(404).json({ message: 'Inventory item not found' });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.delete('/inventory/:id', async (req, res) => {
+  try {
+    const deleted = await Inventory.findByIdAndDelete(req.params.id);
+    if (!deleted) return res.status(404).json({ message: 'Inventory item not found' });
+    res.json({ message: 'Inventory item deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// --- CLIENT CUSTOMERS CRUD ---
+router.put('/customers/:id', async (req, res) => {
+  try {
+    const updated = await Customer.findByIdAndUpdate(
+      req.params.id,
+      { ...req.body },
+      { new: true }
+    );
+    if (!updated) return res.status(404).json({ message: 'Customer not found' });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.delete('/customers/:id', async (req, res) => {
+  try {
+    const deleted = await Customer.findByIdAndDelete(req.params.id);
+    if (!deleted) return res.status(404).json({ message: 'Customer not found' });
+    res.json({ message: 'Customer deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// --- ATTENDANCE CRUD ---
+router.put('/attendance/:id', async (req, res) => {
+  try {
+    const updated = await Attendance.findByIdAndUpdate(
+      req.params.id,
+      { ...req.body },
+      { new: true }
+    );
+    if (!updated) return res.status(404).json({ message: 'Attendance record not found' });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.delete('/attendance/:id', async (req, res) => {
+  try {
+    const deleted = await Attendance.findByIdAndDelete(req.params.id);
+    if (!deleted) return res.status(404).json({ message: 'Attendance record not found' });
+    res.json({ message: 'Attendance record deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// --- LEAVES CRUD ---
+router.put('/leaves/:id', async (req, res) => {
+  try {
+    const updated = await Leave.findByIdAndUpdate(
+      req.params.id,
+      { ...req.body },
+      { new: true }
+    );
+    if (!updated) return res.status(404).json({ message: 'Leave record not found' });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.delete('/leaves/:id', async (req, res) => {
+  try {
+    const deleted = await Leave.findByIdAndDelete(req.params.id);
+    if (!deleted) return res.status(404).json({ message: 'Leave record not found' });
+    res.json({ message: 'Leave record deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// --- REMINDERS CRUD ---
+router.put('/reminders/:id', async (req, res) => {
+  try {
+    const updated = await Reminder.findByIdAndUpdate(
+      req.params.id,
+      { ...req.body },
+      { new: true }
+    );
+    if (!updated) return res.status(404).json({ message: 'Reminder not found' });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.delete('/reminders/:id', async (req, res) => {
+  try {
+    const deleted = await Reminder.findByIdAndDelete(req.params.id);
+    if (!deleted) return res.status(404).json({ message: 'Reminder not found' });
+    res.json({ message: 'Reminder deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// --- DOCUMENTS CRUD ---
+router.put('/documents/:id', async (req, res) => {
+  try {
+    const updated = await Document.findByIdAndUpdate(
+      req.params.id,
+      { ...req.body },
+      { new: true }
+    );
+    if (!updated) return res.status(404).json({ message: 'Document not found' });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.delete('/documents/:id', async (req, res) => {
+  try {
+    const deleted = await Document.findByIdAndDelete(req.params.id);
+    if (!deleted) return res.status(404).json({ message: 'Document not found' });
+    res.json({ message: 'Document deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// --- PURCHASES CRUD ---
+router.put('/purchases/:id', async (req, res) => {
+  try {
+    const updated = await Purchase.findByIdAndUpdate(
+      req.params.id,
+      { ...req.body },
+      { new: true }
+    );
+    if (!updated) return res.status(404).json({ message: 'Purchase not found' });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.delete('/purchases/:id', async (req, res) => {
+  try {
+    const deleted = await Purchase.findByIdAndDelete(req.params.id);
+    if (!deleted) return res.status(404).json({ message: 'Purchase not found' });
+    res.json({ message: 'Purchase deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// --- PRODUCTS CRUD ---
+router.put('/products/:id', async (req, res) => {
+  try {
+    const updated = await Product.findByIdAndUpdate(
+      req.params.id,
+      { ...req.body },
+      { new: true }
+    );
+    if (!updated) return res.status(404).json({ message: 'Product not found' });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.delete('/products/:id', async (req, res) => {
+  try {
+    const deleted = await Product.findByIdAndDelete(req.params.id);
+    if (!deleted) return res.status(404).json({ message: 'Product not found' });
+    res.json({ message: 'Product deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ============================================================
+// ADMIN CREATE / POST ENDPOINTS (CREATE ON BEHALF OF CUSTOMER)
+// ============================================================
+router.post('/branches', async (req, res) => {
+  try {
+    const data = { ...req.body };
+    if (data.password) {
+      data.password = await bcrypt.hash(data.password, 10);
+    }
+    const branch = new Branch(data);
+    const saved = await branch.save();
+    const result = saved.toObject();
+    delete result.password;
+    res.status(201).json(result);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+router.post('/employees', async (req, res) => {
+  try {
+    const data = { ...req.body };
+    if (data.password) {
+      data.password = await bcrypt.hash(data.password, 10);
+    }
+    const employee = new Employee(data);
+    const saved = await employee.save();
+    const result = saved.toObject();
+    delete result.password;
+    res.status(201).json(result);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+router.post('/businesses/:userId', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    const newBiz = { ...req.body };
+    if (newBiz.password) {
+      newBiz.password = await bcrypt.hash(newBiz.password, 10);
+    }
+    if (!user.businesses) user.businesses = [];
+    user.businesses.push(newBiz);
+    await user.save();
+    res.status(201).json(user.businesses[user.businesses.length - 1]);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+router.post('/expenses', async (req, res) => {
+  try {
+    const expense = new Expense(req.body);
+    const saved = await expense.save();
+    res.status(201).json(saved);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+router.post('/sales', async (req, res) => {
+  try {
+    const data = { ...req.body };
+    if (!data.invoiceNo) {
+      data.invoiceNo = `INV-${Date.now().toString().slice(-6)}`;
+    }
+    if (data.totalAmount && !data.amount) data.amount = data.totalAmount;
+    if (data.amount && !data.totalAmount) data.totalAmount = data.amount;
+    const sale = new Sale(data);
+    const saved = await sale.save();
+    res.status(201).json(saved);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+router.post('/inventory', async (req, res) => {
+  try {
+    const data = { ...req.body };
+    if (!data.itemName && data.name) data.itemName = data.name;
+    const inv = new Inventory(data);
+    const saved = await inv.save();
+    res.status(201).json(saved);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+router.post('/products', async (req, res) => {
+  try {
+    const prod = new Product(req.body);
+    const saved = await prod.save();
+    res.status(201).json(saved);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+router.post('/customers', async (req, res) => {
+  try {
+    const cust = new Customer(req.body);
+    const saved = await cust.save();
+    res.status(201).json(saved);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+router.post('/attendance', async (req, res) => {
+  try {
+    const att = new Attendance(req.body);
+    const saved = await att.save();
+    res.status(201).json(saved);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+router.post('/leaves', async (req, res) => {
+  try {
+    const leave = new Leave(req.body);
+    const saved = await leave.save();
+    res.status(201).json(saved);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+router.post('/reminders', async (req, res) => {
+  try {
+    const reminder = new Reminder(req.body);
+    const saved = await reminder.save();
+    res.status(201).json(saved);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+router.post('/documents', async (req, res) => {
+  try {
+    const doc = new Document(req.body);
+    const saved = await doc.save();
+    res.status(201).json(saved);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+router.post('/purchases', async (req, res) => {
+  try {
+    const data = { ...req.body };
+    if (!data.poNumber) {
+      data.poNumber = `PO-${Date.now().toString().slice(-6)}`;
+    }
+    const purchase = new Purchase(data);
+    const saved = await purchase.save();
+    res.status(201).json(saved);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
   }
 });
 

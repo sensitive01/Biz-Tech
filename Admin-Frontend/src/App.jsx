@@ -4,6 +4,7 @@ import AdminLayout from './layouts/AdminLayout';
 import Login from './pages/Login';
 import CustomerDirectory from './pages/CustomerDirectory';
 import AddCustomer from './pages/AddCustomer';
+// Customer details and management view
 import CustomerDetails from './pages/CustomerDetails';
 import Dashboard from './pages/Dashboard';
 import Settings from './pages/Settings';
@@ -19,7 +20,7 @@ function App() {
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<Login />} />
         
-        {/* Standalone customer details page (no admin sidebar or header) */}
+        {/* Standalone customer details view (no admin sidebar or header) */}
         <Route path="/admin/customers/:id" element={<CustomerDetails />} />
         
         <Route path="/admin" element={<AdminLayout />}>
