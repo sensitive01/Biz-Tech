@@ -22,6 +22,7 @@ const CustomerDetails = () => {
   const [activeSection, setActiveSection] = useState('overview');
   const [searchTerm, setSearchTerm] = useState('');
   const [previewReceiptUrl, setPreviewReceiptUrl] = useState(null);
+  const [productTab, setProductTab] = useState('categories');
 
   // Profile Page inline editing state
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -123,6 +124,8 @@ const CustomerDetails = () => {
   const leaves = details?.leaves || [];
   const reminders = details?.reminders || [];
   const documents = details?.documents || [];
+  const categories = details?.categories || [];
+  const subcategories = details?.subcategories || [];
 
   const financials = details?.financials || {
     totalSales: sales.reduce((sum, s) => sum + (Number(s.amount) || 0), 0),
@@ -143,7 +146,9 @@ const CustomerDetails = () => {
     attendance: attendance.length,
     leaves: leaves.length,
     reminders: reminders.length,
-    documents: documents.length
+    documents: documents.length,
+    categories: categories.length,
+    subcategories: subcategories.length
   };
 
   const businessType = Number(customer.businessType || 1);
@@ -471,16 +476,40 @@ const CustomerDetails = () => {
       }));
       filename = 'Sales';
     } else if (sectionName === 'products') {
-      dataToExport = filteredProducts.map((p, idx) => ({
-        'S.No': idx + 1,
-        'Name': p.name,
-        'SKU': p.sku || '-',
-        'Category': p.category || 'General',
-        'Type': p.type || 'Product',
-        'Price': p.price || 0,
-        'Stock': p.stock || 0
-      }));
-      filename = 'Products';
+      if (productTab === 'categories') {
+        dataToExport = filteredCategories.map((c, idx) => ({
+          'S.No': idx + 1,
+          'Name': c.name,
+          'Item Type': c.itemType || 'product',
+          'Transaction Type': c.transactionType || 'both',
+          'Description': c.description || '-',
+          'Created At': formatDate(c.createdAt)
+        }));
+        filename = 'Categories';
+      } else if (productTab === 'subcategories') {
+        dataToExport = filteredSubcategories.map((sc, idx) => ({
+          'S.No': idx + 1,
+          'Name': sc.name,
+          'Parent Category': sc.categoryId?.name || '-',
+          'Item Type': sc.itemType || 'product',
+          'Transaction Type': sc.transactionType || 'both',
+          'Description': sc.description || '-',
+          'Created At': formatDate(sc.createdAt)
+        }));
+        filename = 'SubCategories';
+      } else {
+        dataToExport = filteredProducts.map((p, idx) => ({
+          'S.No': idx + 1,
+          'Name': p.name,
+          'SKU': p.sku || '-',
+          'Category': p.categoryId?.name || p.category || 'General',
+          'SubCategory': p.subCategoryId?.name || p.subCategory || '-',
+          'Type': p.itemType || p.type || 'Product',
+          'Price': p.price || 0,
+          'Stock': p.stock || 0
+        }));
+        filename = 'Products';
+      }
     } else if (sectionName === 'inventory') {
       dataToExport = filteredInventory.map((i, idx) => ({
         'S.No': idx + 1,
@@ -633,10 +662,42 @@ const CustomerDetails = () => {
     return sortList(filtered);
   }, [inventory, searchTerm, sortConfig, filterDays, customStartDate, customEndDate]);
 
+  const filteredCategories = useMemo(() => {
+    const q = searchTerm.toLowerCase();
+    const dateFiltered = applyDateFilter(categories, 'createdAt');
+    const filtered = dateFiltered.filter(c => 
+      (c.name && c.name.toLowerCase().includes(q)) || 
+      (c.itemType && c.itemType.toLowerCase().includes(q)) || 
+      (c.transactionType && c.transactionType.toLowerCase().includes(q)) ||
+      (c.description && c.description.toLowerCase().includes(q))
+    );
+    return sortList(filtered);
+  }, [categories, searchTerm, sortConfig, filterDays, customStartDate, customEndDate]);
+
+  const filteredSubcategories = useMemo(() => {
+    const q = searchTerm.toLowerCase();
+    const dateFiltered = applyDateFilter(subcategories, 'createdAt');
+    const filtered = dateFiltered.filter(sc => 
+      (sc.name && sc.name.toLowerCase().includes(q)) || 
+      (sc.categoryId?.name && sc.categoryId.name.toLowerCase().includes(q)) ||
+      (sc.itemType && sc.itemType.toLowerCase().includes(q)) || 
+      (sc.transactionType && sc.transactionType.toLowerCase().includes(q)) ||
+      (sc.description && sc.description.toLowerCase().includes(q))
+    );
+    return sortList(filtered);
+  }, [subcategories, searchTerm, sortConfig, filterDays, customStartDate, customEndDate]);
+
   const filteredProducts = useMemo(() => {
     const q = searchTerm.toLowerCase();
     const dateFiltered = applyDateFilter(products, 'createdAt');
-    const filtered = dateFiltered.filter(p => (p.name && p.name.toLowerCase().includes(q)) || (p.sku && p.sku.toLowerCase().includes(q)) || (p.category && p.category.toLowerCase().includes(q)));
+    const filtered = dateFiltered.filter(p => 
+      (p.name && p.name.toLowerCase().includes(q)) || 
+      (p.sku && p.sku.toLowerCase().includes(q)) || 
+      (p.category && p.category.toLowerCase().includes(q)) ||
+      (p.categoryId?.name && p.categoryId.name.toLowerCase().includes(q)) ||
+      (p.subCategoryId?.name && p.subCategoryId.name.toLowerCase().includes(q)) ||
+      (p.subCategory && p.subCategory.toLowerCase().includes(q))
+    );
     return sortList(filtered);
   }, [products, searchTerm, sortConfig, filterDays, customStartDate, customEndDate]);
 
@@ -705,6 +766,8 @@ const CustomerDetails = () => {
   const paginatedSales = filteredSales.slice(startIndex, startIndex + itemsPerPage);
   const paginatedInventory = filteredInventory.slice(startIndex, startIndex + itemsPerPage);
   const paginatedProducts = filteredProducts.slice(startIndex, startIndex + itemsPerPage);
+  const paginatedCategories = filteredCategories.slice(startIndex, startIndex + itemsPerPage);
+  const paginatedSubcategories = filteredSubcategories.slice(startIndex, startIndex + itemsPerPage);
   const paginatedCustomers = filteredCustomersList.slice(startIndex, startIndex + itemsPerPage);
   const paginatedPurchases = filteredPurchases.slice(startIndex, startIndex + itemsPerPage);
   const paginatedAttendance = filteredAttendance.slice(startIndex, startIndex + itemsPerPage);
@@ -730,6 +793,8 @@ const CustomerDetails = () => {
     else if (type === 'sale') endpoint = `${apiUrl}/api/admin/sales/${data._id}`;
     else if (type === 'inventory') endpoint = `${apiUrl}/api/admin/inventory/${data._id}`;
     else if (type === 'product') endpoint = `${apiUrl}/api/admin/products/${data._id}`;
+    else if (type === 'category') endpoint = `${apiUrl}/api/admin/categories/${data._id}`;
+    else if (type === 'subcategory') endpoint = `${apiUrl}/api/admin/subcategories/${data._id}`;
     else if (type === 'customer') endpoint = `${apiUrl}/api/admin/customers/${data._id}`;
     else if (type === 'purchase') endpoint = `${apiUrl}/api/admin/purchases/${data._id}`;
     else if (type === 'attendance') endpoint = `${apiUrl}/api/admin/attendance/${data._id}`;
@@ -778,6 +843,8 @@ const CustomerDetails = () => {
     else if (type === 'sale') endpoint = `${apiUrl}/api/admin/sales/${itemId}`;
     else if (type === 'inventory') endpoint = `${apiUrl}/api/admin/inventory/${itemId}`;
     else if (type === 'product') endpoint = `${apiUrl}/api/admin/products/${itemId}`;
+    else if (type === 'category') endpoint = `${apiUrl}/api/admin/categories/${itemId}`;
+    else if (type === 'subcategory') endpoint = `${apiUrl}/api/admin/subcategories/${itemId}`;
     else if (type === 'customer') endpoint = `${apiUrl}/api/admin/customers/${itemId}`;
     else if (type === 'purchase') endpoint = `${apiUrl}/api/admin/purchases/${itemId}`;
     else if (type === 'attendance') endpoint = `${apiUrl}/api/admin/attendance/${itemId}`;
@@ -831,7 +898,11 @@ const CustomerDetails = () => {
     } else if (type === 'inventory') {
       initialFormData = { tenantId, itemName: '', sku: '', category: 'General', quantity: 0, price: 0 };
     } else if (type === 'product') {
-      initialFormData = { tenantId, name: '', sku: '', category: 'General', price: 0, stock: 0, description: '' };
+      initialFormData = { tenantId, name: '', sku: '', categoryId: categories[0]?._id || '', subCategoryId: '', price: 0, stock: 0, description: '' };
+    } else if (type === 'category') {
+      initialFormData = { tenantId, name: '', itemType: 'product', transactionType: 'both', description: '' };
+    } else if (type === 'subcategory') {
+      initialFormData = { tenantId, name: '', categoryId: categories[0]?._id || '', itemType: 'product', transactionType: 'both', description: '' };
     } else if (type === 'customer') {
       initialFormData = { tenantId, name: '', companyName: '', customerType: 'Retail', email: '', phone: '', address: '' };
     } else if (type === 'purchase') {
@@ -863,6 +934,8 @@ const CustomerDetails = () => {
     else if (type === 'sale') endpoint = `${apiUrl}/api/admin/sales`;
     else if (type === 'inventory') endpoint = `${apiUrl}/api/admin/inventory`;
     else if (type === 'product') endpoint = `${apiUrl}/api/admin/products`;
+    else if (type === 'category') endpoint = `${apiUrl}/api/admin/categories`;
+    else if (type === 'subcategory') endpoint = `${apiUrl}/api/admin/subcategories`;
     else if (type === 'customer') endpoint = `${apiUrl}/api/admin/customers`;
     else if (type === 'purchase') endpoint = `${apiUrl}/api/admin/purchases`;
     else if (type === 'attendance') endpoint = `${apiUrl}/api/admin/attendance`;
@@ -972,9 +1045,25 @@ const CustomerDetails = () => {
       initialFormData = {
         name: item.name || '',
         sku: item.sku || '',
-        category: item.category || 'General',
+        categoryId: item.categoryId?._id || item.categoryId || '',
+        subCategoryId: item.subCategoryId?._id || item.subCategoryId || '',
         price: item.price || 0,
         stock: item.stock || 0,
+        description: item.description || ''
+      };
+    } else if (type === 'category') {
+      initialFormData = {
+        name: item.name || '',
+        itemType: item.itemType || 'product',
+        transactionType: item.transactionType || 'both',
+        description: item.description || ''
+      };
+    } else if (type === 'subcategory') {
+      initialFormData = {
+        name: item.name || '',
+        categoryId: item.categoryId?._id || item.categoryId || '',
+        itemType: item.itemType || 'product',
+        transactionType: item.transactionType || 'both',
         description: item.description || ''
       };
     } else if (type === 'customer') {
@@ -2747,7 +2836,7 @@ const CustomerDetails = () => {
           )}
 
           {/* ======================================================== */}
-          {/* SECTION 7: PRODUCTS & SERVICES */}
+          {/* SECTION 7: PRODUCTS & SERVICES (CATEGORIES, SUBCATEGORIES, PRODUCTS) */}
           {/* ======================================================== */}
           {activeSection === 'products' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
@@ -2762,155 +2851,408 @@ const CustomerDetails = () => {
                     Products & Services Catalog
                   </h1>
                   <p style={{ color: '#64748B', fontSize: '14px', margin: 0 }}>
-                    Manage catalog offerings, pricing, stock allocation, and SKU configurations.
+                    Manage categories, sub categories, and your product & service inventory.
                   </p>
                 </div>
                 <button 
-                  onClick={() => openAddModal('product')} 
+                  onClick={() => openAddModal(productTab === 'categories' ? 'category' : productTab === 'subcategories' ? 'subcategory' : 'product')} 
                   style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', background: '#2563EB', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
                 >
-                  <Plus size={17} /> Add Product
+                  <Plus size={17} /> Add New {productTab === 'categories' ? 'Category' : productTab === 'subcategories' ? 'Sub Category' : 'Product / Service'}
                 </button>
               </div>
 
-              {/* Stat Cards */}
+              {/* Stat Cards: 3 Matching User Side */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '18px' }}>
-                <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '18px 20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-                  <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Package size={22} /></div>
+                <div 
+                  onClick={() => { setProductTab('categories'); setCurrentPage(1); }}
+                  style={{ 
+                    background: 'white', 
+                    borderRadius: '16px', 
+                    border: productTab === 'categories' ? '2px solid #2563EB' : '1px solid #E2E8F0', 
+                    padding: '18px 20px', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '16px', 
+                    cursor: 'pointer',
+                    boxShadow: productTab === 'categories' ? '0 4px 12px rgba(37,99,235,0.12)' : '0 2px 4px rgba(0,0,0,0.02)',
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Tag size={22} /></div>
                   <div>
-                    <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Total Products</p>
+                    <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Categories</p>
+                    <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{categories.length}</h3>
+                  </div>
+                </div>
+
+                <div 
+                  onClick={() => { setProductTab('subcategories'); setCurrentPage(1); }}
+                  style={{ 
+                    background: 'white', 
+                    borderRadius: '16px', 
+                    border: productTab === 'subcategories' ? '2px solid #2563EB' : '1px solid #E2E8F0', 
+                    padding: '18px 20px', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '16px', 
+                    cursor: 'pointer',
+                    boxShadow: productTab === 'subcategories' ? '0 4px 12px rgba(37,99,235,0.12)' : '0 2px 4px rgba(0,0,0,0.02)',
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#F5F3FF', color: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Layers size={22} /></div>
+                  <div>
+                    <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Sub Categories</p>
+                    <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{subcategories.length}</h3>
+                  </div>
+                </div>
+
+                <div 
+                  onClick={() => { setProductTab('products'); setCurrentPage(1); }}
+                  style={{ 
+                    background: 'white', 
+                    borderRadius: '16px', 
+                    border: productTab === 'products' ? '2px solid #2563EB' : '1px solid #E2E8F0', 
+                    padding: '18px 20px', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '16px', 
+                    cursor: 'pointer',
+                    boxShadow: productTab === 'products' ? '0 4px 12px rgba(37,99,235,0.12)' : '0 2px 4px rgba(0,0,0,0.02)',
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#F0FDF4', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Package size={22} /></div>
+                  <div>
+                    <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Products & Services</p>
                     <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{products.length}</h3>
                   </div>
                 </div>
-                <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '18px 20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-                  <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#F0FDF4', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CheckCircle2 size={22} /></div>
-                  <div>
-                    <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Units in Stock</p>
-                    <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{products.reduce((acc, p) => acc + (Number(p.stock) || 0), 0)}</h3>
-                  </div>
-                </div>
-                <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '18px 20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-                  <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#FEF3C7', color: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Tag size={22} /></div>
-                  <div>
-                    <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Active Categories</p>
-                    <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{new Set(products.map(p => p.category).filter(Boolean)).size || (products.length > 0 ? 1 : 0)}</h3>
-                  </div>
-                </div>
               </div>
 
-              {/* Search, Filter, Export Bar */}
-              <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ flex: '0 1 360px', minWidth: '260px', position: 'relative' }}>
-                  <Search size={18} color="#94A3B8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
-                  <input 
-                    type="text" 
-                    placeholder="Search products by name, SKU, category..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    style={{ width: '100%', padding: '11px 16px 11px 44px', borderRadius: '10px', border: '1px solid #E2E8F0', fontSize: '14px', outline: 'none', background: 'white', boxSizing: 'border-box' }}
-                  />
-                  {searchTerm && (
-                    <button onClick={() => setSearchTerm('')} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', padding: '4px' }}>
-                      <X size={15} />
-                    </button>
-                  )}
-                </div>
-
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <select 
-                    value={filterDays} 
-                    onChange={(e) => setFilterDays(e.target.value)}
-                    style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid #E2E8F0', background: 'white', fontSize: '13px', color: '#334155', fontWeight: '500', outline: 'none', cursor: 'pointer' }}
-                  >
-                    <option value="all">Filter: All Time</option>
-                    <option value="today">Today</option>
-                    <option value="7">Last 7 Days</option>
-                    <option value="30">Last 30 Days</option>
-                    <option value="thisMonth">This Month</option>
-                    <option value="custom">Custom Range</option>
-                  </select>
-
-                  {filterDays === 'custom' && (
-                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                      <input type="date" value={customStartDate} onChange={(e) => setCustomStartDate(e.target.value)} style={{ padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', outline: 'none' }} />
-                      <span style={{ color: '#94A3B8', fontSize: '12px' }}>to</span>
-                      <input type="date" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} style={{ padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', outline: 'none' }} />
-                    </div>
-                  )}
-
-                  <button 
-                    onClick={() => exportSectionCSV('products')}
-                    style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 14px', borderRadius: '8px', border: '1px solid #E2E8F0', background: 'white', color: '#475569', fontSize: '13px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s' }}
-                    onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'}
-                    onMouseOut={(e) => e.currentTarget.style.background = 'white'}
-                  >
-                    <Download size={15} /> Export
-                  </button>
-                </div>
-              </div>
-
-              {/* Table */}
+              {/* Table Card Container */}
               <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
-                <div style={{ overflowX: 'auto', width: '100%' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '800px' }}>
-                    <thead>
-                      <tr style={{ background: '#F8FAFC' }}>
-                        <th style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', width: '60px' }}>S.No</th>
-                        <th onClick={() => requestSort('name')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
-                          <div style={{ display: 'flex', alignItems: 'center' }}>Name {renderSortIcon('name')}</div>
-                        </th>
-                        <th onClick={() => requestSort('sku')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
-                          <div style={{ display: 'flex', alignItems: 'center' }}>SKU {renderSortIcon('sku')}</div>
-                        </th>
-                        <th onClick={() => requestSort('category')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
-                          <div style={{ display: 'flex', alignItems: 'center' }}>Category {renderSortIcon('category')}</div>
-                        </th>
-                        <th onClick={() => requestSort('stock')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
-                          <div style={{ display: 'flex', alignItems: 'center' }}>Stock {renderSortIcon('stock')}</div>
-                        </th>
-                        <th onClick={() => requestSort('price')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
-                          <div style={{ display: 'flex', alignItems: 'center' }}>Price {renderSortIcon('price')}</div>
-                        </th>
-                        <th style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', textAlign: 'right' }}>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredProducts.length === 0 ? (
-                        <tr><td colSpan="7" style={{ padding: '36px 20px', textAlign: 'center', color: '#64748B' }}>No products or services found.</td></tr>
-                      ) : (
-                        paginatedProducts.map((item, idx) => (
-                          <tr key={item._id || idx} style={{ borderBottom: '1px solid #F1F5F9', transition: 'background 0.15s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
-                            <td style={{ padding: '14px 20px', fontSize: '13px', color: '#64748B', fontWeight: '500' }}>{startIndex + idx + 1}</td>
-                            <td style={{ padding: '14px 20px', fontWeight: '600', color: '#0F172A', fontSize: '13px' }}>{item.name}</td>
-                            <td style={{ padding: '14px 20px', color: '#64748B', fontFamily: 'monospace', fontSize: '12px' }}>{item.sku || 'N/A'}</td>
-                            <td style={{ padding: '14px 20px' }}>
-                              <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px', background: '#F1F5F9', color: '#475569', fontWeight: '500' }}>
-                                {item.category || 'General'}
-                              </span>
-                            </td>
-                            <td style={{ padding: '14px 20px', fontWeight: '600', color: '#0F172A', fontSize: '13px' }}>{item.stock ?? 0}</td>
-                            <td style={{ padding: '14px 20px', fontWeight: '700', color: '#2563EB', fontSize: '13px' }}>{formatCurrency(item.price)}</td>
-                            <td style={{ padding: '14px 20px', textAlign: 'right' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
-                                <button onClick={() => setViewModalData({ type: 'product', data: item })} style={{ padding: '6px', borderRadius: '6px', background: '#F1F5F9', border: 'none', color: '#475569', cursor: 'pointer' }}><Eye size={15} /></button>
-                                <button onClick={() => openEditModal('product', item)} style={{ padding: '6px', borderRadius: '6px', background: '#EFF6FF', border: 'none', color: '#2563EB', cursor: 'pointer' }}><Edit2 size={15} /></button>
-                                <button onClick={() => setDeleteConfirm({ type: 'product', id: item._id, name: item.name })} style={{ padding: '6px', borderRadius: '6px', background: '#FEE2E2', border: 'none', color: '#EF4444', cursor: 'pointer' }}><Trash2 size={15} /></button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))
+                
+                {/* Top Controls: 3 Subheading Tabs + Search + Filter + Export */}
+                <div style={{ padding: '20px 24px', borderBottom: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  
+                  {/* The 3 Subheadings Tabs (Matching User Side 1:1) */}
+                  <div style={{ display: 'inline-flex', gap: '6px', background: '#F1F5F9', padding: '4px', borderRadius: '10px', width: 'fit-content' }}>
+                    <button 
+                      onClick={() => { setProductTab('categories'); setCurrentPage(1); }}
+                      style={{ 
+                        padding: '8px 18px', 
+                        borderRadius: '8px', 
+                        fontSize: '13px', 
+                        fontWeight: '600', 
+                        background: productTab === 'categories' ? 'white' : 'transparent', 
+                        color: productTab === 'categories' ? '#0F172A' : '#64748B', 
+                        border: 'none', 
+                        boxShadow: productTab === 'categories' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', 
+                        cursor: 'pointer', 
+                        transition: 'all 0.15s' 
+                      }}
+                    >
+                      Categories
+                    </button>
+                    <button 
+                      onClick={() => { setProductTab('subcategories'); setCurrentPage(1); }}
+                      style={{ 
+                        padding: '8px 18px', 
+                        borderRadius: '8px', 
+                        fontSize: '13px', 
+                        fontWeight: '600', 
+                        background: productTab === 'subcategories' ? 'white' : 'transparent', 
+                        color: productTab === 'subcategories' ? '#0F172A' : '#64748B', 
+                        border: 'none', 
+                        boxShadow: productTab === 'subcategories' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', 
+                        cursor: 'pointer', 
+                        transition: 'all 0.15s' 
+                      }}
+                    >
+                      Sub Categories
+                    </button>
+                    <button 
+                      onClick={() => { setProductTab('products'); setCurrentPage(1); }}
+                      style={{ 
+                        padding: '8px 18px', 
+                        borderRadius: '8px', 
+                        fontSize: '13px', 
+                        fontWeight: '600', 
+                        background: productTab === 'products' ? 'white' : 'transparent', 
+                        color: productTab === 'products' ? '#0F172A' : '#64748B', 
+                        border: 'none', 
+                        boxShadow: productTab === 'products' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', 
+                        cursor: 'pointer', 
+                        transition: 'all 0.15s' 
+                      }}
+                    >
+                      Products & Services
+                    </button>
+                  </div>
+
+                  {/* Search and Filters */}
+                  <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ flex: '0 1 360px', minWidth: '260px', position: 'relative' }}>
+                      <Search size={18} color="#94A3B8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
+                      <input 
+                        type="text" 
+                        placeholder={productTab === 'categories' ? "Search categories by name, type, description..." : productTab === 'subcategories' ? "Search subcategories by name, parent category..." : "Search products by name, SKU, category..."}
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        style={{ width: '100%', padding: '11px 16px 11px 44px', borderRadius: '10px', border: '1px solid #E2E8F0', fontSize: '14px', outline: 'none', background: 'white', boxSizing: 'border-box' }}
+                      />
+                      {searchTerm && (
+                        <button onClick={() => setSearchTerm('')} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', padding: '4px' }}>
+                          <X size={15} />
+                        </button>
                       )}
-                    </tbody>
-                  </table>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <select 
+                        value={filterDays} 
+                        onChange={(e) => setFilterDays(e.target.value)}
+                        style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid #E2E8F0', background: 'white', fontSize: '13px', color: '#334155', fontWeight: '500', outline: 'none', cursor: 'pointer' }}
+                      >
+                        <option value="all">Filter: All Time</option>
+                        <option value="today">Today</option>
+                        <option value="7">Last 7 Days</option>
+                        <option value="30">Last 30 Days</option>
+                        <option value="thisMonth">This Month</option>
+                        <option value="custom">Custom Range</option>
+                      </select>
+
+                      {filterDays === 'custom' && (
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                          <input type="date" value={customStartDate} onChange={(e) => setCustomStartDate(e.target.value)} style={{ padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', outline: 'none' }} />
+                          <span style={{ color: '#94A3B8', fontSize: '12px' }}>to</span>
+                          <input type="date" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} style={{ padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', outline: 'none' }} />
+                        </div>
+                      )}
+
+                      <button 
+                        onClick={() => exportSectionCSV('products')}
+                        style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 14px', borderRadius: '8px', border: '1px solid #E2E8F0', background: 'white', color: '#475569', fontSize: '13px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s' }}
+                        onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'}
+                        onMouseOut={(e) => e.currentTarget.style.background = 'white'}
+                      >
+                        <Download size={15} /> Export
+                      </button>
+                    </div>
+                  </div>
+
                 </div>
+
+                {/* Subheading Tab 1: Categories Table */}
+                {productTab === 'categories' && (
+                  <div style={{ overflowX: 'auto', width: '100%' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '800px' }}>
+                      <thead>
+                        <tr style={{ background: '#F8FAFC' }}>
+                          <th style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', width: '60px' }}>S.No</th>
+                          <th onClick={() => requestSort('name')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center' }}>Category Name {renderSortIcon('name')}</div>
+                          </th>
+                          <th onClick={() => requestSort('itemType')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center' }}>Item Type {renderSortIcon('itemType')}</div>
+                          </th>
+                          <th onClick={() => requestSort('transactionType')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center' }}>Transaction Type {renderSortIcon('transactionType')}</div>
+                          </th>
+                          <th style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>Description</th>
+                          <th style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', textAlign: 'right' }}>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredCategories.length === 0 ? (
+                          <tr><td colSpan="6" style={{ padding: '36px 20px', textAlign: 'center', color: '#64748B' }}>No categories found.</td></tr>
+                        ) : (
+                          paginatedCategories.map((item, idx) => (
+                            <tr key={item._id || idx} style={{ borderBottom: '1px solid #F1F5F9', transition: 'background 0.15s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
+                              <td style={{ padding: '14px 20px', fontSize: '13px', color: '#64748B', fontWeight: '500' }}>{startIndex + idx + 1}</td>
+                              <td style={{ padding: '14px 20px', fontWeight: '600', color: '#0F172A', fontSize: '13px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <Tag size={14} />
+                                  </div>
+                                  <span>{item.name}</span>
+                                </div>
+                              </td>
+                              <td style={{ padding: '14px 20px' }}>
+                                <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px', background: item.itemType === 'service' ? '#F0FDF4' : '#EFF6FF', color: item.itemType === 'service' ? '#16A34A' : '#2563EB', fontWeight: '600', textTransform: 'capitalize' }}>
+                                  {item.itemType || 'Product'}
+                                </span>
+                              </td>
+                              <td style={{ padding: '14px 20px' }}>
+                                <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px', background: '#F1F5F9', color: '#475569', fontWeight: '500', textTransform: 'capitalize' }}>
+                                  {item.transactionType || 'Both'}
+                                </span>
+                              </td>
+                              <td style={{ padding: '14px 20px', color: '#64748B', fontSize: '13px' }}>
+                                {item.description || '-'}
+                              </td>
+                              <td style={{ padding: '14px 20px', textAlign: 'right' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
+                                  <button onClick={() => setViewModalData({ type: 'category', data: item })} style={{ padding: '6px', borderRadius: '6px', background: '#F1F5F9', border: 'none', color: '#475569', cursor: 'pointer' }}><Eye size={15} /></button>
+                                  <button onClick={() => openEditModal('category', item)} style={{ padding: '6px', borderRadius: '6px', background: '#EFF6FF', border: 'none', color: '#2563EB', cursor: 'pointer' }}><Edit2 size={15} /></button>
+                                  <button onClick={() => setDeleteConfirm({ type: 'category', id: item._id, name: item.name })} style={{ padding: '6px', borderRadius: '6px', background: '#FEE2E2', border: 'none', color: '#EF4444', cursor: 'pointer' }}><Trash2 size={15} /></button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Subheading Tab 2: Sub Categories Table */}
+                {productTab === 'subcategories' && (
+                  <div style={{ overflowX: 'auto', width: '100%' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '850px' }}>
+                      <thead>
+                        <tr style={{ background: '#F8FAFC' }}>
+                          <th style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', width: '60px' }}>S.No</th>
+                          <th onClick={() => requestSort('name')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center' }}>Sub Category Name {renderSortIcon('name')}</div>
+                          </th>
+                          <th style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>Parent Category</th>
+                          <th onClick={() => requestSort('itemType')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center' }}>Item Type {renderSortIcon('itemType')}</div>
+                          </th>
+                          <th onClick={() => requestSort('transactionType')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center' }}>Transaction Type {renderSortIcon('transactionType')}</div>
+                          </th>
+                          <th style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>Description</th>
+                          <th style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', textAlign: 'right' }}>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredSubcategories.length === 0 ? (
+                          <tr><td colSpan="7" style={{ padding: '36px 20px', textAlign: 'center', color: '#64748B' }}>No sub categories found.</td></tr>
+                        ) : (
+                          paginatedSubcategories.map((item, idx) => (
+                            <tr key={item._id || idx} style={{ borderBottom: '1px solid #F1F5F9', transition: 'background 0.15s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
+                              <td style={{ padding: '14px 20px', fontSize: '13px', color: '#64748B', fontWeight: '500' }}>{startIndex + idx + 1}</td>
+                              <td style={{ padding: '14px 20px', fontWeight: '600', color: '#0F172A', fontSize: '13px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: '#F5F3FF', color: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <Layers size={14} />
+                                  </div>
+                                  <span>{item.name}</span>
+                                </div>
+                              </td>
+                              <td style={{ padding: '14px 20px' }}>
+                                <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px', background: '#EFF6FF', color: '#1D4ED8', fontWeight: '600' }}>
+                                  {item.categoryId?.name || 'General'}
+                                </span>
+                              </td>
+                              <td style={{ padding: '14px 20px' }}>
+                                <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px', background: item.itemType === 'service' ? '#F0FDF4' : '#EFF6FF', color: item.itemType === 'service' ? '#16A34A' : '#2563EB', fontWeight: '600', textTransform: 'capitalize' }}>
+                                  {item.itemType || item.categoryId?.itemType || 'Product'}
+                                </span>
+                              </td>
+                              <td style={{ padding: '14px 20px' }}>
+                                <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px', background: '#F1F5F9', color: '#475569', fontWeight: '500', textTransform: 'capitalize' }}>
+                                  {item.transactionType || item.categoryId?.transactionType || 'Both'}
+                                </span>
+                              </td>
+                              <td style={{ padding: '14px 20px', color: '#64748B', fontSize: '13px' }}>
+                                {item.description || '-'}
+                              </td>
+                              <td style={{ padding: '14px 20px', textAlign: 'right' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
+                                  <button onClick={() => setViewModalData({ type: 'subcategory', data: item })} style={{ padding: '6px', borderRadius: '6px', background: '#F1F5F9', border: 'none', color: '#475569', cursor: 'pointer' }}><Eye size={15} /></button>
+                                  <button onClick={() => openEditModal('subcategory', item)} style={{ padding: '6px', borderRadius: '6px', background: '#EFF6FF', border: 'none', color: '#2563EB', cursor: 'pointer' }}><Edit2 size={15} /></button>
+                                  <button onClick={() => setDeleteConfirm({ type: 'subcategory', id: item._id, name: item.name })} style={{ padding: '6px', borderRadius: '6px', background: '#FEE2E2', border: 'none', color: '#EF4444', cursor: 'pointer' }}><Trash2 size={15} /></button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Subheading Tab 3: Products Table */}
+                {productTab === 'products' && (
+                  <div style={{ overflowX: 'auto', width: '100%' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '800px' }}>
+                      <thead>
+                        <tr style={{ background: '#F8FAFC' }}>
+                          <th style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', width: '60px' }}>S.No</th>
+                          <th onClick={() => requestSort('name')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center' }}>Name {renderSortIcon('name')}</div>
+                          </th>
+                          <th onClick={() => requestSort('sku')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center' }}>SKU {renderSortIcon('sku')}</div>
+                          </th>
+                          <th onClick={() => requestSort('category')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center' }}>Category & SubCategory {renderSortIcon('category')}</div>
+                          </th>
+                          <th onClick={() => requestSort('stock')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center' }}>Stock {renderSortIcon('stock')}</div>
+                          </th>
+                          <th onClick={() => requestSort('price')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center' }}>Price {renderSortIcon('price')}</div>
+                          </th>
+                          <th style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', textAlign: 'right' }}>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredProducts.length === 0 ? (
+                          <tr><td colSpan="7" style={{ padding: '36px 20px', textAlign: 'center', color: '#64748B' }}>No products or services found.</td></tr>
+                        ) : (
+                          paginatedProducts.map((item, idx) => (
+                            <tr key={item._id || idx} style={{ borderBottom: '1px solid #F1F5F9', transition: 'background 0.15s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
+                              <td style={{ padding: '14px 20px', fontSize: '13px', color: '#64748B', fontWeight: '500' }}>{startIndex + idx + 1}</td>
+                              <td style={{ padding: '14px 20px', fontWeight: '600', color: '#0F172A', fontSize: '13px' }}>{item.name}</td>
+                              <td style={{ padding: '14px 20px', color: '#64748B', fontFamily: 'monospace', fontSize: '12px' }}>{item.sku || 'N/A'}</td>
+                              <td style={{ padding: '14px 20px' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                  <span style={{ fontSize: '12px', fontWeight: '600', color: '#1E293B' }}>
+                                    {item.categoryId?.name || item.category || 'General'}
+                                  </span>
+                                  {(item.subCategoryId?.name || item.subCategory) && (
+                                    <span style={{ fontSize: '11px', color: '#64748B', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                      <Tag size={10} color="#3B82F6" />
+                                      <span style={{ background: '#EFF6FF', color: '#1D4ED8', padding: '1px 6px', borderRadius: '4px', fontWeight: '500' }}>
+                                        {item.subCategoryId?.name || item.subCategory}
+                                      </span>
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td style={{ padding: '14px 20px', fontWeight: '600', color: '#0F172A', fontSize: '13px' }}>{item.stock ?? 0}</td>
+                              <td style={{ padding: '14px 20px', fontWeight: '700', color: '#2563EB', fontSize: '13px' }}>{formatCurrency(item.price)}</td>
+                              <td style={{ padding: '14px 20px', textAlign: 'right' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
+                                  <button onClick={() => setViewModalData({ type: 'product', data: item })} style={{ padding: '6px', borderRadius: '6px', background: '#F1F5F9', border: 'none', color: '#475569', cursor: 'pointer' }}><Eye size={15} /></button>
+                                  <button onClick={() => openEditModal('product', item)} style={{ padding: '6px', borderRadius: '6px', background: '#EFF6FF', border: 'none', color: '#2563EB', cursor: 'pointer' }}><Edit2 size={15} /></button>
+                                  <button onClick={() => setDeleteConfirm({ type: 'product', id: item._id, name: item.name })} style={{ padding: '6px', borderRadius: '6px', background: '#FEE2E2', border: 'none', color: '#EF4444', cursor: 'pointer' }}><Trash2 size={15} /></button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Table Pagination */}
                 <TablePagination
                   currentPage={currentPage}
                   setCurrentPage={setCurrentPage}
-                  totalItems={filteredProducts.length}
+                  totalItems={productTab === 'categories' ? filteredCategories.length : productTab === 'subcategories' ? filteredSubcategories.length : filteredProducts.length}
                   itemsPerPage={itemsPerPage}
                   setItemsPerPage={setItemsPerPage}
-                  itemName="products & services"
+                  itemName={productTab === 'categories' ? 'categories' : productTab === 'subcategories' ? 'sub categories' : 'products & services'}
                 />
+
               </div>
             </div>
           )}
@@ -4565,7 +4907,7 @@ const CustomerDetails = () => {
               <div style={{ padding: '24px', maxHeight: '70vh', overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
                 {Object.entries(editModalData.formData).map(([fieldKey, val]) => {
                   const label = fieldKey.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-                  const isSelect = ['subscriptionStatus', 'subscriptionBillingCycle', 'status', 'isLoginEnabled', 'offeringType', 'type'].includes(fieldKey) && !fieldKey.toLowerCase().includes('phone');
+                  const isSelect = ['subscriptionStatus', 'subscriptionBillingCycle', 'status', 'isLoginEnabled', 'offeringType', 'type', 'itemType', 'transactionType', 'categoryId', 'subCategoryId'].includes(fieldKey) && !fieldKey.toLowerCase().includes('phone');
 
                   return (
                     <div key={fieldKey} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -4573,7 +4915,7 @@ const CustomerDetails = () => {
 
                       {isSelect ? (
                         <select
-                          value={String(val)}
+                          value={String(val || '')}
                           onChange={(e) => {
                             const newV = fieldKey === 'isLoginEnabled' ? e.target.value === 'true' : e.target.value;
                             setEditModalData(prev => ({
@@ -4583,6 +4925,35 @@ const CustomerDetails = () => {
                           }}
                           style={{ padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', outline: 'none', background: 'white' }}
                         >
+                          {fieldKey === 'categoryId' && (
+                            <>
+                              <option value="">Select Category</option>
+                              {categories.map(c => (
+                                <option key={c._id} value={c._id}>{c.name}</option>
+                              ))}
+                            </>
+                          )}
+                          {fieldKey === 'subCategoryId' && (
+                            <>
+                              <option value="">Select Sub Category (Optional)</option>
+                              {subcategories.map(sc => (
+                                <option key={sc._id} value={sc._id}>{sc.name} ({sc.categoryId?.name || 'General'})</option>
+                              ))}
+                            </>
+                          )}
+                          {fieldKey === 'itemType' && (
+                            <>
+                              <option value="product">Product</option>
+                              <option value="service">Service</option>
+                            </>
+                          )}
+                          {fieldKey === 'transactionType' && (
+                            <>
+                              <option value="both">Both Sales & Purchases</option>
+                              <option value="sales">Sales Only</option>
+                              <option value="purchases">Purchases Only</option>
+                            </>
+                          )}
                           {fieldKey === 'subscriptionStatus' && (
                             <>
                               <option value="Active">Active</option>
@@ -4700,7 +5071,7 @@ const CustomerDetails = () => {
                     const isBoolean = typeof fieldValue === 'boolean';
                     const isDate = fieldKey.toLowerCase().includes('date');
                     const isNumber = typeof fieldValue === 'number';
-                    const isSelect = ['status', 'type', 'customerType', 'offeringType', 'subscriptionStatus', 'subscriptionBillingCycle'].includes(fieldKey);
+                    const isSelect = ['status', 'type', 'customerType', 'offeringType', 'subscriptionStatus', 'subscriptionBillingCycle', 'itemType', 'transactionType', 'categoryId', 'subCategoryId'].includes(fieldKey);
                     return (
                       <div key={fieldKey}>
                         <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#64748B', marginBottom: '5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</label>
@@ -4715,10 +5086,39 @@ const CustomerDetails = () => {
                           </select>
                         ) : isSelect ? (
                           <select
-                            value={fieldValue}
+                            value={String(fieldValue || '')}
                             onChange={(e) => setAddModalData(p => ({ ...p, formData: { ...p.formData, [fieldKey]: e.target.value } }))}
                             style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', outline: 'none', background: '#F8FAFC' }}
                           >
+                            {fieldKey === 'categoryId' && (
+                              <>
+                                <option value="">Select Category</option>
+                                {categories.map(c => (
+                                  <option key={c._id} value={c._id}>{c.name}</option>
+                                ))}
+                              </>
+                            )}
+                            {fieldKey === 'subCategoryId' && (
+                              <>
+                                <option value="">Select Sub Category (Optional)</option>
+                                {subcategories.map(sc => (
+                                  <option key={sc._id} value={sc._id}>{sc.name} ({sc.categoryId?.name || 'General'})</option>
+                                ))}
+                              </>
+                            )}
+                            {fieldKey === 'itemType' && (
+                              <>
+                                <option value="product">Product</option>
+                                <option value="service">Service</option>
+                              </>
+                            )}
+                            {fieldKey === 'transactionType' && (
+                              <>
+                                <option value="both">Both Sales & Purchases</option>
+                                <option value="sales">Sales Only</option>
+                                <option value="purchases">Purchases Only</option>
+                              </>
+                            )}
                             {fieldKey === 'status' && addModalData.type === 'attendance' && (<><option value="Present">Present</option><option value="Absent">Absent</option><option value="Half Day">Half Day</option><option value="Late">Late</option></>)}
                             {fieldKey === 'status' && addModalData.type === 'leave' && (<><option value="Pending">Pending</option><option value="Approved">Approved</option><option value="Rejected">Rejected</option></>)}
                             {fieldKey === 'status' && addModalData.type === 'reminder' && (<><option value="Pending">Pending</option><option value="Completed">Completed</option></>)}

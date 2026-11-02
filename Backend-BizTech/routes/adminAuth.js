@@ -13,6 +13,8 @@ const Sale = require('../models/Sale');
 const Expense = require('../models/Expense');
 const Purchase = require('../models/Purchase');
 const Product = require('../models/Product');
+const Category = require('../models/Category');
+const SubCategory = require('../models/SubCategory');
 const Attendance = require('../models/Attendance');
 const Leave = require('../models/Leave');
 const Reminder = require('../models/Reminder');
@@ -260,20 +262,24 @@ router.get('/users/:id/details', async (req, res) => {
       attendance,
       leaves,
       reminders,
-      documents
+      documents,
+      categories,
+      subcategories
     ] = await Promise.all([
       Branch.find({ tenantId: matchTenant }).select('-password').sort({ createdAt: -1 }),
       Employee.find({ tenantId: matchTenant }).select('-password').sort({ createdAt: -1 }),
       Customer.find({ tenantId: matchTenant }).sort({ createdAt: -1 }),
       Inventory.find({ tenantId: matchTenant }).sort({ createdAt: -1 }),
-      Product.find({ tenantId: matchTenant }).sort({ createdAt: -1 }),
+      Product.find({ tenantId: matchTenant }).populate('categoryId', 'name').populate('subCategoryId', 'name').sort({ createdAt: -1 }),
       Sale.find({ tenantId: matchTenant }).sort({ createdAt: -1 }),
       Expense.find({ tenantId: matchTenant }).sort({ createdAt: -1 }),
       Purchase.find({ tenantId: matchTenant }).sort({ createdAt: -1 }),
       Attendance.find({ tenantId: matchTenant }).populate('employeeId', 'name email position').sort({ date: -1 }),
       Leave.find({ tenantId: matchTenant }).populate('employeeId', 'name email position').sort({ createdAt: -1 }),
       Reminder.find({ tenantId: matchTenant }).sort({ date: -1 }),
-      Document.find({ tenantId: matchTenant }).sort({ createdAt: -1 })
+      Document.find({ tenantId: matchTenant }).sort({ createdAt: -1 }),
+      Category.find({ tenantId: matchTenant }).sort({ createdAt: -1 }),
+      SubCategory.find({ tenantId: matchTenant }).populate('categoryId', 'name').sort({ createdAt: -1 })
     ]);
 
     const totalSalesAmount = sales.reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
@@ -331,6 +337,8 @@ router.get('/users/:id/details', async (req, res) => {
       leaves: leaves || [],
       reminders: reminders || [],
       documents: documents || [],
+      categories: categories || [],
+      subcategories: subcategories || [],
       financials: {
         totalSales: totalSalesAmount,
         totalExpenses: totalExpensesAmount,
@@ -350,7 +358,9 @@ router.get('/users/:id/details', async (req, res) => {
         attendance: attendance ? attendance.length : 0,
         leaves: leaves ? leaves.length : 0,
         reminders: reminders ? reminders.length : 0,
-        documents: documents ? documents.length : 0
+        documents: documents ? documents.length : 0,
+        categories: categories ? categories.length : 0,
+        subcategories: subcategories ? subcategories.length : 0
       },
       impersonationToken: token
     });
@@ -1204,6 +1214,76 @@ router.post('/purchases', async (req, res) => {
     res.status(201).json(saved);
   } catch (err) {
     res.status(400).json({ message: err.message });
+  }
+});
+
+// --- CATEGORIES CRUD ---
+router.post('/categories', async (req, res) => {
+  try {
+    const cat = new Category(req.body);
+    const saved = await cat.save();
+    res.status(201).json(saved);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+router.put('/categories/:id', async (req, res) => {
+  try {
+    const updated = await Category.findByIdAndUpdate(
+      req.params.id,
+      { ...req.body },
+      { new: true }
+    );
+    if (!updated) return res.status(404).json({ message: 'Category not found' });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.delete('/categories/:id', async (req, res) => {
+  try {
+    const deleted = await Category.findByIdAndDelete(req.params.id);
+    if (!deleted) return res.status(404).json({ message: 'Category not found' });
+    res.json({ message: 'Category deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// --- SUBCATEGORIES CRUD ---
+router.post('/subcategories', async (req, res) => {
+  try {
+    const sub = new SubCategory(req.body);
+    const saved = await sub.save();
+    res.status(201).json(saved);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+router.put('/subcategories/:id', async (req, res) => {
+  try {
+    const updated = await SubCategory.findByIdAndUpdate(
+      req.params.id,
+      { ...req.body },
+      { new: true }
+    );
+    if (!updated) return res.status(404).json({ message: 'SubCategory not found' });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.delete('/subcategories/:id', async (req, res) => {
+  try {
+    const deleted = await SubCategory.findByIdAndDelete(req.params.id);
+    if (!deleted) return res.status(404).json({ message: 'SubCategory not found' });
+    res.json({ message: 'SubCategory deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 });
 

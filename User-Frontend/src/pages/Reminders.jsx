@@ -395,7 +395,7 @@ const Reminders = () => {
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 340px', gap: '24px', alignItems: 'start' }}>
           
           {/* Main Month Calendar Card */}
-          <div style={{ background: 'white', borderRadius: '16px', padding: '24px', border: '1px solid var(--border-color)', boxShadow: '0 4px 12px rgba(15,23,42,0.03)' }}>
+          <div style={{ background: 'white', borderRadius: '16px', padding: '24px', border: '1px solid var(--border-color)', boxShadow: '0 4px 12px rgba(15,23,42,0.03)', minWidth: 0 }}>
             
             {/* Calendar Controls */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -432,7 +432,7 @@ const Reminders = () => {
             </div>
 
             {/* Weekday Labels */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px', textAlign: 'center', marginBottom: '8px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: '8px', textAlign: 'center', marginBottom: '8px' }}>
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, i) => (
                 <div key={i} style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', padding: '6px 0' }}>
                   {day}
@@ -441,7 +441,7 @@ const Reminders = () => {
             </div>
 
             {/* Calendar Days Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: '8px' }}>
               {calendarDays.map((slot, index) => {
                 const dayReminders = getRemindersForDate(slot.date);
                 const isCurrent = isToday(slot.date);
@@ -453,6 +453,9 @@ const Reminders = () => {
                     onClick={() => setSelectedDate(slot.date)}
                     style={{
                       minHeight: '84px',
+                      minWidth: 0,
+                      overflow: 'hidden',
+                      boxSizing: 'border-box',
                       borderRadius: '10px',
                       padding: '8px',
                       cursor: 'pointer',
@@ -496,11 +499,12 @@ const Reminders = () => {
                     </div>
 
                     {/* Event Badges inside Cell */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '4px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '4px', minWidth: 0, width: '100%', overflow: 'hidden' }}>
                       {dayReminders.slice(0, 2).map((item, idx) => {
                         return (
                           <div
                             key={idx}
+                            title={item.title}
                             style={{
                               fontSize: '11px',
                               padding: '2px 5px',
@@ -515,11 +519,14 @@ const Reminders = () => {
                               alignItems: 'center',
                               gap: '4px',
                               fontWeight: '500',
+                              minWidth: 0,
+                              width: '100%',
+                              boxSizing: 'border-box',
                               textDecoration: item.status === 'Completed' ? 'line-through' : 'none'
                             }}
                           >
                             <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'var(--primary-blue)', flexShrink: 0 }}></span>
-                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title}</span>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>{item.title}</span>
                             {item.repeatMonthly && <Repeat size={10} style={{ flexShrink: 0 }} />}
                           </div>
                         );
