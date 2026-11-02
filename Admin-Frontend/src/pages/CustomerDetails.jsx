@@ -881,6 +881,105 @@ const CustomerDetails = () => {
     }
   };
 
+  // Field placeholder helper matching user side conventions
+  const getFieldPlaceholder = (fieldKey, type = '') => {
+    switch (fieldKey) {
+      case 'name':
+        if (type === 'category') return 'Enter category name';
+        if (type === 'subcategory') return 'Enter the subcategory name';
+        if (type === 'product') return 'Enter the product name';
+        if (type === 'branch') return 'Enter branch name';
+        if (type === 'business') return 'e.g. Apex Supermarket & Grocery';
+        if (type === 'employee') return 'Enter Employee Name';
+        if (type === 'customer') return 'Enter contact/customer name';
+        return 'Enter name';
+      case 'sku':
+        return 'e.g. SKU-101';
+      case 'itemName':
+        return 'Enter item name';
+      case 'title':
+        if (type === 'expense') return 'Enter the title';
+        if (type === 'reminder') return 'e.g. Shop Rent, GST Filing, Vendor Payment';
+        if (type === 'document') return 'Enter document title';
+        return 'Enter title';
+      case 'price':
+        return 'Enter the price amount';
+      case 'stock':
+      case 'quantity':
+        return 'Enter the stock quantity';
+      case 'amount':
+        if (type === 'purchase') return 'Enter the amount (e.g. 2000)';
+        return 'Enter the amount (₹)';
+      case 'category':
+        return 'Type category name (Mandatory) *';
+      case 'contactPerson':
+        return 'e.g. Rajesh Kumar';
+      case 'manager':
+        return 'Enter manager name';
+      case 'contactNumber':
+      case 'phone':
+        return 'Enter 10-digit number';
+      case 'email':
+        if (type === 'business') return 'e.g. contact@apexretail.com';
+        if (type === 'employee') return 'Enter Email Address';
+        return 'Enter email address';
+      case 'location':
+        return 'Enter complete address';
+      case 'address':
+        if (type === 'business') return 'Street address, building, landmark, pincode';
+        return 'Enter full address';
+      case 'city':
+        return 'e.g. Bangalore, Karnataka';
+      case 'taxNumber':
+      case 'gstin':
+        return 'e.g. 29ABCDE1234F1Z5';
+      case 'companyName':
+        return 'e.g. Acme Corp / Retail Shop';
+      case 'poNumber':
+        return 'Enter the product order number';
+      case 'supplierName':
+        return 'Enter the supplier name';
+      case 'invoiceNo':
+        return 'e.g. INV-2024-001';
+      case 'customerName':
+        return 'Enter customer name';
+      case 'position':
+        return 'e.g. Lead Cashier / Sales';
+      case 'salary':
+        return 'e.g. 50000';
+      case 'description':
+        if (type === 'expense') return 'Enter the description';
+        if (type === 'reminder') return 'Additional details, bank account, reference info...';
+        return 'Enter description...';
+      case 'reason':
+        return 'Enter reason for leave...';
+      case 'notifyBeforeDays':
+        return 'e.g. 1, 2, 7';
+      case 'fileUrl':
+        return 'https://example.com/document.pdf or paste URL';
+      case 'checkIn':
+        return 'e.g. 09:00';
+      case 'checkOut':
+        return 'e.g. 18:00';
+      case 'branchName':
+        return 'Enter branch name';
+      case 'businessName':
+        return 'Enter business name';
+      case 'fullName':
+        return 'Enter full name';
+      case 'industry':
+        return 'e.g. Retail, Healthcare, IT';
+      case 'regNo':
+        return 'e.g. REG-12345';
+      case 'subscriptionCustomAmount':
+        return 'e.g. 2999';
+      default: {
+        const label = fieldKey.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
+        return `Enter ${label.toLowerCase()}...`;
+      }
+    }
+  };
+
   // Open Add Modal for a given section
   const openAddModal = (type) => {
     const tenantId = customer._id;
@@ -888,17 +987,17 @@ const CustomerDetails = () => {
     if (type === 'branch') {
       initialFormData = { tenantId, name: '', location: '', manager: '', contactNumber: '', type: 'Store' };
     } else if (type === 'employee') {
-      initialFormData = { tenantId, name: '', email: '', position: '', contactNumber: '', salary: 0, status: 'Active' };
+      initialFormData = { tenantId, name: '', email: '', position: '', contactNumber: '', salary: '', status: 'Active' };
     } else if (type === 'business') {
       initialFormData = { name: '', category: '', contactPerson: '', phone: '', email: '', taxNumber: '', city: '', address: '', offeringType: 'both', operationsType: 'both' };
     } else if (type === 'expense') {
-      initialFormData = { tenantId, title: '', category: 'General', amount: 0, date: new Date().toISOString().split('T')[0], description: '' };
+      initialFormData = { tenantId, title: '', category: '', amount: '', date: new Date().toISOString().split('T')[0], description: '' };
     } else if (type === 'sale') {
-      initialFormData = { tenantId, invoiceNo: '', customerName: '', amount: 0, date: new Date().toISOString().split('T')[0], status: 'Paid' };
+      initialFormData = { tenantId, invoiceNo: '', customerName: '', amount: '', date: new Date().toISOString().split('T')[0], status: 'Paid' };
     } else if (type === 'inventory') {
-      initialFormData = { tenantId, itemName: '', sku: '', category: 'General', quantity: 0, price: 0 };
+      initialFormData = { tenantId, itemName: '', sku: '', category: '', quantity: '', price: '' };
     } else if (type === 'product') {
-      initialFormData = { tenantId, name: '', sku: '', categoryId: categories[0]?._id || '', subCategoryId: '', price: 0, stock: 0, description: '' };
+      initialFormData = { tenantId, name: '', sku: '', categoryId: categories[0]?._id || '', subCategoryId: '', price: '', stock: '', description: '' };
     } else if (type === 'category') {
       initialFormData = { tenantId, name: '', itemType: 'product', transactionType: 'both', description: '' };
     } else if (type === 'subcategory') {
@@ -906,13 +1005,13 @@ const CustomerDetails = () => {
     } else if (type === 'customer') {
       initialFormData = { tenantId, name: '', companyName: '', customerType: 'Retail', email: '', phone: '', address: '' };
     } else if (type === 'purchase') {
-      initialFormData = { tenantId, poNumber: '', supplierName: '', amount: 0, date: new Date().toISOString().split('T')[0], status: 'Pending' };
+      initialFormData = { tenantId, poNumber: '', supplierName: '', amount: '', date: new Date().toISOString().split('T')[0], status: 'Pending' };
     } else if (type === 'attendance') {
       initialFormData = { tenantId, date: new Date().toISOString().split('T')[0], status: 'Present', checkIn: '09:00', checkOut: '18:00' };
     } else if (type === 'leave') {
       initialFormData = { tenantId, type: 'Sick Leave', startDate: new Date().toISOString().split('T')[0], endDate: new Date().toISOString().split('T')[0], reason: '', status: 'Pending' };
     } else if (type === 'reminder') {
-      initialFormData = { tenantId, title: '', date: new Date().toISOString().split('T')[0], description: '', repeatMonthly: false, notifyBeforeDays: 0, status: 'Pending' };
+      initialFormData = { tenantId, title: '', date: new Date().toISOString().split('T')[0], description: '', repeatMonthly: false, notifyBeforeDays: '', status: 'Pending' };
     } else if (type === 'document') {
       initialFormData = { tenantId, title: '', type: 'Contract', fileUrl: '', expiryDate: '' };
     }
@@ -925,6 +1024,14 @@ const CustomerDetails = () => {
     if (!addModalData) return;
     setSavingAction(true);
     const { type, formData } = addModalData;
+
+    // Sanitize numeric fields if left empty
+    const sanitizedData = { ...formData };
+    ['amount', 'price', 'salary', 'stock', 'quantity', 'notifyBeforeDays'].forEach(k => {
+      if (k in sanitizedData) {
+        sanitizedData[k] = sanitizedData[k] === '' || sanitizedData[k] === null || isNaN(Number(sanitizedData[k])) ? 0 : Number(sanitizedData[k]);
+      }
+    });
 
     let endpoint = '';
     if (type === 'branch') endpoint = `${apiUrl}/api/admin/branches`;
@@ -950,7 +1057,7 @@ const CustomerDetails = () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(sanitizedData)
       });
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
@@ -5014,18 +5121,33 @@ const CustomerDetails = () => {
                             </>
                           )}
                         </select>
+                      ) : ['description', 'reason', 'address'].includes(fieldKey) ? (
+                        <textarea
+                          rows={3}
+                          value={val || ''}
+                          placeholder={getFieldPlaceholder(fieldKey, editModalData.type)}
+                          onChange={(e) => {
+                            setEditModalData(prev => ({
+                              ...prev,
+                              formData: { ...prev.formData, [fieldKey]: e.target.value }
+                            }));
+                          }}
+                          style={{ padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', outline: 'none', background: '#F8FAFC', width: '100%', boxSizing: 'border-box', resize: 'vertical' }}
+                        />
                       ) : (
                         <input
-                          type={typeof val === 'number' ? 'number' : fieldKey.toLowerCase().includes('date') ? 'date' : 'text'}
-                          value={val}
+                          type={typeof val === 'number' || ['amount', 'price', 'salary', 'stock', 'quantity', 'notifyBeforeDays'].includes(fieldKey) ? 'number' : fieldKey.toLowerCase().includes('date') ? 'date' : 'text'}
+                          value={val ?? ''}
+                          placeholder={getFieldPlaceholder(fieldKey, editModalData.type)}
                           onChange={(e) => {
-                            const newV = typeof val === 'number' ? Number(e.target.value) : e.target.value;
+                            const isNum = typeof val === 'number' || ['amount', 'price', 'salary', 'stock', 'quantity', 'notifyBeforeDays'].includes(fieldKey);
+                            const newV = isNum ? (e.target.value === '' ? '' : Number(e.target.value)) : e.target.value;
                             setEditModalData(prev => ({
                               ...prev,
                               formData: { ...prev.formData, [fieldKey]: newV }
                             }));
                           }}
-                          style={{ padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', outline: 'none', background: '#F8FAFC' }}
+                          style={{ padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', outline: 'none', background: '#F8FAFC', width: '100%', boxSizing: 'border-box' }}
                         />
                       )}
                     </div>
@@ -5070,8 +5192,10 @@ const CustomerDetails = () => {
                     const label = fieldKey.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
                     const isBoolean = typeof fieldValue === 'boolean';
                     const isDate = fieldKey.toLowerCase().includes('date');
-                    const isNumber = typeof fieldValue === 'number';
+                    const isNumber = typeof fieldValue === 'number' || ['amount', 'price', 'salary', 'stock', 'quantity', 'notifyBeforeDays'].includes(fieldKey);
                     const isSelect = ['status', 'type', 'customerType', 'offeringType', 'subscriptionStatus', 'subscriptionBillingCycle', 'itemType', 'transactionType', 'categoryId', 'subCategoryId'].includes(fieldKey);
+                    const isTextarea = ['description', 'reason', 'address'].includes(fieldKey);
+                    const placeholder = getFieldPlaceholder(fieldKey, addModalData.type);
                     return (
                       <div key={fieldKey}>
                         <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#64748B', marginBottom: '5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</label>
@@ -5092,7 +5216,7 @@ const CustomerDetails = () => {
                           >
                             {fieldKey === 'categoryId' && (
                               <>
-                                <option value="">Select Category</option>
+                                <option value="">Select Category...</option>
                                 {categories.map(c => (
                                   <option key={c._id} value={c._id}>{c.name}</option>
                                 ))}
@@ -5100,10 +5224,12 @@ const CustomerDetails = () => {
                             )}
                             {fieldKey === 'subCategoryId' && (
                               <>
-                                <option value="">Select Sub Category (Optional)</option>
-                                {subcategories.map(sc => (
-                                  <option key={sc._id} value={sc._id}>{sc.name} ({sc.categoryId?.name || 'General'})</option>
-                                ))}
+                                <option value="">Select Sub Category (Optional)...</option>
+                                {subcategories
+                                  .filter(sc => !addModalData.formData.categoryId || (sc.categoryId?._id || sc.categoryId) === addModalData.formData.categoryId)
+                                  .map(sc => (
+                                    <option key={sc._id} value={sc._id}>{sc.name}</option>
+                                  ))}
                               </>
                             )}
                             {fieldKey === 'itemType' && (
@@ -5129,11 +5255,20 @@ const CustomerDetails = () => {
                             {fieldKey === 'customerType' && (<><option value="Retail">Retail</option><option value="Wholesale">Wholesale</option><option value="Corporate">Corporate</option></>)}
                             {fieldKey === 'offeringType' && (<><option value="both">Products & Services</option><option value="products">Products Only</option><option value="services">Services Only</option></>)}
                           </select>
+                        ) : isTextarea ? (
+                          <textarea
+                            rows={3}
+                            value={fieldValue ?? ''}
+                            placeholder={placeholder}
+                            onChange={(e) => setAddModalData(p => ({ ...p, formData: { ...p.formData, [fieldKey]: e.target.value } }))}
+                            style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', outline: 'none', background: '#F8FAFC', boxSizing: 'border-box', resize: 'vertical' }}
+                          />
                         ) : (
                           <input
                             type={isDate ? 'date' : isNumber ? 'number' : 'text'}
-                            value={fieldValue}
-                            onChange={(e) => setAddModalData(p => ({ ...p, formData: { ...p.formData, [fieldKey]: isNumber ? Number(e.target.value) : e.target.value } }))}
+                            value={fieldValue ?? ''}
+                            placeholder={placeholder}
+                            onChange={(e) => setAddModalData(p => ({ ...p, formData: { ...p.formData, [fieldKey]: isNumber ? (e.target.value === '' ? '' : Number(e.target.value)) : e.target.value } }))}
                             style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', outline: 'none', background: '#F8FAFC', boxSizing: 'border-box' }}
                           />
                         )}
