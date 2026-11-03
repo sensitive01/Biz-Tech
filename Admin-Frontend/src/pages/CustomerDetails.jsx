@@ -7,7 +7,7 @@ import {
   Briefcase, IndianRupee, Search, Download, ExternalLink, Layers, Check, 
   X, Sparkles, Eye, CreditCard, Edit2, Trash2, AlertTriangle, Save, CheckCircle2,
   ArrowUp, ArrowDown, ArrowUpDown, Plus, KeyRound, Lock, EyeOff, Tag,
-  Pencil, Building, ShieldCheck
+  Pencil, Building, ShieldCheck, CalendarDays, List, ChevronLeft, ChevronRight, Repeat, Bell, LogOut
 } from 'lucide-react';
 import TablePagination from '../components/TablePagination';
 import { exportToCSV } from '../utils/exportToCSV';
@@ -23,6 +23,10 @@ const CustomerDetails = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [previewReceiptUrl, setPreviewReceiptUrl] = useState(null);
   const [productTab, setProductTab] = useState('categories');
+  const [remindersViewMode, setRemindersViewMode] = useState('calendar');
+  const [reminderCurrentDate, setReminderCurrentDate] = useState(new Date());
+  const [reminderSelectedDate, setReminderSelectedDate] = useState(new Date());
+  const [checkoutModalData, setCheckoutModalData] = useState(null);
 
   // Profile Page inline editing state
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -37,7 +41,10 @@ const CustomerDetails = () => {
     regNo: '',
     subscriptionStatus: 'Active',
     subscriptionBillingCycle: 'Monthly',
-    subscriptionCustomAmount: ''
+    subscriptionCustomAmount: '',
+    employeeLimit: '',
+    branchLimit: '',
+    businessLimit: ''
   });
 
   // Date filtering state
@@ -187,7 +194,10 @@ const CustomerDetails = () => {
         regNo: customer.regNo || '',
         subscriptionStatus: customer.subscriptionStatus || 'Active',
         subscriptionBillingCycle: customer.subscriptionBillingCycle || 'Monthly',
-        subscriptionCustomAmount: customer.subscriptionCustomAmount || ''
+        subscriptionCustomAmount: customer.subscriptionCustomAmount || '',
+        employeeLimit: customer.employeeLimit != null ? customer.employeeLimit : '',
+        branchLimit: customer.branchLimit != null ? customer.branchLimit : '',
+        businessLimit: customer.businessLimit != null ? customer.businessLimit : ''
       });
     }
   }, [customer]);
@@ -196,8 +206,8 @@ const CustomerDetails = () => {
     switch (Number(type)) {
       case 1:
         return { 
-          label: 'Type 1: Sole Operator', 
-          desc: '1 Owner • 1 Shop • Direct operations',
+          label: 'Type 1: Single Login (Owner-Managed)', 
+          desc: '1 Owner • 1 Shop • Owner-managed staff, attendance & leaves',
           icon: Store,
           bg: '#EEF2FF',
           color: '#4338CA',
@@ -205,8 +215,8 @@ const CustomerDetails = () => {
         };
       case 2:
         return { 
-          label: 'Type 2: Single Branch + Staff', 
-          desc: '1 Owner • 1 Shop • Includes staff attendance & leaves',
+          label: 'Type 2: Multi-Login (Staff Portal)', 
+          desc: '1 Owner • 1 Shop • Multi-login with staff self-service',
           icon: Users,
           bg: '#ECFDF5',
           color: '#065F46',
@@ -267,7 +277,10 @@ const CustomerDetails = () => {
           regNo: profileFormData.regNo,
           subscriptionStatus: profileFormData.subscriptionStatus,
           subscriptionBillingCycle: profileFormData.subscriptionBillingCycle,
-          subscriptionCustomAmount: profileFormData.subscriptionCustomAmount
+          subscriptionCustomAmount: profileFormData.subscriptionCustomAmount,
+          employeeLimit: profileFormData.employeeLimit === '' ? null : Number(profileFormData.employeeLimit),
+          branchLimit: profileFormData.branchLimit === '' ? null : Number(profileFormData.branchLimit),
+          businessLimit: profileFormData.businessLimit === '' ? null : Number(profileFormData.businessLimit)
         })
       });
 
@@ -416,6 +429,7 @@ const CustomerDetails = () => {
     if (sectionName === 'businesses') {
       dataToExport = filteredBusinesses.map((b, idx) => ({
         'S.No': idx + 1,
+        'Business ID': b.businessId || b.businessCode || '-',
         'Business Name': b.name || '',
         'Category': b.category || 'General',
         'Offering Type': b.offeringType || 'both',
@@ -433,6 +447,7 @@ const CustomerDetails = () => {
     } else if (sectionName === 'branches') {
       dataToExport = filteredBranches.map((b, idx) => ({
         'S.No': idx + 1,
+        'Branch ID': b.branchId || b.branchCode || '-',
         'Branch Name': b.name || '',
         'Business Name': b.businessName || '-',
         'Location': b.location || '-',
@@ -445,6 +460,7 @@ const CustomerDetails = () => {
     } else if (sectionName === 'employees') {
       dataToExport = filteredEmployees.map((e, idx) => ({
         'S.No': idx + 1,
+        'Employee ID': e.employeeId || '-',
         'Employee Name': e.name || '',
         'Role / Position': e.position || e.designation || 'Staff',
         'Branch': e.branchName || 'Main',
@@ -618,6 +634,8 @@ const CustomerDetails = () => {
     const dateFiltered = applyDateFilter(branches, 'createdAt');
     const filtered = dateFiltered.filter(b => 
       (b.name && b.name.toLowerCase().includes(q)) || 
+      (b.branchId && b.branchId.toLowerCase().includes(q)) || 
+      (b.branchCode && b.branchCode.toLowerCase().includes(q)) || 
       (b.location && b.location.toLowerCase().includes(q)) || 
       (b.manager && b.manager.toLowerCase().includes(q)) ||
       (b.businessName && b.businessName.toLowerCase().includes(q)) ||
@@ -632,6 +650,7 @@ const CustomerDetails = () => {
     const dateFiltered = applyDateFilter(employees, 'dateOfJoining');
     const filtered = dateFiltered.filter(e => 
       (e.name && e.name.toLowerCase().includes(q)) || 
+      (e.employeeId && e.employeeId.toLowerCase().includes(q)) || 
       (e.position && e.position.toLowerCase().includes(q)) || 
       (e.email && e.email.toLowerCase().includes(q)) || 
       (e.branchName && e.branchName.toLowerCase().includes(q)) ||
@@ -748,6 +767,8 @@ const CustomerDetails = () => {
     const dateFiltered = applyDateFilter(businesses, 'createdAt');
     const filtered = dateFiltered.filter(b => 
       (b.name && b.name.toLowerCase().includes(q)) || 
+      (b.businessId && b.businessId.toLowerCase().includes(q)) || 
+      (b.businessCode && b.businessCode.toLowerCase().includes(q)) || 
       (b.category && b.category.toLowerCase().includes(q)) || 
       (b.contactPerson && b.contactPerson.toLowerCase().includes(q)) ||
       (b.city && b.city.toLowerCase().includes(q)) ||
@@ -884,6 +905,14 @@ const CustomerDetails = () => {
   // Field placeholder helper matching user side conventions
   const getFieldPlaceholder = (fieldKey, type = '') => {
     switch (fieldKey) {
+      case 'employeeId':
+        return 'e.g. EMP-001';
+      case 'branchId':
+      case 'branchCode':
+        return 'e.g. BR-001';
+      case 'businessId':
+      case 'businessCode':
+        return 'e.g. BIZ-001';
       case 'name':
         if (type === 'category') return 'Enter category name';
         if (type === 'subcategory') return 'Enter the subcategory name';
@@ -980,40 +1009,201 @@ const CustomerDetails = () => {
     }
   };
 
+  // Reminders Calendar helpers
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  const handleReminderPrevMonth = () => {
+    setReminderCurrentDate(new Date(reminderCurrentDate.getFullYear(), reminderCurrentDate.getMonth() - 1, 1));
+  };
+
+  const handleReminderNextMonth = () => {
+    setReminderCurrentDate(new Date(reminderCurrentDate.getFullYear(), reminderCurrentDate.getMonth() + 1, 1));
+  };
+
+  const handleReminderToday = () => {
+    const today = new Date();
+    setReminderCurrentDate(today);
+    setReminderSelectedDate(today);
+  };
+
+  const formatReminderDateKey = (d) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const isReminderToday = (d) => {
+    const today = new Date();
+    return d.getDate() === today.getDate() &&
+      d.getMonth() === today.getMonth() &&
+      d.getFullYear() === today.getFullYear();
+  };
+
+  const isReminderSelected = (d) => {
+    return d.getDate() === reminderSelectedDate.getDate() &&
+      d.getMonth() === reminderSelectedDate.getMonth() &&
+      d.getFullYear() === reminderSelectedDate.getFullYear();
+  };
+
+  const reminderCalendarDays = useMemo(() => {
+    const year = reminderCurrentDate.getFullYear();
+    const month = reminderCurrentDate.getMonth();
+
+    const firstDayIndex = new Date(year, month, 1).getDay(); // 0 for Sunday
+    const daysInCurrentMonth = new Date(year, month + 1, 0).getDate();
+    const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+    const days = [];
+
+    // Preceding padding days from previous month
+    for (let i = firstDayIndex - 1; i >= 0; i--) {
+      const d = new Date(year, month - 1, daysInPrevMonth - i);
+      days.push({ date: d, isCurrentMonth: false });
+    }
+
+    // Days in current month
+    for (let i = 1; i <= daysInCurrentMonth; i++) {
+      const d = new Date(year, month, i);
+      days.push({ date: d, isCurrentMonth: true });
+    }
+
+    // Trailing padding days to fill 5 or 6 weeks (total 35 or 42)
+    const totalSlots = days.length <= 35 ? 35 : 42;
+    const remaining = totalSlots - days.length;
+    for (let i = 1; i <= remaining; i++) {
+      const d = new Date(year, month + 1, i);
+      days.push({ date: d, isCurrentMonth: false });
+    }
+
+    return days;
+  }, [reminderCurrentDate]);
+
+  const getRemindersForDate = (date) => {
+    const targetDateStr = formatReminderDateKey(date);
+    const targetDayOfMonth = date.getDate();
+
+    return reminders.filter(item => {
+      if (!item.date) return false;
+      const itemDate = new Date(item.date);
+      const itemDateStr = formatReminderDateKey(itemDate);
+
+      // 1. Exact Date Match
+      if (itemDateStr === targetDateStr) return true;
+
+      // 2. Monthly Recurring Match (Same day of the month) - Applicable for current year
+      if (item.repeatMonthly && itemDate.getDate() === targetDayOfMonth) {
+        const itemYear = itemDate.getFullYear();
+        if (date.getFullYear() === itemYear && date.getMonth() >= itemDate.getMonth()) {
+          return true;
+        }
+      }
+
+      return false;
+    });
+  };
+
+  const selectedDayReminders = useMemo(() => {
+    return getRemindersForDate(reminderSelectedDate);
+  }, [reminders, reminderSelectedDate]);
+
+  const handleToggleReminderStatus = async (item) => {
+    const newStatus = item.status === 'Completed' ? 'Pending' : 'Completed';
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/reminders/${item._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+      if (res.ok) {
+        showNotification(`Reminder marked as ${newStatus}`);
+        fetchCustomerDetails();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Handle staff checkout confirmation
+  const handleConfirmCheckout = async (e) => {
+    e.preventDefault();
+    if (!checkoutModalData) return;
+    setSavingAction(true);
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/attendance/${checkoutModalData.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        },
+        body: JSON.stringify({ checkOut: checkoutModalData.time })
+      });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.message || 'Check out failed');
+      }
+      showNotification(`Staff checked out successfully at ${checkoutModalData.time}`);
+      setCheckoutModalData(null);
+      fetchCustomerDetails();
+    } catch (err) {
+      alert(`Error recording check out: ${err.message}`);
+    } finally {
+      setSavingAction(false);
+    }
+  };
+
   // Open Add Modal for a given section
-  const openAddModal = (type) => {
+  const openAddModal = (type, overrides = {}) => {
     const tenantId = customer._id;
     let initialFormData = {};
     if (type === 'branch') {
-      initialFormData = { tenantId, name: '', location: '', manager: '', contactNumber: '', type: 'Store' };
+      const existingBranchIds = new Set(branches.map(b => (b.branchId || b.branchCode || '').trim().toUpperCase()));
+      let bCount = branches.length + 1;
+      while (existingBranchIds.has(`BR-${String(bCount).padStart(3, '0')}`)) { bCount++; }
+      const suggestedBranchId = `BR-${String(bCount).padStart(3, '0')}`;
+      initialFormData = { tenantId, branchId: suggestedBranchId, name: '', location: '', manager: '', contactNumber: '', type: 'Store', ...overrides };
     } else if (type === 'employee') {
-      initialFormData = { tenantId, name: '', email: '', position: '', contactNumber: '', salary: '', status: 'Active' };
+      const existingEmpIds = new Set(employees.map(e => (e.employeeId || '').trim().toUpperCase()));
+      let eCount = employees.length + 1;
+      while (existingEmpIds.has(`EMP-${String(eCount).padStart(3, '0')}`)) { eCount++; }
+      const suggestedEmpId = `EMP-${String(eCount).padStart(3, '0')}`;
+      initialFormData = { tenantId, employeeId: suggestedEmpId, name: '', email: '', position: '', contactNumber: '', salary: '', status: 'Active', ...overrides };
     } else if (type === 'business') {
-      initialFormData = { name: '', category: '', contactPerson: '', phone: '', email: '', taxNumber: '', city: '', address: '', offeringType: 'both', operationsType: 'both' };
+      const existingBizIds = new Set(businesses.map(b => (b.businessId || b.businessCode || '').trim().toUpperCase()));
+      let bizCount = businesses.length + 1;
+      while (existingBizIds.has(`BIZ-${String(bizCount).padStart(3, '0')}`)) { bizCount++; }
+      const suggestedBizId = `BIZ-${String(bizCount).padStart(3, '0')}`;
+      initialFormData = { businessId: suggestedBizId, name: '', category: '', contactPerson: '', phone: '', email: '', taxNumber: '', city: '', address: '', offeringType: 'both', operationsType: 'both', ...overrides };
     } else if (type === 'expense') {
-      initialFormData = { tenantId, title: '', category: '', amount: '', date: new Date().toISOString().split('T')[0], description: '' };
+      initialFormData = { tenantId, title: '', category: '', amount: '', date: new Date().toISOString().split('T')[0], description: '', ...overrides };
     } else if (type === 'sale') {
-      initialFormData = { tenantId, invoiceNo: '', customerName: '', amount: '', date: new Date().toISOString().split('T')[0], status: 'Paid' };
+      initialFormData = { tenantId, invoiceNo: '', customerName: '', amount: '', date: new Date().toISOString().split('T')[0], status: 'Paid', ...overrides };
     } else if (type === 'inventory') {
-      initialFormData = { tenantId, itemName: '', sku: '', category: '', quantity: '', price: '' };
+      initialFormData = { tenantId, itemName: '', sku: '', category: '', quantity: '', price: '', ...overrides };
     } else if (type === 'product') {
-      initialFormData = { tenantId, name: '', sku: '', categoryId: categories[0]?._id || '', subCategoryId: '', price: '', stock: '', description: '' };
+      initialFormData = { tenantId, name: '', sku: '', categoryId: categories[0]?._id || '', subCategoryId: '', price: '', stock: '', description: '', ...overrides };
     } else if (type === 'category') {
-      initialFormData = { tenantId, name: '', itemType: 'product', transactionType: 'both', description: '' };
+      initialFormData = { tenantId, name: '', itemType: 'product', transactionType: 'both', description: '', ...overrides };
     } else if (type === 'subcategory') {
       initialFormData = { tenantId, name: '', categoryId: categories[0]?._id || '', itemType: 'product', transactionType: 'both', description: '' };
     } else if (type === 'customer') {
-      initialFormData = { tenantId, name: '', companyName: '', customerType: 'Retail', email: '', phone: '', address: '' };
+      initialFormData = { tenantId, name: '', companyName: '', customerType: 'Retail', email: '', phone: '', address: '', ...overrides };
     } else if (type === 'purchase') {
-      initialFormData = { tenantId, poNumber: '', supplierName: '', amount: '', date: new Date().toISOString().split('T')[0], status: 'Pending' };
+      initialFormData = { tenantId, poNumber: '', supplierName: '', amount: '', date: new Date().toISOString().split('T')[0], status: 'Pending', ...overrides };
     } else if (type === 'attendance') {
-      initialFormData = { tenantId, date: new Date().toISOString().split('T')[0], status: 'Present', checkIn: '09:00', checkOut: '18:00' };
+      initialFormData = { tenantId, employeeId: employees[0]?._id || '', date: new Date().toISOString().split('T')[0], status: 'Present', checkIn: '09:00', ...overrides };
     } else if (type === 'leave') {
-      initialFormData = { tenantId, type: 'Sick Leave', startDate: new Date().toISOString().split('T')[0], endDate: new Date().toISOString().split('T')[0], reason: '', status: 'Pending' };
+      initialFormData = { tenantId, employeeId: employees[0]?._id || '', type: 'Sick Leave', startDate: new Date().toISOString().split('T')[0], endDate: new Date().toISOString().split('T')[0], reason: '', status: 'Pending', ...overrides };
     } else if (type === 'reminder') {
-      initialFormData = { tenantId, title: '', date: new Date().toISOString().split('T')[0], description: '', repeatMonthly: false, notifyBeforeDays: '', status: 'Pending' };
+      initialFormData = { tenantId, title: '', date: overrides.date || new Date().toISOString().split('T')[0], description: '', repeatMonthly: false, notifyBeforeDays: '', status: 'Pending', ...overrides };
     } else if (type === 'document') {
-      initialFormData = { tenantId, title: '', type: 'Contract', fileUrl: '', expiryDate: '' };
+      initialFormData = { tenantId, title: '', type: 'Contract', fileUrl: '', expiryDate: '', ...overrides };
     }
     setAddModalData({ type, formData: initialFormData });
   };
@@ -1092,6 +1282,7 @@ const CustomerDetails = () => {
       };
     } else if (type === 'branch') {
       initialFormData = {
+        branchId: item.branchId || item.branchCode || '',
         name: item.name || '',
         location: item.location || '',
         manager: item.manager || '',
@@ -1101,6 +1292,7 @@ const CustomerDetails = () => {
       };
     } else if (type === 'employee') {
       initialFormData = {
+        employeeId: item.employeeId || '',
         name: item.name || '',
         email: item.email || '',
         position: item.position || item.designation || '',
@@ -1113,6 +1305,7 @@ const CustomerDetails = () => {
       };
     } else if (type === 'business') {
       initialFormData = {
+        businessId: item.businessId || item.businessCode || '',
         name: item.name || '',
         category: item.category || '',
         contactPerson: item.contactPerson || '',
@@ -1193,6 +1386,7 @@ const CustomerDetails = () => {
       };
     } else if (type === 'attendance') {
       initialFormData = {
+        employeeId: item.employeeId?._id || item.employeeId || '',
         date: item.date ? new Date(item.date).toISOString().split('T')[0] : '',
         status: item.status || 'Present',
         checkIn: item.checkIn || '',
@@ -1200,6 +1394,7 @@ const CustomerDetails = () => {
       };
     } else if (type === 'leave') {
       initialFormData = {
+        employeeId: item.employeeId?._id || item.employeeId || '',
         type: item.type || 'Sick Leave',
         startDate: item.startDate ? new Date(item.startDate).toISOString().split('T')[0] : '',
         endDate: item.endDate ? new Date(item.endDate).toISOString().split('T')[0] : '',
@@ -1555,7 +1750,10 @@ const CustomerDetails = () => {
                               regNo: customer.regNo || '',
                               subscriptionStatus: customer.subscriptionStatus || 'Active',
                               subscriptionBillingCycle: customer.subscriptionBillingCycle || 'Monthly',
-                              subscriptionCustomAmount: customer.subscriptionCustomAmount || ''
+                              subscriptionCustomAmount: customer.subscriptionCustomAmount || '',
+                              employeeLimit: customer.employeeLimit != null ? customer.employeeLimit : '',
+                              branchLimit: customer.branchLimit != null ? customer.branchLimit : '',
+                              businessLimit: customer.businessLimit != null ? customer.businessLimit : ''
                             });
                           }
                         }}
@@ -1953,6 +2151,31 @@ const CustomerDetails = () => {
                           {formatDate(customer.subscriptionRenewalDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))}
                         </p>
                       </div>
+
+                      <div style={{ padding: '16px', borderRadius: '10px', background: '#F8FAFC', border: '1px solid #F1F5F9' }}>
+                        <div style={{ fontSize: '12px', fontWeight: '600', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>Employee Limit</div>
+                        <p style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: customer.employeeLimit ? '#2563EB' : '#059669' }}>
+                          {customer.employeeLimit ? `${customer.employeeLimit} Employees` : 'Unlimited (No Limit)'}
+                        </p>
+                      </div>
+
+                      {(businessType === 3 || businessType === 4) && (
+                        <div style={{ padding: '16px', borderRadius: '10px', background: '#F8FAFC', border: '1px solid #F1F5F9' }}>
+                          <div style={{ fontSize: '12px', fontWeight: '600', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>Branch Limit</div>
+                          <p style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: customer.branchLimit ? '#166534' : '#059669' }}>
+                            {customer.branchLimit ? `${customer.branchLimit} Branches` : 'Unlimited'}
+                          </p>
+                        </div>
+                      )}
+
+                      {businessType === 4 && (
+                        <div style={{ padding: '16px', borderRadius: '10px', background: '#F8FAFC', border: '1px solid #F1F5F9' }}>
+                          <div style={{ fontSize: '12px', fontWeight: '600', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>Business Limit</div>
+                          <p style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: customer.businessLimit ? '#6B21A8' : '#059669' }}>
+                            {customer.businessLimit ? `${customer.businessLimit} Businesses` : 'Unlimited'}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '20px' }}>
@@ -1999,6 +2222,61 @@ const CustomerDetails = () => {
                           style={{ width: '100%', height: '42px', padding: '8px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
                         />
                       </div>
+
+                      <div>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
+                          Max Employee Limit
+                        </label>
+                        <input 
+                          type="number" 
+                          min="0"
+                          value={profileFormData.employeeLimit} 
+                          onChange={e => setProfileFormData({ ...profileFormData, employeeLimit: e.target.value })} 
+                          placeholder="Leave blank for Unlimited"
+                          style={{ width: '100%', height: '42px', padding: '8px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
+                        />
+                        <span style={{ fontSize: '11px', color: '#64748B', display: 'block', marginTop: '4px' }}>
+                          Leave empty or 0 for unlimited employee creation
+                        </span>
+                      </div>
+
+                      {(businessType === 3 || businessType === 4) && (
+                        <div>
+                          <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
+                            Max Branch Limit (Type 3 & 4)
+                          </label>
+                          <input 
+                            type="number" 
+                            min="0"
+                            value={profileFormData.branchLimit} 
+                            onChange={e => setProfileFormData({ ...profileFormData, branchLimit: e.target.value })} 
+                            placeholder="Leave blank for Unlimited"
+                            style={{ width: '100%', height: '42px', padding: '8px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
+                          />
+                          <span style={{ fontSize: '11px', color: '#64748B', display: 'block', marginTop: '4px' }}>
+                            Leave empty or 0 for unlimited branch creation
+                          </span>
+                        </div>
+                      )}
+
+                      {businessType === 4 && (
+                        <div>
+                          <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
+                            Max Business Limit (Type 4)
+                          </label>
+                          <input 
+                            type="number" 
+                            min="0"
+                            value={profileFormData.businessLimit} 
+                            onChange={e => setProfileFormData({ ...profileFormData, businessLimit: e.target.value })} 
+                            placeholder="Leave blank for Unlimited"
+                            style={{ width: '100%', height: '42px', padding: '8px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
+                          />
+                          <span style={{ fontSize: '11px', color: '#64748B', display: 'block', marginTop: '4px' }}>
+                            Leave empty or 0 for unlimited business creation
+                          </span>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -2108,7 +2386,7 @@ const CustomerDetails = () => {
                   onClick={() => openAddModal('attendance')} 
                   style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', background: '#2563EB', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
                 >
-                  <Plus size={17} /> Add Attendance
+                  <Plus size={17} /> Mark Attendance
                 </button>
               </div>
 
@@ -2222,7 +2500,31 @@ const CustomerDetails = () => {
                               <div style={{ fontSize: '11px', color: '#64748B' }}>{item.employeeId?.position || item.employeeId?.email || ''}</div>
                             </td>
                             <td style={{ padding: '14px 20px', color: '#475569', fontSize: '13px' }}>{item.checkIn || '09:00 AM'}</td>
-                            <td style={{ padding: '14px 20px', color: '#475569', fontSize: '13px' }}>{item.checkOut || '06:00 PM'}</td>
+                            <td style={{ padding: '14px 20px', color: '#475569', fontSize: '13px' }}>
+                              {item.checkOut ? (
+                                <span style={{ fontWeight: '600', color: '#0F172A', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                  <Clock size={13} color="#64748B" /> {item.checkOut}
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={() => setCheckoutModalData({
+                                    id: item._id,
+                                    employeeName: item.employeeId?.name || item.employeeName || 'Staff Member',
+                                    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+                                  })}
+                                  style={{
+                                    display: 'inline-flex', alignItems: 'center', gap: '5px',
+                                    padding: '5px 10px', borderRadius: '6px',
+                                    background: '#EFF6FF', color: '#2563EB',
+                                    border: '1px solid #DBEAFE', fontSize: '12px', fontWeight: '600',
+                                    cursor: 'pointer'
+                                  }}
+                                  title="Record Check Out"
+                                >
+                                  <LogOut size={13} /> Check Out
+                                </button>
+                              )}
+                            </td>
                             <td style={{ padding: '14px 20px' }}>
                               <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '12px', background: item.status === 'Present' ? '#DCFCE7' : item.status === 'Absent' ? '#FEE2E2' : '#FEF3C7', color: item.status === 'Present' ? '#15803D' : item.status === 'Absent' ? '#B91C1C' : '#B45309', fontWeight: '600' }}>
                                 {item.status || 'Present'}
@@ -2230,9 +2532,22 @@ const CustomerDetails = () => {
                             </td>
                             <td style={{ padding: '14px 20px', textAlign: 'right' }}>
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
-                                <button onClick={() => setViewModalData({ type: 'attendance', data: item })} style={{ padding: '6px', borderRadius: '6px', background: '#F1F5F9', border: 'none', color: '#475569', cursor: 'pointer' }}><Eye size={15} /></button>
-                                <button onClick={() => openEditModal('attendance', item)} style={{ padding: '6px', borderRadius: '6px', background: '#EFF6FF', border: 'none', color: '#2563EB', cursor: 'pointer' }}><Edit2 size={15} /></button>
-                                <button onClick={() => setDeleteConfirm({ type: 'attendance', id: item._id, name: `Attendance on ${formatDate(item.date)}` })} style={{ padding: '6px', borderRadius: '6px', background: '#FEE2E2', border: 'none', color: '#EF4444', cursor: 'pointer' }}><Trash2 size={15} /></button>
+                                {!item.checkOut && (
+                                  <button 
+                                    onClick={() => setCheckoutModalData({
+                                      id: item._id,
+                                      employeeName: item.employeeId?.name || item.employeeName || 'Staff Member',
+                                      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+                                    })} 
+                                    style={{ padding: '6px', borderRadius: '6px', background: '#EFF6FF', border: 'none', color: '#2563EB', cursor: 'pointer' }}
+                                    title="Check Out Staff"
+                                  >
+                                    <LogOut size={15} />
+                                  </button>
+                                )}
+                                <button onClick={() => setViewModalData({ type: 'attendance', data: item })} style={{ padding: '6px', borderRadius: '6px', background: '#F1F5F9', border: 'none', color: '#475569', cursor: 'pointer' }} title="View Details"><Eye size={15} /></button>
+                                <button onClick={() => openEditModal('attendance', item)} style={{ padding: '6px', borderRadius: '6px', background: '#EFF6FF', border: 'none', color: '#2563EB', cursor: 'pointer' }} title="Edit"><Edit2 size={15} /></button>
+                                <button onClick={() => setDeleteConfirm({ type: 'attendance', id: item._id, name: `Attendance on ${formatDate(item.date)}` })} style={{ padding: '6px', borderRadius: '6px', background: '#FEE2E2', border: 'none', color: '#EF4444', cursor: 'pointer' }} title="Delete"><Trash2 size={15} /></button>
                               </div>
                             </td>
                           </tr>
@@ -2431,7 +2746,7 @@ const CustomerDetails = () => {
           )}
 
           {/* ======================================================== */}
-          {/* SECTION 4: REMINDERS */}
+          {/* SECTION 4: REMINDERS & EVENT CALENDAR */}
           {/* ======================================================== */}
           {activeSection === 'reminders' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
@@ -2441,40 +2756,80 @@ const CustomerDetails = () => {
                 <div>
                   <h1 style={{ fontSize: '24px', fontWeight: '700', color: '#0F172A', margin: '0 0 6px 0', display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563EB', border: '1px solid #DBEAFE' }}>
-                      <BellRing size={22} />
+                      <Calendar size={22} />
                     </div>
-                    Reminders & Alerts
+                    Reminders & Event Calendar
                   </h1>
                   <p style={{ color: '#64748B', fontSize: '14px', margin: 0 }}>
-                    Manage compliance notices, tax filing due dates, and operational recurring alerts.
+                    Click on any date to schedule reminders, monthly repeating bills, and advance notification alerts.
                   </p>
                 </div>
-                <button 
-                  onClick={() => openAddModal('reminder')} 
-                  style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', background: '#2563EB', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
-                >
-                  <Plus size={17} /> Add Reminder
-                </button>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                  {/* View Mode Switcher */}
+                  <div style={{ display: 'flex', background: '#F1F5F9', padding: '4px', borderRadius: '8px' }}>
+                    <button
+                      onClick={() => setRemindersViewMode('calendar')}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px', borderRadius: '6px',
+                        fontSize: '13px', fontWeight: '600', border: 'none', cursor: 'pointer',
+                        background: remindersViewMode === 'calendar' ? 'white' : 'transparent',
+                        color: remindersViewMode === 'calendar' ? '#2563EB' : '#64748B',
+                        boxShadow: remindersViewMode === 'calendar' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <CalendarDays size={16} /> Calendar
+                    </button>
+                    <button
+                      onClick={() => setRemindersViewMode('list')}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px', borderRadius: '6px',
+                        fontSize: '13px', fontWeight: '600', border: 'none', cursor: 'pointer',
+                        background: remindersViewMode === 'list' ? 'white' : 'transparent',
+                        color: remindersViewMode === 'list' ? '#2563EB' : '#64748B',
+                        boxShadow: remindersViewMode === 'list' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <List size={16} /> Table View
+                    </button>
+                  </div>
+
+                  <button 
+                    onClick={() => openAddModal('reminder', { date: formatReminderDateKey(reminderSelectedDate) })} 
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', background: '#2563EB', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
+                  >
+                    <Plus size={17} /> Add Reminder
+                  </button>
+                </div>
               </div>
 
               {/* Stat Cards */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '18px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '18px' }}>
                 <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '18px 20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-                  <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><BellRing size={22} /></div>
+                  <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Calendar size={22} /></div>
                   <div>
-                    <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Total Reminders</p>
+                    <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Total Scheduled</p>
                     <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{reminders.length}</h3>
                   </div>
                 </div>
                 <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '18px 20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-                  <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#FEF3C7', color: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Clock size={22} /></div>
+                  <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#FFFBEB', color: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Bell size={22} /></div>
                   <div>
-                    <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Pending Alerts</p>
+                    <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Pending Action</p>
                     <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{reminders.filter(r => r.status !== 'Completed').length}</h3>
                   </div>
                 </div>
                 <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '18px 20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-                  <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#F5F3FF', color: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><RefreshCw size={22} /></div>
+                  <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#F0FDF4', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CheckCircle2 size={22} /></div>
+                  <div>
+                    <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Completed</p>
+                    <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{reminders.filter(r => r.status === 'Completed').length}</h3>
+                  </div>
+                </div>
+                <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '18px 20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                  <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#F5F3FF', color: '#8B5CF6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Repeat size={22} /></div>
                   <div>
                     <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Monthly Recurring</p>
                     <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{reminders.filter(r => r.repeatMonthly).length}</h3>
@@ -2482,125 +2837,399 @@ const CustomerDetails = () => {
                 </div>
               </div>
 
-              {/* Search, Filter, Export Bar */}
-              <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ flex: '0 1 360px', minWidth: '260px', position: 'relative' }}>
-                  <Search size={18} color="#94A3B8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
-                  <input 
-                    type="text" 
-                    placeholder="Search reminders by title, note, status..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    style={{ width: '100%', padding: '11px 16px 11px 44px', borderRadius: '10px', border: '1px solid #E2E8F0', fontSize: '14px', outline: 'none', background: 'white', boxSizing: 'border-box' }}
-                  />
-                  {searchTerm && (
-                    <button onClick={() => setSearchTerm('')} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', padding: '4px' }}>
-                      <X size={15} />
-                    </button>
-                  )}
-                </div>
+              {/* Mode 1: Calendar View */}
+              {remindersViewMode === 'calendar' ? (
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 340px', gap: '24px', alignItems: 'start' }}>
+                  
+                  {/* Calendar Grid Box */}
+                  <div style={{ background: 'white', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0', boxShadow: '0 4px 12px rgba(15,23,42,0.03)', minWidth: 0, overflow: 'hidden' }}>
+                    
+                    {/* Month Header & Prev/Next */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#0F172A', margin: 0 }}>
+                          {monthNames[reminderCurrentDate.getMonth()]} {reminderCurrentDate.getFullYear()}
+                        </h2>
+                        <button
+                          onClick={handleReminderToday}
+                          style={{
+                            padding: '4px 10px', fontSize: '12px', fontWeight: '600',
+                            background: '#F1F5F9', border: '1px solid #E2E8F0', borderRadius: '6px',
+                            color: '#475569', cursor: 'pointer'
+                          }}
+                        >
+                          Today
+                        </button>
+                      </div>
 
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <select 
-                    value={filterDays} 
-                    onChange={(e) => setFilterDays(e.target.value)}
-                    style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid #E2E8F0', background: 'white', fontSize: '13px', color: '#334155', fontWeight: '500', outline: 'none', cursor: 'pointer' }}
-                  >
-                    <option value="all">Filter: All Time</option>
-                    <option value="today">Today</option>
-                    <option value="7">Last 7 Days</option>
-                    <option value="30">Last 30 Days</option>
-                    <option value="thisMonth">This Month</option>
-                    <option value="custom">Custom Range</option>
-                  </select>
-
-                  {filterDays === 'custom' && (
-                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                      <input type="date" value={customStartDate} onChange={(e) => setCustomStartDate(e.target.value)} style={{ padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', outline: 'none' }} />
-                      <span style={{ color: '#94A3B8', fontSize: '12px' }}>to</span>
-                      <input type="date" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} style={{ padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', outline: 'none' }} />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <button 
+                          onClick={handleReminderPrevMonth}
+                          style={{ width: '32px', height: '32px', borderRadius: '8px', border: '1px solid #E2E8F0', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                          title="Previous month"
+                        >
+                          <ChevronLeft size={18} />
+                        </button>
+                        <button 
+                          onClick={handleReminderNextMonth}
+                          style={{ width: '32px', height: '32px', borderRadius: '8px', border: '1px solid #E2E8F0', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                          title="Next month"
+                        >
+                          <ChevronRight size={18} />
+                        </button>
+                      </div>
                     </div>
-                  )}
 
-                  <button 
-                    onClick={() => exportSectionCSV('reminders')}
-                    style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 14px', borderRadius: '8px', border: '1px solid #E2E8F0', background: 'white', color: '#475569', fontSize: '13px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s' }}
-                    onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'}
-                    onMouseOut={(e) => e.currentTarget.style.background = 'white'}
-                  >
-                    <Download size={15} /> Export
-                  </button>
-                </div>
-              </div>
+                    {/* Weekday Labels */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: '8px', textAlign: 'center', marginBottom: '8px' }}>
+                      {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, i) => (
+                        <div key={i} style={{ fontSize: '12px', fontWeight: '600', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px', padding: '6px 0' }}>
+                          {day}
+                        </div>
+                      ))}
+                    </div>
 
-              {/* Table */}
-              <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
-                <div style={{ overflowX: 'auto', width: '100%' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '800px' }}>
-                    <thead>
-                      <tr style={{ background: '#F8FAFC' }}>
-                        <th style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', width: '60px' }}>S.No</th>
-                        <th onClick={() => requestSort('title')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
-                          <div style={{ display: 'flex', alignItems: 'center' }}>Title {renderSortIcon('title')}</div>
-                        </th>
-                        <th onClick={() => requestSort('date')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
-                          <div style={{ display: 'flex', alignItems: 'center' }}>Due Date {renderSortIcon('date')}</div>
-                        </th>
-                        <th onClick={() => requestSort('repeatMonthly')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
-                          <div style={{ display: 'flex', alignItems: 'center' }}>Repeat Monthly {renderSortIcon('repeatMonthly')}</div>
-                        </th>
-                        <th style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>Advance Notice</th>
-                        <th onClick={() => requestSort('status')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
-                          <div style={{ display: 'flex', alignItems: 'center' }}>Status {renderSortIcon('status')}</div>
-                        </th>
-                        <th style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', textAlign: 'right' }}>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredReminders.length === 0 ? (
-                        <tr><td colSpan="7" style={{ padding: '36px 20px', textAlign: 'center', color: '#64748B' }}>No reminders found.</td></tr>
-                      ) : (
-                        paginatedReminders.map((item, idx) => (
-                          <tr key={item._id || idx} style={{ borderBottom: '1px solid #F1F5F9', transition: 'background 0.15s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
-                            <td style={{ padding: '14px 20px', fontSize: '13px', color: '#64748B', fontWeight: '500' }}>{startIndex + idx + 1}</td>
-                            <td style={{ padding: '14px 20px' }}>
-                              <div style={{ fontWeight: '600', color: '#0F172A', fontSize: '13px' }}>{item.title}</div>
-                              {item.description && <div style={{ fontSize: '11px', color: '#64748B' }}>{item.description}</div>}
-                            </td>
-                            <td style={{ padding: '14px 20px', color: '#0F172A', fontWeight: '500', fontSize: '13px' }}>{formatDate(item.date)}</td>
-                            <td style={{ padding: '14px 20px' }}>
-                              <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px', background: item.repeatMonthly ? '#F5F3FF' : '#F1F5F9', color: item.repeatMonthly ? '#7C3AED' : '#64748B', fontWeight: '600' }}>
-                                {item.repeatMonthly ? 'Yes (Monthly)' : 'No'}
+                    {/* Calendar Days Grid */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: '8px' }}>
+                      {reminderCalendarDays.map((slot, index) => {
+                        const dayReminders = getRemindersForDate(slot.date);
+                        const isCurrent = isReminderToday(slot.date);
+                        const isSel = isReminderSelected(slot.date);
+
+                        return (
+                          <div
+                            key={index}
+                            onClick={() => setReminderSelectedDate(slot.date)}
+                            style={{
+                              minHeight: '84px',
+                              minWidth: 0,
+                              overflow: 'hidden',
+                              boxSizing: 'border-box',
+                              borderRadius: '10px',
+                              padding: '8px',
+                              cursor: 'pointer',
+                              border: isSel 
+                                ? '2px solid #2563EB' 
+                                : isCurrent 
+                                  ? '1px solid #93C5FD' 
+                                  : '1px solid #F1F5F9',
+                              background: isSel 
+                                ? '#EFF6FF' 
+                                : slot.isCurrentMonth 
+                                  ? '#FFFFFF' 
+                                  : '#F8FAFC',
+                              opacity: slot.isCurrentMonth ? 1 : 0.5,
+                              transition: 'all 0.15s ease',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'space-between',
+                              position: 'relative'
+                            }}
+                            onMouseOver={e => { if (!isSel) e.currentTarget.style.borderColor = '#2563EB'; }}
+                            onMouseOut={e => { if (!isSel) e.currentTarget.style.borderColor = isCurrent ? '#93C5FD' : '#F1F5F9'; }}
+                          >
+                            {/* Top Row: Date Number & Count Badge */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{
+                                width: '24px', height: '24px', borderRadius: '50%',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontSize: '13px', fontWeight: isCurrent ? '700' : '500',
+                                background: isCurrent ? '#2563EB' : 'transparent',
+                                color: isCurrent ? 'white' : '#0F172A'
+                              }}>
+                                {slot.date.getDate()}
                               </span>
-                            </td>
-                            <td style={{ padding: '14px 20px', color: '#475569', fontSize: '13px' }}>{item.notifyBeforeDays ? `${item.notifyBeforeDays} days prior` : 'On the day'}</td>
-                            <td style={{ padding: '14px 20px' }}>
-                              <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '12px', background: item.status === 'Completed' ? '#DCFCE7' : '#FEF3C7', color: item.status === 'Completed' ? '#15803D' : '#B45309', fontWeight: '600' }}>
-                                {item.status || 'Pending'}
-                              </span>
-                            </td>
-                            <td style={{ padding: '14px 20px', textAlign: 'right' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
-                                <button onClick={() => setViewModalData({ type: 'reminder', data: item })} style={{ padding: '6px', borderRadius: '6px', background: '#F1F5F9', border: 'none', color: '#475569', cursor: 'pointer' }}><Eye size={15} /></button>
-                                <button onClick={() => openEditModal('reminder', item)} style={{ padding: '6px', borderRadius: '6px', background: '#EFF6FF', border: 'none', color: '#2563EB', cursor: 'pointer' }}><Edit2 size={15} /></button>
-                                <button onClick={() => setDeleteConfirm({ type: 'reminder', id: item._id, name: item.title })} style={{ padding: '6px', borderRadius: '6px', background: '#FEE2E2', border: 'none', color: '#EF4444', cursor: 'pointer' }}><Trash2 size={15} /></button>
+
+                              {dayReminders.length > 0 && (
+                                <span style={{ fontSize: '10px', fontWeight: '700', color: '#2563EB', background: '#DBEAFE', borderRadius: '10px', padding: '1px 5px' }}>
+                                  {dayReminders.length}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Event Badges inside Cell */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '4px', minWidth: 0, width: '100%', overflow: 'hidden' }}>
+                              {dayReminders.slice(0, 2).map((item, idx) => (
+                                <div
+                                  key={idx}
+                                  title={item.title}
+                                  style={{
+                                    fontSize: '11px',
+                                    padding: '2px 5px',
+                                    borderRadius: '4px',
+                                    background: '#EFF6FF',
+                                    color: '#1E40AF',
+                                    border: '1px solid #DBEAFE',
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    fontWeight: '500',
+                                    minWidth: 0,
+                                    width: '100%',
+                                    boxSizing: 'border-box',
+                                    textDecoration: item.status === 'Completed' ? 'line-through' : 'none'
+                                  }}
+                                >
+                                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#2563EB', flexShrink: 0 }}></span>
+                                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>{item.title}</span>
+                                  {item.repeatMonthly && <Repeat size={10} style={{ flexShrink: 0 }} />}
+                                </div>
+                              ))}
+                              {dayReminders.length > 2 && (
+                                <span style={{ fontSize: '10px', color: '#94A3B8', textAlign: 'right', fontWeight: '600' }}>
+                                  +{dayReminders.length - 2} more
+                                </span>
+                              )}
+                            </div>
+
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                  </div>
+
+                  {/* Side Panel: Selected Date Details */}
+                  <div style={{ background: 'white', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0', boxShadow: '0 4px 12px rgba(15,23,42,0.03)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid #E2E8F0' }}>
+                      <div>
+                        <p style={{ margin: 0, fontSize: '12px', fontWeight: '600', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          Selected Date
+                        </p>
+                        <h3 style={{ margin: '2px 0 0 0', fontSize: '18px', fontWeight: '700', color: '#0F172A' }}>
+                          {monthNames[reminderSelectedDate.getMonth()]} {reminderSelectedDate.getDate()}, {reminderSelectedDate.getFullYear()}
+                        </h3>
+                      </div>
+                      <button
+                        onClick={() => openAddModal('reminder', { date: formatReminderDateKey(reminderSelectedDate) })}
+                        style={{
+                          width: '32px', height: '32px', borderRadius: '8px',
+                          background: '#EFF6FF', border: '1px solid #DBEAFE', color: '#2563EB',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'
+                        }}
+                        title="Add event for this date"
+                      >
+                        <Plus size={18} />
+                      </button>
+                    </div>
+
+                    {/* List of Reminders for this day */}
+                    {selectedDayReminders.length === 0 ? (
+                      <div style={{ padding: '36px 16px', textAlign: 'center', color: '#94A3B8' }}>
+                        <Bell size={32} style={{ margin: '0 auto 12px auto', opacity: 0.3 }} />
+                        <p style={{ margin: 0, fontSize: '14px', fontWeight: '500' }}>No reminders scheduled</p>
+                        <p style={{ margin: '4px 0 16px 0', fontSize: '12px', color: '#64748B' }}>
+                          Click below to set an alert or recurring monthly event.
+                        </p>
+                        <button
+                          onClick={() => openAddModal('reminder', { date: formatReminderDateKey(reminderSelectedDate) })}
+                          className="btn-primary"
+                          style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '6px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                        >
+                          <Plus size={14} /> Schedule for this day
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {selectedDayReminders.map(item => (
+                          <div 
+                            key={item._id}
+                            style={{
+                              padding: '14px',
+                              borderRadius: '10px',
+                              background: item.status === 'Completed' ? '#F8FAFC' : 'white',
+                              border: '1px solid #E2E8F0',
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+                            }}
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                              <div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                  {item.repeatMonthly && (
+                                    <span style={{ fontSize: '11px', fontWeight: '600', padding: '2px 6px', borderRadius: '4px', background: '#F5F3FF', color: '#6D28D9', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                      <Repeat size={11} /> Monthly (Current Year)
+                                    </span>
+                                  )}
+                                  {item.notifyBeforeDays > 0 && (
+                                    <span style={{ fontSize: '11px', fontWeight: '600', padding: '2px 6px', borderRadius: '4px', background: '#FEF3C7', color: '#B45309', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                      <Bell size={11} /> {item.notifyBeforeDays}d Advance
+                                    </span>
+                                  )}
+                                </div>
+                                <h4 style={{ 
+                                  fontSize: '15px', fontWeight: '600', color: '#0F172A', margin: '6px 0 0 0',
+                                  textDecoration: item.status === 'Completed' ? 'line-through' : 'none',
+                                  opacity: item.status === 'Completed' ? 0.6 : 1
+                                }}>
+                                  {item.title}
+                                </h4>
                               </div>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
+
+                              {/* Quick action buttons */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <button
+                                  onClick={() => handleToggleReminderStatus(item)}
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: item.status === 'Completed' ? '#16A34A' : '#94A3B8', padding: '4px' }}
+                                  title={item.status === 'Completed' ? 'Mark Pending' : 'Mark Complete'}
+                                >
+                                  <CheckCircle2 size={18} />
+                                </button>
+                                <button
+                                  onClick={() => openEditModal('reminder', item)}
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8', padding: '4px' }}
+                                  title="Edit"
+                                >
+                                  <Pencil size={15} />
+                                </button>
+                                <button
+                                  onClick={() => setDeleteConfirm({ type: 'reminder', id: item._id, name: item.title })}
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', padding: '4px' }}
+                                  title="Delete"
+                                >
+                                  <Trash2 size={15} />
+                                </button>
+                              </div>
+                            </div>
+
+                            {item.description && (
+                              <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#64748B', lineHeight: '1.4' }}>
+                                {item.description}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
                 </div>
-                <TablePagination
-                  currentPage={currentPage}
-                  setCurrentPage={setCurrentPage}
-                  totalItems={filteredReminders.length}
-                  itemsPerPage={itemsPerPage}
-                  setItemsPerPage={setItemsPerPage}
-                  itemName="reminders"
-                />
-              </div>
+              ) : (
+                /* Mode 2: Table / List View */
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {/* Search, Filter, Export Bar */}
+                  <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ flex: '0 1 360px', minWidth: '260px', position: 'relative' }}>
+                      <Search size={18} color="#94A3B8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
+                      <input 
+                        type="text" 
+                        placeholder="Search reminders by title, note, status..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        style={{ width: '100%', padding: '11px 16px 11px 44px', borderRadius: '10px', border: '1px solid #E2E8F0', fontSize: '14px', outline: 'none', background: 'white', boxSizing: 'border-box' }}
+                      />
+                      {searchTerm && (
+                        <button onClick={() => setSearchTerm('')} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', padding: '4px' }}>
+                          <X size={15} />
+                        </button>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <select 
+                        value={filterDays} 
+                        onChange={(e) => setFilterDays(e.target.value)}
+                        style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid #E2E8F0', background: 'white', fontSize: '13px', color: '#334155', fontWeight: '500', outline: 'none', cursor: 'pointer' }}
+                      >
+                        <option value="all">Filter: All Time</option>
+                        <option value="today">Today</option>
+                        <option value="7">Last 7 Days</option>
+                        <option value="30">Last 30 Days</option>
+                        <option value="thisMonth">This Month</option>
+                        <option value="custom">Custom Range</option>
+                      </select>
+
+                      {filterDays === 'custom' && (
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                          <input type="date" value={customStartDate} onChange={(e) => setCustomStartDate(e.target.value)} style={{ padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', outline: 'none' }} />
+                          <span style={{ color: '#94A3B8', fontSize: '12px' }}>to</span>
+                          <input type="date" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} style={{ padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '12px', outline: 'none' }} />
+                        </div>
+                      )}
+
+                      <button 
+                        onClick={() => exportSectionCSV('reminders')}
+                        style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 14px', borderRadius: '8px', border: '1px solid #E2E8F0', background: 'white', color: '#475569', fontSize: '13px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s' }}
+                        onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'}
+                        onMouseOut={(e) => e.currentTarget.style.background = 'white'}
+                      >
+                        <Download size={15} /> Export
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Table */}
+                  <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
+                    <div style={{ overflowX: 'auto', width: '100%' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '800px' }}>
+                        <thead>
+                          <tr style={{ background: '#F8FAFC' }}>
+                            <th style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', width: '60px' }}>S.No</th>
+                            <th onClick={() => requestSort('title')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
+                              <div style={{ display: 'flex', alignItems: 'center' }}>Title {renderSortIcon('title')}</div>
+                            </th>
+                            <th onClick={() => requestSort('date')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
+                              <div style={{ display: 'flex', alignItems: 'center' }}>Due Date {renderSortIcon('date')}</div>
+                            </th>
+                            <th onClick={() => requestSort('repeatMonthly')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
+                              <div style={{ display: 'flex', alignItems: 'center' }}>Repeat Monthly {renderSortIcon('repeatMonthly')}</div>
+                            </th>
+                            <th style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>Advance Notice</th>
+                            <th onClick={() => requestSort('status')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
+                              <div style={{ display: 'flex', alignItems: 'center' }}>Status {renderSortIcon('status')}</div>
+                            </th>
+                            <th style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', textAlign: 'right' }}>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredReminders.length === 0 ? (
+                            <tr><td colSpan="7" style={{ padding: '36px 20px', textAlign: 'center', color: '#64748B' }}>No reminders found.</td></tr>
+                          ) : (
+                            paginatedReminders.map((item, idx) => (
+                              <tr key={item._id || idx} style={{ borderBottom: '1px solid #F1F5F9', transition: 'background 0.15s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
+                                <td style={{ padding: '14px 20px', fontSize: '13px', color: '#64748B', fontWeight: '500' }}>{startIndex + idx + 1}</td>
+                                <td style={{ padding: '14px 20px' }}>
+                                  <div style={{ fontWeight: '600', color: '#0F172A', fontSize: '13px' }}>{item.title}</div>
+                                  {item.description && <div style={{ fontSize: '11px', color: '#64748B' }}>{item.description}</div>}
+                                </td>
+                                <td style={{ padding: '14px 20px', color: '#0F172A', fontWeight: '500', fontSize: '13px' }}>{formatDate(item.date)}</td>
+                                <td style={{ padding: '14px 20px' }}>
+                                  <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px', background: item.repeatMonthly ? '#F5F3FF' : '#F1F5F9', color: item.repeatMonthly ? '#7C3AED' : '#64748B', fontWeight: '600' }}>
+                                    {item.repeatMonthly ? 'Yes (Monthly)' : 'No'}
+                                  </span>
+                                </td>
+                                <td style={{ padding: '14px 20px', color: '#475569', fontSize: '13px' }}>{item.notifyBeforeDays ? `${item.notifyBeforeDays} days prior` : 'On the day'}</td>
+                                <td style={{ padding: '14px 20px' }}>
+                                  <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '12px', background: item.status === 'Completed' ? '#DCFCE7' : '#FEF3C7', color: item.status === 'Completed' ? '#15803D' : '#B45309', fontWeight: '600' }}>
+                                    {item.status || 'Pending'}
+                                  </span>
+                                </td>
+                                <td style={{ padding: '14px 20px', textAlign: 'right' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
+                                    <button onClick={() => setViewModalData({ type: 'reminder', data: item })} style={{ padding: '6px', borderRadius: '6px', background: '#F1F5F9', border: 'none', color: '#475569', cursor: 'pointer' }}><Eye size={15} /></button>
+                                    <button onClick={() => openEditModal('reminder', item)} style={{ padding: '6px', borderRadius: '6px', background: '#EFF6FF', border: 'none', color: '#2563EB', cursor: 'pointer' }}><Edit2 size={15} /></button>
+                                    <button onClick={() => setDeleteConfirm({ type: 'reminder', id: item._id, name: item.title })} style={{ padding: '6px', borderRadius: '6px', background: '#FEE2E2', border: 'none', color: '#EF4444', cursor: 'pointer' }}><Trash2 size={15} /></button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                    <TablePagination
+                      currentPage={currentPage}
+                      setCurrentPage={setCurrentPage}
+                      totalItems={filteredReminders.length}
+                      itemsPerPage={itemsPerPage}
+                      setItemsPerPage={setItemsPerPage}
+                      itemName="reminders"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -4225,9 +4854,13 @@ const CustomerDetails = () => {
                                 </div>
                                 <div>
                                   <span style={{ fontSize: '14px', fontWeight: '700', color: '#0F172A', display: 'block', lineHeight: '1.3' }}>{branch.name}</span>
-                                  <span style={{ fontSize: '11px', color: '#64748B', fontWeight: '500' }}>
-                                    {branch.type || 'Branch'} &bull; ID: BR-{branch.name ? branch.name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase() : '0000'}
-                                  </span>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
+                                    <span>{branch.type || 'Branch'}</span>
+                                    <span>&bull;</span>
+                                    <span style={{ fontFamily: 'monospace', fontWeight: '600', color: '#2563EB', background: '#EFF6FF', padding: '1px 6px', borderRadius: '4px', border: '1px solid #DBEAFE' }}>
+                                      {branch.branchId || branch.branchCode || (branch.name ? `BR-${branch.name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase()}` : 'BR-0000')}
+                                    </span>
+                                  </div>
                                 </div>
                               </div>
                             </td>
@@ -4500,9 +5133,9 @@ const CustomerDetails = () => {
                                 </div>
                                 <div>
                                   <span style={{ fontSize: '14px', fontWeight: '700', color: '#0F172A', display: 'block', lineHeight: '1.3' }}>{emp.name}</span>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#64748B' }}>
-                                    <span style={{ fontFamily: 'monospace', fontWeight: '600' }}>
-                                      EMP-{emp.name ? emp.name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase() : '0000'}
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
+                                    <span style={{ fontFamily: 'monospace', fontWeight: '600', color: '#2563EB', background: '#EFF6FF', padding: '1px 6px', borderRadius: '4px', border: '1px solid #DBEAFE' }}>
+                                      {emp.employeeId || (emp.name ? `EMP-${emp.name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase()}` : 'EMP-0000')}
                                     </span>
                                     {emp.contactNumber && <span>&bull; {emp.contactNumber}</span>}
                                   </div>
@@ -4770,9 +5403,11 @@ const CustomerDetails = () => {
                                 </div>
                                 <div>
                                   <span style={{ fontSize: '14px', fontWeight: '700', color: '#0F172A', display: 'block', lineHeight: '1.3' }}>{b.name}</span>
-                                  <span style={{ fontSize: '11px', color: '#64748B', fontFamily: 'monospace', fontWeight: '500' }}>
-                                    ID: BZ-{b.name ? b.name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase() : '0000'}
-                                  </span>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
+                                    <span style={{ fontFamily: 'monospace', fontWeight: '600', color: '#2563EB', background: '#EFF6FF', padding: '1px 6px', borderRadius: '4px', border: '1px solid #DBEAFE' }}>
+                                      {b.businessId || b.businessCode || (b.name ? `BIZ-${b.name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase()}` : 'BIZ-0000')}
+                                    </span>
+                                  </div>
                                 </div>
                               </div>
                             </td>
@@ -5013,8 +5648,17 @@ const CustomerDetails = () => {
             <form onSubmit={handleEditSubmit}>
               <div style={{ padding: '24px', maxHeight: '70vh', overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
                 {Object.entries(editModalData.formData).map(([fieldKey, val]) => {
-                  const label = fieldKey.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-                  const isSelect = ['subscriptionStatus', 'subscriptionBillingCycle', 'status', 'isLoginEnabled', 'offeringType', 'type', 'itemType', 'transactionType', 'categoryId', 'subCategoryId'].includes(fieldKey) && !fieldKey.toLowerCase().includes('phone');
+                  const isEmployeeFieldInEmployee = editModalData.type === 'employee' && fieldKey === 'employeeId';
+                  const label = isEmployeeFieldInEmployee 
+                    ? 'Employee ID' 
+                    : fieldKey === 'employeeId' 
+                    ? 'Employee' 
+                    : fieldKey === 'branchId' 
+                    ? 'Branch ID' 
+                    : fieldKey === 'businessId' 
+                    ? 'Business ID' 
+                    : fieldKey.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                  const isSelect = !isEmployeeFieldInEmployee && ['subscriptionStatus', 'subscriptionBillingCycle', 'status', 'isLoginEnabled', 'offeringType', 'type', 'itemType', 'transactionType', 'categoryId', 'subCategoryId', 'employeeId'].includes(fieldKey) && !fieldKey.toLowerCase().includes('phone');
 
                   return (
                     <div key={fieldKey} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -5032,6 +5676,14 @@ const CustomerDetails = () => {
                           }}
                           style={{ padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', outline: 'none', background: 'white' }}
                         >
+                          {fieldKey === 'employeeId' && (
+                            <>
+                              <option value="">Select Employee...</option>
+                              {employees.map(emp => (
+                                <option key={emp._id} value={emp._id}>{emp.name}{emp.position ? ` (${emp.position})` : ''}</option>
+                              ))}
+                            </>
+                          )}
                           {fieldKey === 'categoryId' && (
                             <>
                               <option value="">Select Category</option>
@@ -5178,7 +5830,7 @@ const CustomerDetails = () => {
             <div style={{ padding: '20px 24px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '700', color: '#0F172A' }}>
-                  Add {addModalData.type.charAt(0).toUpperCase() + addModalData.type.slice(1)}
+                  {addModalData.type === 'attendance' ? 'Mark Attendance' : `Add ${addModalData.type.charAt(0).toUpperCase() + addModalData.type.slice(1)}`}
                 </h3>
                 <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#64748B' }}>Fill in the details below</p>
               </div>
@@ -5187,13 +5839,22 @@ const CustomerDetails = () => {
             <form onSubmit={handleAddSubmit} style={{ flex: 1, overflowY: 'auto' }}>
               <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 {Object.entries(addModalData.formData)
-                  .filter(([k]) => !['tenantId'].includes(k))
+                  .filter(([k]) => !['tenantId'].includes(k) && !(addModalData.type === 'attendance' && k === 'checkOut'))
                   .map(([fieldKey, fieldValue]) => {
-                    const label = fieldKey.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
+                    const isEmployeeFieldInEmployee = addModalData.type === 'employee' && fieldKey === 'employeeId';
+                    const label = isEmployeeFieldInEmployee 
+                      ? 'Employee ID' 
+                      : fieldKey === 'employeeId' 
+                      ? 'Employee' 
+                      : fieldKey === 'branchId' 
+                      ? 'Branch ID' 
+                      : fieldKey === 'businessId' 
+                      ? 'Business ID' 
+                      : fieldKey.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
                     const isBoolean = typeof fieldValue === 'boolean';
                     const isDate = fieldKey.toLowerCase().includes('date');
                     const isNumber = typeof fieldValue === 'number' || ['amount', 'price', 'salary', 'stock', 'quantity', 'notifyBeforeDays'].includes(fieldKey);
-                    const isSelect = ['status', 'type', 'customerType', 'offeringType', 'subscriptionStatus', 'subscriptionBillingCycle', 'itemType', 'transactionType', 'categoryId', 'subCategoryId'].includes(fieldKey);
+                    const isSelect = !isEmployeeFieldInEmployee && ['status', 'type', 'customerType', 'offeringType', 'subscriptionStatus', 'subscriptionBillingCycle', 'itemType', 'transactionType', 'categoryId', 'subCategoryId', 'employeeId'].includes(fieldKey);
                     const isTextarea = ['description', 'reason', 'address'].includes(fieldKey);
                     const placeholder = getFieldPlaceholder(fieldKey, addModalData.type);
                     return (
@@ -5214,6 +5875,14 @@ const CustomerDetails = () => {
                             onChange={(e) => setAddModalData(p => ({ ...p, formData: { ...p.formData, [fieldKey]: e.target.value } }))}
                             style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', outline: 'none', background: '#F8FAFC' }}
                           >
+                            {fieldKey === 'employeeId' && (
+                              <>
+                                <option value="">Select Employee...</option>
+                                {employees.map(emp => (
+                                  <option key={emp._id} value={emp._id}>{emp.name}{emp.position ? ` (${emp.position})` : ''}</option>
+                                ))}
+                              </>
+                            )}
                             {fieldKey === 'categoryId' && (
                               <>
                                 <option value="">Select Category...</option>
@@ -5282,7 +5951,7 @@ const CustomerDetails = () => {
                 </button>
                 <button type="submit" disabled={savingAction} className="btn-primary" style={{ fontSize: '13px', padding: '8px 18px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                   {savingAction ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Plus size={14} />}
-                  Add {addModalData.type.charAt(0).toUpperCase() + addModalData.type.slice(1)}
+                  {addModalData.type === 'attendance' ? 'Mark Attendance' : `Add ${addModalData.type.charAt(0).toUpperCase() + addModalData.type.slice(1)}`}
                 </button>
               </div>
             </form>
@@ -5317,6 +5986,64 @@ const CustomerDetails = () => {
                 Yes, Delete
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* CONFIRM CHECK OUT MODAL */}
+      {/* ============================================================ */}
+      {checkoutModalData && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '20px' }}>
+          <div style={{ background: 'white', borderRadius: '16px', maxWidth: '420px', width: '100%', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F8FAFC' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <LogOut size={18} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: '#0F172A' }}>Confirm Check Out</h3>
+                  <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#64748B' }}>{checkoutModalData.employeeName}</p>
+                </div>
+              </div>
+              <button type="button" onClick={() => setCheckoutModalData(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748B', display: 'flex', alignItems: 'center', padding: '4px' }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmCheckout} style={{ padding: '24px' }}>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '8px' }}>
+                  Check Out Time <span style={{ color: '#EF4444' }}>*</span>
+                </label>
+                <input
+                  type="time"
+                  required
+                  value={checkoutModalData.time}
+                  onChange={(e) => setCheckoutModalData(prev => ({ ...prev, time: e.target.value }))}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none', background: '#F8FAFC', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setCheckoutModalData(null)}
+                  style={{ padding: '9px 16px', background: '#F1F5F9', color: '#475569', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingAction}
+                  style={{ padding: '9px 20px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  {savingAction && <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />}
+                  <LogOut size={14} />
+                  Confirm Check Out
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

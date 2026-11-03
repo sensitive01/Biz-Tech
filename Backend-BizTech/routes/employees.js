@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Employee = require('../models/Employee');
 const Branch = require('../models/Branch');
+const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { checkEmailInUse } = require('../utils/emailValidator');
@@ -30,6 +31,18 @@ const DEFAULT_EMPLOYEE_MODULES = [
   'documents',
   'reminders'
 ];
+
+const escapeRegex = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const generateNextEmployeeId = async (tenantId) => {
+  const existing = await Employee.find({ tenantId }).select('employeeId');
+  const existingIds = new Set(existing.map(e => (e.employeeId || '').trim().toUpperCase()));
+  let count = existing.length + 1;
+  while (existingIds.has(`EMP-${String(count).padStart(3, '0')}`)) {
+    count++;
+  }
+  return `EMP-${String(count).padStart(3, '0')}`;
+};
 
 // Helper to sanitize employee object before returning to client
 const sanitizeEmployee = (emp) => {
@@ -91,6 +104,17 @@ router.get('/', auth, async (req, res) => {
 // @desc    Add a new employee for the authenticated tenant
 router.post('/', auth, async (req, res) => {
   try {
+    // Check employee creation limit configured by Admin for this tenant (if not set, unlimited)
+    const tenantUser = await User.findById(req.user.id);
+    if (tenantUser && typeof tenantUser.employeeLimit === 'number' && tenantUser.employeeLimit > 0) {
+      const currentEmployeeCount = await Employee.countDocuments({ tenantId: req.user.id });
+      if (currentEmployeeCount >= tenantUser.employeeLimit) {
+        return res.status(400).json({ 
+          error: `Employee creation limit of ${tenantUser.employeeLimit} reached. Please contact your administrator to increase the employee limit.` 
+        });
+      }
+    }
+
     let branchId = req.body.branchId;
     let branchName = req.body.branchName;
     if (req.user.role === 'branch' && req.user.branchId) {
@@ -132,6 +156,22 @@ router.post('/', auth, async (req, res) => {
         ? Array.from(new Set([...req.body.modules, ...DEFAULT_EMPLOYEE_MODULES]))
         : [...DEFAULT_EMPLOYEE_MODULES, 'products_services', 'inventory', 'purchases', 'sales']
     };
+
+    let cleanEmployeeId = (req.body.employeeId || '').trim();
+    if (!cleanEmployeeId) {
+      cleanEmployeeId = await generateNextEmployeeId(req.user.id);
+    } else {
+      const duplicateEmp = await Employee.findOne({
+        tenantId: req.user.id,
+        employeeId: { $regex: new RegExp(`^${escapeRegex(cleanEmployeeId)}$`, 'i') }
+      });
+      if (duplicateEmp) {
+        return res.status(400).json({
+          error: `Employee ID "${cleanEmployeeId}" is already assigned to employee "${duplicateEmp.name}". Please use a unique Employee ID.`
+        });
+      }
+    }
+    employeeData.employeeId = cleanEmployeeId;
 
     if (employeeData.email && employeeData.email.trim()) {
       employeeData.email = employeeData.email.trim().toLowerCase();
@@ -262,6 +302,24 @@ router.put('/:id', auth, async (req, res) => {
 
     const updateData = { ...req.body };
     delete updateData.tenantId; // Never reassign tenantId
+
+    if (updateData.employeeId !== undefined) {
+      const cleanEmployeeId = (updateData.employeeId || '').trim();
+      if (!cleanEmployeeId) {
+        return res.status(400).json({ error: 'Employee ID cannot be empty.' });
+      }
+      const duplicateEmp = await Employee.findOne({
+        tenantId: req.user.id,
+        _id: { $ne: req.params.id },
+        employeeId: { $regex: new RegExp(`^${escapeRegex(cleanEmployeeId)}$`, 'i') }
+      });
+      if (duplicateEmp) {
+        return res.status(400).json({
+          error: `Employee ID "${cleanEmployeeId}" is already assigned to employee "${duplicateEmp.name}". Please use a unique Employee ID.`
+        });
+      }
+      updateData.employeeId = cleanEmployeeId;
+    }
 
     if (updateData.email && updateData.email.trim()) {
       updateData.email = updateData.email.trim().toLowerCase();

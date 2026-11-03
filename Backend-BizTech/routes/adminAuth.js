@@ -67,6 +67,41 @@ const getAdminFromRequest = async (req) => {
   return admin;
 };
 
+const escapeRegex = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const generateNextEmployeeId = async (tenantId) => {
+  const existing = await Employee.find({ tenantId }).select('employeeId');
+  const existingIds = new Set(existing.map(e => (e.employeeId || '').trim().toUpperCase()));
+  let count = existing.length + 1;
+  while (existingIds.has(`EMP-${String(count).padStart(3, '0')}`)) {
+    count++;
+  }
+  return `EMP-${String(count).padStart(3, '0')}`;
+};
+
+const generateNextBranchId = async (tenantId) => {
+  const existing = await Branch.find({ tenantId }).select('branchId branchCode');
+  const existingIds = new Set(
+    existing.map(b => (b.branchId || b.branchCode || '').trim().toUpperCase())
+  );
+  let count = existing.length + 1;
+  while (existingIds.has(`BR-${String(count).padStart(3, '0')}`)) {
+    count++;
+  }
+  return `BR-${String(count).padStart(3, '0')}`;
+};
+
+const generateNextBusinessId = (businesses = []) => {
+  const existingIds = new Set(
+    businesses.map(b => (b.businessId || b.businessCode || '').trim().toUpperCase())
+  );
+  let count = businesses.length + 1;
+  while (existingIds.has(`BIZ-${String(count).padStart(3, '0')}`)) {
+    count++;
+  }
+  return `BIZ-${String(count).padStart(3, '0')}`;
+};
+
 // @route   POST /api/admin/login
 // @desc    Admin login
 router.post('/login', async (req, res) => {
@@ -322,7 +357,10 @@ router.get('/users/:id/details', async (req, res) => {
         subscriptionStatus: user.subscriptionStatus || 'Active',
         subscriptionBillingCycle: user.subscriptionBillingCycle || 'Monthly',
         subscriptionRenewalDate: user.subscriptionRenewalDate,
-        subscriptionCustomAmount: user.subscriptionCustomAmount
+        subscriptionCustomAmount: user.subscriptionCustomAmount,
+        employeeLimit: user.employeeLimit ?? null,
+        branchLimit: user.branchLimit ?? null,
+        businessLimit: user.businessLimit ?? null
       },
       branches: branches || [],
       employees: employees || [],
@@ -501,7 +539,10 @@ router.get('/subscriptions', async (req, res) => {
         startDate: user.createdAt,
         renewalDate,
         daysUntilRenewal,
-        modules: user.modules || []
+        modules: user.modules || [],
+        employeeLimit: user.employeeLimit ?? null,
+        branchLimit: user.branchLimit ?? null,
+        businessLimit: user.businessLimit ?? null
       };
     });
 
@@ -521,6 +562,153 @@ router.get('/subscriptions', async (req, res) => {
   }
 });
 
+// @route   GET /api/admin/dashboard-stats
+// @desc    Get real-time dynamic dashboard statistics
+router.get('/dashboard-stats', async (req, res) => {
+  try {
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
+    const sixtyDaysAgo = new Date(now.getTime() - (60 * 24 * 60 * 60 * 1000));
+
+    const [
+      users,
+      pricingPlans,
+      totalEmployees,
+      totalBranches,
+      totalProducts,
+      salesAgg,
+      recentUsers
+    ] = await Promise.all([
+      User.find().select('businessType subscriptionStatus subscriptionCustomAmount createdAt businesses fullName businessName email phone city userId'),
+      Pricing.find(),
+      Employee.countDocuments(),
+      Branch.countDocuments(),
+      Product.countDocuments(),
+      Sale.aggregate([
+        { $group: { _id: null, totalAmount: { $sum: '$amount' }, count: { $sum: 1 } } }
+      ]),
+      User.find().sort({ createdAt: -1 }).limit(6).lean()
+    ]);
+
+    const planPriceMap = {};
+    pricingPlans.forEach(p => {
+      planPriceMap[p.customerType] = p.amount;
+    });
+
+    let totalActive = 0;
+    let totalPending = 0;
+    let totalMrr = 0;
+    let newThisMonth = 0;
+    let newLastMonth = 0;
+    const typeCounts = { 1: 0, 2: 0, 3: 0, 4: 0 };
+    let totalBusinesses = 0;
+
+    users.forEach(u => {
+      const type = u.businessType || 1;
+      typeCounts[type] = (typeCounts[type] || 0) + 1;
+
+      if (u.businesses && Array.isArray(u.businesses)) {
+        totalBusinesses += u.businesses.length;
+      }
+
+      const status = u.subscriptionStatus || 'Active';
+      if (status === 'Active') {
+        totalActive += 1;
+        const matchedPlanKey = Object.keys(planPriceMap).find(k => k.includes(String(type)));
+        const baseAmount = matchedPlanKey ? planPriceMap[matchedPlanKey] : getDefaultPriceForType(type);
+        const amount = u.subscriptionCustomAmount !== undefined && u.subscriptionCustomAmount !== null
+          ? Number(u.subscriptionCustomAmount)
+          : Number(baseAmount);
+        totalMrr += isNaN(amount) ? 0 : amount;
+      } else if (status === 'Pending') {
+        totalPending += 1;
+      }
+
+      const created = new Date(u.createdAt);
+      if (created >= thirtyDaysAgo) {
+        newThisMonth += 1;
+      } else if (created >= sixtyDaysAgo && created < thirtyDaysAgo) {
+        newLastMonth += 1;
+      }
+    });
+
+    const totalTenants = users.length;
+    let growthRate = 0;
+    if (newLastMonth > 0) {
+      growthRate = Math.round(((newThisMonth - newLastMonth) / newLastMonth) * 100);
+    } else if (newThisMonth > 0) {
+      growthRate = 100;
+    }
+
+    const totalSalesVolume = salesAgg.length > 0 ? (salesAgg[0].totalAmount || 0) : 0;
+    const totalSalesCount = salesAgg.length > 0 ? (salesAgg[0].count || 0) : 0;
+
+    // Attach scale (employee count, branch count, business count) to recent users
+    const recentTenantsWithScale = await Promise.all(recentUsers.map(async (ru) => {
+      const match = { $in: [ru._id.toString(), ru._id] };
+      const [empCount, brCount] = await Promise.all([
+        Employee.countDocuments({ tenantId: match }),
+        Branch.countDocuments({ tenantId: match })
+      ]);
+      return {
+        _id: ru._id,
+        userId: ru.userId || `BT-${ru._id.toString().substring(ru._id.toString().length - 4).toUpperCase()}`,
+        businessName: ru.businessName || `${ru.fullName}'s Business`,
+        fullName: ru.fullName,
+        email: ru.email,
+        phone: ru.phone || 'N/A',
+        city: ru.city || 'N/A',
+        businessType: ru.businessType || 1,
+        subscriptionStatus: ru.subscriptionStatus || 'Active',
+        createdAt: ru.createdAt,
+        employeeCount: empCount,
+        branchCount: brCount,
+        businessCount: ru.businesses?.length || (ru.businessType === 4 ? 1 : 0)
+      };
+    }));
+
+    res.json({
+      overview: {
+        totalTenants,
+        totalActive,
+        totalPending,
+        newThisMonth,
+        growthRate,
+        totalMrr,
+        totalArr: totalMrr * 12,
+        arpu: totalTenants > 0 ? Math.round(totalMrr / totalTenants) : 0
+      },
+      tierDistribution: {
+        typeCounts,
+        percentages: {
+          1: totalTenants > 0 ? Math.round((typeCounts[1] / totalTenants) * 100) : 0,
+          2: totalTenants > 0 ? Math.round((typeCounts[2] / totalTenants) * 100) : 0,
+          3: totalTenants > 0 ? Math.round((typeCounts[3] / totalTenants) * 100) : 0,
+          4: totalTenants > 0 ? Math.round((typeCounts[4] / totalTenants) * 100) : 0
+        }
+      },
+      platformScale: {
+        totalEmployees,
+        totalBranches,
+        totalBusinesses,
+        totalProducts,
+        totalSalesCount,
+        totalSalesVolume
+      },
+      systemTelemetry: {
+        status: 'Operational',
+        database: 'Connected',
+        uptimeSeconds: Math.floor(process.uptime()),
+        timestamp: new Date()
+      },
+      recentCustomers: recentTenantsWithScale
+    });
+  } catch (err) {
+    console.error('Error fetching admin dashboard stats:', err);
+    res.status(500).json({ message: 'Server error fetching dashboard statistics' });
+  }
+});
+
 // @route   PUT /api/admin/subscriptions/:id
 // @desc    Update a tenant subscription
 router.put('/subscriptions/:id', async (req, res) => {
@@ -530,13 +718,22 @@ router.put('/subscriptions/:id', async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    const { status, businessType, billingCycle, customAmount, renewalDate } = req.body;
+    const { status, businessType, billingCycle, customAmount, renewalDate, employeeLimit, branchLimit, businessLimit } = req.body;
 
     if (status) user.subscriptionStatus = status;
     if (businessType !== undefined) user.businessType = Number(businessType);
     if (billingCycle) user.subscriptionBillingCycle = billingCycle;
     if (customAmount !== undefined) user.subscriptionCustomAmount = Number(customAmount);
     if (renewalDate) user.subscriptionRenewalDate = new Date(renewalDate);
+    if (employeeLimit !== undefined) {
+      user.employeeLimit = (employeeLimit === '' || employeeLimit === null || Number(employeeLimit) === 0) ? null : Number(employeeLimit);
+    }
+    if (branchLimit !== undefined) {
+      user.branchLimit = (branchLimit === '' || branchLimit === null || Number(branchLimit) === 0) ? null : Number(branchLimit);
+    }
+    if (businessLimit !== undefined) {
+      user.businessLimit = (businessLimit === '' || businessLimit === null || Number(businessLimit) === 0) ? null : Number(businessLimit);
+    }
 
     await user.save();
 
@@ -548,7 +745,10 @@ router.put('/subscriptions/:id', async (req, res) => {
         businessType: user.businessType,
         subscriptionBillingCycle: user.subscriptionBillingCycle,
         subscriptionCustomAmount: user.subscriptionCustomAmount,
-        subscriptionRenewalDate: user.subscriptionRenewalDate
+        subscriptionRenewalDate: user.subscriptionRenewalDate,
+        employeeLimit: user.employeeLimit ?? null,
+        branchLimit: user.branchLimit ?? null,
+        businessLimit: user.businessLimit ?? null
       }
     });
   } catch (err) {
@@ -568,7 +768,7 @@ router.put('/users/:id', async (req, res) => {
       fullName, businessName, email, phone, industry, 
       address, regNo, businessPhone, subscriptionStatus, 
       subscriptionBillingCycle, subscriptionCustomAmount,
-      password 
+      password, employeeLimit, branchLimit, businessLimit 
     } = req.body;
 
     const user = await User.findById(req.params.id);
@@ -585,6 +785,15 @@ router.put('/users/:id', async (req, res) => {
     if (subscriptionStatus !== undefined) user.subscriptionStatus = subscriptionStatus;
     if (subscriptionBillingCycle !== undefined) user.subscriptionBillingCycle = subscriptionBillingCycle;
     if (subscriptionCustomAmount !== undefined) user.subscriptionCustomAmount = Number(subscriptionCustomAmount);
+    if (employeeLimit !== undefined) {
+      user.employeeLimit = (employeeLimit === '' || employeeLimit === null || Number(employeeLimit) === 0) ? null : Number(employeeLimit);
+    }
+    if (branchLimit !== undefined) {
+      user.branchLimit = (branchLimit === '' || branchLimit === null || Number(branchLimit) === 0) ? null : Number(branchLimit);
+    }
+    if (businessLimit !== undefined) {
+      user.businessLimit = (businessLimit === '' || businessLimit === null || Number(businessLimit) === 0) ? null : Number(businessLimit);
+    }
 
     if (password) {
       if (password.length < 6) {
@@ -626,7 +835,32 @@ router.put('/users/:id/credentials', async (req, res) => {
 // --- BRANCHES CRUD ---
 router.put('/branches/:id', async (req, res) => {
   try {
+    const branch = await Branch.findById(req.params.id);
+    if (!branch) return res.status(404).json({ message: 'Branch not found' });
+
     const updateData = { ...req.body };
+    if (updateData.branchId !== undefined || updateData.branchCode !== undefined) {
+      const cleanBranchId = (updateData.branchId || updateData.branchCode || '').trim();
+      if (!cleanBranchId) {
+        return res.status(400).json({ message: 'Branch ID cannot be empty.' });
+      }
+      const duplicateBranch = await Branch.findOne({
+        tenantId: branch.tenantId,
+        _id: { $ne: req.params.id },
+        $or: [
+          { branchId: { $regex: new RegExp(`^${escapeRegex(cleanBranchId)}$`, 'i') } },
+          { branchCode: { $regex: new RegExp(`^${escapeRegex(cleanBranchId)}$`, 'i') } }
+        ]
+      });
+      if (duplicateBranch) {
+        return res.status(400).json({
+          message: `Branch ID "${cleanBranchId}" is already assigned to branch "${duplicateBranch.name}". Please use a unique Branch ID.`
+        });
+      }
+      updateData.branchId = cleanBranchId;
+      updateData.branchCode = cleanBranchId;
+    }
+
     if (updateData.password) {
       if (updateData.password.length < 6) {
         return res.status(400).json({ message: 'Password must be at least 6 characters long' });
@@ -639,7 +873,6 @@ router.put('/branches/:id', async (req, res) => {
       updateData,
       { new: true }
     ).select('-password');
-    if (!updated) return res.status(404).json({ message: 'Branch not found' });
     res.json(updated);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -685,7 +918,28 @@ router.delete('/branches/:id', async (req, res) => {
 // --- EMPLOYEES CRUD ---
 router.put('/employees/:id', async (req, res) => {
   try {
+    const employee = await Employee.findById(req.params.id);
+    if (!employee) return res.status(404).json({ message: 'Employee not found' });
+
     const updateData = { ...req.body };
+    if (updateData.employeeId !== undefined) {
+      const cleanEmployeeId = (updateData.employeeId || '').trim();
+      if (!cleanEmployeeId) {
+        return res.status(400).json({ message: 'Employee ID cannot be empty.' });
+      }
+      const duplicateEmp = await Employee.findOne({
+        tenantId: employee.tenantId,
+        _id: { $ne: req.params.id },
+        employeeId: { $regex: new RegExp(`^${escapeRegex(cleanEmployeeId)}$`, 'i') }
+      });
+      if (duplicateEmp) {
+        return res.status(400).json({
+          message: `Employee ID "${cleanEmployeeId}" is already assigned to employee "${duplicateEmp.name}". Please use a unique Employee ID.`
+        });
+      }
+      updateData.employeeId = cleanEmployeeId;
+    }
+
     if (updateData.password) {
       if (updateData.password.length < 6) {
         return res.status(400).json({ message: 'Password must be at least 6 characters long' });
@@ -698,7 +952,6 @@ router.put('/employees/:id', async (req, res) => {
       updateData,
       { new: true }
     ).select('-password');
-    if (!updated) return res.status(404).json({ message: 'Employee not found' });
     res.json(updated);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -750,6 +1003,25 @@ router.put('/businesses/:userId/:bizId', async (req, res) => {
     if (!biz) return res.status(404).json({ message: 'Business not found' });
 
     const updateData = { ...req.body };
+    if (updateData.businessId !== undefined || updateData.businessCode !== undefined) {
+      const cleanBizId = (updateData.businessId || updateData.businessCode || '').trim();
+      if (!cleanBizId) {
+        return res.status(400).json({ message: 'Business ID cannot be empty.' });
+      }
+      const duplicateBiz = (user.businesses || []).find(b => {
+        if (b._id.toString() === req.params.bizId) return false;
+        const bId = (b.businessId || b.businessCode || '').trim();
+        return bId.toLowerCase() === cleanBizId.toLowerCase();
+      });
+      if (duplicateBiz) {
+        return res.status(400).json({
+          message: `Business ID "${cleanBizId}" is already assigned to business "${duplicateBiz.name}". Please use a unique Business ID.`
+        });
+      }
+      updateData.businessId = cleanBizId;
+      updateData.businessCode = cleanBizId;
+    }
+
     if (updateData.password) {
       if (updateData.password.length < 6) {
         return res.status(400).json({ message: 'Password must be at least 6 characters long' });
@@ -1059,6 +1331,26 @@ router.delete('/products/:id', async (req, res) => {
 router.post('/branches', async (req, res) => {
   try {
     const data = { ...req.body };
+    let cleanBranchId = (data.branchId || data.branchCode || '').trim();
+    if (!cleanBranchId) {
+      cleanBranchId = await generateNextBranchId(data.tenantId);
+    } else {
+      const duplicateBranch = await Branch.findOne({
+        tenantId: data.tenantId,
+        $or: [
+          { branchId: { $regex: new RegExp(`^${escapeRegex(cleanBranchId)}$`, 'i') } },
+          { branchCode: { $regex: new RegExp(`^${escapeRegex(cleanBranchId)}$`, 'i') } }
+        ]
+      });
+      if (duplicateBranch) {
+        return res.status(400).json({
+          message: `Branch ID "${cleanBranchId}" is already assigned to branch "${duplicateBranch.name}". Please use a unique Branch ID.`
+        });
+      }
+    }
+    data.branchId = cleanBranchId;
+    data.branchCode = cleanBranchId;
+
     if (data.password) {
       data.password = await bcrypt.hash(data.password, 10);
     }
@@ -1075,6 +1367,22 @@ router.post('/branches', async (req, res) => {
 router.post('/employees', async (req, res) => {
   try {
     const data = { ...req.body };
+    let cleanEmployeeId = (data.employeeId || '').trim();
+    if (!cleanEmployeeId) {
+      cleanEmployeeId = await generateNextEmployeeId(data.tenantId);
+    } else {
+      const duplicateEmp = await Employee.findOne({
+        tenantId: data.tenantId,
+        employeeId: { $regex: new RegExp(`^${escapeRegex(cleanEmployeeId)}$`, 'i') }
+      });
+      if (duplicateEmp) {
+        return res.status(400).json({
+          message: `Employee ID "${cleanEmployeeId}" is already assigned to employee "${duplicateEmp.name}". Please use a unique Employee ID.`
+        });
+      }
+    }
+    data.employeeId = cleanEmployeeId;
+
     if (data.password) {
       data.password = await bcrypt.hash(data.password, 10);
     }
@@ -1093,6 +1401,24 @@ router.post('/businesses/:userId', async (req, res) => {
     const user = await User.findById(req.params.userId);
     if (!user) return res.status(404).json({ message: 'User not found' });
     const newBiz = { ...req.body };
+
+    let cleanBizId = (newBiz.businessId || newBiz.businessCode || '').trim();
+    if (!cleanBizId) {
+      cleanBizId = generateNextBusinessId(user.businesses || []);
+    } else {
+      const duplicateBiz = (user.businesses || []).find(b => {
+        const bId = (b.businessId || b.businessCode || '').trim();
+        return bId.toLowerCase() === cleanBizId.toLowerCase();
+      });
+      if (duplicateBiz) {
+        return res.status(400).json({
+          message: `Business ID "${cleanBizId}" is already assigned to business "${duplicateBiz.name}". Please use a unique Business ID.`
+        });
+      }
+    }
+    newBiz.businessId = cleanBizId;
+    newBiz.businessCode = cleanBizId;
+
     if (newBiz.password) {
       newBiz.password = await bcrypt.hash(newBiz.password, 10);
     }

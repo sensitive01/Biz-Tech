@@ -31,6 +31,7 @@ import TablePagination from '../components/TablePagination';
 
 const Branches = () => {
   const [branches, setBranches] = useState([]);
+  const [branchLimit, setBranchLimit] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingBranch, setEditingBranch] = useState(null);
@@ -62,6 +63,7 @@ const Branches = () => {
   const [customEndDate, setCustomEndDate] = useState('');
   
   const [formData, setFormData] = useState({
+    branchId: '',
     name: '',
     location: '',
     manager: '',
@@ -143,8 +145,22 @@ const Branches = () => {
   };
 
   const handleOpenAdd = () => {
+    if (tenantType !== 2 && branchLimit && branchLimit > 0 && branches.length >= branchLimit) {
+      alert(`Branch creation limit reached (${branchLimit} branches allowed on your current plan). Please contact your administrator to upgrade your plan.`);
+      return;
+    }
     setEditingBranch(null);
+
+    // Auto-suggest next available Branch ID (e.g. BR-001) while remaining completely editable
+    const existingIds = new Set(branches.map(b => (b.branchId || b.branchCode || '').trim().toUpperCase()));
+    let count = branches.length + 1;
+    while (existingIds.has(`BR-${String(count).padStart(3, '0')}`)) {
+      count++;
+    }
+    const suggestedId = `BR-${String(count).padStart(3, '0')}`;
+
     setFormData({ 
+      branchId: suggestedId,
       name: '', 
       location: '', 
       manager: '', 
@@ -157,6 +173,7 @@ const Branches = () => {
   const handleEdit = (branch) => {
     setEditingBranch(branch);
     setFormData({
+      branchId: branch.branchId || branch.branchCode || '',
       name: branch.name || '',
       location: branch.location || '',
       manager: branch.manager || '',
@@ -171,14 +188,24 @@ const Branches = () => {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/branches`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const [res, meRes] = await Promise.all([
+        fetch(`${import.meta.env.VITE_API_URL}/api/branches`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch(`${import.meta.env.VITE_API_URL}/api/auth/me`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+      ]);
+
       if (res.ok) {
         const data = await res.json();
         setBranches(data);
+      }
+      if (meRes.ok) {
+        const meData = await meRes.json();
+        if (meData.branchLimit !== undefined) {
+          setBranchLimit(meData.branchLimit);
+        }
       }
     } catch (err) {
       console.error(err);
@@ -269,6 +296,10 @@ const Branches = () => {
       alert('Contact number must be exactly 10 digits.');
       return;
     }
+    if (!editingBranch && tenantType !== 2 && branchLimit && branchLimit > 0 && branches.length >= branchLimit) {
+      alert(`Branch creation limit reached (${branchLimit} branches allowed on your current plan).`);
+      return;
+    }
     try {
       const token = localStorage.getItem('token');
       const url = editingBranch
@@ -276,19 +307,25 @@ const Branches = () => {
         : `${import.meta.env.VITE_API_URL}/api/branches`;
       const method = editingBranch ? 'PUT' : 'POST';
 
+      const payload = {
+        ...formData,
+        branchId: (formData.branchId || '').trim(),
+        branchCode: (formData.branchId || '').trim()
+      };
+
       const res = await fetch(url, {
         method,
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
 
       if (res.ok) {
         setShowModal(false);
         setEditingBranch(null);
-        setFormData({ name: '', location: '', manager: '', contactNumber: '', businessName: '' });
+        setFormData({ branchId: '', name: '', location: '', manager: '', contactNumber: '', businessName: '' });
         fetchBranches();
         window.dispatchEvent(new Event('branchDataUpdated'));
       } else {
@@ -365,8 +402,12 @@ const Branches = () => {
         <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
           <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Store size={24} /></div>
           <div>
-            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>{tenantType === 2 ? 'Branch Location' : 'Total Branches'}</p>
-            <h3 style={{ margin: 0, fontSize: tenantType === 2 ? '18px' : '24px', color: '#0F172A', fontWeight: '700' }}>{tenantType === 2 ? (branches[0]?.name || 'Not Configured') : branches.length}</h3>
+            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>
+              {tenantType === 2 ? 'Branch Location' : (branchLimit ? `Total Branches (Limit: ${branchLimit})` : 'Total Branches (Unlimited)')}
+            </p>
+            <h3 style={{ margin: 0, fontSize: tenantType === 2 ? '18px' : '24px', color: '#0F172A', fontWeight: '700' }}>
+              {tenantType === 2 ? (branches[0]?.name || 'Not Configured') : (branchLimit ? `${branches.length} / ${branchLimit}` : branches.length)}
+            </h3>
           </div>
         </div>
         <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
@@ -405,7 +446,25 @@ const Branches = () => {
             </div>
           )}
           
-          <button onClick={() => exportToCSV(filteredBranches, 'Branches')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', cursor: 'pointer' }}><Download size={16} /> Export</button>
+          <button 
+            onClick={() => {
+              const exportData = filteredBranches.map((b, idx) => ({
+                'S.No': idx + 1,
+                'Branch ID': b.branchId || b.branchCode || '',
+                'Branch Name': b.name || '',
+                'Business': b.businessName || '',
+                'Location': b.location || '',
+                'Manager': b.manager || '',
+                'Contact': b.contactNumber || '',
+                'Email': b.email || '',
+                'Login Status': b.email ? (b.isLoginEnabled !== false ? 'Active' : 'Disabled') : 'Not Configured'
+              }));
+              exportToCSV(exportData, 'Branches');
+            }} 
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', cursor: 'pointer' }}
+          >
+            <Download size={16} /> Export
+          </button>
         </div>
       </div>
 
@@ -471,7 +530,14 @@ const Branches = () => {
                           <Store size={18} color="#2563EB" />
                         </div>
                         <div>
-                          <span style={{ fontSize: '14px', fontWeight: '600', color: '#0F172A', display: 'block' }}>{branch.name}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: '14px', fontWeight: '600', color: '#0F172A' }}>{branch.name}</span>
+                            {(branch.branchId || branch.branchCode) && (
+                              <span style={{ background: '#EFF6FF', color: '#1D4ED8', fontSize: '11px', fontWeight: '700', padding: '1px 6px', borderRadius: '4px', border: '1px solid #BFDBFE' }}>
+                                {branch.branchId || branch.branchCode}
+                              </span>
+                            )}
+                          </div>
                           <span style={{ fontSize: '11px', color: '#64748B', fontWeight: '500' }}>{branch.type || 'Branch'}</span>
                         </div>
                       </div>
@@ -643,7 +709,18 @@ const Branches = () => {
             </div>
             
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflowY: 'auto' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: tenantType >= 4 ? '1fr 1fr' : '1fr', gap: '14px', marginBottom: '14px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>Branch ID / Code *</label>
+                  <input 
+                    type="text" 
+                    value={formData.branchId} 
+                    onChange={e => setFormData({...formData, branchId: e.target.value})} 
+                    placeholder="e.g. BR-001"
+                    required
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box' }}
+                  />
+                </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>Branch Name *</label>
                   <input 
@@ -655,35 +732,35 @@ const Branches = () => {
                     style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box' }}
                   />
                 </div>
-
-                {tenantType >= 4 && (
-                  <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>
-                      Associated Business
-                    </label>
-                    {userBusinesses.length > 0 ? (
-                      <select
-                        value={formData.businessName}
-                        onChange={e => setFormData({ ...formData, businessName: e.target.value })}
-                        style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box', background: 'white' }}
-                      >
-                        <option value="">-- No Specific (All) --</option>
-                        {userBusinesses.map((b, idx) => (
-                          <option key={b._id || idx} value={b.name}>{b.name}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <input
-                        type="text"
-                        value={formData.businessName}
-                        onChange={e => setFormData({ ...formData, businessName: e.target.value })}
-                        placeholder="e.g. Acme Corp"
-                        style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box' }}
-                      />
-                    )}
-                  </div>
-                )}
               </div>
+
+              {tenantType >= 4 && (
+                <div style={{ marginBottom: '14px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>
+                    Associated Business
+                  </label>
+                  {userBusinesses.length > 0 ? (
+                    <select
+                      value={formData.businessName}
+                      onChange={e => setFormData({ ...formData, businessName: e.target.value })}
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box', background: 'white' }}
+                    >
+                      <option value="">-- No Specific (All) --</option>
+                      {userBusinesses.map((b, idx) => (
+                        <option key={b._id || idx} value={b.name}>{b.name}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      value={formData.businessName}
+                      onChange={e => setFormData({ ...formData, businessName: e.target.value })}
+                      placeholder="e.g. Acme Corp"
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box' }}
+                    />
+                  )}
+                </div>
+              )}
 
               <div style={{ marginBottom: '14px' }}>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>Location / Address *</label>
@@ -775,6 +852,12 @@ const Branches = () => {
             
             {/* Content Grid */}
             <div style={{ overflowY: 'auto', paddingRight: '2px', display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px', flex: 1 }}>
+              {/* Branch ID */}
+              <div style={{ padding: '12px 14px', background: '#EFF6FF', borderRadius: '10px', border: '1px solid #BFDBFE' }}>
+                <p style={{ margin: '0 0 4px 0', fontSize: '11px', color: '#1D4ED8', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Branch ID</p>
+                <p style={{ margin: 0, fontSize: '15px', color: '#1E40AF', fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{viewBranch.branchId || viewBranch.branchCode || 'N/A'}</p>
+              </div>
+
               {/* Branch Name */}
               <div style={{ padding: '12px 14px', background: '#F8FAFC', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
                 <p style={{ margin: '0 0 4px 0', fontSize: '11px', color: '#64748B', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Branch Name</p>

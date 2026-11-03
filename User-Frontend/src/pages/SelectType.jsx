@@ -35,8 +35,8 @@ const SelectType = () => {
   }, [location.state, navigate]);
 
   const types = [
-    { id: 1, title: 'Type 1: Sole Operator', desc: '1 Owner • 1 Shop • No employee management needed', icon: <Store size={24} /> },
-    { id: 2, title: 'Type 2: Single Branch + Staff', desc: '1 Owner • 1 Shop • Includes staff attendance & leaves', icon: <Users size={24} /> },
+    { id: 1, title: 'Type 1: Single Login (Owner Managed)', desc: '1 Owner • 1 Shop • Owner manages staff, attendance & leaves', icon: <Store size={24} /> },
+    { id: 2, title: 'Type 2: Multi-Login (Staff Portal)', desc: '1 Owner • 1 Shop • Multi-login with staff self-service attendance & leaves', icon: <Users size={24} /> },
     { id: 3, title: 'Type 3: Multi-Branch Enterprise', desc: '1 Owner • Multiple Branches • Full employee management', icon: <Map size={24} /> },
     { id: 4, title: 'Type 4: Multi-Business Conglomerate', desc: '1 Owner • Multiple Businesses • Multiple Branches • Full employee management', icon: <Building2 size={24} /> }
   ];
@@ -174,6 +174,32 @@ const SelectType = () => {
                   <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--primary-blue)', background: '#DBEAFE', padding: '4px 12px', borderRadius: '20px' }}>Free Trial</span>
                 </div>
                 <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-secondary)' }}>{t.desc}</p>
+                {(() => {
+                  const plan = pricingPlans.find(p => p.customerType === t.title || t.title.includes(p.customerType));
+                  const limit = plan && plan.employeeLimit !== undefined ? plan.employeeLimit : (t.id === 1 || t.id === 2 ? 10 : null);
+                  const branchLim = plan && plan.branchLimit !== undefined ? plan.branchLimit : (t.id === 3 ? 5 : (t.id === 4 ? 10 : null));
+                  const bizLim = plan && plan.businessLimit !== undefined ? plan.businessLimit : (t.id === 4 ? 3 : null);
+                  return (
+                    <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '600', color: limit ? '#2563EB' : '#059669' }}>
+                        <Users size={13} />
+                        <span>{limit ? `Up to ${limit} employees included` : 'Unlimited employees included'}</span>
+                      </div>
+                      {(t.id === 3 || t.id === 4) && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '600', color: branchLim ? '#D97706' : '#059669' }}>
+                          <Store size={13} />
+                          <span>{branchLim ? `Up to ${branchLim} branches included` : 'Unlimited branches included'}</span>
+                        </div>
+                      )}
+                      {t.id === 4 && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '600', color: bizLim ? '#7C3AED' : '#059669' }}>
+                          <Building2 size={13} />
+                          <span>{bizLim ? `Up to ${bizLim} businesses included` : 'Unlimited businesses included'}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
               {selectedType === t.id && (
                 <CheckCircle2 color="var(--primary-blue)" />

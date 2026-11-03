@@ -22,6 +22,20 @@ const auth = (req, res, next) => {
   }
 };
 
+const escapeRegex = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const generateNextBranchId = async (tenantId) => {
+  const existing = await Branch.find({ tenantId }).select('branchId branchCode');
+  const existingIds = new Set(
+    existing.map(b => (b.branchId || b.branchCode || '').trim().toUpperCase())
+  );
+  let count = existing.length + 1;
+  while (existingIds.has(`BR-${String(count).padStart(3, '0')}`)) {
+    count++;
+  }
+  return `BR-${String(count).padStart(3, '0')}`;
+};
+
 // @route   GET /api/branches
 // @desc    Get all branches for the authenticated user only
 router.get('/', auth, async (req, res) => {
@@ -50,7 +64,39 @@ router.get('/', auth, async (req, res) => {
 router.post('/', auth, async (req, res) => {
   try {
     const tenantId = req.user.id;
+
+    // Check branch creation limit for tenant
+    const tenantUser = await User.findById(tenantId);
+    if (tenantUser && typeof tenantUser.branchLimit === 'number' && tenantUser.branchLimit > 0) {
+      const currentBranchCount = await Branch.countDocuments({ tenantId });
+      if (currentBranchCount >= tenantUser.branchLimit) {
+        return res.status(400).json({ 
+          error: `Branch creation limit of ${tenantUser.branchLimit} reached. Please contact your administrator to increase branch capacity.` 
+        });
+      }
+    }
+
     const branchData = { ...req.body, tenantId };
+
+    let cleanBranchId = (branchData.branchId || branchData.branchCode || '').trim();
+    if (!cleanBranchId) {
+      cleanBranchId = await generateNextBranchId(tenantId);
+    } else {
+      const duplicateBranch = await Branch.findOne({
+        tenantId,
+        $or: [
+          { branchId: { $regex: new RegExp(`^${escapeRegex(cleanBranchId)}$`, 'i') } },
+          { branchCode: { $regex: new RegExp(`^${escapeRegex(cleanBranchId)}$`, 'i') } }
+        ]
+      });
+      if (duplicateBranch) {
+        return res.status(400).json({
+          error: `Branch ID "${cleanBranchId}" is already assigned to branch "${duplicateBranch.name}". Please use a unique Branch ID.`
+        });
+      }
+    }
+    branchData.branchId = cleanBranchId;
+    branchData.branchCode = cleanBranchId;
 
     if (req.user.role === 'business' && req.user.businessName) {
       branchData.businessName = req.user.businessName;
@@ -142,6 +188,28 @@ router.put('/:id', auth, async (req, res) => {
 
     const updateData = { ...req.body };
     delete updateData.tenantId; // Never allow reassigning tenantId
+
+    if (updateData.branchId !== undefined || updateData.branchCode !== undefined) {
+      const cleanBranchId = (updateData.branchId || updateData.branchCode || '').trim();
+      if (!cleanBranchId) {
+        return res.status(400).json({ error: 'Branch ID cannot be empty.' });
+      }
+      const duplicateBranch = await Branch.findOne({
+        tenantId: req.user.id,
+        _id: { $ne: req.params.id },
+        $or: [
+          { branchId: { $regex: new RegExp(`^${escapeRegex(cleanBranchId)}$`, 'i') } },
+          { branchCode: { $regex: new RegExp(`^${escapeRegex(cleanBranchId)}$`, 'i') } }
+        ]
+      });
+      if (duplicateBranch) {
+        return res.status(400).json({
+          error: `Branch ID "${cleanBranchId}" is already assigned to branch "${duplicateBranch.name}". Please use a unique Branch ID.`
+        });
+      }
+      updateData.branchId = cleanBranchId;
+      updateData.branchCode = cleanBranchId;
+    }
 
     if (updateData.email && updateData.email.trim()) {
       updateData.email = updateData.email.trim().toLowerCase();

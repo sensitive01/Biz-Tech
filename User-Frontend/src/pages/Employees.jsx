@@ -105,6 +105,7 @@ const Employees = () => {
   const [savingCredentials, setSavingCredentials] = useState(false);
   const [credentialsError, setCredentialsError] = useState('');
   const [credentialsSuccess, setCredentialsSuccess] = useState('');
+  const [employeeLimit, setEmployeeLimit] = useState(null);
 
   const tenantType = Number(localStorage.getItem('tenantType')) || 1;
 
@@ -195,6 +196,7 @@ const Employees = () => {
   };
 
   const [formData, setFormData] = useState({
+    employeeId: '',
     name: '',
     email: '',
     designation: '',
@@ -208,8 +210,22 @@ const Employees = () => {
   });
 
   const handleOpenAdd = () => {
+    if (employeeLimit && employees.length >= employeeLimit) {
+      alert(`Employee creation limit of ${employeeLimit} reached. Please contact your administrator to upgrade your limit.`);
+      return;
+    }
     setEditingEmployee(null);
+
+    // Auto-suggest next available Employee ID (e.g. EMP-001) while remaining completely editable
+    const existingIds = new Set(employees.map(e => (e.employeeId || '').trim().toUpperCase()));
+    let count = employees.length + 1;
+    while (existingIds.has(`EMP-${String(count).padStart(3, '0')}`)) {
+      count++;
+    }
+    const suggestedId = `EMP-${String(count).padStart(3, '0')}`;
+
     setFormData({
+      employeeId: suggestedId,
       name: '',
       email: '',
       designation: '',
@@ -229,6 +245,7 @@ const Employees = () => {
     const hasStandardDesignation = DESIGNATION_OPTIONS.includes(employee.designation);
     const isOther = employee.designation && !hasStandardDesignation;
     setFormData({
+      employeeId: employee.employeeId || '',
       name: employee.name || '',
       email: employee.email || '',
       designation: isOther ? 'Other' : (employee.designation || employee.position || ''),
@@ -247,9 +264,10 @@ const Employees = () => {
     try {
       const token = localStorage.getItem('token');
       const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-      const [empRes, branchRes] = await Promise.all([
+      const [empRes, branchRes, meRes] = await Promise.all([
         fetch(`${import.meta.env.VITE_API_URL}/api/employees`, { headers }),
-        (tenantType >= 2) ? fetch(`${import.meta.env.VITE_API_URL}/api/branches`, { headers }) : Promise.resolve(null)
+        (tenantType >= 2) ? fetch(`${import.meta.env.VITE_API_URL}/api/branches`, { headers }) : Promise.resolve(null),
+        fetch(`${import.meta.env.VITE_API_URL}/api/auth/me`, { headers })
       ]);
 
       if (empRes.ok) {
@@ -260,6 +278,11 @@ const Employees = () => {
       if (branchRes && branchRes.ok) {
         const branchData = await branchRes.json();
         setBranches(branchData);
+      }
+
+      if (meRes && meRes.ok) {
+        const meData = await meRes.json();
+        setEmployeeLimit(typeof meData.employeeLimit === 'number' && meData.employeeLimit > 0 ? meData.employeeLimit : null);
       }
     } catch (err) {
       console.error(err);
@@ -278,6 +301,10 @@ const Employees = () => {
       alert('Contact number must be exactly 10 digits.');
       return;
     }
+    if (!editingEmployee && employeeLimit && employees.length >= employeeLimit) {
+      alert(`Employee creation limit of ${employeeLimit} reached. Please contact your administrator to upgrade your plan.`);
+      return;
+    }
     try {
       const token = localStorage.getItem('token');
       const url = editingEmployee
@@ -293,6 +320,7 @@ const Employees = () => {
 
       const payload = {
         ...formData,
+        employeeId: (formData.employeeId || '').trim(),
         status: editingEmployee ? (formData.status || 'Active') : 'Active',
         designation: finalDesignation,
         position: finalPosition
@@ -317,6 +345,7 @@ const Employees = () => {
         const wasNewEmployee = !editingEmployee;
         setEditingEmployee(null);
         setFormData({
+          employeeId: '',
           name: '',
           email: '',
           designation: '',
@@ -330,8 +359,8 @@ const Employees = () => {
         });
         await fetchData();
 
-        // Prompt login credentials & section access immediately after creating a new employee
-        if (wasNewEmployee && savedEmp && savedEmp._id) {
+        // Prompt login credentials & section access immediately after creating a new employee (Type 2+ only)
+        if (wasNewEmployee && savedEmp && savedEmp._id && tenantType !== 1) {
           handleOpenLoginModal(savedEmp, true);
         }
       } else {
@@ -392,6 +421,7 @@ const Employees = () => {
       return true;
     })
     .filter(i =>
+      (i.employeeId || '').toLowerCase().includes(search.toLowerCase()) ||
       (i.name || '').toLowerCase().includes(search.toLowerCase()) ||
       (i.email || '').toLowerCase().includes(search.toLowerCase()) ||
       (i.designation || '').toLowerCase().includes(search.toLowerCase()) ||
@@ -456,8 +486,12 @@ const Employees = () => {
         <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
           <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Users size={24} /></div>
           <div>
-            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Total Employees</p>
-            <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{employees.length}</h3>
+            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>
+              Total Employees {employeeLimit ? `(Limit: ${employeeLimit})` : ''}
+            </p>
+            <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>
+              {employees.length} {employeeLimit ? <span style={{ fontSize: '15px', color: '#64748B', fontWeight: '500' }}>/ {employeeLimit}</span> : ''}
+            </h3>
           </div>
         </div>
         <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
@@ -495,7 +529,28 @@ const Employees = () => {
               <input type="date" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} style={{ padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', outline: 'none', fontSize: '13px', color: '#475569' }} />
             </div>
           )}
-          <button onClick={() => exportToCSV(filteredEmployees, 'Employees')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', cursor: 'pointer' }}><Download size={16} /> Export</button>
+          <button 
+            onClick={() => {
+              const exportData = filteredEmployees.map((e, idx) => ({
+                'S.No': idx + 1,
+                'Employee ID': e.employeeId || '',
+                'Name': e.name || '',
+                'Email': e.email || '',
+                'Designation': e.designation || e.position || '',
+                'Role': e.position || '',
+                'Business': e.businessName || '',
+                'Branch': e.branchName || (e.branchId?.name || ''),
+                'Phone': e.contactNumber || '',
+                'Salary': e.salary || '',
+                'Date of Joining': e.dateOfJoining ? new Date(e.dateOfJoining).toLocaleDateString() : '',
+                'Status': e.status || 'Active'
+              }));
+              exportToCSV(exportData, 'Employees');
+            }} 
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', cursor: 'pointer' }}
+          >
+            <Download size={16} /> Export
+          </button>
         </div>
       </div>
 
@@ -545,7 +600,14 @@ const Employees = () => {
                     </td>
                     <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                        <span style={{ fontSize: '14px', fontWeight: '600', color: '#0F172A' }}>{employee.name}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '14px', fontWeight: '600', color: '#0F172A' }}>{employee.name}</span>
+                          {employee.employeeId && (
+                            <span style={{ background: '#EFF6FF', color: '#1D4ED8', fontSize: '11px', fontWeight: '700', padding: '1px 6px', borderRadius: '4px', border: '1px solid #BFDBFE' }}>
+                              {employee.employeeId}
+                            </span>
+                          )}
+                        </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#64748B', fontSize: '12px' }}>
                           <Mail size={13} /> {employee.email}
                         </div>
@@ -592,7 +654,22 @@ const Employees = () => {
                       </span>
                     </td>
                     <td style={{ padding: '14px 14px', verticalAlign: 'middle' }}>
-                      {employee.hasPassword ? (
+                      {tenantType === 1 ? (
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          background: '#F1F5F9',
+                          border: '1px solid #E2E8F0',
+                          color: '#64748B',
+                          padding: '6px 12px',
+                          borderRadius: '8px',
+                          fontSize: '12px',
+                          fontWeight: '600'
+                        }}>
+                          Owner Managed
+                        </span>
+                      ) : employee.hasPassword ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
                           <button
                             onClick={() => handleOpenLoginModal(employee)}
@@ -748,6 +825,17 @@ const Employees = () => {
 
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflowY: 'auto' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>Employee ID *</label>
+                  <input
+                    type="text"
+                    value={formData.employeeId}
+                    onChange={e => setFormData({ ...formData, employeeId: e.target.value })}
+                    placeholder="e.g. EMP-001"
+                    required
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box' }}
+                  />
+                </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>Full Name *</label>
                   <input
@@ -928,6 +1016,10 @@ const Employees = () => {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', flex: 1, overflowY: 'auto' }}>
+              <div style={{ padding: '12px 14px', background: '#EFF6FF', borderRadius: '10px', border: '1px solid #BFDBFE' }}>
+                <p style={{ margin: '0 0 4px 0', fontSize: '11px', color: '#1D4ED8', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Employee ID</p>
+                <p style={{ margin: 0, fontSize: '15px', color: '#1E40AF', fontWeight: '700' }}>{viewEmployee.employeeId || 'N/A'}</p>
+              </div>
               <div style={{ padding: '12px 14px', background: '#F8FAFC', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
                 <p style={{ margin: '0 0 4px 0', fontSize: '11px', color: '#64748B', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Full Name</p>
                 <p style={{ margin: 0, fontSize: '15px', color: '#0F172A', fontWeight: '600' }}>{viewEmployee.name}</p>

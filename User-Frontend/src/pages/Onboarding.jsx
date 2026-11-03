@@ -213,8 +213,10 @@ const Onboarding = () => {
       steps.push({ id: 'operation', title: 'Operations Type', desc: 'Purchase or Sale', icon: <TrendingUp size={24} /> });
     }
 
-    // Step 5: Employees (Type 1 has NO employee step!)
-    if (tenantType === 2) {
+    // Step 5: Employees (Type 1 now includes employees)
+    if (tenantType === 1) {
+      steps.push({ id: 'employees', title: 'Register Employees', desc: 'Add staff members', icon: <Users size={24} /> });
+    } else if (tenantType === 2) {
       steps.push({ id: 'employees', title: 'Register Employees', desc: 'Invite your branch staff', icon: <Users size={24} /> });
     } else if (tenantType === 3) {
       steps.push({ id: 'employees', title: 'Register Employees', desc: 'Assign staff to branches', icon: <Users size={24} /> });
@@ -261,9 +263,9 @@ const Onboarding = () => {
     modules = [...new Set(modules)];
 
     if (tenantType === 1) {
-      // Type 1: Sole Operator has no branches and no employees
+      // Type 1: Single store, owner managed
       payloadBranches = [];
-      payloadEmployees = [];
+      payloadEmployees = employees.map(emp => ({ ...emp, branch: 'Main' }));
     } else if (tenantType === 2) {
       // Type 2: Single branch only, staff assigned to this single branch
       payloadBranches = branches.slice(0, 1);
@@ -1511,8 +1513,10 @@ const Onboarding = () => {
         <div className="animate-fade-in" style={{ padding: '24px' }}>
           <h2 style={{ fontSize: '28px', marginBottom: '8px' }}>Register Employees</h2>
           <p style={{ color: 'var(--text-secondary)', marginBottom: '32px' }}>
-            {tenantType === 2 
-              ? 'Add staff members to your branch location.' 
+            {tenantType === 1 
+              ? 'Add staff members to help manage your store (Owner-managed).' 
+              : tenantType === 2 
+                ? 'Add staff members to your branch location.' 
               : tenantType === 3 
                 ? 'Add staff members and assign them to specific branches.' 
                 : 'Add staff members across your businesses and branches.'}

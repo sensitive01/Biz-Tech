@@ -690,7 +690,7 @@ const TenantLayout = () => {
           )}
 
           {/* 12. Employees */}
-          {tenantType >= 2 && currentUser?.role !== 'employee' && (
+          {tenantType >= 1 && currentUser?.role !== 'employee' && (
             <NavLink to="/tenant/employees" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <Users size={18} />
               <span>Employees</span>
@@ -698,7 +698,7 @@ const TenantLayout = () => {
           )}
 
           {/* 13, 14. Attendance & Leaves - Available to Employees and Admins */}
-          {tenantType >= 2 && (
+          {tenantType >= 1 && (
             <>
               {(currentUser?.role === 'employee' || modules.includes('attendance') || currentUser?.role !== 'employee') && (
                 <NavLink to="/tenant/attendance" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>

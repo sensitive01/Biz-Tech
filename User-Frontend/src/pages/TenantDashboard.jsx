@@ -42,18 +42,18 @@ const TenantDashboard = () => {
         if (!token) return;
         const headers = { 'Authorization': `Bearer ${token}` };
 
-        if (tenantType === 2) {
+        if (tenantType === 1 || tenantType === 2) {
           const [branchRes, empRes] = await Promise.all([
-            fetch(`${import.meta.env.VITE_API_URL}/api/branches`, { headers }),
+            tenantType === 2 ? fetch(`${import.meta.env.VITE_API_URL}/api/branches`, { headers }) : Promise.resolve(null),
             fetch(`${import.meta.env.VITE_API_URL}/api/employees`, { headers })
           ]);
-          if (branchRes.ok) {
+          if (branchRes && branchRes.ok) {
             const branchData = await branchRes.json();
             if (Array.isArray(branchData) && branchData.length > 0) {
               setSingleBranch(branchData[0]);
             }
           }
-          if (empRes.ok) {
+          if (empRes && empRes.ok) {
             const empData = await empRes.json();
             if (Array.isArray(empData)) {
               setEmployeeCount(empData.length);
@@ -72,8 +72,8 @@ const TenantDashboard = () => {
   const getStats = () => {
     if (tenantType === 1) return [
       { title: 'Today\'s Sales', value: '₹12,450', trend: '+14%', up: true, icon: <IndianRupee size={20} />, color: '#10B981', bg: '#D1FAE5' },
-      { title: 'Active Inventory', value: '842', trend: '+3%', up: true, icon: <Store size={20} />, color: '#3B82F6', bg: '#DBEAFE' },
-      { title: 'Pending Orders', value: '12', trend: '-2%', up: false, icon: <Clock size={20} />, color: '#F59E0B', bg: '#FEF3C7' },
+      { title: 'Workforce', value: `${employeeCount} Staff`, trend: 'Owner-Managed', up: true, icon: <Users size={20} />, color: '#3B82F6', bg: '#DBEAFE' },
+      { title: 'Active Inventory', value: '842', trend: '+3%', up: true, icon: <Store size={20} />, color: '#F59E0B', bg: '#FEF3C7' },
       { title: 'Monthly Revenue', value: '₹2.4L', trend: '+8%', up: true, icon: <Activity size={20} />, color: '#8B5CF6', bg: '#EDE9FE' },
     ];
     if (tenantType === 2) return [

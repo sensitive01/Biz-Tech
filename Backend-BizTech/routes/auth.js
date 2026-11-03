@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Branch = require('../models/Branch');
 const Employee = require('../models/Employee');
+const Pricing = require('../models/Pricing');
 const { checkEmailInUse } = require('../utils/emailValidator');
 
 // Helper to generate a unique human-readable tenant ID
@@ -50,6 +51,28 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ message: check.message });
     }
 
+    // Auto-apply preset employee, branch, and business limits from pricing plan
+    const targetTypeNum = Number(businessType) || 1;
+    let initialEmployeeLimit = null;
+    let initialBranchLimit = null;
+    let initialBusinessLimit = null;
+    const plan = await Pricing.findOne({ customerType: { $regex: new RegExp('Type ' + targetTypeNum, 'i') } });
+    if (plan) {
+      if (plan.employeeLimit !== undefined && plan.employeeLimit !== null) initialEmployeeLimit = plan.employeeLimit;
+      if (plan.branchLimit !== undefined && plan.branchLimit !== null) initialBranchLimit = plan.branchLimit;
+      if (plan.businessLimit !== undefined && plan.businessLimit !== null) initialBusinessLimit = plan.businessLimit;
+    }
+    if (initialEmployeeLimit === null && (targetTypeNum === 1 || targetTypeNum === 2 || targetTypeNum === 3)) {
+      initialEmployeeLimit = 10;
+    }
+    if (initialBranchLimit === null && targetTypeNum === 3) {
+      initialBranchLimit = 5;
+    }
+    if (targetTypeNum === 4) {
+      if (initialBranchLimit === null) initialBranchLimit = 10;
+      if (initialBusinessLimit === null) initialBusinessLimit = 3;
+    }
+
     // Create new user with unique ID
     const userId = await generateUserId();
     user = new User({
@@ -58,10 +81,13 @@ router.post('/register', async (req, res) => {
       phone,
       password,
       userId,
-      businessType: businessType || 1,
+      businessType: targetTypeNum,
       businessName,
       industry,
-      address
+      address,
+      employeeLimit: initialEmployeeLimit,
+      branchLimit: initialBranchLimit,
+      businessLimit: initialBusinessLimit
     });
 
     // Hash password
@@ -307,6 +333,10 @@ router.post('/login', async (req, res) => {
         parentUser = await User.findById(employee.tenantId);
       }
 
+      if (parentUser && Number(parentUser.businessType) === 1) {
+        return res.status(403).json({ message: 'Employee login is not available for Type 1 (Single Login) accounts. The owner manages staff records directly.' });
+      }
+
       const matchedBiz = parentUser?.businesses?.find(b => b.name === employee.businessName);
       const bizOfferingType = matchedBiz?.offeringType || 'both';
       const bizOperationsType = matchedBiz?.operationsType || 'both';
@@ -406,7 +436,20 @@ router.post('/onboarding', async (req, res) => {
 
     // 1. Update User details (business, modules, etc.)
     if (businessType !== undefined && businessType !== null) {
-      user.businessType = Number(businessType);
+      const newType = Number(businessType);
+      user.businessType = newType;
+      // Auto-apply preset employee, branch, and business limits from pricing plan if user doesn't already have them
+      const plan = await Pricing.findOne({ customerType: { $regex: new RegExp('Type ' + newType, 'i') } });
+      if (user.employeeLimit === null || user.employeeLimit === undefined) {
+        user.employeeLimit = (plan && plan.employeeLimit != null) ? plan.employeeLimit : (newType <= 3 ? 10 : null);
+      }
+      if (user.branchLimit === null || user.branchLimit === undefined) {
+        if (newType === 3) user.branchLimit = (plan && plan.branchLimit != null) ? plan.branchLimit : 5;
+        if (newType === 4) user.branchLimit = (plan && plan.branchLimit != null) ? plan.branchLimit : 10;
+      }
+      if (user.businessLimit === null || user.businessLimit === undefined) {
+        if (newType === 4) user.businessLimit = (plan && plan.businessLimit != null) ? plan.businessLimit : 3;
+      }
     }
     if (singleBusiness) {
       if (singleBusiness.name) user.businessName = singleBusiness.name;
@@ -445,13 +488,18 @@ router.post('/onboarding', async (req, res) => {
 
     // 3. Upsert Employees
     if (employees && employees.length > 0) {
+      const userDoc = await User.findById(userId);
+      let allowedEmployees = employees;
+      if (userDoc && typeof userDoc.employeeLimit === 'number' && userDoc.employeeLimit > 0) {
+        allowedEmployees = employees.slice(0, userDoc.employeeLimit);
+      }
       const createdBranches = await Branch.find({ tenantId: userId });
       const branchMap = {};
       createdBranches.forEach(b => {
         branchMap[b.name] = b._id;
       });
 
-      for (const e of employees) {
+      for (const e of allowedEmployees) {
         if (!e.name || !e.email) continue;
         const salary = typeof e.salary === 'number' ? e.salary : (parseInt((e.salary || '').replace(/[^0-9]/g, ''), 10) || 0);
         await Employee.findOneAndUpdate(

@@ -271,7 +271,14 @@ const Attendance = () => {
                 <td style={{ padding: '16px 24px', fontSize: '15px', color: '#475569', fontWeight: '500' }}>{startIndex + index + 1}</td>
                 <td style={{ padding: '16px 24px', color: '#0F172A', fontWeight: '500', whiteSpace: 'nowrap' }}>{formatDate(record.date)}</td>
                 <td style={{ padding: '16px 24px', color: '#0F172A', fontWeight: '500' }}>
-                  <div>{record.employeeId?.name || 'Unknown'}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                    <span>{record.employeeId?.name || 'Unknown'}</span>
+                    {record.employeeId?.employeeId && (
+                      <span style={{ background: '#EFF6FF', color: '#1D4ED8', fontSize: '11px', fontWeight: '700', padding: '1px 5px', borderRadius: '4px', border: '1px solid #BFDBFE' }}>
+                        {record.employeeId.employeeId}
+                      </span>
+                    )}
+                  </div>
                   {(record.employeeId?.branchName || record.employeeId?.branchId?.name) && (
                     <div style={{ fontSize: '12px', color: '#64748B', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
                       <Store size={12} color="#94A3B8" /> {record.employeeId?.branchName || record.employeeId?.branchId?.name}
@@ -327,7 +334,7 @@ const Attendance = () => {
                   <option value="">Select Employee</option>
                   {employees.map(emp => (
                     <option key={emp._id} value={emp._id}>
-                      {emp.name} {emp.branchName ? `(${emp.branchName})` : emp.branchId?.name ? `(${emp.branchId.name})` : ''}
+                      {emp.name} {emp.employeeId ? `[${emp.employeeId}]` : ''} {emp.branchName ? `(${emp.branchName})` : emp.branchId?.name ? `(${emp.branchId.name})` : ''}
                     </option>
                   ))}
                 </select>

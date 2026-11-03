@@ -15,6 +15,18 @@ const PricingSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  employeeLimit: {
+    type: Number,
+    default: null
+  },
+  branchLimit: {
+    type: Number,
+    default: null
+  },
+  businessLimit: {
+    type: Number,
+    default: null
+  },
   createdAt: {
     type: Date,
     default: Date.now

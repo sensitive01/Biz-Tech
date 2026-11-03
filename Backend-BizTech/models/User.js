@@ -57,6 +57,8 @@ const UserSchema = new mongoose.Schema({
     default: []
   },
   businesses: [{
+    businessId: { type: String, trim: true },
+    businessCode: { type: String, trim: true },
     name: String,
     category: { type: String, default: '' },
     contactPerson: { type: String, default: '' },
@@ -95,6 +97,18 @@ const UserSchema = new mongoose.Schema({
   },
   subscriptionCustomAmount: {
     type: Number
+  },
+  employeeLimit: {
+    type: Number,
+    default: null
+  },
+  branchLimit: {
+    type: Number,
+    default: null
+  },
+  businessLimit: {
+    type: Number,
+    default: null
   }
 });
 

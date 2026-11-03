@@ -27,6 +27,7 @@ const BUSINESS_CATEGORIES = [
 
 const Businesses = () => {
   const [businesses, setBusinesses] = useState([]);
+  const [businessLimit, setBusinessLimit] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingBusiness, setEditingBusiness] = useState(null);
@@ -67,6 +68,7 @@ const Businesses = () => {
   const [isCustomCategory, setIsCustomCategory] = useState(false);
   
   const [formData, setFormData] = useState({ 
+    businessId: '',
     name: '', 
     category: '', 
     contactPerson: '', 
@@ -80,9 +82,23 @@ const Businesses = () => {
   });
 
   const handleOpenAdd = () => {
+    if (businessLimit && businessLimit > 0 && businesses.length >= businessLimit) {
+      alert(`Business creation limit reached (${businessLimit} businesses allowed on your current plan). Please contact your administrator to upgrade your plan.`);
+      return;
+    }
     setEditingBusiness(null);
     setIsCustomCategory(false);
+
+    // Auto-suggest next available Business ID (e.g. BIZ-001) while remaining completely editable
+    const existingIds = new Set(businesses.map(b => (b.businessId || b.businessCode || '').trim().toUpperCase()));
+    let count = businesses.length + 1;
+    while (existingIds.has(`BIZ-${String(count).padStart(3, '0')}`)) {
+      count++;
+    }
+    const suggestedId = `BIZ-${String(count).padStart(3, '0')}`;
+
     setFormData({ 
+      businessId: suggestedId,
       name: '', 
       category: '', 
       contactPerson: '', 
@@ -103,6 +119,7 @@ const Businesses = () => {
     const isOther = b.category && !standardCategories.includes(b.category);
     setIsCustomCategory(Boolean(isOther));
     setFormData({
+      businessId: b.businessId || b.businessCode || '',
       name: b.name || '',
       category: b.category || '',
       contactPerson: b.contactPerson || '',
@@ -183,12 +200,26 @@ const Businesses = () => {
   const fetchBusinesses = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/businesses`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      if (!token) return;
+
+      const [res, meRes] = await Promise.all([
+        fetch(`${import.meta.env.VITE_API_URL}/api/businesses`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch(`${import.meta.env.VITE_API_URL}/api/auth/me`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+      ]);
+
       if (res.ok) {
         const data = await res.json();
         setBusinesses(data);
+      }
+      if (meRes.ok) {
+        const meData = await meRes.json();
+        if (meData.businessLimit !== undefined) {
+          setBusinessLimit(meData.businessLimit);
+        }
       }
     } catch (err) {
       console.error(err);
@@ -215,6 +246,10 @@ const Businesses = () => {
       alert('Please specify the category name.');
       return;
     }
+    if (!editingBusiness && businessLimit && businessLimit > 0 && businesses.length >= businessLimit) {
+      alert(`Business creation limit reached (${businessLimit} businesses allowed on your current plan).`);
+      return;
+    }
     try {
       const token = localStorage.getItem('token');
       const url = editingBusiness
@@ -223,6 +258,8 @@ const Businesses = () => {
       const method = editingBusiness ? 'PUT' : 'POST';
 
       const payload = {
+        businessId: (formData.businessId || '').trim(),
+        businessCode: (formData.businessId || '').trim(),
         name: formData.name.trim(),
         category: formData.category.trim(),
         contactPerson: formData.contactPerson.trim(),
@@ -245,6 +282,7 @@ const Businesses = () => {
         setEditingBusiness(null);
         setIsCustomCategory(false);
         setFormData({ 
+          businessId: '',
           name: '', 
           category: '', 
           contactPerson: '', 
@@ -303,6 +341,7 @@ const Businesses = () => {
     .filter(b => {
       const q = search.toLowerCase();
       return (
+        ((b.businessId || b.businessCode || '').toLowerCase().includes(q)) ||
         (b.name && b.name.toLowerCase().includes(q)) ||
         (b.category && b.category.toLowerCase().includes(q)) ||
         (b.contactPerson && b.contactPerson.toLowerCase().includes(q)) ||
@@ -343,6 +382,7 @@ const Businesses = () => {
   const handleExport = () => {
     const exportData = filteredBusinesses.map((b, idx) => ({
       'S.No': idx + 1,
+      'Business ID': b.businessId || b.businessCode || '',
       'Business Name': b.name || '',
       'Category': b.category || 'General',
       'Contact Person': b.contactPerson || '-',
@@ -384,8 +424,12 @@ const Businesses = () => {
         <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
           <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Building2 size={24} /></div>
           <div>
-            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Total Businesses</p>
-            <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{businesses.length}</h3>
+            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>
+              {businessLimit ? `Total Businesses (Limit: ${businessLimit})` : 'Total Businesses (Unlimited)'}
+            </p>
+            <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>
+              {businessLimit ? `${businesses.length} / ${businessLimit}` : businesses.length}
+            </h3>
           </div>
         </div>
         <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
@@ -499,9 +543,16 @@ const Businesses = () => {
                           <Building2 size={18} />
                         </div>
                         <div>
-                          <span style={{ fontSize: '14px', fontWeight: '700', color: '#0F172A', display: 'block', lineHeight: '1.3' }}>{b.name}</span>
-                          <span style={{ fontSize: '11px', color: '#64748B', fontFamily: 'monospace', fontWeight: '500' }}>
-                            ID: BZ-{b.name ? b.name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase() : '0000'}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: '14px', fontWeight: '700', color: '#0F172A', display: 'block', lineHeight: '1.3' }}>{b.name}</span>
+                            {(b.businessId || b.businessCode) && (
+                              <span style={{ background: '#EFF6FF', color: '#1D4ED8', fontSize: '11px', fontWeight: '700', padding: '1px 6px', borderRadius: '4px', border: '1px solid #BFDBFE' }}>
+                                {b.businessId || b.businessCode}
+                              </span>
+                            )}
+                          </div>
+                          <span style={{ fontSize: '11px', color: '#64748B', fontWeight: '500' }}>
+                            {b.category || 'Business Entity'}
                           </span>
                         </div>
                       </div>
@@ -752,8 +803,23 @@ const Businesses = () => {
             
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto', paddingRight: '4px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                {/* Business Name - Full Width */}
-                <div style={{ gridColumn: '1 / span 2' }}>
+                {/* Business ID / Code */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>
+                    Business ID / Code <span style={{ color: '#EF4444' }}>*</span>
+                  </label>
+                  <input 
+                    placeholder="e.g. BIZ-001" 
+                    type="text" 
+                    value={formData.businessId} 
+                    onChange={e => setFormData({...formData, businessId: e.target.value})} 
+                    required 
+                    style={{ width: '100%', padding: '11px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box' }} 
+                  />
+                </div>
+
+                {/* Business Name */}
+                <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>
                     Business Name <span style={{ color: '#EF4444' }}>*</span>
                   </label>
@@ -1262,6 +1328,10 @@ const Businesses = () => {
             </div>
             
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', flex: 1, overflowY: 'auto' }}>
+              <div style={{ padding: '12px 14px', background: '#EFF6FF', borderRadius: '10px', border: '1px solid #BFDBFE' }}>
+                <p style={{ margin: '0 0 4px 0', fontSize: '11px', color: '#1D4ED8', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Business ID</p>
+                <p style={{ margin: 0, fontSize: '15px', color: '#1E40AF', fontWeight: '700' }}>{viewBusiness.businessId || viewBusiness.businessCode || 'N/A'}</p>
+              </div>
               <div style={{ padding: '12px 14px', background: '#F8FAFC', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
                 <p style={{ margin: '0 0 4px 0', fontSize: '11px', color: '#64748B', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Business Name</p>
                 <p style={{ margin: 0, fontSize: '15px', color: '#0F172A', fontWeight: '600' }}>{viewBusiness.name}</p>

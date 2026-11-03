@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Receipt, Search, Filter, Download, Plus, 
+  Receipt, Search, Filter, Download, 
   Store, Users, Map, Building2, Calendar, 
   CheckCircle2, Clock, AlertTriangle, ArrowUpDown, 
   ArrowUp, ArrowDown, Edit2, LogIn, ExternalLink, 
@@ -38,7 +38,10 @@ const ManageSubscriptions = () => {
     businessType: 1,
     billingCycle: 'Monthly',
     customAmount: 0,
-    renewalDate: ''
+    renewalDate: '',
+    employeeLimit: '',
+    branchLimit: '',
+    businessLimit: ''
   });
   const [savingEdit, setSavingEdit] = useState(false);
   const [impersonatingId, setImpersonatingId] = useState(null);
@@ -81,7 +84,10 @@ const ManageSubscriptions = () => {
       businessType: sub.type || 1,
       billingCycle: sub.billingCycle || 'Monthly',
       customAmount: sub.amount || 0,
-      renewalDate: sub.renewalDate ? new Date(sub.renewalDate).toISOString().split('T')[0] : ''
+      renewalDate: sub.renewalDate ? new Date(sub.renewalDate).toISOString().split('T')[0] : '',
+      employeeLimit: sub.employeeLimit != null ? sub.employeeLimit : '',
+      branchLimit: sub.branchLimit != null ? sub.branchLimit : '',
+      businessLimit: sub.businessLimit != null ? sub.businessLimit : ''
     });
   };
 
@@ -103,7 +109,10 @@ const ManageSubscriptions = () => {
           businessType: editForm.businessType,
           billingCycle: editForm.billingCycle,
           customAmount: editForm.customAmount,
-          renewalDate: editForm.renewalDate
+          renewalDate: editForm.renewalDate,
+          employeeLimit: editForm.employeeLimit === '' ? null : Number(editForm.employeeLimit),
+          branchLimit: editForm.branchLimit === '' ? null : Number(editForm.branchLimit),
+          businessLimit: editForm.businessLimit === '' ? null : Number(editForm.businessLimit)
         })
       });
 
@@ -394,6 +403,9 @@ const ManageSubscriptions = () => {
               <th onClick={() => requestSort('amount')} style={{ padding: '16px 20px', fontWeight: '600', cursor: 'pointer', userSelect: 'none' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span>Price (₹)</span> {renderSortIcon('amount')}</div>
               </th>
+              <th onClick={() => requestSort('employeeLimit')} style={{ padding: '16px 20px', fontWeight: '600', cursor: 'pointer', userSelect: 'none' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span>Staff Limit</span> {renderSortIcon('employeeLimit')}</div>
+              </th>
               <th onClick={() => requestSort('status')} style={{ padding: '16px 20px', fontWeight: '600', cursor: 'pointer', userSelect: 'none' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span>Status</span> {renderSortIcon('status')}</div>
               </th>
@@ -406,14 +418,14 @@ const ManageSubscriptions = () => {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: '#64748B' }}>
+                <td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: '#64748B' }}>
                   <Loader2 size={24} style={{ animation: 'spin 1s linear infinite', margin: '0 auto 8px auto' }} />
                   <div>Loading subscription accounts...</div>
                 </td>
               </tr>
             ) : sortedSubscriptions.length === 0 ? (
               <tr>
-                <td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: '#64748B' }}>
+                <td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: '#64748B' }}>
                   No subscriptions match the selected criteria.
                 </td>
               </tr>
@@ -467,6 +479,62 @@ const ManageSubscriptions = () => {
                     </td>
 
                     <td style={{ padding: '16px 20px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          background: sub.employeeLimit ? '#EFF6FF' : '#F0FDF4',
+                          padding: '4px 10px',
+                          borderRadius: '8px',
+                          border: `1px solid ${sub.employeeLimit ? '#DBEAFE' : '#DCFCE7'}`,
+                          width: 'fit-content'
+                        }}>
+                          <Users size={13} color={sub.employeeLimit ? '#2563EB' : '#16A34A'} />
+                          <span style={{ fontSize: '12px', fontWeight: '700', color: sub.employeeLimit ? '#2563EB' : '#059669' }}>
+                            {sub.employeeLimit ? `${sub.employeeLimit} Staff` : 'Unlimited'}
+                          </span>
+                        </div>
+
+                        {(sub.type === 3 || sub.type === 4) && (
+                          <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            background: '#F0FDF4',
+                            padding: '4px 10px',
+                            borderRadius: '8px',
+                            border: '1px solid #DCFCE7',
+                            width: 'fit-content'
+                          }}>
+                            <Map size={13} color="#16A34A" />
+                            <span style={{ fontSize: '12px', fontWeight: '700', color: sub.branchLimit ? '#166534' : '#059669' }}>
+                              {sub.branchLimit ? `${sub.branchLimit} Branch` : 'Unlimited'}
+                            </span>
+                          </div>
+                        )}
+
+                        {sub.type === 4 && (
+                          <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            background: '#FAF5FF',
+                            padding: '4px 10px',
+                            borderRadius: '8px',
+                            border: '1px solid #F3E8FF',
+                            width: 'fit-content'
+                          }}>
+                            <Building2 size={13} color="#7C3AED" />
+                            <span style={{ fontSize: '12px', fontWeight: '700', color: sub.businessLimit ? '#6B21A8' : '#059669' }}>
+                              {sub.businessLimit ? `${sub.businessLimit} Biz` : 'Unlimited'}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+
+                    <td style={{ padding: '16px 20px' }}>
                       <span style={{ 
                         background: badgeStyle.bg, 
                         color: badgeStyle.color, 
@@ -512,7 +580,7 @@ const ManageSubscriptions = () => {
                           title="View Customer Page"
                         >
                           <Eye size={13} />
-                          View Data
+                          View
                         </button>
                       </div>
                     </td>
@@ -718,6 +786,122 @@ const ManageSubscriptions = () => {
                   />
                 </div>
               </div>
+
+              <div style={{ marginTop: '14px' }}>
+                <div className="input-group" style={{ marginBottom: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <label className="input-label" style={{ fontWeight: '600', fontSize: '13px', margin: 0 }}>
+                      Employee Creation Limit
+                    </label>
+                    <span style={{ fontSize: '12px', fontWeight: '600', color: editForm.employeeLimit ? '#2563EB' : '#059669' }}>
+                      {editForm.employeeLimit ? `${editForm.employeeLimit} Employees` : 'Unlimited'}
+                    </span>
+                  </div>
+                  
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <input 
+                      type="number" 
+                      min="0"
+                      className="input-field"
+                      placeholder="e.g. 10 (Leave empty for Unlimited)"
+                      value={editForm.employeeLimit}
+                      onWheel={(e) => e.target.blur()}
+                      onChange={(e) => setEditForm({ ...editForm, employeeLimit: e.target.value })}
+                      style={{ fontWeight: '600', fontSize: '14px', color: '#0F172A', flex: 1 }}
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => setEditForm({ ...editForm, employeeLimit: '' })}
+                      style={{ padding: '0 16px', height: '42px', borderRadius: '8px', border: '1px solid #E2E8F0', background: editForm.employeeLimit === '' ? '#DCFCE7' : '#F1F5F9', color: editForm.employeeLimit === '' ? '#15803D' : '#475569', fontSize: '13px', fontWeight: '600', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s' }}
+                      title="Set to Unlimited"
+                    >
+                      No Limit
+                    </button>
+                  </div>
+                  <span style={{ fontSize: '11px', color: '#64748B', marginTop: '6px', display: 'block' }}>
+                    Enter employee creation quota, or click "No Limit" for unlimited.
+                  </span>
+                </div>
+              </div>
+
+              {(editForm.businessType === 3 || editForm.businessType === 4) && (
+                <div style={{ marginTop: '14px' }}>
+                  <div className="input-group" style={{ marginBottom: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <label className="input-label" style={{ fontWeight: '600', fontSize: '13px', margin: 0 }}>
+                        Branch Creation Limit (Type 3 & 4)
+                      </label>
+                      <span style={{ fontSize: '12px', fontWeight: '600', color: editForm.branchLimit ? '#166534' : '#059669' }}>
+                        {editForm.branchLimit ? `${editForm.branchLimit} Branches` : 'Unlimited'}
+                      </span>
+                    </div>
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input 
+                        type="number" 
+                        min="0"
+                        className="input-field"
+                        placeholder="e.g. 5 (Leave empty for Unlimited)"
+                        value={editForm.branchLimit}
+                        onWheel={(e) => e.target.blur()}
+                        onChange={(e) => setEditForm({ ...editForm, branchLimit: e.target.value })}
+                        style={{ fontWeight: '600', fontSize: '14px', color: '#0F172A', flex: 1 }}
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() => setEditForm({ ...editForm, branchLimit: '' })}
+                        style={{ padding: '0 16px', height: '42px', borderRadius: '8px', border: '1px solid #E2E8F0', background: editForm.branchLimit === '' ? '#DCFCE7' : '#F1F5F9', color: editForm.branchLimit === '' ? '#15803D' : '#475569', fontSize: '13px', fontWeight: '600', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s' }}
+                      >
+                        No Limit
+                      </button>
+                    </div>
+                    <span style={{ fontSize: '11px', color: '#64748B', marginTop: '6px', display: 'block' }}>
+                      Enter branch creation quota, or click "No Limit" for unlimited.
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {editForm.businessType === 4 && (
+                <div style={{ marginTop: '14px' }}>
+                  <div className="input-group" style={{ marginBottom: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <label className="input-label" style={{ fontWeight: '600', fontSize: '13px', margin: 0 }}>
+                        Business Creation Limit (Type 4)
+                      </label>
+                      <span style={{ fontSize: '12px', fontWeight: '600', color: editForm.businessLimit ? '#6B21A8' : '#059669' }}>
+                        {editForm.businessLimit ? `${editForm.businessLimit} Businesses` : 'Unlimited'}
+                      </span>
+                    </div>
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input 
+                        type="number" 
+                        min="0"
+                        className="input-field"
+                        placeholder="e.g. 3 (Leave empty for Unlimited)"
+                        value={editForm.businessLimit}
+                        onWheel={(e) => e.target.blur()}
+                        onChange={(e) => setEditForm({ ...editForm, businessLimit: e.target.value })}
+                        style={{ fontWeight: '600', fontSize: '14px', color: '#0F172A', flex: 1 }}
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() => setEditForm({ ...editForm, businessLimit: '' })}
+                        style={{ padding: '0 16px', height: '42px', borderRadius: '8px', border: '1px solid #E2E8F0', background: editForm.businessLimit === '' ? '#DCFCE7' : '#F1F5F9', color: editForm.businessLimit === '' ? '#15803D' : '#475569', fontSize: '13px', fontWeight: '600', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s' }}
+                      >
+                        No Limit
+                      </button>
+                    </div>
+                    <span style={{ fontSize: '11px', color: '#64748B', marginTop: '6px', display: 'block' }}>
+                      Enter business creation quota, or click "No Limit" for unlimited.
+                    </span>
+                  </div>
+                </div>
+              )}
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '12px' }}>
                 <button 

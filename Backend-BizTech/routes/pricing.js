@@ -11,7 +11,7 @@ router.get('/', async (req, res) => {
     res.json(plans);
   } catch (err) {
     console.error(err.message);
-    res.status(500).send('Server error');
+    res.status(500).json({ message: err.message || 'Server error' });
   }
 });
 
@@ -20,17 +20,27 @@ router.get('/', async (req, res) => {
 // @access  Admin
 router.post('/', async (req, res) => {
   try {
-    const { customerType, amount, description } = req.body;
+    const { customerType, amount, description, employeeLimit, branchLimit, businessLimit } = req.body;
     let plan = await Pricing.findOne({ customerType });
     if (plan) {
       return res.status(400).json({ message: 'Pricing for this customer type already exists' });
     }
-    plan = new Pricing({ customerType, amount, description });
+    const cleanLimit = (employeeLimit === '' || employeeLimit === null || Number(employeeLimit) === 0) ? null : Number(employeeLimit);
+    const cleanBranchLimit = (branchLimit === '' || branchLimit === null || Number(branchLimit) === 0) ? null : Number(branchLimit);
+    const cleanBusinessLimit = (businessLimit === '' || businessLimit === null || Number(businessLimit) === 0) ? null : Number(businessLimit);
+    plan = new Pricing({ 
+      customerType, 
+      amount, 
+      description, 
+      employeeLimit: cleanLimit,
+      branchLimit: cleanBranchLimit,
+      businessLimit: cleanBusinessLimit
+    });
     await plan.save();
     res.json(plan);
   } catch (err) {
     console.error(err.message);
-    res.status(500).send('Server error');
+    res.status(500).json({ message: err.message || 'Server error' });
   }
 });
 
@@ -39,7 +49,7 @@ router.post('/', async (req, res) => {
 // @access  Admin
 router.put('/:id', async (req, res) => {
   try {
-    const { customerType, amount, description } = req.body;
+    const { customerType, amount, description, employeeLimit, branchLimit, businessLimit } = req.body;
     let plan = await Pricing.findById(req.params.id);
     if (!plan) {
       return res.status(404).json({ message: 'Pricing plan not found' });
@@ -48,12 +58,21 @@ router.put('/:id', async (req, res) => {
     plan.customerType = customerType || plan.customerType;
     plan.amount = amount !== undefined ? amount : plan.amount;
     plan.description = description !== undefined ? description : plan.description;
+    if (employeeLimit !== undefined) {
+      plan.employeeLimit = (employeeLimit === '' || employeeLimit === null || Number(employeeLimit) === 0) ? null : Number(employeeLimit);
+    }
+    if (branchLimit !== undefined) {
+      plan.branchLimit = (branchLimit === '' || branchLimit === null || Number(branchLimit) === 0) ? null : Number(branchLimit);
+    }
+    if (businessLimit !== undefined) {
+      plan.businessLimit = (businessLimit === '' || businessLimit === null || Number(businessLimit) === 0) ? null : Number(businessLimit);
+    }
     
     await plan.save();
     res.json(plan);
   } catch (err) {
     console.error(err.message);
-    res.status(500).send('Server error');
+    res.status(500).json({ message: err.message || 'Server error' });
   }
 });
 
@@ -70,7 +89,7 @@ router.delete('/:id', async (req, res) => {
     res.json({ message: 'Pricing plan removed' });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send('Server error');
+    res.status(500).json({ message: err.message || 'Server error' });
   }
 });
 

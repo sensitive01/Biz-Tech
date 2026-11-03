@@ -20,6 +20,17 @@ const auth = (req, res, next) => {
   }
 };
 
+const generateNextBusinessId = (businesses = []) => {
+  const existingIds = new Set(
+    businesses.map(b => (b.businessId || b.businessCode || '').trim().toUpperCase())
+  );
+  let count = businesses.length + 1;
+  while (existingIds.has(`BIZ-${String(count).padStart(3, '0')}`)) {
+    count++;
+  }
+  return `BIZ-${String(count).padStart(3, '0')}`;
+};
+
 // Helper to sanitize business for client responses
 const sanitizeBusiness = (b) => {
   const obj = b.toObject ? b.toObject() : { ...b };
@@ -49,7 +60,34 @@ router.post('/', auth, async (req, res) => {
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
     
+    // Check business creation limit for tenant
+    if (user && typeof user.businessLimit === 'number' && user.businessLimit > 0) {
+      const currentBizCount = (user.businesses || []).length;
+      if (currentBizCount >= user.businessLimit) {
+        return res.status(400).json({ 
+          error: `Business creation limit of ${user.businessLimit} reached. Please contact your administrator to increase business capacity.` 
+        });
+      }
+    }
+
     const newBiz = { ...req.body };
+
+    let cleanBizId = (newBiz.businessId || newBiz.businessCode || '').trim();
+    if (!cleanBizId) {
+      cleanBizId = generateNextBusinessId(user.businesses || []);
+    } else {
+      const duplicateBiz = (user.businesses || []).find(b => {
+        const bId = (b.businessId || b.businessCode || '').trim();
+        return bId.toLowerCase() === cleanBizId.toLowerCase();
+      });
+      if (duplicateBiz) {
+        return res.status(400).json({
+          error: `Business ID "${cleanBizId}" is already assigned to business "${duplicateBiz.name}". Please use a unique Business ID.`
+        });
+      }
+    }
+    newBiz.businessId = cleanBizId;
+    newBiz.businessCode = cleanBizId;
 
     if (newBiz.email && newBiz.email.trim()) {
       const cleanEmail = newBiz.email.trim().toLowerCase();
@@ -135,6 +173,25 @@ router.put('/:id', auth, async (req, res) => {
     if (index === -1) return res.status(404).json({ message: 'Business not found' });
 
     const updateData = { ...req.body };
+
+    if (updateData.businessId !== undefined || updateData.businessCode !== undefined) {
+      const cleanBizId = (updateData.businessId || updateData.businessCode || '').trim();
+      if (!cleanBizId) {
+        return res.status(400).json({ error: 'Business ID cannot be empty.' });
+      }
+      const duplicateBiz = (user.businesses || []).find(b => {
+        if (b._id.toString() === req.params.id) return false;
+        const bId = (b.businessId || b.businessCode || '').trim();
+        return bId.toLowerCase() === cleanBizId.toLowerCase();
+      });
+      if (duplicateBiz) {
+        return res.status(400).json({
+          error: `Business ID "${cleanBizId}" is already assigned to business "${duplicateBiz.name}". Please use a unique Business ID.`
+        });
+      }
+      updateData.businessId = cleanBizId;
+      updateData.businessCode = cleanBizId;
+    }
 
     if (updateData.email && updateData.email.trim()) {
       const cleanEmail = updateData.email.trim().toLowerCase();
