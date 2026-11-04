@@ -1,10 +1,30 @@
-import React, { useState } from 'react';
-import { Settings as SettingsIcon, Lock, Bell, Save, Eye, EyeOff } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Settings as SettingsIcon, Lock, Bell, Save, Eye, EyeOff, Sun, Moon, Palette, Check } from 'lucide-react';
 
 const Settings = () => {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [currentTheme, setCurrentTheme] = useState(() => {
+    return localStorage.getItem('biztech_theme') || 'light';
+  });
+
+  useEffect(() => {
+    const handleThemeEvent = (e) => {
+      if (e.detail?.theme) setCurrentTheme(e.detail.theme);
+    };
+    window.addEventListener('themeChanged', handleThemeEvent);
+    return () => window.removeEventListener('themeChanged', handleThemeEvent);
+  }, []);
+
+  const handleSelectTheme = (mode) => {
+    setCurrentTheme(mode);
+    document.documentElement.setAttribute('data-theme', mode);
+    if (mode === 'dark') document.body.classList.add('dark-theme');
+    else document.body.classList.remove('dark-theme');
+    localStorage.setItem('biztech_theme', mode);
+    window.dispatchEvent(new CustomEvent('themeChanged', { detail: { theme: mode } }));
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', position: 'relative' }}>
@@ -44,6 +64,99 @@ const Settings = () => {
                 <label className="input-label">Admin / Support Email <span style={{ color: '#EF4444' }}>*</span></label>
                 <input placeholder="Enter value" type="email" className="input-field" defaultValue="support@biztech.com" style={{ background: '#F8FAFC' }} />
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Appearance & Accessibility (Dark / Light Mode) */}
+        <div className="card" style={{ padding: '0', overflow: 'hidden' }}>
+          <div style={{ padding: '24px', background: '#F8FAFC', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#EFF6FF', color: 'var(--primary-blue)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Palette size={18} />
+            </div>
+            <div>
+              <h2 style={{ fontSize: '16px', margin: '0 0 4px 0' }}>Appearance & Accessibility</h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: 0 }}>Customize your visual interface theme between Light and Dark mode</p>
+            </div>
+          </div>
+          
+          <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
+              
+              {/* Light Mode Card */}
+              <div 
+                onClick={() => handleSelectTheme('light')}
+                style={{
+                  border: `2px solid ${currentTheme === 'light' ? 'var(--primary-blue)' : 'var(--border-color)'}`,
+                  background: currentTheme === 'light' ? 'rgba(37, 99, 235, 0.04)' : '#FFFFFF',
+                  borderRadius: '12px',
+                  padding: '20px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                  position: 'relative',
+                  transition: 'all 0.2s'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#FEF3C7', color: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Sun size={20} />
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: '700', fontSize: '15px', color: 'var(--text-title)' }}>Light Mode</div>
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Default clean daytime look</span>
+                    </div>
+                  </div>
+                  {currentTheme === 'light' && (
+                    <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: 'var(--primary-blue)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Check size={14} />
+                    </div>
+                  )}
+                </div>
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.4' }}>
+                  Crisp daylight theme with clean surfaces and high-contrast typography designed for well-lit environments.
+                </p>
+              </div>
+
+              {/* Dark Mode Card */}
+              <div 
+                onClick={() => handleSelectTheme('dark')}
+                style={{
+                  border: `2px solid ${currentTheme === 'dark' ? 'var(--primary-blue)' : 'var(--border-color)'}`,
+                  background: currentTheme === 'dark' ? 'rgba(59, 130, 246, 0.1)' : '#FFFFFF',
+                  borderRadius: '12px',
+                  padding: '20px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                  position: 'relative',
+                  transition: 'all 0.2s'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#1E293B', color: '#60A5FA', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Moon size={20} />
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: '700', fontSize: '15px', color: 'var(--text-title)' }}>Dark Mode</div>
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Low glare nighttime look</span>
+                    </div>
+                  </div>
+                  {currentTheme === 'dark' && (
+                    <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: 'var(--primary-blue)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Check size={14} />
+                    </div>
+                  )}
+                </div>
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.4' }}>
+                  Deep midnight slate theme optimized for reduced eye strain, battery efficiency, and night shifts.
+                </p>
+              </div>
+
             </div>
           </div>
         </div>

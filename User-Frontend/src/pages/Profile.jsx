@@ -5,7 +5,8 @@ import {
   FileText, Loader2, Store, Users, Map, 
   Building2, Briefcase, Pencil, Check, X, 
   ShieldCheck, ArrowRight, CheckCircle2,
-  Lock, Key, Eye, EyeOff, AlertCircle
+  Lock, Key, Eye, EyeOff, AlertCircle,
+  Sun, Moon, Palette
 } from 'lucide-react';
 
 const Profile = () => {
@@ -39,6 +40,28 @@ const Profile = () => {
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
+
+  // Theme Customization State (defaults to light mode)
+  const [currentTheme, setCurrentTheme] = useState(() => {
+    return localStorage.getItem('biztech_theme') || 'light';
+  });
+
+  useEffect(() => {
+    const handleThemeEvent = (e) => {
+      if (e.detail?.theme) setCurrentTheme(e.detail.theme);
+    };
+    window.addEventListener('themeChanged', handleThemeEvent);
+    return () => window.removeEventListener('themeChanged', handleThemeEvent);
+  }, []);
+
+  const handleSelectTheme = (mode) => {
+    setCurrentTheme(mode);
+    document.documentElement.setAttribute('data-theme', mode);
+    if (mode === 'dark') document.body.classList.add('dark-theme');
+    else document.body.classList.remove('dark-theme');
+    localStorage.setItem('biztech_theme', mode);
+    window.dispatchEvent(new CustomEvent('themeChanged', { detail: { theme: mode } }));
+  };
 
   const getArchetypeInfo = (type) => {
     switch (Number(type)) {
@@ -882,7 +905,111 @@ const Profile = () => {
         </form>
       </div>
 
-      {/* Section 4: Business Setup & Architecture Card */}
+      {/* Section 4: Appearance & Accessibility (Dark / Light Mode) */}
+      <div style={{ 
+        background: 'white', 
+        borderRadius: '16px', 
+        padding: '32px', 
+        boxShadow: '0 4px 12px rgba(15, 23, 42, 0.04)', 
+        border: '1px solid var(--border-color)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '20px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '18px' }}>
+          <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#EFF6FF', color: 'var(--primary-blue)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Palette size={20} />
+          </div>
+          <div>
+            <h3 style={{ fontSize: '18px', fontWeight: '700', color: 'var(--text-title)', margin: '0 0 4px 0' }}>
+              Appearance & Accessibility
+            </h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: 0 }}>
+              Seamlessly switch between Light Mode and Dark Mode based on your work environment.
+            </p>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
+          
+          {/* Light Mode Card */}
+          <div 
+            onClick={() => handleSelectTheme('light')}
+            style={{
+              border: `2px solid ${currentTheme === 'light' ? 'var(--primary-blue)' : 'var(--border-color)'}`,
+              background: currentTheme === 'light' ? 'rgba(37, 99, 235, 0.04)' : '#FFFFFF',
+              borderRadius: '14px',
+              padding: '20px',
+              cursor: 'pointer',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              transition: 'all 0.2s',
+              position: 'relative'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: '#FEF3C7', color: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Sun size={20} />
+                </div>
+                <div>
+                  <div style={{ fontWeight: '700', fontSize: '15px', color: 'var(--text-title)' }}>Light Mode</div>
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Crisp daylight aesthetic</span>
+                </div>
+              </div>
+              {currentTheme === 'light' && (
+                <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: 'var(--primary-blue)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Check size={14} />
+                </div>
+              )}
+            </div>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.4' }}>
+              High-contrast daytime interface designed for maximum legibility in bright offices and daylight workspaces.
+            </p>
+          </div>
+
+          {/* Dark Mode Card */}
+          <div 
+            onClick={() => handleSelectTheme('dark')}
+            style={{
+              border: `2px solid ${currentTheme === 'dark' ? 'var(--primary-blue)' : 'var(--border-color)'}`,
+              background: currentTheme === 'dark' ? 'rgba(59, 130, 246, 0.1)' : '#FFFFFF',
+              borderRadius: '14px',
+              padding: '20px',
+              cursor: 'pointer',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              transition: 'all 0.2s',
+              position: 'relative'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: '#1E293B', color: '#60A5FA', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Moon size={20} />
+                </div>
+                <div>
+                  <div style={{ fontWeight: '700', fontSize: '15px', color: 'var(--text-title)' }}>Dark Mode</div>
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Reduced glare night aesthetic</span>
+                </div>
+              </div>
+              {currentTheme === 'dark' && (
+                <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: 'var(--primary-blue)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Check size={14} />
+                </div>
+              )}
+            </div>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.4' }}>
+              Deep slate night theme engineered to minimize ocular fatigue and glare during evening shifts and dark environments.
+            </p>
+          </div>
+
+        </div>
+      </div>
+
+      {/* Section 5: Business Setup & Architecture Card */}
       <div style={{ 
         background: 'white', 
         borderRadius: '16px', 

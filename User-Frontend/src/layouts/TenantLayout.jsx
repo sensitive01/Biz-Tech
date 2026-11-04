@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { LayoutGrid, Users, Map, Calendar, LogOut, Bell, ChevronDown, Clock, Package, Archive, TrendingUp, ShoppingCart, Receipt, Building2, UserCheck, FileText, BellRing, Store, Lock } from 'lucide-react';
 import LanguageSelector from '../components/LanguageSelector';
+import ThemeToggle from '../components/ThemeToggle';
 
 const TenantLayout = () => {
   const navigate = useNavigate();
@@ -367,7 +368,8 @@ const TenantLayout = () => {
             </div>
           ) : <div />}
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <ThemeToggle />
             <LanguageSelector />
             {/* Notification Bell with Badge & Dropdown */}
             <div style={{ position: 'relative' }}>

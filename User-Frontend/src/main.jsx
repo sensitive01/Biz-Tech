@@ -3,6 +3,11 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 
+// Initialize theme on initial load (defaults to light mode)
+const savedTheme = localStorage.getItem('biztech_theme') || 'light';
+document.documentElement.setAttribute('data-theme', savedTheme);
+if (savedTheme === 'dark') document.body.classList.add('dark-theme');
+
 // Globally disable mouse wheel changing number input values across the entire application
 document.addEventListener('wheel', () => {
   if (document.activeElement && document.activeElement.tagName === 'INPUT' && document.activeElement.type === 'number') {

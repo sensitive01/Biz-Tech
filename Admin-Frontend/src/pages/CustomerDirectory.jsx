@@ -359,7 +359,14 @@ const CustomerDirectory = () => {
                     <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{customer.contactEmail}</div>
                   </td>
                   <td style={{ padding: '16px 24px' }}>
-                    <span className="badge" style={{ background: '#F1F5F9', color: 'var(--text-title)' }}>{customer.locations}</span>
+                    <span className="badge" style={{ 
+                      background: 'var(--badge-type1-bg)', 
+                      color: 'var(--text-title)', 
+                      border: '1px solid var(--border-color)',
+                      fontWeight: '500'
+                    }}>
+                      {customer.locations}
+                    </span>
                   </td>
                   <td style={{ padding: '16px 24px' }}>
                     <div style={{ fontWeight: '500', color: 'var(--text-title)', fontSize: '14px' }}>{customer.staff}</div>
