@@ -1,28 +1,110 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Calendar as CalendarIcon, Plus, X, Trash2, Check, XCircle, Search, Download, ArrowUp, ArrowDown, ArrowUpDown, Pencil, Clock, CheckCircle2, Store } from 'lucide-react';
+import { 
+  Calendar as CalendarIcon, 
+  Plus, 
+  X, 
+  Trash2, 
+  Check, 
+  XCircle, 
+  Search, 
+  Download, 
+  ArrowUp, 
+  ArrowDown, 
+  ArrowUpDown, 
+  Pencil, 
+  Clock, 
+  CheckCircle2, 
+  Store,
+  Timer,
+  AlertCircle,
+  MessageSquare,
+  ShieldAlert,
+  UserCheck
+} from 'lucide-react';
 import { exportToCSV } from '../utils/exportToCSV';
 import { formatDate } from '../utils/formatDate';
 import TablePagination from '../components/TablePagination';
+
+const LEAVE_TYPES = [
+  'Annual Leave',
+  'Casual Leave',
+  'Sick / Medical Leave',
+  'Unpaid Leave',
+  'Maternity / Paternity Leave',
+  'Bereavement Leave',
+  'Compensatory Off',
+  'Other Leave'
+];
+
+const PERMISSION_TYPES = [
+  'Personal Permission',
+  'Official / On-Duty Work',
+  'Late Arrival',
+  'Early Departure',
+  'Doctor / Medical Checkup',
+  'Emergency / Family',
+  'Bank / Official Errand',
+  'Other Permission'
+];
 
 const LeaveRequests = () => {
   const [leaves, setLeaves] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [filterCategory, setFilterCategory] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
   const [filterDays, setFilterDays] = useState('all');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+
+  // Add / Edit Modal state
   const [showModal, setShowModal] = useState(false);
   const [editingLeave, setEditingLeave] = useState(null);
-  const [formData, setFormData] = useState({ employeeId: '', type: 'Annual Leave', startDate: '', endDate: '', reason: '' });
+  const [formData, setFormData] = useState({
+    employeeId: '',
+    category: 'Leave', // 'Leave' | 'Permission'
+    type: 'Annual Leave',
+    startDate: '',
+    endDate: '',
+    timeFrom: '10:00',
+    timeTo: '12:00',
+    durationHours: '2 hrs',
+    reason: ''
+  });
+
+  // Formal Review Modal state (for Type 2, 3, 4 owners/managers)
+  const [reviewModal, setReviewModal] = useState({
+    isOpen: false,
+    leave: null,
+    action: 'Approved', // 'Approved' | 'Rejected'
+    note: ''
+  });
+
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
+  // Business archetype & role identity
+  const tenantType = Number(localStorage.getItem('tenantType')) || 1;
+  const currentUser = (() => {
+    try {
+      const u = localStorage.getItem('user');
+      return u ? JSON.parse(u) : null;
+    } catch (e) {
+      return null;
+    }
+  })();
+  const isEmployee = currentUser?.role === 'employee';
+  const isSoleOperator = tenantType === 1;
+  // Type 1 has no approval flow (direct record). Types 2, 3, 4 have formal review/approval workflow.
+  const hasApprovalWorkflow = !isSoleOperator;
+  const canReview = hasApprovalWorkflow && !isEmployee;
+
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, filterDays, customStartDate, customEndDate, itemsPerPage]);
+  }, [search, filterCategory, filterStatus, filterDays, customStartDate, customEndDate, itemsPerPage]);
 
   const fetchData = async () => {
     try {
@@ -35,42 +117,101 @@ const LeaveRequests = () => {
       if (leaveRes.ok) setLeaves(await leaveRes.json());
       if (empRes.ok) setEmployees(await empRes.json());
     } catch (err) {
-      console.error(err);
+      console.error('Error fetching leaves/employees:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const calculateHours = (from, to) => {
+    if (!from || !to) return '';
+    const [h1, m1] = from.split(':').map(Number);
+    const [h2, m2] = to.split(':').map(Number);
+    let diffMinutes = (h2 * 60 + m2) - (h1 * 60 + m1);
+    if (diffMinutes < 0) diffMinutes += 24 * 60;
+    const hours = Math.floor(diffMinutes / 60);
+    const mins = diffMinutes % 60;
+    if (hours === 0 && mins === 0) return '0 hrs';
+    if (mins === 0) return `${hours} hr${hours > 1 ? 's' : ''}`;
+    if (hours === 0) return `${mins} mins`;
+    return `${hours} hr ${mins} mins`;
+  };
+
+  const handleTimeChange = (field, val) => {
+    const updated = { ...formData, [field]: val };
+    const from = field === 'timeFrom' ? val : formData.timeFrom;
+    const to = field === 'timeTo' ? val : formData.timeTo;
+    const computedDuration = calculateHours(from, to);
+    if (computedDuration) updated.durationHours = computedDuration;
+    setFormData(updated);
+  };
 
   const handleOpenAdd = () => {
     setEditingLeave(null);
-    setFormData({ employeeId: '', type: 'Annual Leave', startDate: '', endDate: '', reason: '' });
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Auto-select logged-in employee if employee role
+    let initialEmpId = '';
+    if (isEmployee && currentUser?.employeeId) {
+      initialEmpId = currentUser.employeeId;
+    } else if (employees.length > 0) {
+      initialEmpId = employees[0]._id;
+    }
+
+    setFormData({
+      employeeId: initialEmpId,
+      category: 'Leave',
+      type: 'Annual Leave',
+      startDate: today,
+      endDate: today,
+      timeFrom: '10:00',
+      timeTo: '12:00',
+      durationHours: '2 hrs',
+      reason: ''
+    });
     setShowModal(true);
   };
 
   const handleEdit = (leave) => {
     setEditingLeave(leave);
+    const startStr = leave.startDate ? new Date(leave.startDate).toISOString().split('T')[0] : '';
+    const endStr = leave.endDate ? new Date(leave.endDate).toISOString().split('T')[0] : startStr;
+
     setFormData({
       employeeId: leave.employeeId?._id || leave.employeeId || '',
-      type: leave.type || 'Annual Leave',
-      startDate: leave.startDate ? new Date(leave.startDate).toISOString().split('T')[0] : '',
-      endDate: leave.endDate ? new Date(leave.endDate).toISOString().split('T')[0] : '',
+      category: leave.category || 'Leave',
+      type: leave.type || (leave.category === 'Permission' ? 'Personal Permission' : 'Annual Leave'),
+      startDate: startStr,
+      endDate: endStr,
+      timeFrom: leave.timeFrom || '10:00',
+      timeTo: leave.timeTo || '12:00',
+      durationHours: leave.durationHours || '2 hrs',
       reason: leave.reason || ''
     });
     setShowModal(true);
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this leave request?')) return;
+    if (!window.confirm('Are you sure you want to delete this record?')) return;
     try {
       const token = localStorage.getItem('token');
       const res = await fetch(`${import.meta.env.VITE_API_URL}/api/leaves/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (res.ok) fetchData();
-    } catch (err) { console.error(err); }
+      if (res.ok) {
+        fetchData();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to delete record');
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -82,37 +223,66 @@ const LeaveRequests = () => {
         : `${import.meta.env.VITE_API_URL}/api/leaves`;
       const method = editingLeave ? 'PUT' : 'POST';
 
+      const payload = { ...formData };
+      if (payload.category === 'Permission') {
+        payload.endDate = payload.startDate;
+      }
+
       const res = await fetch(url, {
         method,
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
       if (res.ok) {
         setShowModal(false);
         setEditingLeave(null);
         fetchData();
       } else {
-        alert(`Failed to ${editingLeave ? 'update' : 'log'} leave request`);
+        const data = await res.json();
+        alert(data.error || `Failed to ${editingLeave ? 'update' : 'create'} request`);
       }
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const updateStatus = async (id, status) => {
+  const handleOpenReview = (leave, action) => {
+    setReviewModal({
+      isOpen: true,
+      leave,
+      action,
+      note: ''
+    });
+  };
+
+  const handleConfirmReview = async () => {
+    if (!reviewModal.leave) return;
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/leaves/${id}/status`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/leaves/${reviewModal.leave._id}/status`, {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ status })
+        body: JSON.stringify({ 
+          status: reviewModal.action,
+          reviewNote: reviewModal.note
+        })
       });
-      if (res.ok) fetchData();
-    } catch (err) { console.error(err); }
+      if (res.ok) {
+        setReviewModal({ isOpen: false, leave: null, action: 'Approved', note: '' });
+        fetchData();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to update review status');
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const requestSort = (key) => {
@@ -128,23 +298,37 @@ const LeaveRequests = () => {
 
   const filteredLeaves = leaves
     .filter(i => {
-      if (filterDays === 'all') return true;
-      const itemDate = new Date(i.startDate || i.createdAt || new Date());
-      const diffTime = Math.abs(new Date() - itemDate);
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      if (filterDays === '7') return diffDays <= 7;
-      if (filterDays === '30') return diffDays <= 30;
-      if (filterDays === 'custom') {
-        if (customStartDate && new Date(itemDate) < new Date(customStartDate)) return false;
-        if (customEndDate && new Date(itemDate) > new Date(customEndDate)) return false;
-        return true;
+      // Category filter
+      if (filterCategory === 'Leave' && i.category === 'Permission') return false;
+      if (filterCategory === 'Permission' && i.category !== 'Permission') return false;
+
+      // Status filter
+      if (filterStatus !== 'all' && i.status !== filterStatus) return false;
+
+      // Days range filter
+      if (filterDays !== 'all') {
+        const itemDate = new Date(i.startDate || i.createdAt || new Date());
+        const diffTime = Math.abs(new Date() - itemDate);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        if (filterDays === '7' && diffDays > 7) return false;
+        if (filterDays === '30' && diffDays > 30) return false;
+        if (filterDays === 'custom') {
+          if (customStartDate && new Date(itemDate) < new Date(customStartDate)) return false;
+          if (customEndDate && new Date(itemDate) > new Date(customEndDate)) return false;
+        }
       }
-      return true;
+
+      // Search filter
+      const empName = (i.employeeId?.name || '').toLowerCase();
+      const empCode = (i.employeeId?.employeeId || '').toLowerCase();
+      const reasonText = (i.reason || '').toLowerCase();
+      const typeText = (i.type || '').toLowerCase();
+      const s = search.toLowerCase();
+
+      return empName.includes(s) || empCode.includes(s) || reasonText.includes(s) || typeText.includes(s);
     })
-    .filter(i => (i.employeeId?.name || '').toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => {
       if (!sortConfig.key) return 0;
-      
       let aVal = sortConfig.key === 'employee' ? a.employeeId?.name : a[sortConfig.key];
       let bVal = sortConfig.key === 'employee' ? b.employeeId?.name : b[sortConfig.key];
       
@@ -167,195 +351,834 @@ const LeaveRequests = () => {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedLeaves = filteredLeaves.slice(startIndex, startIndex + itemsPerPage);
 
+  // Statistics calculation
+  const totalLeavesCount = leaves.filter(l => l.category !== 'Permission').length;
+  const totalPermissionsCount = leaves.filter(l => l.category === 'Permission').length;
+  const pendingCount = leaves.filter(l => l.status === 'Pending').length;
+  const approvedCount = leaves.filter(l => l.status === 'Approved').length;
+  const rejectedCount = leaves.filter(l => l.status === 'Rejected').length;
+
+  const currentEmployeeInfo = isEmployee 
+    ? employees.find(e => e._id === currentUser?.employeeId) || { name: currentUser?.fullName || currentUser?.name || 'Logged-in Employee', employeeId: currentUser?.userId || 'Current' }
+    : null;
+
   return (
-    <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto', animation: 'fadeIn 0.3s ease-out' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
+    <div style={{ padding: '24px', maxWidth: '1280px', margin: '0 auto', animation: 'fadeIn 0.3s ease-out' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#0F172A', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <CalendarIcon size={28} color="#2563EB" /> Leave Requests
-          </h1>
-          <p style={{ color: '#64748B', fontSize: '15px', margin: 0 }}>Review and manage employee time off.</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+            <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <CalendarIcon size={24} />
+            </div>
+            <div>
+              <h1 style={{ fontSize: '26px', fontWeight: '800', color: '#0F172A', margin: 0 }}>
+                {isSoleOperator ? 'Leaves & Permissions' : hasApprovalWorkflow ? 'Leave & Permission Approvals' : 'Leaves & Permissions'}
+              </h1>
+              <p style={{ color: '#64748B', fontSize: '14px', margin: 0 }}>
+                {isSoleOperator
+                  ? 'Record and track employee leaves and short permissions (Sole Operator - Direct Record).'
+                  : isEmployee 
+                  ? 'Apply for leave or short permission. Requests are routed for owner/manager approval.' 
+                  : 'Review, approve, and track employee leave requests and short hourly permissions.'}
+              </p>
+            </div>
+          </div>
         </div>
-        <button onClick={handleOpenAdd} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', background: '#2563EB', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}>
-          <Plus size={18} /> New Request
+
+        <button 
+          onClick={handleOpenAdd} 
+          style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '8px', 
+            padding: '12px 22px', 
+            background: '#2563EB', 
+            border: 'none', 
+            borderRadius: '10px', 
+            color: 'white', 
+            fontWeight: '600', 
+            fontSize: '14px', 
+            cursor: 'pointer', 
+            boxShadow: '0 4px 10px rgba(37,99,235,0.25)',
+            transition: 'transform 0.15s'
+          }}
+          onMouseDown={e => e.currentTarget.style.transform = 'scale(0.98)'}
+          onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+        >
+          <Plus size={18} /> 
+          {isSoleOperator ? 'Record Time-Off / Permission' : isEmployee ? 'Apply Leave / Permission' : 'New Leave / Permission'}
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '32px' }}>
-        <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#FFFBEB', color: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Clock size={24} /></div>
-          <div>
-            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Pending Review</p>
-            <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{leaves.filter(l => l.status === 'Pending').length}</h3>
-          </div>
-        </div>
-        <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#F0FDF4', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CheckCircle2 size={24} /></div>
-          <div>
-            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Approved</p>
-            <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{leaves.filter(l => l.status === 'Approved').length}</h3>
-          </div>
-        </div>
-        <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#FEF2F2', color: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><XCircle size={24} /></div>
-          <div>
-            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Rejected</p>
-            <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{leaves.filter(l => l.status === 'Rejected').length}</h3>
-          </div>
-        </div>
-        <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CalendarIcon size={24} /></div>
-          <div>
-            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Total Requests</p>
-            <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{leaves.length}</h3>
-          </div>
-        </div>
+      {/* Stats Cards Row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '18px', marginBottom: '28px' }}>
+        {/* If Type 2,3,4: show Formal Approval Queue Cards */}
+        {hasApprovalWorkflow ? (
+          <>
+            <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)', position: 'relative', overflow: 'hidden' }}>
+              <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#FFFBEB', color: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Clock size={24} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <p style={{ margin: '0 0 2px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Pending Review</p>
+                  {pendingCount > 0 && (
+                    <span style={{ fontSize: '11px', background: '#FEF3C7', color: '#92400E', fontWeight: '700', padding: '2px 7px', borderRadius: '10px' }}>
+                      Requires Action
+                    </span>
+                  )}
+                </div>
+                <h3 style={{ margin: 0, fontSize: '26px', color: '#0F172A', fontWeight: '800' }}>{pendingCount}</h3>
+              </div>
+            </div>
+
+            <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+              <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#F0FDF4', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <CheckCircle2 size={24} />
+              </div>
+              <div>
+                <p style={{ margin: '0 0 2px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Approved</p>
+                <h3 style={{ margin: 0, fontSize: '26px', color: '#0F172A', fontWeight: '800' }}>{approvedCount}</h3>
+              </div>
+            </div>
+
+            <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+              <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#FEF2F2', color: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <XCircle size={24} />
+              </div>
+              <div>
+                <p style={{ margin: '0 0 2px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Rejected</p>
+                <h3 style={{ margin: 0, fontSize: '26px', color: '#0F172A', fontWeight: '800' }}>{rejectedCount}</h3>
+              </div>
+            </div>
+
+            <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+              <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <CalendarIcon size={24} />
+              </div>
+              <div>
+                <p style={{ margin: '0 0 2px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Total Requests</p>
+                <h3 style={{ margin: 0, fontSize: '26px', color: '#0F172A', fontWeight: '800' }}>{leaves.length}</h3>
+              </div>
+            </div>
+          </>
+        ) : (
+          /* Type 1 Sole Operator: Direct Records Cards */
+          <>
+            <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+              <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <CalendarIcon size={24} />
+              </div>
+              <div>
+                <p style={{ margin: '0 0 2px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Leaves Recorded</p>
+                <h3 style={{ margin: 0, fontSize: '26px', color: '#0F172A', fontWeight: '800' }}>{totalLeavesCount}</h3>
+              </div>
+            </div>
+
+            <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+              <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#F5F3FF', color: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Timer size={24} />
+              </div>
+              <div>
+                <p style={{ margin: '0 0 2px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Permissions Granted</p>
+                <h3 style={{ margin: 0, fontSize: '26px', color: '#0F172A', fontWeight: '800' }}>{totalPermissionsCount}</h3>
+              </div>
+            </div>
+
+            <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+              <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#F0FDF4', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <UserCheck size={24} />
+              </div>
+              <div>
+                <p style={{ margin: '0 0 2px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Direct Recorded</p>
+                <h3 style={{ margin: 0, fontSize: '26px', color: '#0F172A', fontWeight: '800' }}>{leaves.length}</h3>
+              </div>
+            </div>
+
+            <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+              <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#FFFBEB', color: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Store size={24} />
+              </div>
+              <div>
+                <p style={{ margin: '0 0 2px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Staff Enrolled</p>
+                <h3 style={{ margin: 0, fontSize: '26px', color: '#0F172A', fontWeight: '800' }}>{employees.length}</h3>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
-      <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-        <div style={{ flex: '0 1 300px', minWidth: '250px', position: 'relative' }}>
-          <Search size={18} color="#94A3B8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
-          <input type="text" placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: '100%', padding: '12px 16px 12px 42px', borderRadius: '10px', border: '1px solid #E2E8F0', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }} />
-        </div>
-        <div style={{ display: 'flex', gap: '16px' }}>
-          <select value={filterDays} onChange={(e) => setFilterDays(e.target.value)} style={{ padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', outline: 'none', cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-            <option value="all">Filter: All Time</option>
+      {/* Filter and Control Bar */}
+      <div style={{ display: 'flex', gap: '14px', marginBottom: '20px', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', flex: '1 1 500px' }}>
+          {/* Search */}
+          <div style={{ flex: '1 1 240px', minWidth: '200px', position: 'relative' }}>
+            <Search size={18} color="#94A3B8" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
+            <input 
+              type="text" 
+              placeholder="Search staff, ID, or reason..." 
+              value={search} 
+              onChange={(e) => setSearch(e.target.value)} 
+              style={{ width: '100%', padding: '10px 14px 10px 40px', borderRadius: '10px', border: '1px solid #CBD5E1', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }} 
+            />
+          </div>
+
+          {/* Category Toggle Filter */}
+          <select 
+            value={filterCategory} 
+            onChange={(e) => setFilterCategory(e.target.value)} 
+            style={{ padding: '10px 14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '10px', color: '#334155', fontWeight: '500', fontSize: '14px', outline: 'none', cursor: 'pointer' }}
+          >
+            <option value="all">Category: All</option>
+            <option value="Leave">🏖️ Leaves Only</option>
+            <option value="Permission">⏱️ Permissions Only</option>
+          </select>
+
+          {/* Status Filter (if Approval Workflow exists) */}
+          {hasApprovalWorkflow && (
+            <select 
+              value={filterStatus} 
+              onChange={(e) => setFilterStatus(e.target.value)} 
+              style={{ padding: '10px 14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '10px', color: '#334155', fontWeight: '500', fontSize: '14px', outline: 'none', cursor: 'pointer' }}
+            >
+              <option value="all">Status: All</option>
+              <option value="Pending">⏳ Pending</option>
+              <option value="Approved">✅ Approved</option>
+              <option value="Rejected">❌ Rejected</option>
+            </select>
+          )}
+
+          {/* Time Filter */}
+          <select 
+            value={filterDays} 
+            onChange={(e) => setFilterDays(e.target.value)} 
+            style={{ padding: '10px 14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '10px', color: '#334155', fontWeight: '500', fontSize: '14px', outline: 'none', cursor: 'pointer' }}
+          >
+            <option value="all">Date: All Time</option>
             <option value="7">Last 7 Days</option>
             <option value="30">Last 30 Days</option>
-          <option value="custom">Custom Range</option>
-        </select>
-        {filterDays === 'custom' && (
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-            <input type="date" value={customStartDate} onChange={(e) => setCustomStartDate(e.target.value)} style={{ padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', outline: 'none', fontSize: '13px', color: '#475569' }} />
-            <span style={{ fontSize: '13px', color: '#64748B' }}>to</span>
-            <input type="date" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} style={{ padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', outline: 'none', fontSize: '13px', color: '#475569' }} />
-          </div>
-        )}
-          <button onClick={() => exportToCSV(filteredLeaves.map(l => ({ ...l, startDate: formatDate(l.startDate), endDate: formatDate(l.endDate) })), 'Leaves')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', cursor: 'pointer' }}><Download size={16} /> Export</button>
+            <option value="custom">Custom Range</option>
+          </select>
+        </div>
+
+        {/* Custom Range & Export */}
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+          {filterDays === 'custom' && (
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <input type="date" value={customStartDate} onChange={(e) => setCustomStartDate(e.target.value)} style={{ padding: '8px 10px', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '13px' }} />
+              <span style={{ fontSize: '13px', color: '#64748B' }}>to</span>
+              <input type="date" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} style={{ padding: '8px 10px', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '13px' }} />
+            </div>
+          )}
+
+          <button 
+            onClick={() => exportToCSV(filteredLeaves.map(l => ({
+              'Employee Name': l.employeeId?.name || 'N/A',
+              'Employee ID': l.employeeId?.employeeId || '',
+              'Category': l.category || 'Leave',
+              'Type': l.type,
+              'Start Date': formatDate(l.startDate),
+              'End Date': l.category === 'Permission' ? formatDate(l.startDate) : formatDate(l.endDate),
+              'Time From': l.timeFrom || '',
+              'Time To': l.timeTo || '',
+              'Duration': l.durationHours || '',
+              'Reason': l.reason || '',
+              'Status': l.status,
+              'Reviewed By': l.reviewedBy || '',
+              'Review Remarks': l.reviewNote || ''
+            })), 'Leaves_and_Permissions')} 
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '8px', color: '#475569', fontWeight: '600', fontSize: '13px', cursor: 'pointer' }}
+          >
+            <Download size={15} /> Export
+          </button>
         </div>
       </div>
 
+      {/* Main Table */}
       <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)' }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ background: '#F8FAFC' }}>
-                <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', width: '60px' }}>S.No</th>
-                <th onClick={() => requestSort('employee')} style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', alignItems: 'center' }}>Employee {renderSortIcon('employee')}</div></th>
-                <th onClick={() => requestSort('type')} style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', alignItems: 'center' }}>Type & Dates {renderSortIcon('type')}</div></th>
-                <th onClick={() => requestSort('reason')} style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', alignItems: 'center' }}>Reason {renderSortIcon('reason')}</div></th>
-                <th onClick={() => requestSort('status')} style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', alignItems: 'center' }}>Status {renderSortIcon('status')}</div></th>
-                <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', textAlign: 'right' }}>Actions</th>
+                <th style={{ padding: '16px 20px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', width: '50px' }}>S.No</th>
+                <th onClick={() => requestSort('employee')} style={{ padding: '16px 20px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none' }}>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>Employee {renderSortIcon('employee')}</div>
+                </th>
+                <th onClick={() => requestSort('category')} style={{ padding: '16px 20px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none' }}>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>Category & Type {renderSortIcon('category')}</div>
+                </th>
+                <th onClick={() => requestSort('startDate')} style={{ padding: '16px 20px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none' }}>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>Dates & Schedule {renderSortIcon('startDate')}</div>
+                </th>
+                <th style={{ padding: '16px 20px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
+                  Reason & Review Remarks
+                </th>
+                <th onClick={() => requestSort('status')} style={{ padding: '16px 20px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none' }}>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>Status {renderSortIcon('status')}</div>
+                </th>
+                <th style={{ padding: '16px 20px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="6" style={{ padding: '32px', textAlign: 'center', color: '#64748B' }}>Loading...</td></tr>
+                <tr><td colSpan="7" style={{ padding: '36px', textAlign: 'center', color: '#64748B' }}>Loading requests...</td></tr>
               ) : filteredLeaves.length === 0 ? (
-                <tr><td colSpan="6" style={{ padding: '64px 32px', textAlign: 'center', color: '#64748B' }}>No leave requests match your search.</td></tr>
-              ) : paginatedLeaves.map((leave, index) => (
-                <tr key={leave._id} style={{ borderBottom: '1px solid #E2E8F0' }}>
-                  <td style={{ padding: '16px 24px', fontSize: '15px', color: '#475569', fontWeight: '500' }}>{startIndex + index + 1}</td>
-                  <td style={{ padding: '16px 24px', color: '#0F172A', fontWeight: '600' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                      <span>{leave.employeeId?.name || 'Unknown'}</span>
-                      {leave.employeeId?.employeeId && (
-                        <span style={{ background: '#EFF6FF', color: '#1D4ED8', fontSize: '11px', fontWeight: '700', padding: '1px 5px', borderRadius: '4px', border: '1px solid #BFDBFE' }}>
-                          {leave.employeeId.employeeId}
-                        </span>
-                      )}
-                    </div>
-                    {(leave.employeeId?.branchName || leave.employeeId?.branchId?.name) && (
-                      <div style={{ fontSize: '12px', color: '#64748B', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px', fontWeight: '400' }}>
-                        <Store size={12} color="#94A3B8" /> {leave.employeeId?.branchName || leave.employeeId?.branchId?.name}
-                      </div>
-                    )}
-                  </td>
-                  <td style={{ padding: '16px 24px' }}>
-                    <div style={{ fontWeight: '500', color: '#0F172A' }}>{leave.type}</div>
-                    <div style={{ fontSize: '13px', color: '#64748B', marginTop: '4px' }}>{formatDate(leave.startDate)} to {formatDate(leave.endDate)}</div>
-                  </td>
-                  <td style={{ padding: '16px 24px', color: '#64748B', fontSize: '14px', maxWidth: '200px' }}>{leave.reason || 'No reason provided'}</td>
-                  <td style={{ padding: '16px 24px' }}>
-                    <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '600', background: leave.status === 'Approved' ? '#DCFCE7' : leave.status === 'Rejected' ? '#FEE2E2' : '#F1F5F9', color: leave.status === 'Approved' ? '#166534' : leave.status === 'Rejected' ? '#991B1B' : '#475569' }}>
-                      {leave.status}
-                    </span>
-                  </td>
-                  <td style={{ padding: '16px 24px', textAlign: 'right' }}>
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', alignItems: 'center' }}>
-                      {leave.status === 'Pending' && (
-                        <>
-                          <button onClick={() => updateStatus(leave._id, 'Approved')} style={{ background: '#DCFCE7', color: '#166534', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '13px' }}><Check size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }} />Approve</button>
-                          <button onClick={() => updateStatus(leave._id, 'Rejected')} style={{ background: '#FEE2E2', color: '#991B1B', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '13px' }}><XCircle size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }} />Reject</button>
-                        </>
-                      )}
-                      <button title="Edit" onClick={() => handleEdit(leave)} style={{ background: '#EFF6FF', border: 'none', color: '#2563EB', cursor: 'pointer', padding: '8px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s' }}>
-                        <Pencil size={15} />
-                      </button>
-                      <button title="Delete" onClick={() => handleDelete(leave._id)} style={{ background: '#FEE2E2', border: 'none', color: '#EF4444', cursor: 'pointer', padding: '8px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s' }}>
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
+                <tr>
+                  <td colSpan="7" style={{ padding: '64px 32px', textAlign: 'center', color: '#64748B' }}>
+                    <CalendarIcon size={36} color="#CBD5E1" style={{ marginBottom: '12px', display: 'inline-block' }} />
+                    <p style={{ margin: 0, fontWeight: '600', fontSize: '16px', color: '#334155' }}>No leaves or permissions found.</p>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '13px' }}>Click "{isSoleOperator ? 'Record Time-Off' : 'Apply Leave / Permission'}" to create a new entry.</p>
                   </td>
                 </tr>
-              ))}
+              ) : paginatedLeaves.map((leave, index) => {
+                const isPermission = leave.category === 'Permission';
+                const canModify = !isEmployee || leave.status === 'Pending';
+
+                return (
+                  <tr key={leave._id} style={{ borderBottom: '1px solid #F1F5F9', transition: 'background 0.15s' }}>
+                    <td style={{ padding: '16px 20px', fontSize: '14px', color: '#64748B', fontWeight: '500' }}>
+                      {startIndex + index + 1}
+                    </td>
+
+                    {/* Employee column */}
+                    <td style={{ padding: '16px 20px', color: '#0F172A' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: '700', fontSize: '14px' }}>{leave.employeeId?.name || 'Unknown Staff'}</span>
+                        {leave.employeeId?.employeeId && (
+                          <span style={{ background: '#EFF6FF', color: '#1D4ED8', fontSize: '11px', fontWeight: '700', padding: '1px 6px', borderRadius: '4px', border: '1px solid #BFDBFE' }}>
+                            {leave.employeeId.employeeId}
+                          </span>
+                        )}
+                      </div>
+                      {(leave.employeeId?.branchName || leave.employeeId?.branchId?.name) && (
+                        <div style={{ fontSize: '12px', color: '#64748B', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '3px' }}>
+                          <Store size={12} color="#94A3B8" /> {leave.employeeId?.branchName || leave.employeeId?.branchId?.name}
+                        </div>
+                      )}
+                    </td>
+
+                    {/* Category & Type */}
+                    <td style={{ padding: '16px 20px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                        {isPermission ? (
+                          <span style={{ background: '#F5F3FF', color: '#7C3AED', border: '1px solid #DDD6FE', fontSize: '11px', fontWeight: '800', padding: '2px 8px', borderRadius: '6px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <Timer size={12} /> PERMISSION
+                          </span>
+                        ) : (
+                          <span style={{ background: '#EFF6FF', color: '#1E40AF', border: '1px solid #BFDBFE', fontSize: '11px', fontWeight: '800', padding: '2px 8px', borderRadius: '6px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <CalendarIcon size={12} /> LEAVE
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: '13px', fontWeight: '600', color: '#334155' }}>
+                        {leave.type}
+                      </div>
+                    </td>
+
+                    {/* Schedule / Dates */}
+                    <td style={{ padding: '16px 20px' }}>
+                      {isPermission ? (
+                        <div>
+                          <div style={{ fontWeight: '600', fontSize: '13px', color: '#0F172A' }}>
+                            {formatDate(leave.startDate)}
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#7C3AED', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                            <Clock size={12} /> {leave.timeFrom || '--'} - {leave.timeTo || '--'} 
+                            {leave.durationHours ? ` (${leave.durationHours})` : ''}
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <div style={{ fontWeight: '600', fontSize: '13px', color: '#0F172A' }}>
+                            {formatDate(leave.startDate)} <span style={{ color: '#94A3B8', fontWeight: '400' }}>to</span> {formatDate(leave.endDate)}
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>
+                            {leave.startDate && leave.endDate && Math.max(1, Math.round((new Date(leave.endDate) - new Date(leave.startDate)) / (1000 * 60 * 60 * 24)) + 1)} Day(s)
+                          </div>
+                        </div>
+                      )}
+                    </td>
+
+                    {/* Reason & Review Note */}
+                    <td style={{ padding: '16px 20px', maxWidth: '240px' }}>
+                      <div style={{ fontSize: '13px', color: '#334155', fontWeight: '500', wordBreak: 'break-word' }}>
+                        {leave.reason || <span style={{ color: '#94A3B8', fontStyle: 'italic' }}>No reason stated</span>}
+                      </div>
+                      {leave.reviewNote && (
+                        <div style={{ marginTop: '6px', padding: '6px 10px', background: leave.status === 'Approved' ? '#F0FDF4' : '#FEF2F2', border: `1px solid ${leave.status === 'Approved' ? '#DCFCE7' : '#FEE2E2'}`, borderRadius: '6px', fontSize: '12px', color: leave.status === 'Approved' ? '#166534' : '#991B1B' }}>
+                          <span style={{ fontWeight: '700' }}>Review note:</span> "{leave.reviewNote}"
+                          {leave.reviewedBy && <span style={{ display: 'block', fontSize: '11px', opacity: 0.85, marginTop: '2px' }}>— {leave.reviewedBy}</span>}
+                        </div>
+                      )}
+                    </td>
+
+                    {/* Status */}
+                    <td style={{ padding: '16px 20px' }}>
+                      {isSoleOperator ? (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '700', background: '#DCFCE7', color: '#166534' }}>
+                          <CheckCircle2 size={13} /> Recorded
+                        </span>
+                      ) : (
+                        <span style={{ 
+                          display: 'inline-flex', 
+                          alignItems: 'center', 
+                          gap: '5px', 
+                          padding: '4px 10px', 
+                          borderRadius: '12px', 
+                          fontSize: '12px', 
+                          fontWeight: '700', 
+                          background: leave.status === 'Approved' ? '#DCFCE7' : leave.status === 'Rejected' ? '#FEE2E2' : '#FEF3C7', 
+                          color: leave.status === 'Approved' ? '#166534' : leave.status === 'Rejected' ? '#991B1B' : '#92400E' 
+                        }}>
+                          {leave.status === 'Approved' && <CheckCircle2 size={13} />}
+                          {leave.status === 'Rejected' && <XCircle size={13} />}
+                          {leave.status === 'Pending' && <Clock size={13} />}
+                          {leave.status}
+                        </span>
+                      )}
+                    </td>
+
+                    {/* Action buttons */}
+                    <td style={{ padding: '16px 20px', textAlign: 'right' }}>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px', alignItems: 'center' }}>
+                        {/* Owner / Manager Review Actions (Type 2, 3, 4 only) */}
+                        {canReview && leave.status === 'Pending' && (
+                          <>
+                            <button 
+                              onClick={() => handleOpenReview(leave, 'Approved')} 
+                              title="Approve Request"
+                              style={{ background: '#DCFCE7', color: '#166534', border: 'none', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                            >
+                              <Check size={14} /> Approve
+                            </button>
+                            <button 
+                              onClick={() => handleOpenReview(leave, 'Rejected')} 
+                              title="Reject Request"
+                              style={{ background: '#FEE2E2', color: '#991B1B', border: 'none', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                            >
+                              <XCircle size={14} /> Reject
+                            </button>
+                          </>
+                        )}
+
+                        {/* Edit Button */}
+                        {canModify ? (
+                          <button 
+                            title="Edit" 
+                            onClick={() => handleEdit(leave)} 
+                            style={{ background: '#EFF6FF', border: 'none', color: '#2563EB', cursor: 'pointer', padding: '7px', borderRadius: '7px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          >
+                            <Pencil size={15} />
+                          </button>
+                        ) : (
+                          <span title="Reviewed - edits locked" style={{ padding: '7px', color: '#94A3B8', display: 'inline-flex' }}>
+                            <Pencil size={15} style={{ opacity: 0.3 }} />
+                          </span>
+                        )}
+
+                        {/* Delete Button */}
+                        {canModify ? (
+                          <button 
+                            title="Delete" 
+                            onClick={() => handleDelete(leave._id)} 
+                            style={{ background: '#FEE2E2', border: 'none', color: '#EF4444', cursor: 'pointer', padding: '7px', borderRadius: '7px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        ) : (
+                          <span title="Reviewed - deletion locked" style={{ padding: '7px', color: '#94A3B8', display: 'inline-flex' }}>
+                            <Trash2 size={15} style={{ opacity: 0.3 }} />
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
+
         <TablePagination
           currentPage={currentPage}
           setCurrentPage={setCurrentPage}
           totalItems={filteredLeaves.length}
           itemsPerPage={itemsPerPage}
           setItemsPerPage={setItemsPerPage}
-          itemName="leave requests"
+          itemName="records"
         />
       </div>
 
+      {/* MODAL 1: ADD / EDIT LEAVE OR PERMISSION */}
       {showModal && createPortal(
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '24px' }}>
-          <div style={{ background: 'white', padding: '32px', borderRadius: '20px', width: '100%', maxWidth: '500px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px' }}>
-              <h2 style={{ fontSize: '22px', margin: 0 }}>{editingLeave ? 'Edit Leave Request' : 'Log Leave Request'}</h2>
-              <button onClick={() => { setShowModal(false); setEditingLeave(null); }} style={{ background: '#F1F5F9', border: 'none', borderRadius: '50%', padding: '6px', cursor: 'pointer' }}><X size={18} /></button>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
+          <div style={{ background: 'white', padding: '28px', borderRadius: '20px', width: '100%', maxWidth: '520px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.15)', maxHeight: '92vh', overflowY: 'auto' }}>
+            
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+              <div>
+                <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#0F172A', margin: '0 0 4px 0' }}>
+                  {editingLeave 
+                    ? `Edit ${formData.category}` 
+                    : isSoleOperator 
+                    ? `Record Employee Time-Off` 
+                    : isEmployee 
+                    ? `Apply for ${formData.category}` 
+                    : `Log Employee ${formData.category}`}
+                </h2>
+                <p style={{ margin: 0, fontSize: '13px', color: '#64748B' }}>
+                  {formData.category === 'Leave' 
+                    ? 'Full day or multi-day time off request.' 
+                    : 'Short hourly permission during business hours.'}
+                </p>
+              </div>
+              <button 
+                onClick={() => { setShowModal(false); setEditingLeave(null); }} 
+                style={{ background: '#F1F5F9', border: 'none', borderRadius: '50%', padding: '6px', cursor: 'pointer', color: '#64748B' }}
+              >
+                <X size={18} />
+              </button>
             </div>
+
+            {/* Category Segmented Control Toggle */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', padding: '4px', background: '#F1F5F9', borderRadius: '12px', marginBottom: '20px' }}>
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, category: 'Leave', type: LEAVE_TYPES[0] })}
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '9px',
+                  border: 'none',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  transition: 'all 0.15s ease',
+                  background: formData.category === 'Leave' ? 'white' : 'transparent',
+                  color: formData.category === 'Leave' ? '#2563EB' : '#64748B',
+                  boxShadow: formData.category === 'Leave' ? '0 2px 4px rgba(0,0,0,0.06)' : 'none'
+                }}
+              >
+                <CalendarIcon size={16} /> Leave (Days Off)
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, category: 'Permission', type: PERMISSION_TYPES[0] })}
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '9px',
+                  border: 'none',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  transition: 'all 0.15s ease',
+                  background: formData.category === 'Permission' ? 'white' : 'transparent',
+                  color: formData.category === 'Permission' ? '#7C3AED' : '#64748B',
+                  boxShadow: formData.category === 'Permission' ? '0 2px 4px rgba(0,0,0,0.06)' : 'none'
+                }}
+              >
+                <Timer size={16} /> Permission (Hourly)
+              </button>
+            </div>
+
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              
+              {/* Employee Selection */}
               <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Employee</label>
-                <select required value={formData.employeeId} onChange={e => setFormData({...formData, employeeId: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }}>
-                  <option value="">Select Employee</option>
-                  {employees.map(emp => (
-                    <option key={emp._id} value={emp._id}>
-                      {emp.name} {emp.employeeId ? `[${emp.employeeId}]` : ''} {emp.branchName ? `(${emp.branchName})` : emp.branchId?.name ? `(${emp.branchId.name})` : ''}
-                    </option>
-                  ))}
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
+                  Employee
+                </label>
+                {isEmployee ? (
+                  /* Readonly identity for logged-in employee */
+                  <div style={{ padding: '10px 14px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontWeight: '700', color: '#0F172A', fontSize: '14px' }}>
+                      {currentEmployeeInfo?.name || 'Current Employee'}
+                    </span>
+                    <span style={{ background: '#EFF6FF', color: '#1D4ED8', fontSize: '11px', fontWeight: '700', padding: '2px 8px', borderRadius: '6px' }}>
+                      Logged-in Identity
+                    </span>
+                  </div>
+                ) : (
+                  /* Dropdown for Owner / Manager */
+                  <select 
+                    required 
+                    value={formData.employeeId} 
+                    onChange={e => setFormData({ ...formData, employeeId: e.target.value })} 
+                    style={{ width: '100%', padding: '11px 14px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none' }}
+                  >
+                    <option value="">Select Employee...</option>
+                    {employees.map(emp => (
+                      <option key={emp._id} value={emp._id}>
+                        {emp.name} {emp.employeeId ? `[${emp.employeeId}]` : ''} {emp.branchName ? `(${emp.branchName})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              {/* Type Dropdown (Leave Types vs Permission Types) */}
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
+                  {formData.category === 'Leave' ? 'Leave Type' : 'Permission Type'}
+                </label>
+                <select 
+                  value={formData.type} 
+                  onChange={e => setFormData({ ...formData, type: e.target.value })} 
+                  style={{ width: '100%', padding: '11px 14px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none' }}
+                >
+                  {formData.category === 'Leave' ? (
+                    LEAVE_TYPES.map(t => <option key={t} value={t}>{t}</option>)
+                  ) : (
+                    PERMISSION_TYPES.map(t => <option key={t} value={t}>{t}</option>)
+                  )}
                 </select>
               </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Leave Type</label>
-                <select value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }}>
-                  <option value="Annual Leave">Annual Leave</option>
-                  <option value="Sick Leave">Sick Leave</option>
-                  <option value="Casual Leave">Casual Leave</option>
-                  <option value="Unpaid">Unpaid</option>
-                </select>
-              </div>
-              <div style={{ display: 'flex', gap: '16px' }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Start Date</label>
-                  <input type="date" required value={formData.startDate} onChange={e => setFormData({...formData, startDate: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
+
+              {/* Conditional Date / Time Fields */}
+              {formData.category === 'Leave' ? (
+                /* LEAVE: Start Date to End Date */
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>Start Date</label>
+                    <input 
+                      type="date" 
+                      required 
+                      value={formData.startDate} 
+                      onChange={e => setFormData({ ...formData, startDate: e.target.value })} 
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '14px', boxSizing: 'border-box' }} 
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>End Date</label>
+                    <input 
+                      type="date" 
+                      required 
+                      value={formData.endDate} 
+                      onChange={e => setFormData({ ...formData, endDate: e.target.value })} 
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '14px', boxSizing: 'border-box' }} 
+                    />
+                  </div>
                 </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>End Date</label>
-                  <input type="date" required value={formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
-                </div>
-              </div>
+              ) : (
+                /* PERMISSION: Single Date + From / To Time */
+                <>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>Permission Date</label>
+                    <input 
+                      type="date" 
+                      required 
+                      value={formData.startDate} 
+                      onChange={e => setFormData({ ...formData, startDate: e.target.value, endDate: e.target.value })} 
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '14px', boxSizing: 'border-box' }} 
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>Time From</label>
+                      <input 
+                        type="time" 
+                        required 
+                        value={formData.timeFrom} 
+                        onChange={e => handleTimeChange('timeFrom', e.target.value)} 
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '14px', boxSizing: 'border-box' }} 
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>Time To</label>
+                      <input 
+                        type="time" 
+                        required 
+                        value={formData.timeTo} 
+                        onChange={e => handleTimeChange('timeTo', e.target.value)} 
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '14px', boxSizing: 'border-box' }} 
+                      />
+                    </div>
+                  </div>
+
+                  {/* Quick Duration Badges */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <label style={{ fontSize: '13px', fontWeight: '700', color: '#334155', margin: 0 }}>Duration</label>
+                      <span style={{ fontSize: '12px', color: '#7C3AED', fontWeight: '700' }}>
+                        {formData.durationHours ? `Estimated: ${formData.durationHours}` : ''}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                      {['1 hr', '2 hrs', '3 hrs', 'Half Day (4 hrs)'].map(dur => (
+                        <button
+                          key={dur}
+                          type="button"
+                          onClick={() => setFormData({ ...formData, durationHours: dur })}
+                          style={{
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            border: formData.durationHours === dur ? '1px solid #7C3AED' : '1px solid #E2E8F0',
+                            background: formData.durationHours === dur ? '#F5F3FF' : '#F8FAFC',
+                            color: formData.durationHours === dur ? '#7C3AED' : '#64748B',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {dur}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Reason Field */}
               <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Reason</label>
-                <textarea placeholder="Enter reason" rows="3" value={formData.reason} onChange={e => setFormData({...formData, reason: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} ></textarea>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>Reason / Purpose</label>
+                <textarea 
+                  placeholder={formData.category === 'Leave' ? "Reason for taking time off..." : "Purpose of short permission (e.g. medical appointment, bank visit)..."} 
+                  rows="3" 
+                  value={formData.reason} 
+                  onChange={e => setFormData({ ...formData, reason: e.target.value })} 
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '14px', boxSizing: 'border-box', outline: 'none' }} 
+                />
               </div>
-              <button type="submit" style={{ width: '100%', padding: '14px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', marginTop: '16px', cursor: 'pointer' }}>{editingLeave ? 'Update Request' : 'Submit Request'}</button>
+
+              {/* Workflow notice banner */}
+              <div style={{ padding: '10px 12px', borderRadius: '8px', background: isSoleOperator ? '#F0FDF4' : isEmployee ? '#EFF6FF' : '#F8FAFC', border: '1px solid #E2E8F0', fontSize: '12px', color: '#475569', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <AlertCircle size={16} color={isSoleOperator ? '#16A34A' : '#2563EB'} style={{ flexShrink: 0 }} />
+                <span>
+                  {isSoleOperator 
+                    ? 'Type 1 Sole Operator: Directly recorded as Approved without requiring a secondary review.' 
+                    : isEmployee 
+                    ? 'Your request will be submitted with "Pending" status and forwarded to your manager/owner for review.'
+                    : 'As owner/manager, requests you log are recorded as Approved directly.'}
+                </span>
+              </div>
+
+              {/* Submit Button */}
+              <button 
+                type="submit" 
+                style={{ 
+                  width: '100%', 
+                  padding: '13px', 
+                  background: formData.category === 'Permission' ? '#7C3AED' : '#2563EB', 
+                  color: 'white', 
+                  border: 'none', 
+                  borderRadius: '10px', 
+                  fontWeight: '700', 
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 10px rgba(0,0,0,0.1)'
+                }}
+              >
+                {editingLeave 
+                  ? 'Update Record' 
+                  : isSoleOperator 
+                  ? `Record ${formData.category}` 
+                  : isEmployee 
+                  ? `Submit ${formData.category} Request` 
+                  : `Save & Approve ${formData.category}`}
+              </button>
             </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* MODAL 2: FORMAL REVIEW MODAL (FOR TYPE 2, 3, 4 OWNERS/MANAGERS) */}
+      {reviewModal.isOpen && createPortal(
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
+          <div style={{ background: 'white', padding: '28px', borderRadius: '20px', width: '100%', maxWidth: '460px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.15)' }}>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+              <div style={{ 
+                width: '42px', 
+                height: '42px', 
+                borderRadius: '10px', 
+                background: reviewModal.action === 'Approved' ? '#DCFCE7' : '#FEE2E2', 
+                color: reviewModal.action === 'Approved' ? '#166534' : '#991B1B', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                flexShrink: 0 
+              }}>
+                {reviewModal.action === 'Approved' ? <CheckCircle2 size={24} /> : <ShieldAlert size={24} />}
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: '#0F172A' }}>
+                  {reviewModal.action === 'Approved' ? 'Approve Request' : 'Reject Request'}
+                </h3>
+                <p style={{ margin: 0, fontSize: '13px', color: '#64748B' }}>
+                  {reviewModal.leave?.employeeId?.name || 'Staff'} • {reviewModal.leave?.category || 'Leave'} ({reviewModal.leave?.type})
+                </p>
+              </div>
+            </div>
+
+            {/* Request Summary */}
+            <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '12px', marginBottom: '16px', fontSize: '13px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                <span style={{ color: '#64748B' }}>Schedule:</span>
+                <span style={{ fontWeight: '600', color: '#0F172A' }}>
+                  {reviewModal.leave?.category === 'Permission'
+                    ? `${formatDate(reviewModal.leave?.startDate)} (${reviewModal.leave?.timeFrom || ''} - ${reviewModal.leave?.timeTo || ''})`
+                    : `${formatDate(reviewModal.leave?.startDate)} to ${formatDate(reviewModal.leave?.endDate)}`}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#64748B' }}>Reason:</span>
+                <span style={{ fontWeight: '600', color: '#334155', textAlign: 'right', maxWidth: '240px' }}>
+                  {reviewModal.leave?.reason || 'No reason provided'}
+                </span>
+              </div>
+            </div>
+
+            {/* Review Remarks Field */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
+                Review Remarks / Manager Notes <span style={{ fontWeight: '400', color: '#94A3B8' }}>(Optional)</span>
+              </label>
+              <textarea 
+                rows="3" 
+                placeholder={reviewModal.action === 'Approved' ? "e.g. Approved. Please ensure tasks are handed over..." : "e.g. Rejected due to critical shift coverage..."}
+                value={reviewModal.note} 
+                onChange={e => setReviewModal({ ...reviewModal, note: e.target.value })} 
+                style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '14px', boxSizing: 'border-box', outline: 'none' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button 
+                type="button" 
+                onClick={() => setReviewModal({ isOpen: false, leave: null, action: 'Approved', note: '' })} 
+                style={{ flex: 1, padding: '11px', background: '#F1F5F9', border: 'none', borderRadius: '10px', color: '#475569', fontWeight: '600', cursor: 'pointer', fontSize: '14px' }}
+              >
+                Cancel
+              </button>
+              <button 
+                type="button" 
+                onClick={handleConfirmReview} 
+                style={{ 
+                  flex: 1, 
+                  padding: '11px', 
+                  background: reviewModal.action === 'Approved' ? '#16A34A' : '#DC2626', 
+                  border: 'none', 
+                  borderRadius: '10px', 
+                  color: 'white', 
+                  fontWeight: '700', 
+                  cursor: 'pointer', 
+                  fontSize: '14px',
+                  boxShadow: '0 4px 10px rgba(0,0,0,0.1)'
+                }}
+              >
+                Confirm {reviewModal.action}
+              </button>
+            </div>
           </div>
         </div>,
         document.body
@@ -363,4 +1186,5 @@ const LeaveRequests = () => {
     </div>
   );
 };
+
 export default LeaveRequests;

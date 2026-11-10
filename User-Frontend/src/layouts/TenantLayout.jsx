@@ -712,7 +712,7 @@ const TenantLayout = () => {
               {(currentUser?.role === 'employee' || modules.includes('leaves') || currentUser?.role !== 'employee') && (
                 <NavLink to="/tenant/leaves" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
                   <Calendar size={18} />
-                  <span>Leave Requests</span>
+                  <span>Leaves & Permissions</span>
                 </NavLink>
               )}
             </>

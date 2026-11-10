@@ -384,8 +384,8 @@ const TenantDashboard = () => {
                   <Calendar size={20} />
                 </div>
                 <div>
-                  <div style={{ fontSize: '14px', fontWeight: '700', color: '#0F172A' }}>Leave Requests</div>
-                  <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>Apply & manage leaves</div>
+                  <div style={{ fontSize: '14px', fontWeight: '700', color: '#0F172A' }}>Leaves & Permissions</div>
+                  <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>Apply & manage time off</div>
                 </div>
               </div>
             )}
