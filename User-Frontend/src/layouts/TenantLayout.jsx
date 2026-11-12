@@ -1,10 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutGrid, Users, Map, Calendar, LogOut, Bell, ChevronDown, Clock, Package, Archive, TrendingUp, ShoppingCart, Receipt, Building2, UserCheck, FileText, BellRing, Store, Lock } from 'lucide-react';
+import { Outlet, NavLink, useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { LayoutGrid, Users, Map, Calendar, LogOut, Bell, ChevronDown, Clock, Package, Archive, TrendingUp, ShoppingCart, Receipt, Building2, UserCheck, FileText, BellRing, Store, Lock, Briefcase, Eye } from 'lucide-react';
 import LanguageSelector from '../components/LanguageSelector';
 import ThemeToggle from '../components/ThemeToggle';
 
 const TenantLayout = () => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+
   const navigate = useNavigate();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showSubMenu, setShowSubMenu] = useState(false);
@@ -99,7 +104,7 @@ const TenantLayout = () => {
           userModules = userObj.modules;
         }
         if (userObj && userObj.role === 'employee') {
-          userModules = Array.from(new Set([...userModules, 'attendance', 'leaves', 'customers', 'expenses', 'documents', 'reminders']));
+          userModules = Array.from(new Set([...userModules, 'customers', 'expenses', 'documents', 'reminders']));
         }
       }
 
@@ -140,12 +145,16 @@ const TenantLayout = () => {
     return () => window.removeEventListener('branchDataUpdated', handleBranchUpdate);
   }, [tenantType]);
 
+  // Handle Back-Forward Cache (bfcache) and token loss on browser back arrow
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      navigate('/login', { replace: true });
-    }
-  }, [navigate]);
+    const handlePageShow = (e) => {
+      if (e.persisted || !localStorage.getItem('token')) {
+        window.location.replace('/login');
+      }
+    };
+    window.addEventListener('pageshow', handlePageShow);
+    return () => window.removeEventListener('pageshow', handlePageShow);
+  }, []);
 
   const isInsideIframe = typeof window !== 'undefined' && window.top !== window;
   const isImpersonated = localStorage.getItem('impersonatedByAdmin') === 'true';
@@ -163,7 +172,7 @@ const TenantLayout = () => {
     Object.keys(localStorage).forEach(key => {
       if (key.startsWith('onb_')) localStorage.removeItem(key);
     });
-    navigate('/login', { replace: true });
+    window.location.replace('/login');
   };
 
   const handleLogout = () => {
@@ -179,38 +188,59 @@ const TenantLayout = () => {
     Object.keys(localStorage).forEach(key => {
       if (key.startsWith('onb_')) localStorage.removeItem(key);
     });
-    navigate('/login', { replace: true });
+    window.location.replace('/login');
   };
 
   const location = useLocation();
 
-  // Route permission validation for employees
+  // Route permission validation for employees and investors
   const isEmployeeRestricted = () => {
-    if (currentUser?.role !== 'employee') return false;
     const path = location.pathname.toLowerCase();
+
+    // Type 1 & Type 2 restriction: Branch management section is omitted (single-location accounts)
+    if (tenantType <= 2 && path.includes('/tenant/branches')) {
+      return true;
+    }
+
+    // Investor role restriction (View-only for business operations; restricted from HR & Billing management)
+    if (currentUser?.role === 'investor') {
+      if (path.includes('/tenant/employees') || 
+          path.includes('/tenant/attendance') || 
+          path.includes('/tenant/leaves') || 
+          path.includes('/tenant/reminders') || 
+          path.includes('/tenant/billing')) {
+        return true;
+      }
+      return false;
+    }
+
+    if (currentUser?.role !== 'employee') return false;
 
     // Admin-only management routes
     if (path.includes('/tenant/businesses') || 
         path.includes('/tenant/branches') || 
         path.includes('/tenant/employees') || 
-        path.includes('/tenant/billing')) {
+        path.includes('/tenant/billing') ||
+        path.includes('/tenant/investors')) {
       return true;
     }
 
-    // Selectable operational module permission checks (Product, Inventory, Purchases, Billing)
+    // Selectable operational module permission checks (Product, Inventory, Purchases, Attendance, Leaves)
     if (path.includes('/tenant/products') && !modules.includes('products_services')) return true;
     if (path.includes('/tenant/inventory') && !modules.includes('inventory')) return true;
     if (path.includes('/tenant/purchases') && !modules.includes('purchases')) return true;
-    if (path.includes('/tenant/sales') && !modules.includes('sales')) return true;
+    if (path.includes('/tenant/attendance') && !modules.includes('attendance')) return true;
+    if (path.includes('/tenant/leaves') && !modules.includes('leaves')) return true;
+    // Billing (/tenant/sales) is mandatory for all logins
 
-    // Remaining sections (customers, expenses, documents, reminders, attendance, leaves)
+    // Remaining sections (customers, expenses, documents, reminders)
     // are default for all employees and are never restricted!
 
     return false;
   };
 
   return (
-    <div className="admin-layout" style={{ display: 'flex', flexDirection: 'column' }}>
+    <div className={`admin-layout ${currentUser?.role === 'investor' ? 'role-investor' : ''}`} style={{ display: 'flex', flexDirection: 'column' }}>
       {/* Admin Impersonation Top Banner */}
       {isImpersonated && !isEmbedded && (
         <div style={{
@@ -341,7 +371,6 @@ const TenantLayout = () => {
             </div>
           ) : tenantType === 2 && currentBranch ? (
             <div 
-              onClick={() => navigate('/tenant/branches')}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -352,16 +381,12 @@ const TenantLayout = () => {
                 border: '1px solid #BFDBFE',
                 color: '#1D4ED8',
                 fontSize: '13px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
+                fontWeight: '600'
               }}
-              title="Manage your single branch location"
-              onMouseOver={(e) => e.currentTarget.style.background = '#DBEAFE'}
-              onMouseOut={(e) => e.currentTarget.style.background = '#EFF6FF'}
+              title="Single Store Location"
             >
               <Store size={15} />
-              <span>Branch: <strong>{currentBranch.name}</strong></span>
+              <span>Location: <strong>{currentBranch.name}</strong></span>
               {currentBranch.location && (
                 <span style={{ color: '#64748B', fontSize: '12px', fontWeight: '400' }}>• {currentBranch.location}</span>
               )}
@@ -369,6 +394,23 @@ const TenantLayout = () => {
           ) : <div />}
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            {currentUser?.role === 'investor' && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: '#EFF6FF',
+                color: '#1D4ED8',
+                border: '1px solid #BFDBFE',
+                padding: '5px 12px',
+                borderRadius: '20px',
+                fontSize: '12px',
+                fontWeight: '700'
+              }}>
+                <Eye size={14} />
+                <span>Investor View (Read-Only)</span>
+              </div>
+            )}
             <ThemeToggle />
             <LanguageSelector />
             {/* Notification Bell with Badge & Dropdown */}
@@ -617,11 +659,19 @@ const TenantLayout = () => {
             </NavLink>
           )}
 
-          {/* 3. Branches - Type 2 (Single Branch) and Type 3 & 4 (Multi Branch) */}
-          {tenantType >= 2 && currentUser?.role !== 'branch' && currentUser?.role !== 'employee' && (
+          {/* 3. Branches - Type 3 & 4 (Multi Branch Enterprise) */}
+          {tenantType >= 3 && currentUser?.role !== 'branch' && currentUser?.role !== 'employee' && (
             <NavLink to="/tenant/branches" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <Map size={18} />
-              <span>{tenantType === 2 ? 'Branch' : 'Branches'}</span>
+              <span>Branches</span>
+            </NavLink>
+          )}
+
+          {/* 4. Investors - Type 3 and Type 4 (Owner Administration & Investor View-Only) */}
+          {(tenantType === 3 || tenantType === 4) && currentUser?.role !== 'employee' && currentUser?.role !== 'branch' && (
+            <NavLink to="/tenant/investors" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
+              <Briefcase size={18} />
+              <span>Investors</span>
             </NavLink>
           )}
 
@@ -667,13 +717,11 @@ const TenantLayout = () => {
             </NavLink>
           )}
 
-          {/* 9. Sales / Billing (hidden for purchases-only businesses) */}
-          {modules.includes('sales') && currentUser?.businessOperationsType !== 'purchases' && (
-            <NavLink to="/tenant/sales" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
-              <TrendingUp size={18} />
-              <span>Billing</span>
-            </NavLink>
-          )}
+          {/* 9. Sales / Billing (Mandatory core feature across all user logins) */}
+          <NavLink to="/tenant/sales" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
+            <TrendingUp size={18} />
+            <span>Billing</span>
+          </NavLink>
 
           {/* 10. Documents */}
           {(currentUser?.role === 'employee' || modules.includes('documents') || currentUser?.role !== 'employee') && (
@@ -684,7 +732,7 @@ const TenantLayout = () => {
           )}
 
           {/* 11. Reminders */}
-          {(currentUser?.role === 'employee' || modules.includes('reminders') || currentUser?.role !== 'employee') && (
+          {currentUser?.role !== 'investor' && (currentUser?.role === 'employee' || modules.includes('reminders') || currentUser?.role !== 'employee') && (
             <NavLink to="/tenant/reminders" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <BellRing size={18} />
               <span>Reminders</span>
@@ -692,7 +740,7 @@ const TenantLayout = () => {
           )}
 
           {/* 12. Employees */}
-          {tenantType >= 1 && currentUser?.role !== 'employee' && (
+          {tenantType >= 1 && currentUser?.role !== 'employee' && currentUser?.role !== 'investor' && (
             <NavLink to="/tenant/employees" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <Users size={18} />
               <span>Employees</span>
@@ -700,16 +748,16 @@ const TenantLayout = () => {
           )}
 
           {/* 13, 14. Attendance & Leaves - Available to Employees and Admins */}
-          {tenantType >= 1 && (
+          {tenantType >= 1 && currentUser?.role !== 'investor' && (
             <>
-              {(currentUser?.role === 'employee' || modules.includes('attendance') || currentUser?.role !== 'employee') && (
+              {(currentUser?.role !== 'employee' || modules.includes('attendance')) && (
                 <NavLink to="/tenant/attendance" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
                   <Clock size={18} />
                   <span>Attendance</span>
                 </NavLink>
               )}
 
-              {(currentUser?.role === 'employee' || modules.includes('leaves') || currentUser?.role !== 'employee') && (
+              {(currentUser?.role !== 'employee' || modules.includes('leaves')) && (
                 <NavLink to="/tenant/leaves" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
                   <Calendar size={18} />
                   <span>Leaves & Permissions</span>

@@ -7,10 +7,52 @@ import {
   Briefcase, IndianRupee, Search, Download, ExternalLink, Layers, Check, 
   X, Sparkles, Eye, CreditCard, Edit2, Trash2, AlertTriangle, Save, CheckCircle2,
   ArrowUp, ArrowDown, ArrowUpDown, Plus, KeyRound, Lock, EyeOff, Tag,
-  Pencil, Building, ShieldCheck, CalendarDays, List, ChevronLeft, ChevronRight, Repeat, Bell, LogOut
+  Pencil, Building, ShieldCheck, CalendarDays, List, ChevronLeft, ChevronRight, Repeat, Bell, LogOut,
+  Barcode, Printer, PieChart, DollarSign, XCircle
 } from 'lucide-react';
 import TablePagination from '../components/TablePagination';
 import { exportToCSV } from '../utils/exportToCSV';
+
+// SVG Barcode graphic component
+const BarcodeSVG = ({ code, width = 160, height = 48, showText = true }) => {
+  const bars = useMemo(() => {
+    let hash = 0;
+    for (let i = 0; i < (code || '').length; i++) {
+      hash = (hash * 31 + code.charCodeAt(i)) >>> 0;
+    }
+    const result = [];
+    let curX = 6;
+    for (let i = 0; i < 34; i++) {
+      const bit = ((hash >> (i % 31)) ^ (i * 7)) & 3;
+      const barW = (bit % 2 === 0) ? 2 : 1;
+      const isBlack = (i % 2 === 0);
+      if (isBlack) {
+        result.push({ x: curX, w: barW });
+      }
+      curX += barW + ((bit > 1) ? 2 : 1);
+    }
+    return result;
+  }, [code]);
+
+  return (
+    <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', background: '#FFFFFF', padding: '6px 10px', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
+      <svg width={width} height={height} viewBox="0 0 160 48" style={{ display: 'block' }}>
+        <rect x="0" y="0" width="160" height="48" fill="#FFFFFF" />
+        <rect x="3" y="4" width="2" height="38" fill="#0F172A" />
+        <rect x="7" y="4" width="1" height="38" fill="#0F172A" />
+        {bars.map((b, i) => (
+          <rect key={i} x={Math.min(150, b.x + 8)} y="4" width={b.w} height="38" fill="#0F172A" />
+        ))}
+        <rect x="154" y="4" width="2" height="38" fill="#0F172A" />
+      </svg>
+      {showText && (
+        <span style={{ fontFamily: 'monospace', fontSize: '11px', letterSpacing: '2px', fontWeight: '700', color: '#0F172A', marginTop: '2px' }}>
+          {code}
+        </span>
+      )}
+    </div>
+  );
+};
 
 const CustomerDetails = () => {
   const { id } = useParams();
@@ -27,6 +69,41 @@ const CustomerDetails = () => {
   const [reminderCurrentDate, setReminderCurrentDate] = useState(new Date());
   const [reminderSelectedDate, setReminderSelectedDate] = useState(new Date());
   const [checkoutModalData, setCheckoutModalData] = useState(null);
+
+  // Sub-tabs & Advanced Billing State
+  const [salesSubTab, setSalesSubTab] = useState('invoices'); // 'invoices' | 'quotations' | 'barcodes'
+  const [quotations, setQuotations] = useState([
+    { _id: 'QTE-101', quotationNumber: 'QTE-2026-001', customerName: 'Apex Industrial Corp', customerEmail: 'orders@apex.com', date: '2026-03-15', validUntil: '2026-04-15', itemsCount: 4, totalAmount: 48500, status: 'Approved', notes: 'Includes bulk dispatch and setup' },
+    { _id: 'QTE-102', quotationNumber: 'QTE-2026-002', customerName: 'Zenith Logistics Hub', customerEmail: 'supply@zenith.com', date: '2026-03-20', validUntil: '2026-04-20', itemsCount: 12, totalAmount: 112000, status: 'Pending', notes: 'Volume tier discount applied' }
+  ]);
+  const [barcodes, setBarcodes] = useState([
+    { code: '8901030825412', name: 'Industrial Hydraulic Pump 2HP', sku: 'PMP-HYD-02', price: 18500, type: 'Product' },
+    { code: '8904063198754', name: 'On-site Emergency Repair', sku: 'SRV-REP-EM', price: 2500, type: 'Service' }
+  ]);
+  const [printBarcodeModal, setPrintBarcodeModal] = useState(null);
+  const [viewQuotationModal, setViewQuotationModal] = useState(null);
+  const [showAddQuotationModal, setShowAddQuotationModal] = useState(false);
+  const [newQuotationData, setNewQuotationData] = useState({
+    quotationNumber: '',
+    customerName: '',
+    customerEmail: '',
+    validUntil: '',
+    itemsCount: 1,
+    totalAmount: '',
+    notes: ''
+  });
+
+  // Investor Management Filters
+  const [investorFilterStatus, setInvestorFilterStatus] = useState('all');
+  const [investorFilterBranch, setInvestorFilterBranch] = useState('all');
+
+  // Modules & Operations Configuration State
+  const [modulesConfig, setModulesConfig] = useState({
+    offeringType: 'both',
+    operationsType: 'purchases',
+    modules: ['sales', 'products_services', 'expenses', 'inventory', 'purchases']
+  });
+  const [savingModulesConfig, setSavingModulesConfig] = useState(false);
 
   // Profile Page inline editing state
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -93,6 +170,13 @@ const CustomerDetails = () => {
       })
       .then(data => {
         setDetails(data);
+        if (data.user) {
+          setModulesConfig({
+            offeringType: data.user.offeringType || data.user.businessOfferingType || 'both',
+            operationsType: data.user.operationsType || data.user.businessOperationsType || 'purchases',
+            modules: Array.isArray(data.user.modules) && data.user.modules.length > 0 ? data.user.modules : ['sales', 'products_services', 'expenses', 'inventory', 'purchases']
+          });
+        }
         setLoading(false);
       })
       .catch(err => {
@@ -133,6 +217,14 @@ const CustomerDetails = () => {
   const documents = details?.documents || [];
   const categories = details?.categories || [];
   const subcategories = details?.subcategories || [];
+  const investors = details?.investors || [];
+
+  const hasBothProductAndService = useMemo(() => {
+    const off = customer.offeringType || customer.businessOfferingType;
+    if (off === 'both') return true;
+    if (Array.isArray(customer.offerings) && customer.offerings.includes('product') && customer.offerings.includes('service')) return true;
+    return false;
+  }, [customer]);
 
   const financials = details?.financials || {
     totalSales: sales.reduce((sum, s) => sum + (Number(s.amount) || 0), 0),
@@ -144,6 +236,7 @@ const CustomerDetails = () => {
     branches: branches.length,
     employees: employees.length,
     businesses: businesses.length || 1,
+    investors: investors.length,
     expenses: expenses.length,
     sales: sales.length,
     inventory: inventory.length,
@@ -388,6 +481,8 @@ const CustomerDetails = () => {
         endpoint = `${apiUrl}/api/admin/employees/${item._id}/credentials`;
       } else if (type === 'user') {
         endpoint = `${apiUrl}/api/admin/users/${customer._id}/credentials`;
+      } else if (type === 'investor') {
+        endpoint = `${apiUrl}/api/admin/investors/${item._id}/credentials`;
       }
 
       const res = await fetch(endpoint, {
@@ -421,12 +516,117 @@ const CustomerDetails = () => {
     }
   };
 
+  // Modules & Offerings Config Save handler
+  const handleSaveModulesConfig = async () => {
+    setSavingModulesConfig(true);
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/users/${customer._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        },
+        body: JSON.stringify({
+          offeringType: modulesConfig.offeringType,
+          businessOfferingType: modulesConfig.offeringType,
+          operationsType: modulesConfig.operationsType,
+          businessOperationsType: modulesConfig.operationsType,
+          modules: Array.from(new Set([...modulesConfig.modules, 'sales'])) // enforce mandatory sales
+        })
+      });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.message || 'Failed to update modules configuration');
+      }
+      showNotification('Business modules & operational scope updated successfully!');
+      fetchCustomerDetails();
+    } catch (err) {
+      showNotification(err.message || 'Error updating configuration');
+    } finally {
+      setSavingModulesConfig(false);
+    }
+  };
+
+  const handleConvertQuotationToInvoice = async (quote) => {
+    try {
+      const invoicePayload = {
+        tenantId: customer._id,
+        invoiceNo: `INV-${quote.quotationNumber.replace('QTE-', '')}`,
+        customerName: quote.customerName,
+        amount: quote.totalAmount,
+        date: new Date().toISOString().split('T')[0],
+        status: 'Paid',
+        notes: `Converted from Quotation ${quote.quotationNumber}`
+      };
+
+      const res = await fetch(`${apiUrl}/api/admin/sales`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        },
+        body: JSON.stringify(invoicePayload)
+      });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.message || 'Failed to convert quotation to invoice');
+      }
+
+      setQuotations(prev => prev.map(q => q._id === quote._id ? { ...q, status: 'Converted' } : q));
+      showNotification(`Quotation ${quote.quotationNumber} successfully converted to Live Invoice!`);
+      fetchCustomerDetails();
+    } catch (err) {
+      showNotification(`Error converting quotation: ${err.message}`);
+    }
+  };
+
+  const handleCreateQuotation = (e) => {
+    e.preventDefault();
+    if (!newQuotationData.customerName || !newQuotationData.totalAmount) {
+      showNotification('Please fill customer name and total amount');
+      return;
+    }
+    const quoteCount = quotations.length + 1;
+    const generatedNo = newQuotationData.quotationNumber || `QTE-2026-${String(quoteCount).padStart(3, '0')}`;
+    const newQuote = {
+      _id: `QTE-${Date.now()}`,
+      quotationNumber: generatedNo,
+      customerName: newQuotationData.customerName,
+      customerEmail: newQuotationData.customerEmail || '',
+      date: new Date().toISOString().split('T')[0],
+      validUntil: newQuotationData.validUntil || new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+      itemsCount: Number(newQuotationData.itemsCount) || 1,
+      totalAmount: Number(newQuotationData.totalAmount) || 0,
+      status: 'Pending',
+      notes: newQuotationData.notes || ''
+    };
+    setQuotations(prev => [newQuote, ...prev]);
+    setShowAddQuotationModal(false);
+    setNewQuotationData({ quotationNumber: '', customerName: '', customerEmail: '', validUntil: '', itemsCount: 1, totalAmount: '', notes: '' });
+    showNotification(`Quotation ${generatedNo} created successfully!`);
+  };
+
   // CSV Export for each section
   const exportSectionCSV = (sectionName) => {
     let dataToExport = [];
     let filename = sectionName;
 
-    if (sectionName === 'businesses') {
+    if (sectionName === 'investors') {
+      dataToExport = filteredInvestors.map((inv, idx) => ({
+        'S.No': idx + 1,
+        'Investor ID': inv.investorId || '-',
+        'Name': inv.name || '',
+        'Email': inv.email || '',
+        'Phone': inv.phone || '-',
+        'Investment (₹)': inv.investmentAmount || 0,
+        'Equity Stake (%)': inv.ownershipPercentage || 0,
+        'Allocation Scope': inv.associatedBranch || 'All Branches',
+        'Portal Login': inv.isLoginEnabled && inv.status === 'Active' ? 'Enabled (View-Only)' : 'Disabled',
+        'Status': inv.status || 'Active',
+        'Investment Date': inv.investmentDate ? new Date(inv.investmentDate).toLocaleDateString() : ''
+      }));
+      filename = 'Investors';
+    } else if (sectionName === 'businesses') {
       dataToExport = filteredBusinesses.map((b, idx) => ({
         'S.No': idx + 1,
         'Business ID': b.businessId || b.businessCode || '-',
@@ -779,6 +979,29 @@ const CustomerDetails = () => {
     return sortList(filtered);
   }, [businesses, searchTerm, sortConfig, filterDays, customStartDate, customEndDate]);
 
+  const filteredInvestors = useMemo(() => {
+    const q = searchTerm.toLowerCase();
+    const dateFiltered = applyDateFilter(investors, 'investmentDate');
+    const filtered = dateFiltered.filter(inv => {
+      const matchesSearch = !q || 
+        (inv.name && inv.name.toLowerCase().includes(q)) || 
+        (inv.investorId && inv.investorId.toLowerCase().includes(q)) || 
+        (inv.email && inv.email.toLowerCase().includes(q)) ||
+        (inv.phone && inv.phone.includes(q)) ||
+        (inv.associatedBranch && inv.associatedBranch.toLowerCase().includes(q));
+      const matchesStatus = investorFilterStatus === 'all' || inv.status === investorFilterStatus;
+      const matchesBranch = investorFilterBranch === 'all' || inv.associatedBranch === investorFilterBranch;
+      return matchesSearch && matchesStatus && matchesBranch;
+    });
+    return sortList(filtered);
+  }, [investors, searchTerm, sortConfig, filterDays, customStartDate, customEndDate, investorFilterStatus, investorFilterBranch]);
+
+  // Investor Statistics
+  const totalInvestorCapital = useMemo(() => investors.reduce((sum, inv) => sum + (Number(inv.investmentAmount) || 0), 0), [investors]);
+  const totalInvestorEquity = useMemo(() => investors.reduce((sum, inv) => sum + (Number(inv.ownershipPercentage) || 0), 0), [investors]);
+  const activeInvestorCount = useMemo(() => investors.filter(inv => inv.status === 'Active').length, [investors]);
+  const loginEnabledInvestorCount = useMemo(() => investors.filter(inv => inv.isLoginEnabled && inv.status === 'Active').length, [investors]);
+
   // Paginated slices
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedBranches = filteredBranches.slice(startIndex, startIndex + itemsPerPage);
@@ -796,6 +1019,7 @@ const CustomerDetails = () => {
   const paginatedReminders = filteredReminders.slice(startIndex, startIndex + itemsPerPage);
   const paginatedDocuments = filteredDocuments.slice(startIndex, startIndex + itemsPerPage);
   const paginatedBusinesses = filteredBusinesses.slice(startIndex, startIndex + itemsPerPage);
+  const paginatedInvestors = filteredInvestors.slice(startIndex, startIndex + itemsPerPage);
 
   // Handle Edit Submissions
   const handleEditSubmit = async (e) => {
@@ -822,6 +1046,7 @@ const CustomerDetails = () => {
     else if (type === 'leave') endpoint = `${apiUrl}/api/admin/leaves/${data._id}`;
     else if (type === 'reminder') endpoint = `${apiUrl}/api/admin/reminders/${data._id}`;
     else if (type === 'document') endpoint = `${apiUrl}/api/admin/documents/${data._id}`;
+    else if (type === 'investor') endpoint = `${apiUrl}/api/admin/investors/${data._id}`;
 
     try {
       const res = await fetch(endpoint, {
@@ -872,6 +1097,7 @@ const CustomerDetails = () => {
     else if (type === 'leave') endpoint = `${apiUrl}/api/admin/leaves/${itemId}`;
     else if (type === 'reminder') endpoint = `${apiUrl}/api/admin/reminders/${itemId}`;
     else if (type === 'document') endpoint = `${apiUrl}/api/admin/documents/${itemId}`;
+    else if (type === 'investor') endpoint = `${apiUrl}/api/admin/investors/${itemId}`;
 
     try {
       const res = await fetch(endpoint, {
@@ -1204,6 +1430,25 @@ const CustomerDetails = () => {
       initialFormData = { tenantId, title: '', date: overrides.date || new Date().toISOString().split('T')[0], description: '', repeatMonthly: false, notifyBeforeDays: '', status: 'Pending', ...overrides };
     } else if (type === 'document') {
       initialFormData = { tenantId, title: '', type: 'Contract', fileUrl: '', expiryDate: '', ...overrides };
+    } else if (type === 'investor') {
+      const existingInvIds = new Set(investors.map(inv => (inv.investorId || '').trim().toUpperCase()));
+      let invCount = investors.length + 1;
+      while (existingInvIds.has(`INV-${String(invCount).padStart(3, '0')}`)) { invCount++; }
+      const suggestedInvId = `INV-${String(invCount).padStart(3, '0')}`;
+      // In add investor modal, status is omitted per request ("remove acount status from the add invester i need these only in edit section")
+      initialFormData = { 
+        tenantId, 
+        investorId: suggestedInvId, 
+        name: '', 
+        email: '', 
+        password: Math.random().toString(36).slice(-8), 
+        phone: '', 
+        investmentAmount: '', 
+        ownershipPercentage: '', 
+        associatedBranch: 'All Branches', 
+        notes: '', 
+        ...overrides 
+      };
     }
     setAddModalData({ type, formData: initialFormData });
   };
@@ -1217,7 +1462,7 @@ const CustomerDetails = () => {
 
     // Sanitize numeric fields if left empty
     const sanitizedData = { ...formData };
-    ['amount', 'price', 'salary', 'stock', 'quantity', 'notifyBeforeDays'].forEach(k => {
+    ['amount', 'price', 'salary', 'stock', 'quantity', 'notifyBeforeDays', 'investmentAmount', 'ownershipPercentage'].forEach(k => {
       if (k in sanitizedData) {
         sanitizedData[k] = sanitizedData[k] === '' || sanitizedData[k] === null || isNaN(Number(sanitizedData[k])) ? 0 : Number(sanitizedData[k]);
       }
@@ -1239,6 +1484,7 @@ const CustomerDetails = () => {
     else if (type === 'leave') endpoint = `${apiUrl}/api/admin/leaves`;
     else if (type === 'reminder') endpoint = `${apiUrl}/api/admin/reminders`;
     else if (type === 'document') endpoint = `${apiUrl}/api/admin/documents`;
+    else if (type === 'investor') endpoint = `${apiUrl}/api/admin/investors`;
 
     try {
       const res = await fetch(endpoint, {
@@ -1417,6 +1663,19 @@ const CustomerDetails = () => {
         fileUrl: item.fileUrl || '',
         expiryDate: item.expiryDate ? new Date(item.expiryDate).toISOString().split('T')[0] : ''
       };
+    } else if (type === 'investor') {
+      initialFormData = {
+        investorId: item.investorId || '',
+        name: item.name || '',
+        email: item.email || '',
+        phone: item.phone || '',
+        investmentAmount: item.investmentAmount || 0,
+        ownershipPercentage: item.ownershipPercentage || 0,
+        associatedBranch: item.associatedBranch || 'All Branches',
+        status: item.status || 'Active',
+        isLoginEnabled: item.isLoginEnabled !== false,
+        notes: item.notes || ''
+      };
     }
 
     setEditModalData({ type, data: item, formData: initialFormData });
@@ -1425,12 +1684,13 @@ const CustomerDetails = () => {
   // Sidebar navigation configuration
   const sidebarItems = [
     ...(businessType === 4 || businesses.length > 0 ? [{ id: 'businesses', label: 'Businesses', icon: Building2, count: counts.businesses }] : []),
-    { id: 'branches', label: businessType === 2 ? 'Branch' : 'Branches', icon: Map, count: counts.branches },
-    { id: 'products', label: 'Products & Services', icon: Package, count: counts.products },
-    { id: 'inventory', label: 'Stock / Inventory', icon: Archive, count: counts.inventory },
+    ...(businessType >= 3 ? [{ id: 'branches', label: 'Branches', icon: Map, count: counts.branches }] : []),
+    ...((businessType === 3 || businessType === 4) ? [{ id: 'investors', label: 'Investors', icon: Briefcase, count: counts.investors || investors.length }] : []),
+    { id: 'products', label: customer.offeringType === 'service' ? 'Services' : customer.offeringType === 'product' ? 'Products' : 'Products & Services', icon: Package, count: counts.products },
+    ...(customer.offeringType !== 'service' ? [{ id: 'inventory', label: 'Stock / Inventory', icon: Archive, count: counts.inventory }] : []),
     { id: 'customers', label: 'Customers', icon: UserCheck, count: counts.customers },
     { id: 'expenses', label: 'Expenses', icon: Receipt, count: counts.expenses },
-    { id: 'purchases', label: 'Purchases', icon: ShoppingCart, count: counts.purchases },
+    ...(customer.operationsType !== 'billing_only' ? [{ id: 'purchases', label: 'Purchases', icon: ShoppingCart, count: counts.purchases }] : []),
     { id: 'sales', label: 'Billing / Sales', icon: TrendingUp, count: counts.sales },
     { id: 'documents', label: 'Documents', icon: FileText, count: counts.documents },
     { id: 'reminders', label: 'Reminders', icon: BellRing, count: counts.reminders },
@@ -2334,29 +2594,157 @@ const CustomerDetails = () => {
                   </div>
                 </div>
 
-                {/* Subscribed Modules */}
+                {/* Subscribed Modules & Operations Scope */}
                 <div style={{ 
                   background: 'white', 
                   borderRadius: '16px', 
                   padding: '28px 32px', 
                   boxShadow: '0 4px 12px rgba(15, 23, 42, 0.04)', 
-                  border: '1px solid #E2E8F0'
+                  border: '1px solid #E2E8F0',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '20px'
                 }}>
-                  <div style={{ fontSize: '13px', color: '#2563EB', textTransform: 'uppercase', letterSpacing: '0.6px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Layers size={17} /> Subscribed Modules & Privileges
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                    <div style={{ fontSize: '14px', color: '#2563EB', textTransform: 'uppercase', letterSpacing: '0.6px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Layers size={17} /> Operational Scope & Subscribed Modules
+                    </div>
+                    <button
+                      type="button"
+                      disabled={savingModulesConfig}
+                      onClick={handleSaveModulesConfig}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '8px 16px',
+                        background: '#2563EB',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '13px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        opacity: savingModulesConfig ? 0.7 : 1
+                      }}
+                    >
+                      {savingModulesConfig ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Save size={14} />}
+                      Save Scope & Modules
+                    </button>
                   </div>
-                  {customer.modules && customer.modules.length > 0 ? (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                      {customer.modules.map(mod => (
-                        <span key={mod} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '8px', background: '#EFF6FF', color: '#2563EB', fontSize: '13px', fontWeight: '600', border: '1px solid #BFDBFE' }}>
-                          <CheckCircle2 size={14} color="#2563EB" />
-                          {mod.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                        </span>
+
+                  {/* Offering Type Choice */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>
+                      Business Offering Scope
+                    </label>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+                      {[
+                        { id: 'product', label: 'Physical Products', icon: Package },
+                        { id: 'service', label: 'Services', icon: Briefcase },
+                        { id: 'both', label: 'Products & Services', icon: Layers }
+                      ].map(item => (
+                        <div
+                          key={item.id}
+                          onClick={() => setModulesConfig(p => ({ ...p, offeringType: item.id }))}
+                          style={{
+                            padding: '12px 14px',
+                            borderRadius: '10px',
+                            border: `2px solid ${modulesConfig.offeringType === item.id ? '#2563EB' : '#E2E8F0'}`,
+                            background: modulesConfig.offeringType === item.id ? '#EFF6FF' : '#F8FAFC',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <item.icon size={18} color={modulesConfig.offeringType === item.id ? '#2563EB' : '#64748B'} />
+                          <span style={{ fontSize: '13px', fontWeight: '700', color: modulesConfig.offeringType === item.id ? '#1D4ED8' : '#334155' }}>{item.label}</span>
+                        </div>
                       ))}
                     </div>
-                  ) : (
-                    <div style={{ color: '#64748B', fontSize: '14px' }}>All standard business modules active for this tenant account.</div>
-                  )}
+                  </div>
+
+                  {/* Operational Type Choice */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>
+                      Purchasing & Procurement Operations
+                    </label>
+                    <div style={{ maxWidth: '420px' }}>
+                      <div
+                        onClick={() => setModulesConfig(p => ({ ...p, operationsType: p.operationsType === 'purchases' ? 'billing_only' : 'purchases' }))}
+                        style={{
+                          padding: '14px 16px',
+                          borderRadius: '10px',
+                          border: `2px solid ${modulesConfig.operationsType === 'purchases' ? '#2563EB' : '#E2E8F0'}`,
+                          background: modulesConfig.operationsType === 'purchases' ? '#EFF6FF' : '#F8FAFC',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '12px'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <ShoppingCart size={18} color={modulesConfig.operationsType === 'purchases' ? '#2563EB' : '#64748B'} />
+                          <div>
+                            <div style={{ fontSize: '13px', fontWeight: '700', color: modulesConfig.operationsType === 'purchases' ? '#1D4ED8' : '#334155' }}>
+                              Purchases & Procurement Operations
+                            </div>
+                            <div style={{ fontSize: '11px', color: '#64748B' }}>
+                              {modulesConfig.operationsType === 'purchases' ? 'Vendor POs, bills & stock intake enabled' : 'Billing Only (No purchase orders)'}
+                            </div>
+                          </div>
+                        </div>
+                        {modulesConfig.operationsType === 'purchases' && <CheckCircle2 size={18} color="#2563EB" />}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Enabled Modules Chips */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>
+                      Subscribed Modules (Sales & Invoicing is permanently mandatory)
+                    </label>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '8px', background: '#DCFCE7', color: '#166534', fontSize: '13px', fontWeight: '700', border: '1px solid #86EFAC' }}>
+                        <CheckCircle2 size={14} color="#166534" />
+                        Billing & Sales (Mandatory Core)
+                      </span>
+                      {['products_services', 'inventory', 'purchases', 'expenses', 'documents', 'reminders', 'employees', 'attendance', 'leaves'].map(modKey => {
+                        const isIncluded = modulesConfig.modules.includes(modKey);
+                        return (
+                          <button
+                            key={modKey}
+                            type="button"
+                            onClick={() => {
+                              setModulesConfig(p => ({
+                                ...p,
+                                modules: isIncluded ? p.modules.filter(m => m !== modKey) : [...p.modules, modKey]
+                              }));
+                            }}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              background: isIncluded ? '#EFF6FF' : '#F8FAFC',
+                              color: isIncluded ? '#2563EB' : '#64748B',
+                              fontSize: '13px',
+                              fontWeight: '600',
+                              border: isIncluded ? '1px solid #BFDBFE' : '1px solid #CBD5E1',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            {isIncluded && <CheckCircle2 size={14} color="#2563EB" />}
+                            {modKey.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
 
               </form>
@@ -4518,7 +4906,7 @@ const CustomerDetails = () => {
           {/* SECTION 11: BILLING / SALES */}
           {/* ======================================================== */}
           {activeSection === 'sales' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               
               {/* Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
@@ -4527,19 +4915,97 @@ const CustomerDetails = () => {
                     <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563EB', border: '1px solid #DBEAFE' }}>
                       <TrendingUp size={22} />
                     </div>
-                    Sales & Invoicing
+                    Customer Billing & Invoicing (Mandatory Core)
                   </h1>
                   <p style={{ color: '#64748B', fontSize: '14px', margin: 0 }}>
-                    Manage client orders, billing records, payment statuses, and revenue logs.
+                    Manage client orders, commercial bulk quotations, barcodes, and live revenue logs.
                   </p>
                 </div>
-                <button 
-                  onClick={() => openAddModal('sale')} 
-                  style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', background: '#2563EB', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
-                >
-                  <Plus size={17} /> Add Sale Invoice
-                </button>
+                {salesSubTab === 'invoices' && (
+                  <button 
+                    onClick={() => openAddModal('sale')} 
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', background: '#2563EB', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
+                  >
+                    <Plus size={17} /> Add Sale Invoice
+                  </button>
+                )}
+                {salesSubTab === 'quotations' && (
+                  <button 
+                    onClick={() => setShowAddQuotationModal(true)} 
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', background: '#D97706', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(217,119,6,0.2)' }}
+                  >
+                    <Plus size={17} /> Create Quotation
+                  </button>
+                )}
               </div>
+
+              {/* Sub-Tabs: Live Invoices | Quotation (Bulk Orders) | Bar Code (Guarded) */}
+              <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid #E2E8F0', paddingBottom: '12px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => setSalesSubTab('invoices')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '9px 18px',
+                    borderRadius: '8px',
+                    border: salesSubTab === 'invoices' ? '1px solid #2563EB' : '1px solid #CBD5E1',
+                    background: salesSubTab === 'invoices' ? '#EFF6FF' : 'white',
+                    color: salesSubTab === 'invoices' ? '#1D4ED8' : '#64748B',
+                    fontWeight: '700',
+                    fontSize: '13px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Receipt size={16} /> Live Invoices ({sales.length})
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSalesSubTab('quotations')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '9px 18px',
+                    borderRadius: '8px',
+                    border: salesSubTab === 'quotations' ? '1px solid #D97706' : '1px solid #CBD5E1',
+                    background: salesSubTab === 'quotations' ? '#FEF3C7' : 'white',
+                    color: salesSubTab === 'quotations' ? '#B45309' : '#64748B',
+                    fontWeight: '700',
+                    fontSize: '13px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <FileText size={16} /> Quotation (Bulk Orders) ({quotations.length})
+                </button>
+
+                {hasBothProductAndService && (
+                  <button
+                    type="button"
+                    onClick={() => setSalesSubTab('barcodes')}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '9px 18px',
+                      borderRadius: '8px',
+                      border: salesSubTab === 'barcodes' ? '1px solid #7C3AED' : '1px solid #CBD5E1',
+                      background: salesSubTab === 'barcodes' ? '#F5F3FF' : 'white',
+                      color: salesSubTab === 'barcodes' ? '#6D28D9' : '#64748B',
+                      fontWeight: '700',
+                      fontSize: '13px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <Barcode size={16} /> Bar Code ({barcodes.length})
+                  </button>
+                )}
+              </div>
+
+              {salesSubTab === 'invoices' && (
+                <>
 
               {/* Stat Cards */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '18px' }}>
@@ -4700,6 +5166,116 @@ const CustomerDetails = () => {
                   itemName="sales & invoices"
                 />
               </div>
+            </>
+          )}
+
+              {/* SUB-TAB 2: QUOTATIONS (BULK ORDERS) */}
+              {salesSubTab === 'quotations' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '12px', padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <FileText size={20} color="#D97706" />
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: '700', color: '#92400E' }}>Commercial Quotations Engine</div>
+                        <div style={{ fontSize: '12px', color: '#B45309' }}>Draft high-volume client estimates and convert them directly into live billing invoices with a single click.</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)' }}>
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', minWidth: '850px', borderCollapse: 'collapse', textAlign: 'left' }}>
+                        <thead>
+                          <tr style={{ background: '#F8FAFC' }}>
+                            <th style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase' }}>Quote #</th>
+                            <th style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase' }}>Client / Buyer</th>
+                            <th style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase' }}>Issue Date</th>
+                            <th style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase' }}>Valid Until</th>
+                            <th style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase' }}>Items</th>
+                            <th style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase' }}>Est. Total</th>
+                            <th style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', textAlign: 'center' }}>Status</th>
+                            <th style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', textAlign: 'center' }}>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {quotations.map((q) => (
+                            <tr key={q._id} style={{ borderBottom: '1px solid #E2E8F0' }}>
+                              <td style={{ padding: '14px 16px', fontWeight: '700', color: '#D97706', fontFamily: 'monospace' }}>
+                                {q.quotationNumber}
+                              </td>
+                              <td style={{ padding: '14px 16px' }}>
+                                <div style={{ fontWeight: '600', color: '#0F172A', fontSize: '13.5px' }}>{q.customerName}</div>
+                                {q.customerEmail && <div style={{ fontSize: '11.5px', color: '#64748B' }}>{q.customerEmail}</div>}
+                              </td>
+                              <td style={{ padding: '14px 16px', color: '#64748B', fontSize: '13px' }}>{formatDate(q.date)}</td>
+                              <td style={{ padding: '14px 16px', color: '#64748B', fontSize: '13px' }}>{formatDate(q.validUntil)}</td>
+                              <td style={{ padding: '14px 16px', color: '#334155', fontWeight: '600', fontSize: '13px' }}>{q.itemsCount || 1} item(s)</td>
+                              <td style={{ padding: '14px 16px', fontWeight: '700', color: '#0F172A', fontSize: '14px' }}>{formatCurrency(q.totalAmount)}</td>
+                              <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                                <span style={{ padding: '3px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: '700', background: q.status === 'Converted' ? '#DCFCE7' : q.status === 'Approved' ? '#EFF6FF' : '#FEF3C7', color: q.status === 'Converted' ? '#166534' : q.status === 'Approved' ? '#1D4ED8' : '#B45309' }}>
+                                  {q.status}
+                                </span>
+                              </td>
+                              <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                                  <button onClick={() => setViewQuotationModal(q)} style={{ padding: '6px 10px', background: '#F1F5F9', border: '1px solid #CBD5E1', borderRadius: '6px', fontSize: '12px', fontWeight: '600', color: '#334155', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <Eye size={13} /> View
+                                  </button>
+                                  {q.status !== 'Converted' && (
+                                    <button onClick={() => handleConvertQuotationToInvoice(q)} style={{ padding: '6px 12px', background: '#2563EB', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: '600', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                      <Receipt size={13} /> Convert to Invoice
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* SUB-TAB 3: BAR CODE (ONLY FOR HYBRID USERS WITH BOTH PRODUCT & SERVICE) */}
+              {salesSubTab === 'barcodes' && hasBothProductAndService && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ background: '#FAF5FF', border: '1px solid #E9D5FF', borderRadius: '12px', padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <Barcode size={20} color="#7C3AED" />
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: '700', color: '#6B21A8' }}>Hybrid Offering Barcode Engine</div>
+                        <div style={{ fontSize: '12px', color: '#7E22CE' }}>Strictly active for accounts offering both Physical Products and Billable Services. Generate thermal stickers for packaging.</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
+                    {barcodes.map(b => (
+                      <div key={b.code} style={{ background: 'white', borderRadius: '14px', border: '1px solid #E2E8F0', padding: '18px', display: 'flex', flexDirection: 'column', gap: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <div>
+                            <div style={{ fontSize: '15px', fontWeight: '700', color: '#0F172A' }}>{b.name}</div>
+                            <div style={{ fontSize: '12px', color: '#64748B' }}>SKU: {b.sku} • {b.type}</div>
+                          </div>
+                          <span style={{ fontSize: '14px', fontWeight: '800', color: '#16A34A' }}>{formatCurrency(b.price)}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'center', background: '#F8FAFC', padding: '14px', borderRadius: '8px', border: '1px solid #F1F5F9' }}>
+                          <BarcodeSVG code={b.code} width={180} height={52} />
+                        </div>
+                        <button 
+                          type="button" 
+                          onClick={() => setPrintBarcodeModal(b)} 
+                          style={{ padding: '9px', background: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '13px', fontWeight: '600', color: '#334155', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                        >
+                          <Printer size={15} /> Print Thermal Sticker
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
             </div>
           )}
 
@@ -5587,6 +6163,339 @@ const CustomerDetails = () => {
             </div>
           )}
 
+          {/* ============================================================ */}
+          {/* SECTION: INVESTORS (TYPE 3 & 4 ONLY) */}
+          {/* ============================================================ */}
+          {activeSection === 'investors' && (
+            <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              
+              {/* Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Briefcase size={22} />
+                  </div>
+                  <div>
+                    <h1 style={{ fontSize: '24px', fontWeight: '800', color: '#0F172A', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      Investor Management
+                      <span style={{ fontSize: '12px', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE', padding: '2px 8px', borderRadius: '20px', fontWeight: '700' }}>
+                        Type {businessType === 4 ? '4 Conglomerate' : '3 Enterprise'}
+                      </span>
+                    </h1>
+                    <p style={{ color: '#64748B', fontSize: '13px', margin: '2px 0 0 0' }}>
+                      Register equity stakeholders and grant secure view-only portal logins (Owner Administration).
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => openAddModal('investor')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '10px 20px',
+                    background: '#2563EB',
+                    border: 'none',
+                    borderRadius: '10px',
+                    color: 'white',
+                    fontWeight: '600',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 10px rgba(37,99,235,0.25)',
+                    transition: 'all 0.15s ease'
+                  }}
+                  onMouseOver={(e) => { e.currentTarget.style.background = '#1D4ED8'; }}
+                  onMouseOut={(e) => { e.currentTarget.style.background = '#2563EB'; }}
+                >
+                  <Plus size={16} /> Add Investor
+                </button>
+              </div>
+
+              {/* 4 Stat Cards */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+                <div style={{ background: 'white', borderRadius: '14px', border: '1px solid #E2E8F0', padding: '18px', display: 'flex', alignItems: 'center', gap: '14px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                  <div style={{ width: '44px', height: '44px', borderRadius: '10px', background: '#F0FDF4', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <DollarSign size={22} />
+                  </div>
+                  <div>
+                    <p style={{ margin: '0 0 2px 0', fontSize: '12px', color: '#64748B', fontWeight: '600' }}>Total Capital Invested</p>
+                    <h3 style={{ margin: 0, fontSize: '20px', color: '#0F172A', fontWeight: '800' }}>{formatCurrency(totalInvestorCapital)}</h3>
+                  </div>
+                </div>
+
+                <div style={{ background: 'white', borderRadius: '14px', border: '1px solid #E2E8F0', padding: '18px', display: 'flex', alignItems: 'center', gap: '14px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                  <div style={{ width: '44px', height: '44px', borderRadius: '10px', background: '#F5F3FF', color: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <PieChart size={22} />
+                  </div>
+                  <div>
+                    <p style={{ margin: '0 0 2px 0', fontSize: '12px', color: '#64748B', fontWeight: '600' }}>Total Equity Allocated</p>
+                    <h3 style={{ margin: 0, fontSize: '20px', color: '#0F172A', fontWeight: '800' }}>{totalInvestorEquity.toFixed(1)}%</h3>
+                  </div>
+                </div>
+
+                <div style={{ background: 'white', borderRadius: '14px', border: '1px solid #E2E8F0', padding: '18px', display: 'flex', alignItems: 'center', gap: '14px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                  <div style={{ width: '44px', height: '44px', borderRadius: '10px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Briefcase size={22} />
+                  </div>
+                  <div>
+                    <p style={{ margin: '0 0 2px 0', fontSize: '12px', color: '#64748B', fontWeight: '600' }}>Active Investors</p>
+                    <h3 style={{ margin: 0, fontSize: '20px', color: '#0F172A', fontWeight: '800' }}>{activeInvestorCount}</h3>
+                  </div>
+                </div>
+
+                <div style={{ background: 'white', borderRadius: '14px', border: '1px solid #E2E8F0', padding: '18px', display: 'flex', alignItems: 'center', gap: '14px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                  <div style={{ width: '44px', height: '44px', borderRadius: '10px', background: '#FFFBEB', color: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <KeyRound size={22} />
+                  </div>
+                  <div>
+                    <p style={{ margin: '0 0 2px 0', fontSize: '12px', color: '#64748B', fontWeight: '600' }}>Logins Enabled</p>
+                    <h3 style={{ margin: 0, fontSize: '20px', color: '#0F172A', fontWeight: '800' }}>{loginEnabledInvestorCount}</h3>
+                  </div>
+                </div>
+              </div>
+
+              {/* Controls Bar: Compact Search Bar + Right-aligned Filters */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                <div style={{ position: 'relative', flex: '0 1 320px', minWidth: '240px' }}>
+                  <Search size={16} color="#94A3B8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+                  <input
+                    type="text"
+                    placeholder="Search investor name, ID, email..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '9px 12px 9px 36px',
+                      borderRadius: '8px',
+                      border: '1px solid #CBD5E1',
+                      outline: 'none',
+                      fontSize: '13px',
+                      boxSizing: 'border-box',
+                      background: 'white'
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: 'auto', flexWrap: 'wrap' }}>
+                  <select
+                    value={investorFilterStatus}
+                    onChange={(e) => setInvestorFilterStatus(e.target.value)}
+                    style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', background: 'white', color: '#334155', fontSize: '13px', fontWeight: '500', outline: 'none', cursor: 'pointer' }}
+                  >
+                    <option value="all">Status: All</option>
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                  </select>
+
+                  <select
+                    value={investorFilterBranch}
+                    onChange={(e) => setInvestorFilterBranch(e.target.value)}
+                    style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', background: 'white', color: '#334155', fontSize: '13px', fontWeight: '500', outline: 'none', cursor: 'pointer' }}
+                  >
+                    <option value="all">Allocation: All Branches</option>
+                    {branches.map(br => (
+                      <option key={br._id || br.name} value={br.name}>{br.name}</option>
+                    ))}
+                  </select>
+
+                  <button
+                    type="button"
+                    onClick={() => exportSectionCSV('investors')}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '8px 14px',
+                      background: 'white',
+                      border: '1px solid #CBD5E1',
+                      borderRadius: '8px',
+                      color: '#475569',
+                      fontWeight: '600',
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                    onMouseOver={(e) => { e.currentTarget.style.background = '#F8FAFC'; }}
+                    onMouseOut={(e) => { e.currentTarget.style.background = 'white'; }}
+                  >
+                    <Download size={14} />
+                    <span>Export CSV</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Investors Table */}
+              <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #E2E8F0', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                    <thead>
+                      <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0' }}>
+                        <th style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', width: '50px' }}>S.NO</th>
+                        <th style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase' }}>INVESTOR</th>
+                        <th style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase' }}>INVESTMENT (₹)</th>
+                        <th style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase' }}>EQUITY SHARE</th>
+                        <th style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase' }}>ALLOCATION SCOPE</th>
+                        <th style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase' }}>PORTAL LOGIN</th>
+                        <th style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', textAlign: 'center' }}>ACTIONS</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredInvestors.length === 0 ? (
+                        <tr>
+                          <td colSpan="7" style={{ padding: '56px 24px', textAlign: 'center', color: '#64748B' }}>
+                            <Briefcase size={36} color="#CBD5E1" style={{ margin: '0 auto 12px auto', display: 'block' }} />
+                            <p style={{ margin: 0, fontWeight: '700', fontSize: '15px', color: '#334155' }}>No investor records found.</p>
+                            <p style={{ margin: '4px 0 0 0', fontSize: '13px' }}>Click "Add Investor" to register a new capital partner with portal login.</p>
+                          </td>
+                        </tr>
+                      ) : (
+                        paginatedInvestors.map((inv, idx) => (
+                          <tr key={inv._id || idx} style={{ borderBottom: '1px solid #F1F5F9', transition: 'background 0.15s ease' }}>
+                            <td style={{ padding: '14px 16px', fontSize: '13px', color: '#64748B', fontWeight: '500' }}>
+                              {startIndex + idx + 1}
+                            </td>
+                            <td style={{ padding: '14px 16px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                <span style={{ fontWeight: '700', fontSize: '14px', color: '#0F172A' }}>{inv.name}</span>
+                                <span style={{ background: '#EFF6FF', color: '#1D4ED8', fontSize: '11px', fontWeight: '700', padding: '1px 6px', borderRadius: '4px', border: '1px solid #BFDBFE' }}>
+                                  {inv.investorId || 'INV'}
+                                </span>
+                              </div>
+                              <div style={{ fontSize: '12px', color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px' }}>
+                                <Mail size={12} color="#94A3B8" /> {inv.email}
+                                {inv.phone && (
+                                  <>
+                                    <span>•</span>
+                                    <Phone size={12} color="#94A3B8" /> {inv.phone}
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                            <td style={{ padding: '14px 16px' }}>
+                              <div style={{ fontWeight: '700', fontSize: '14px', color: '#0F172A' }}>
+                                {formatCurrency(inv.investmentAmount)}
+                              </div>
+                              <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>
+                                Joined: {formatDate(inv.investmentDate || inv.createdAt)}
+                              </div>
+                            </td>
+                            <td style={{ padding: '14px 16px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontWeight: '800', fontSize: '14px', color: '#7C3AED' }}>
+                                  {inv.ownershipPercentage || 0}%
+                                </span>
+                                <div style={{ width: '60px', height: '6px', background: '#F1F5F9', borderRadius: '3px', overflow: 'hidden' }}>
+                                  <div style={{ width: `${Math.min(100, (inv.ownershipPercentage || 0))}%`, height: '100%', background: '#7C3AED' }} />
+                                </div>
+                              </div>
+                            </td>
+                            <td style={{ padding: '14px 16px' }}>
+                              <span style={{ background: '#F8FAFC', color: '#334155', border: '1px solid #E2E8F0', fontSize: '12px', fontWeight: '600', padding: '3px 8px', borderRadius: '6px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                                <Map size={12} />
+                                {inv.associatedBranch || 'All Branches'}
+                              </span>
+                            </td>
+                            <td style={{ padding: '14px 16px' }}>
+                              {inv.isLoginEnabled && inv.status === 'Active' ? (
+                                <span style={{ background: '#DCFCE7', color: '#166534', fontSize: '11px', fontWeight: '700', padding: '3px 8px', borderRadius: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                  <CheckCircle2 size={12} /> View-Only Access
+                                </span>
+                              ) : (
+                                <span style={{ background: '#FEE2E2', color: '#991B1B', fontSize: '11px', fontWeight: '700', padding: '3px 8px', borderRadius: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                  <XCircle size={12} /> Login Disabled
+                                </span>
+                              )}
+                            </td>
+                            <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                                {inv.email ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenLoginModal('investor', inv)}
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '5px',
+                                      background: '#EFF6FF',
+                                      border: '1px solid #BFDBFE',
+                                      color: '#1D4ED8',
+                                      padding: '5px 10px',
+                                      borderRadius: '6px',
+                                      fontSize: '12px',
+                                      fontWeight: '600',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    <KeyRound size={13} /> Manage Login
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenLoginModal('investor', inv)}
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '5px',
+                                      background: '#F8FAFC',
+                                      border: '1px dashed #93C5FD',
+                                      color: '#2563EB',
+                                      padding: '5px 10px',
+                                      borderRadius: '6px',
+                                      fontSize: '12px',
+                                      fontWeight: '600',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    <KeyRound size={13} /> Setup Login
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => setViewModalData({ type: 'investor', data: inv })}
+                                  style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '6px', background: '#EFF6FF', border: '1px solid #DBEAFE', color: '#2563EB', cursor: 'pointer' }}
+                                  title="View Details"
+                                >
+                                  <Eye size={15} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => openEditModal('investor', inv)}
+                                  style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '6px', background: '#F1F5F9', border: '1px solid #E2E8F0', color: '#475569', cursor: 'pointer' }}
+                                  title="Edit Investor"
+                                >
+                                  <Edit2 size={15} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setDeleteConfirm({ type: 'investor', id: inv._id, name: inv.name, parentId: customer._id })}
+                                  style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '6px', background: '#FEE2E2', border: '1px solid #FCA5A5', color: '#EF4444', cursor: 'pointer' }}
+                                  title="Delete Investor"
+                                >
+                                  <Trash2 size={15} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                <TablePagination
+                  currentPage={currentPage}
+                  setCurrentPage={setCurrentPage}
+                  totalItems={filteredInvestors.length}
+                  itemsPerPage={itemsPerPage}
+                  setItemsPerPage={setItemsPerPage}
+                  itemName="investors"
+                />
+              </div>
+            </div>
+          )}
+
         </div>
       </main>
 
@@ -5772,6 +6681,20 @@ const CustomerDetails = () => {
                               <option value="service">Services Only</option>
                             </>
                           )}
+                          {fieldKey === 'operationsType' && (
+                            <>
+                              <option value="purchases">Purchases & Procurement</option>
+                              <option value="billing_only">Billing Only (No Purchases)</option>
+                            </>
+                          )}
+                          {fieldKey === 'associatedBranch' && (
+                            <>
+                              <option value="All Branches">All Branches</option>
+                              {branches.map(b => (
+                                <option key={b._id || b.name} value={b.name}>{b.name}</option>
+                              ))}
+                            </>
+                          )}
                         </select>
                       ) : ['description', 'reason', 'address'].includes(fieldKey) ? (
                         <textarea
@@ -5922,7 +6845,9 @@ const CustomerDetails = () => {
                             {fieldKey === 'type' && addModalData.type === 'document' && (<><option value="Contract">Contract</option><option value="Invoice">Invoice</option><option value="Certificate">Certificate</option><option value="Report">Report</option><option value="Other">Other</option></>)}
                             {fieldKey === 'type' && addModalData.type === 'branch' && (<><option value="Store">Store</option><option value="Warehouse">Warehouse</option><option value="Office">Office</option></>)}
                             {fieldKey === 'customerType' && (<><option value="Retail">Retail</option><option value="Wholesale">Wholesale</option><option value="Corporate">Corporate</option></>)}
-                            {fieldKey === 'offeringType' && (<><option value="both">Products & Services</option><option value="products">Products Only</option><option value="services">Services Only</option></>)}
+                            {fieldKey === 'offeringType' && (<><option value="both">Both Products & Services</option><option value="product">Products Only</option><option value="service">Services Only</option></>)}
+                            {fieldKey === 'operationsType' && (<><option value="purchases">Purchases & Procurement</option><option value="billing_only">Billing Only (No Purchases)</option></>)}
+                            {fieldKey === 'associatedBranch' && (<><option value="All Branches">All Branches</option>{branches.map(b => (<option key={b._id || b.name} value={b.name}>{b.name}</option>))}</>)}
                           </select>
                         ) : isTextarea ? (
                           <textarea
@@ -6179,6 +7104,272 @@ const CustomerDetails = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* VIEW QUOTATION MODAL */}
+      {/* ============================================================ */}
+      {viewQuotationModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '20px' }}>
+          <div style={{ background: 'white', borderRadius: '16px', maxWidth: '580px', width: '100%', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+            <div style={{ padding: '18px 24px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F8FAFC' }}>
+              <div>
+                <span style={{ fontSize: '11px', fontWeight: '700', color: '#D97706', background: '#FEF3C7', padding: '2px 8px', borderRadius: '12px', textTransform: 'uppercase' }}>Commercial Bulk Estimate</span>
+                <h3 style={{ margin: '4px 0 0 0', fontSize: '18px', fontWeight: '800', color: '#0F172A' }}>
+                  {viewQuotationModal.quotationNumber}
+                </h3>
+              </div>
+              <button onClick={() => setViewQuotationModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748B' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div style={{ background: '#F8FAFC', padding: '14px', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
+                  <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', marginBottom: '4px' }}>Customer / Buyer</div>
+                  <div style={{ fontSize: '15px', fontWeight: '700', color: '#0F172A' }}>{viewQuotationModal.customerName}</div>
+                  {viewQuotationModal.customerEmail && (
+                    <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>{viewQuotationModal.customerEmail}</div>
+                  )}
+                </div>
+                <div style={{ background: '#F8FAFC', padding: '14px', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
+                  <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', marginBottom: '4px' }}>Status & Validity</div>
+                  <span style={{ fontSize: '12px', fontWeight: '700', color: viewQuotationModal.status === 'Converted' ? '#16A34A' : '#D97706' }}>
+                    {viewQuotationModal.status || 'Pending'}
+                  </span>
+                  <div style={{ fontSize: '11px', color: '#64748B', marginTop: '4px' }}>
+                    Valid until: {formatDate(viewQuotationModal.validUntil)}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ border: '1px solid #E2E8F0', borderRadius: '10px', padding: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: '12px', color: '#64748B' }}>Total Bulk Items</div>
+                  <div style={{ fontSize: '16px', fontWeight: '700', color: '#0F172A' }}>{viewQuotationModal.itemsCount || 1} line item(s)</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '12px', color: '#64748B' }}>Estimated Total</div>
+                  <div style={{ fontSize: '20px', fontWeight: '800', color: '#16A34A' }}>{formatCurrency(viewQuotationModal.totalAmount)}</div>
+                </div>
+              </div>
+
+              {viewQuotationModal.notes && (
+                <div style={{ fontSize: '12px', color: '#64748B', background: '#F8FAFC', padding: '10px 14px', borderRadius: '8px' }}>
+                  <strong>Notes:</strong> {viewQuotationModal.notes}
+                </div>
+              )}
+            </div>
+
+            <div style={{ padding: '14px 24px', borderTop: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F8FAFC' }}>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '8px', color: '#334155', fontWeight: '600', fontSize: '13px', cursor: 'pointer' }}
+              >
+                <Printer size={15} /> Print Quotation
+              </button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setViewQuotationModal(null)}
+                  style={{ padding: '8px 16px', background: '#E2E8F0', border: 'none', borderRadius: '8px', color: '#475569', fontWeight: '600', fontSize: '13px', cursor: 'pointer' }}
+                >
+                  Close
+                </button>
+                {viewQuotationModal.status !== 'Converted' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const q = viewQuotationModal;
+                      setViewQuotationModal(null);
+                      handleConvertQuotationToInvoice(q);
+                    }}
+                    style={{ padding: '8px 16px', background: '#16A34A', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '600', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <Check size={14} /> Convert to Live Invoice
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* ADD QUOTATION MODAL */}
+      {/* ============================================================ */}
+      {showAddQuotationModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '20px' }}>
+          <div style={{ background: 'white', borderRadius: '16px', maxWidth: '520px', width: '100%', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+            <div style={{ padding: '18px 24px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F8FAFC' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '700', color: '#0F172A' }}>
+                  Create Bulk Order Quotation
+                </h3>
+                <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#64748B' }}>
+                  Prepare commercial estimate before official billing
+                </p>
+              </div>
+              <button onClick={() => setShowAddQuotationModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748B' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateQuotation}>
+              <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '14px', maxHeight: '70vh', overflowY: 'auto' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#475569', marginBottom: '5px' }}>Quotation Number (Optional)</label>
+                  <input
+                    type="text"
+                    placeholder={`e.g. QTE-2026-${String(quotations.length + 1).padStart(3, '0')}`}
+                    value={newQuotationData.quotationNumber}
+                    onChange={(e) => setNewQuotationData({ ...newQuotationData, quotationNumber: e.target.value })}
+                    style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box', outline: 'none' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#475569', marginBottom: '5px' }}>Customer / Company Name *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Apex Industrial Solutions Ltd"
+                    value={newQuotationData.customerName}
+                    onChange={(e) => setNewQuotationData({ ...newQuotationData, customerName: e.target.value })}
+                    style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box', outline: 'none' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#475569', marginBottom: '5px' }}>Customer Contact / Email</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. procurement@apex.com"
+                    value={newQuotationData.customerEmail}
+                    onChange={(e) => setNewQuotationData({ ...newQuotationData, customerEmail: e.target.value })}
+                    style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box', outline: 'none' }}
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#475569', marginBottom: '5px' }}>Total Amount (₹) *</label>
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      step="any"
+                      placeholder="e.g. 125000"
+                      value={newQuotationData.totalAmount}
+                      onChange={(e) => setNewQuotationData({ ...newQuotationData, totalAmount: e.target.value })}
+                      style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box', outline: 'none' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#475569', marginBottom: '5px' }}>Valid Until</label>
+                    <input
+                      type="date"
+                      value={newQuotationData.validUntil}
+                      onChange={(e) => setNewQuotationData({ ...newQuotationData, validUntil: e.target.value })}
+                      style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box', outline: 'none' }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#475569', marginBottom: '5px' }}>Notes / Scope</label>
+                  <textarea
+                    rows={3}
+                    placeholder="e.g. Includes delivery & standard warranty. Valid for 30 calendar days."
+                    value={newQuotationData.notes}
+                    onChange={(e) => setNewQuotationData({ ...newQuotationData, notes: e.target.value })}
+                    style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box', outline: 'none', resize: 'vertical' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ padding: '14px 24px', borderTop: '1px solid #E2E8F0', display: 'flex', justifyContent: 'flex-end', gap: '10px', background: '#F8FAFC' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowAddQuotationModal(false)}
+                  style={{ padding: '8px 16px', background: '#E2E8F0', border: 'none', borderRadius: '8px', color: '#475569', fontWeight: '600', fontSize: '13px', cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  style={{ fontSize: '13px', padding: '8px 18px' }}
+                >
+                  Create Quotation
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* PRINT BARCODE STICKER MODAL */}
+      {/* ============================================================ */}
+      {printBarcodeModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '20px' }}>
+          <div style={{ background: 'white', borderRadius: '16px', maxWidth: '440px', width: '100%', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', textAlign: 'center' }}>
+            <div style={{ padding: '18px 24px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F8FAFC' }}>
+              <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '700', color: '#0F172A' }}>
+                Print Barcode Sticker
+              </h3>
+              <button onClick={() => setPrintBarcodeModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748B' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ padding: '24px' }}>
+              <div style={{
+                background: '#FFFFFF',
+                border: '2px dashed #94A3B8',
+                borderRadius: '12px',
+                padding: '20px',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.03)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <div style={{ fontSize: '11px', fontWeight: '800', color: '#64748B', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                  {customer.businessName || 'BIZ-TECH ENTERPRISE'}
+                </div>
+                <div style={{ fontSize: '15px', fontWeight: '700', color: '#0F172A' }}>
+                  {printBarcodeModal.name}
+                </div>
+                <BarcodeSVG code={printBarcodeModal.code} width={220} height={54} showText={true} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', marginTop: '6px', fontSize: '12px', fontWeight: '700', color: '#334155' }}>
+                  <span>SKU: {printBarcodeModal.sku}</span>
+                  <span style={{ color: '#16A34A', fontSize: '14px' }}>MRP: ₹{Number(printBarcodeModal.price).toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ padding: '14px 24px', borderTop: '1px solid #E2E8F0', display: 'flex', gap: '10px', background: '#F8FAFC' }}>
+              <button
+                type="button"
+                onClick={() => setPrintBarcodeModal(null)}
+                style={{ flex: 1, padding: '10px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '8px', color: '#475569', fontWeight: '600', fontSize: '13px', cursor: 'pointer' }}
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                style={{ flex: 1.5, padding: '10px', background: '#7C3AED', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '700', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+              >
+                <Printer size={15} /> Print Sticker
+              </button>
+            </div>
           </div>
         </div>
       )}

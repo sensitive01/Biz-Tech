@@ -9,12 +9,33 @@ dotenv.config();
 const app = express();
 
 const path = require('path');
+const jwt = require('jsonwebtoken');
 
 // Middleware
 app.use(express.json());
 app.use(cors());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Security Guard: Strict Read-Only View Access for Investors across all mutation endpoints
+app.use((req, res, next) => {
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+    if (req.path.startsWith('/api/auth/login')) {
+      return next();
+    }
+    const token = req.header('Authorization')?.split(' ')[1];
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
+        if (decoded?.user?.role === 'investor') {
+          return res.status(403).json({ error: 'Investors have view-only access. Create, edit, and delete operations are restricted.' });
+        }
+      } catch (e) {
+        // Let downstream route auth handle invalid token
+      }
+    }
+  }
+  next();
+});
 
 // Database Connection
 const mongoURI = process.env.MONGODB_URI || process.env.MONGO_URI;
@@ -47,6 +68,7 @@ const expensesRoutes = require('./routes/expenses');
 const categoriesRoutes = require('./routes/categories');
 const subcategoriesRoutes = require('./routes/subcategories');
 const productsRoutes = require('./routes/products');
+const investorsRoutes = require('./routes/investors');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminAuthRoutes);
@@ -66,6 +88,7 @@ app.use('/api/expenses', expensesRoutes);
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/subcategories', subcategoriesRoutes);
 app.use('/api/products', productsRoutes);
+app.use('/api/investors', investorsRoutes);
 
 // Base route
 app.get('/', (req, res) => {

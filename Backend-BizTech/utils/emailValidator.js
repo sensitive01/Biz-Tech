@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const Branch = require('../models/Branch');
 const Employee = require('../models/Employee');
+const Investor = require('../models/Investor');
 
 /**
  * Validates whether an email address is already in use across any of the
@@ -88,6 +89,20 @@ async function checkEmailInUse(email, exclude = {}) {
       taken: true,
       section: 'Employee Account',
       message: 'This email address is already assigned to an Employee account.'
+    };
+  }
+
+  // 5. Check Investors (Investor)
+  const invQuery = { email: cleanEmail };
+  if (exclude.type === 'investor' && exclude.id) {
+    invQuery._id = { $ne: exclude.id };
+  }
+  const invExists = await Investor.findOne(invQuery).select('_id name email');
+  if (invExists) {
+    return {
+      taken: true,
+      section: 'Investor Account',
+      message: 'This email address is already assigned to an Investor profile.'
     };
   }
 

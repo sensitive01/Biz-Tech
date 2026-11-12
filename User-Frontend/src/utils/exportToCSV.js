@@ -1,7 +1,32 @@
 export const exportToCSV = (data, filename) => {
   if (!data || !data.length) {
-    alert('No data to export');
-    return;
+    const toast = document.createElement('div');
+    toast.innerText = 'No records available to export.';
+    Object.assign(toast.style, {
+      position: 'fixed',
+      bottom: '24px',
+      right: '24px',
+      background: '#F59E0B',
+      color: 'white',
+      padding: '12px 24px',
+      borderRadius: '8px',
+      boxShadow: '0 4px 6px -1px rgba(0,0,0,0.15)',
+      zIndex: 10000,
+      fontFamily: 'Inter, sans-serif',
+      fontWeight: '500',
+      fontSize: '14px',
+      transition: 'opacity 0.3s',
+      opacity: '0'
+    });
+    document.body.appendChild(toast);
+    setTimeout(() => { toast.style.opacity = '1'; }, 10);
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      setTimeout(() => {
+        if (toast.parentNode) toast.parentNode.removeChild(toast);
+      }, 300);
+    }, 3000);
+    return false;
   }
   
   // Exclude _id and other internal fields

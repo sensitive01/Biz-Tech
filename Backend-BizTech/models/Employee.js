@@ -18,7 +18,7 @@ const employeeSchema = new mongoose.Schema({
   tenantId: { type: String, default: 'default_tenant' },
   password: { type: String },
   isLoginEnabled: { type: Boolean, default: true },
-  modules: { type: [String], default: ['attendance', 'leaves', 'customers', 'expenses', 'documents', 'reminders'] },
+  modules: { type: [String], default: ['attendance', 'leaves', 'customers', 'expenses', 'documents', 'reminders', 'sales'] },
   createdAt: { type: Date, default: Date.now }
 });
 

@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Branch = require('../models/Branch');
 const Employee = require('../models/Employee');
+const Investor = require('../models/Investor');
 const Pricing = require('../models/Pricing');
 const { checkEmailInUse } = require('../utils/emailValidator');
 
@@ -43,7 +44,10 @@ router.post('/check-email', async (req, res) => {
 // @desc    Register a new user
 router.post('/register', async (req, res) => {
   try {
-    const { fullName, email, phone, password, businessType, businessName, industry, address } = req.body;
+    const { 
+      fullName, email, phone, password, businessType, businessName, 
+      industry, address, offeringType, businessOfferingType, modules, operationsType 
+    } = req.body;
 
     // Check if email already in use across any account tier (Owner, Business, Branch, Employee)
     const check = await checkEmailInUse(email);
@@ -73,6 +77,8 @@ router.post('/register', async (req, res) => {
       if (initialBusinessLimit === null) initialBusinessLimit = 3;
     }
 
+    const resolvedOffering = offeringType || businessOfferingType || 'product';
+
     // Create new user with unique ID
     const userId = await generateUserId();
     user = new User({
@@ -85,6 +91,11 @@ router.post('/register', async (req, res) => {
       businessName,
       industry,
       address,
+      offeringType: resolvedOffering,
+      businessOfferingType: resolvedOffering,
+      modules: (modules && Array.isArray(modules) && modules.length > 0)
+        ? Array.from(new Set([...modules, 'sales']))
+        : ['sales', 'products_services', 'expenses', ...(resolvedOffering !== 'service' ? ['inventory'] : []), ...(operationsType !== 'billing_only' ? ['purchases'] : [])],
       employeeLimit: initialEmployeeLimit,
       branchLimit: initialBranchLimit,
       businessLimit: initialBusinessLimit
@@ -182,6 +193,8 @@ router.post('/login', async (req, res) => {
               role: 'owner',
               businessType: user.businessType, 
               businessName: user.businessName,
+              offeringType: user.offeringType,
+              businessOfferingType: user.businessOfferingType || user.offeringType,
               businesses: (user.businesses || []).map(b => {
                 const obj = b.toObject ? b.toObject() : { ...b };
                 delete obj.password;
@@ -380,8 +393,69 @@ router.post('/login', async (req, res) => {
               status: employee.status || 'Active',
               businessType: parentUser ? parentUser.businessType : 2,
               modules: (Array.isArray(employee.modules) && employee.modules.length > 0)
-                ? Array.from(new Set([...employee.modules, 'attendance', 'leaves', 'customers', 'expenses', 'documents', 'reminders']))
-                : ['attendance', 'leaves', 'customers', 'expenses', 'documents', 'reminders']
+                ? Array.from(new Set([...employee.modules, 'customers', 'expenses', 'documents', 'reminders']))
+                : ['products_services', 'inventory', 'purchases', 'sales', 'attendance', 'leaves', 'customers', 'expenses', 'documents', 'reminders']
+            }
+          });
+        }
+      );
+    }
+
+    // 5. Check if an Investor exists with this email (Investor Login - Type 3 & 4)
+    const investor = await Investor.findOne({ email: cleanEmail });
+    if (investor && investor.password) {
+      if (investor.isLoginEnabled === false || investor.status === 'Inactive') {
+        return res.status(403).json({ message: 'Login access for this investor account is currently inactive or disabled by the business owner.' });
+      }
+
+      const isInvMatch = await bcrypt.compare(password, investor.password);
+      if (!isInvMatch) {
+        return res.status(400).json({ message: 'Invalid Credentials' });
+      }
+
+      let parentUser = null;
+      if (investor.tenantId && investor.tenantId !== 'default_tenant') {
+        parentUser = await User.findById(investor.tenantId);
+      }
+
+      if (parentUser && Number(parentUser.businessType) < 3) {
+        return res.status(403).json({ message: 'Investor accounts are only available for Type 3 (Multi-Branch) and Type 4 (Multi-Business) organizations.' });
+      }
+
+      const payload = {
+        user: {
+          id: parentUser ? parentUser.id : investor.tenantId,
+          investorId: investor._id.toString(),
+          role: 'investor',
+          businessType: parentUser ? parentUser.businessType : 3,
+          isReadOnly: true
+        }
+      };
+
+      return jwt.sign(
+        payload,
+        process.env.JWT_SECRET || 'fallback_secret',
+        { expiresIn: '1d' },
+        (err, token) => {
+          if (err) throw err;
+          res.json({
+            token,
+            user: {
+              id: parentUser ? parentUser.id : investor.tenantId,
+              userId: investor.investorId || `INV-${investor.name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase()}`,
+              fullName: investor.name,
+              email: investor.email,
+              phone: investor.phone,
+              role: 'investor',
+              investorId: investor._id,
+              businessType: parentUser ? parentUser.businessType : 3,
+              businessName: parentUser ? parentUser.businessName : 'Enterprise',
+              investmentAmount: investor.investmentAmount,
+              ownershipPercentage: investor.ownershipPercentage,
+              associatedBusiness: investor.associatedBusiness,
+              associatedBranch: investor.associatedBranch,
+              isReadOnly: true,
+              modules: ['products_services', 'inventory', 'customers', 'expenses', 'purchases', 'sales', 'documents', 'investors']
             }
           });
         }
@@ -428,13 +502,21 @@ router.post('/onboarding', async (req, res) => {
     if (!token) return res.status(401).json({ message: 'No token, authorization denied' });
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
-    const { businesses, singleBusiness, businessName, address, regNo, phone, branches, employees, modules, businessType } = req.body;
+    const { businesses, singleBusiness, businessName, address, regNo, phone, branches, employees, modules, businessType, offeringType, businessOfferingType } = req.body;
     const userId = decoded.user.id;
 
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     // 1. Update User details (business, modules, etc.)
+    if (offeringType) {
+      user.offeringType = offeringType;
+      user.businessOfferingType = offeringType;
+    }
+    if (businessOfferingType) {
+      user.businessOfferingType = businessOfferingType;
+      user.offeringType = businessOfferingType;
+    }
     if (businessType !== undefined && businessType !== null) {
       const newType = Number(businessType);
       user.businessType = newType;
@@ -658,8 +740,39 @@ router.get('/me', async (req, res) => {
         position: employee.position || employee.designation || 'Staff',
         status: employee.status || 'Active',
         modules: (Array.isArray(employee.modules) && employee.modules.length > 0)
-          ? employee.modules
-          : ['attendance', 'leaves']
+          ? Array.from(new Set([...employee.modules, 'customers', 'expenses', 'documents', 'reminders']))
+          : ['products_services', 'inventory', 'purchases', 'sales', 'attendance', 'leaves', 'customers', 'expenses', 'documents', 'reminders']
+      });
+    }
+
+    // Check if this is an Investor session
+    if (decoded?.user?.role === 'investor') {
+      const investor = await Investor.findById(decoded.user.investorId);
+      if (!investor) return res.status(404).json({ message: 'Investor profile not found' });
+
+      let parentUser = null;
+      if (investor.tenantId && investor.tenantId !== 'default_tenant') {
+        parentUser = await User.findById(investor.tenantId).select('-password');
+      }
+
+      return res.json({
+        _id: investor._id,
+        id: decoded.user.id,
+        investorId: investor._id,
+        userId: investor.investorId || `INV-${investor.name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase()}`,
+        fullName: investor.name,
+        email: investor.email,
+        phone: investor.phone,
+        role: 'investor',
+        businessType: parentUser ? parentUser.businessType : 3,
+        businessName: parentUser ? parentUser.businessName : 'Enterprise',
+        investmentAmount: investor.investmentAmount,
+        ownershipPercentage: investor.ownershipPercentage,
+        associatedBusiness: investor.associatedBusiness,
+        associatedBranch: investor.associatedBranch,
+        status: investor.status,
+        isReadOnly: true,
+        modules: ['products_services', 'inventory', 'customers', 'expenses', 'purchases', 'sales', 'documents', 'investors']
       });
     }
 

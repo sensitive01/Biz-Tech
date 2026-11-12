@@ -12,10 +12,12 @@ import PricingManage from './pages/PricingManage';
 import AdminProfile from './pages/AdminProfile';
 import ManageSubscriptions from './pages/ManageSubscriptions';
 import NotFound from './pages/NotFound';
+import AlertModal from './components/AlertModal';
 
 function App() {
   return (
     <Router>
+      <AlertModal />
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<Login />} />

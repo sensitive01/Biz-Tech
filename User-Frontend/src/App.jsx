@@ -23,12 +23,23 @@ import Purchases from './pages/Purchases';
 import Expenses from './pages/Expenses';
 import Profile from './pages/Profile';
 import Billing from './pages/Billing';
+import Investors from './pages/Investors';
 import Impersonate from './pages/Impersonate';
 import NotFound from './pages/NotFound';
+import AlertModal from './components/AlertModal';
+
+const ProtectedTenantRoute = ({ children }) => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+};
 
 function App() {
   return (
     <Router>
+      <AlertModal />
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
@@ -39,7 +50,7 @@ function App() {
         <Route path="/select-modules" element={<SelectModules />} />
         
         {/* Tenant Routes */}
-        <Route path="/tenant" element={<TenantLayout />}>
+        <Route path="/tenant" element={<ProtectedTenantRoute><TenantLayout /></ProtectedTenantRoute>}>
           <Route path="dashboard" element={<TenantDashboard />} />
           <Route path="businesses" element={<Businesses />} />
           <Route path="branches" element={<Branches />} />
@@ -54,6 +65,7 @@ function App() {
           <Route path="employees" element={<Employees />} />
           <Route path="attendance" element={<Attendance />} />
           <Route path="leaves" element={<LeaveRequests />} />
+          <Route path="investors" element={<Investors />} />
           <Route path="profile" element={<Profile />} />
           <Route path="billing" element={<Billing />} />
           

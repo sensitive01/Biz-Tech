@@ -1,9 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, Navigate } from 'react-router-dom';
 import { LayoutGrid, Building2, Settings, Bell, User, ChevronDown, Hexagon, ShieldAlert, LogOut, Receipt, ShieldCheck } from 'lucide-react';
 import ThemeToggle from '../components/ThemeToggle';
 
 const AdminLayout = () => {
+  const token = localStorage.getItem('adminToken');
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+
   const navigate = useNavigate();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [adminUser, setAdminUser] = useState(() => {
@@ -46,10 +51,21 @@ const AdminLayout = () => {
     return () => window.removeEventListener('adminProfileUpdated', handleProfileUpdate);
   }, [navigate]);
 
+  // Handle Back-Forward Cache (bfcache) and token loss on browser back arrow
+  useEffect(() => {
+    const handlePageShow = (e) => {
+      if (e.persisted || !localStorage.getItem('adminToken')) {
+        window.location.replace('/login');
+      }
+    };
+    window.addEventListener('pageshow', handlePageShow);
+    return () => window.removeEventListener('pageshow', handlePageShow);
+  }, []);
+
   const handleLogout = () => {
     localStorage.removeItem('adminToken');
     localStorage.removeItem('adminUser');
-    navigate('/login', { replace: true });
+    window.location.replace('/login');
   };
 
   const getInitials = (name) => {

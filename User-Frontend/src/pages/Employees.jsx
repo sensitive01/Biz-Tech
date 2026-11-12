@@ -5,12 +5,13 @@ import {
   AlertTriangle, UserPlus, Phone, IndianRupee, Calendar, Activity, 
   Search, Download, ArrowUp, ArrowDown, ArrowUpDown, Building2,
   KeyRound, Lock, EyeOff, CheckCircle2, Package, Archive, TrendingUp,
-  ShoppingCart, Receipt, FileText, BellRing, Clock, UserCheck, Check, ShieldCheck
+  ShoppingCart, Receipt, FileText, BellRing, Clock, UserCheck, Check, ShieldCheck,
+  AlertCircle, Loader2
 } from 'lucide-react';
 import { exportToCSV } from '../utils/exportToCSV';
 import TablePagination from '../components/TablePagination';
 
-// The 4 selectable operational modules for employees
+// The selectable operational modules for employees
 const SELECTABLE_OPERATIONAL_SECTIONS = [
   {
     id: 'products_services',
@@ -47,13 +48,29 @@ const SELECTABLE_OPERATIONAL_SECTIONS = [
     color: '#059669',
     bg: '#ECFDF5',
     border: '#A7F3D0'
+  },
+  {
+    id: 'attendance',
+    label: 'Attendance',
+    description: 'Record work check-in, check-out and view shifts',
+    icon: Clock,
+    color: '#EA580C',
+    bg: '#FFF7ED',
+    border: '#FED7AA'
+  },
+  {
+    id: 'leaves',
+    label: 'Leaves & Permissions',
+    description: 'Apply for leaves, request time off and track status',
+    icon: Calendar,
+    color: '#D97706',
+    bg: '#FEF3C7',
+    border: '#FDE68A'
   }
 ];
 
-// All remaining 6 sections are always enabled by default for all employees
+// Baseline sections always enabled by default for all employees
 const DEFAULT_EMPLOYEE_MODULES = [
-  'attendance',
-  'leaves',
   'customers',
   'expenses',
   'documents',
@@ -106,6 +123,8 @@ const Employees = () => {
   const [credentialsError, setCredentialsError] = useState('');
   const [credentialsSuccess, setCredentialsSuccess] = useState('');
   const [employeeLimit, setEmployeeLimit] = useState(null);
+  const [formError, setFormError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const tenantType = Number(localStorage.getItem('tenantType')) || 1;
 
@@ -116,12 +135,12 @@ const Employees = () => {
     setIsLoginEnabled(employee.isLoginEnabled !== false);
     setIsNewCreationModal(isNew);
     
-    // Filter only the 4 selectable operational modules for UI toggles
+    // Filter only the selectable operational modules for UI toggles
     if (Array.isArray(employee.modules) && employee.modules.length > 0) {
       setSelectedModules(employee.modules.filter(m => SELECTABLE_OPERATIONAL_SECTIONS.some(s => s.id === m)));
     } else {
-      // Default: preselect operational modules
-      setSelectedModules(['products_services', 'inventory', 'purchases', 'sales']);
+      // Default: preselect all operational modules
+      setSelectedModules(SELECTABLE_OPERATIONAL_SECTIONS.map(s => s.id));
     }
     setCredentialsError('');
     setCredentialsSuccess('');
@@ -237,11 +256,13 @@ const Employees = () => {
       status: 'Active',
       branchId: ''
     });
+    setFormError('');
     setShowModal(true);
   };
 
   const handleEdit = (employee) => {
     setEditingEmployee(employee);
+    setFormError('');
     const hasStandardDesignation = DESIGNATION_OPTIONS.includes(employee.designation);
     const isOther = employee.designation && !hasStandardDesignation;
     setFormData({
@@ -297,6 +318,7 @@ const Employees = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setFormError('');
     if (formData.contactNumber && formData.contactNumber.length !== 10) {
       alert('Contact number must be exactly 10 digits.');
       return;
@@ -305,6 +327,7 @@ const Employees = () => {
       alert(`Employee creation limit of ${employeeLimit} reached. Please contact your administrator to upgrade your plan.`);
       return;
     }
+    setSubmitting(true);
     try {
       const token = localStorage.getItem('token');
       const url = editingEmployee
@@ -342,6 +365,7 @@ const Employees = () => {
       if (res.ok) {
         const savedEmp = await res.json().catch(() => ({}));
         setShowModal(false);
+        setFormError('');
         const wasNewEmployee = !editingEmployee;
         setEditingEmployee(null);
         setFormData({
@@ -365,10 +389,17 @@ const Employees = () => {
         }
       } else {
         const data = await res.json().catch(() => ({}));
-        alert(data.error || (editingEmployee ? 'Failed to update employee' : 'Failed to add employee'));
+        const errMsg = data.error || (editingEmployee ? 'Failed to update employee' : 'Failed to add employee');
+        setFormError(errMsg);
+        alert(errMsg);
       }
     } catch (err) {
       console.error(err);
+      const errMsg = 'A network error occurred while saving employee. Please try again.';
+      setFormError(errMsg);
+      alert(errMsg);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -714,7 +745,7 @@ const Employees = () => {
                               {(() => {
                                 const empMods = Array.isArray(employee.modules) ? employee.modules : [];
                                 const opsCount = SELECTABLE_OPERATIONAL_SECTIONS.filter(s => empMods.includes(s.id)).length;
-                                return `${opsCount}/4 Ops`;
+                                return `${opsCount}/${SELECTABLE_OPERATIONAL_SECTIONS.length} Ops`;
                               })()}
                             </span>
                           </span> */}
@@ -824,13 +855,34 @@ const Employees = () => {
             </div>
 
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflowY: 'auto' }}>
+              {formError && (
+                <div style={{
+                  background: '#FEF2F2',
+                  border: '1px solid #FECACA',
+                  borderRadius: '10px',
+                  padding: '12px 14px',
+                  marginBottom: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  color: '#991B1B',
+                  fontSize: '13px'
+                }}>
+                  <AlertCircle size={18} color="#DC2626" style={{ flexShrink: 0 }} />
+                  <span style={{ fontWeight: '600' }}>{formError}</span>
+                </div>
+              )}
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>Employee ID *</label>
                   <input
                     type="text"
                     value={formData.employeeId}
-                    onChange={e => setFormData({ ...formData, employeeId: e.target.value })}
+                    onChange={e => {
+                      setFormData({ ...formData, employeeId: e.target.value });
+                      if (formError) setFormError('');
+                    }}
                     placeholder="e.g. EMP-001"
                     required
                     style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box' }}
@@ -841,7 +893,10 @@ const Employees = () => {
                   <input
                     type="text"
                     value={formData.name}
-                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                    onChange={e => {
+                      setFormData({ ...formData, name: e.target.value });
+                      if (formError) setFormError('');
+                    }}
                     placeholder="Enter Employee Name"
                     required
                     style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box' }}
@@ -852,10 +907,22 @@ const Employees = () => {
                   <input
                     type="email"
                     value={formData.email}
-                    onChange={e => setFormData({ ...formData, email: e.target.value })}
+                    onChange={e => {
+                      setFormData({ ...formData, email: e.target.value });
+                      if (formError) setFormError('');
+                    }}
                     placeholder="Enter Email Address"
                     required
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box' }}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: '8px',
+                      border: formError && formError.toLowerCase().includes('email') ? '1px solid #EF4444' : '1px solid #CBD5E1',
+                      fontSize: '14px',
+                      color: '#0F172A',
+                      boxSizing: 'border-box',
+                      background: formError && formError.toLowerCase().includes('email') ? '#FFF5F5' : 'white'
+                    }}
                   />
                 </div>
                 <div>
@@ -985,11 +1052,33 @@ const Employees = () => {
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '14px', paddingTop: '14px', borderTop: '1px solid #F1F5F9' }}>
-                <button type="button" onClick={() => { setShowModal(false); setEditingEmployee(null); }} style={{ padding: '9px 18px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '8px', color: '#475569', fontWeight: '600', fontSize: '14px', cursor: 'pointer', transition: 'background 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
+                <button type="button" onClick={() => { setShowModal(false); setEditingEmployee(null); setFormError(''); }} style={{ padding: '9px 18px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '8px', color: '#475569', fontWeight: '600', fontSize: '14px', cursor: 'pointer', transition: 'background 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
                   Cancel
                 </button>
-                <button type="submit" style={{ padding: '9px 24px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '600', fontSize: '14px', cursor: 'pointer', transition: 'background 0.2s', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }} onMouseOver={(e) => e.currentTarget.style.background = '#1D4ED8'} onMouseOut={(e) => e.currentTarget.style.background = '#2563EB'}>
-                  {editingEmployee ? 'Update Employee' : 'Save Employee'}
+                <button 
+                  type="submit" 
+                  disabled={submitting}
+                  style={{ 
+                    padding: '9px 24px', 
+                    background: '#2563EB', 
+                    color: 'white', 
+                    border: 'none', 
+                    borderRadius: '8px', 
+                    fontWeight: '600', 
+                    fontSize: '14px', 
+                    cursor: submitting ? 'not-allowed' : 'pointer', 
+                    opacity: submitting ? 0.7 : 1,
+                    transition: 'background 0.2s', 
+                    boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }} 
+                  onMouseOver={(e) => { if (!submitting) e.currentTarget.style.background = '#1D4ED8'; }} 
+                  onMouseOut={(e) => { if (!submitting) e.currentTarget.style.background = '#2563EB'; }}
+                >
+                  {submitting && <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />}
+                  {editingEmployee ? (submitting ? 'Updating...' : 'Update Employee') : (submitting ? 'Saving...' : 'Save Employee')}
                 </button>
               </div>
             </form>
@@ -1288,7 +1377,7 @@ const Employees = () => {
                     </p>
                   </div>
 
-                  {/* Quick Presets on the Left & "X of 4 Selected" at the Right End */}
+                  {/* Quick Presets on the Left & "X of 6 Selected" at the Right End */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                       <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: '600', textTransform: 'uppercase' }}>Quick Presets:</span>
@@ -1297,7 +1386,7 @@ const Employees = () => {
                         onClick={selectAllOpsModules}
                         style={{ padding: '4px 10px', borderRadius: '6px', background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1D4ED8', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}
                       >
-                        + Select All 4 Operations
+                        + Select All {SELECTABLE_OPERATIONAL_SECTIONS.length} Operations
                       </button>
                       <button
                         type="button"
@@ -1313,7 +1402,7 @@ const Employees = () => {
                     </div>
                   </div>
 
-                  {/* Grid of the 4 Selectable Operational Cards */}
+                  {/* Grid of the Selectable Operational Cards */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '10px' }}>
                     {SELECTABLE_OPERATIONAL_SECTIONS.map((sec) => {
                       const Icon = sec.icon;

@@ -26,6 +26,15 @@ const BUSINESS_CATEGORIES = [
 ];
 
 const Businesses = () => {
+  const currentUser = (() => {
+    try {
+      const u = localStorage.getItem('user');
+      return u ? JSON.parse(u) : null;
+    } catch (e) {
+      return null;
+    }
+  })();
+  const isInvestor = currentUser?.role === 'investor';
   const [businesses, setBusinesses] = useState([]);
   const [businessLimit, setBusinessLimit] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -412,12 +421,14 @@ const Businesses = () => {
             Manage conglomerate businesses, branches, categories, key contacts, and dedicated access.
           </p>
         </div>
-        <button 
-          onClick={handleOpenAdd} 
-          style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', background: 'var(--primary-blue)', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
-        >
-          <Plus size={18} /> Add New Business
-        </button>
+        {!isInvestor && (
+          <button 
+            onClick={handleOpenAdd} 
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', background: 'var(--primary-blue)', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
+          >
+            <Plus size={18} /> Add New Business
+          </button>
+        )}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '32px' }}>
@@ -504,9 +515,11 @@ const Businesses = () => {
                 <th onClick={() => requestSort('city')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '14px 12px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: '135px', verticalAlign: 'middle' }}>
                   <div style={{ display: 'flex', alignItems: 'center' }}>Location & Tax {renderSortIcon('city')}</div>
                 </th>
-                <th style={{ padding: '14px 12px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: '155px', textAlign: 'center', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
-                  Login Access
-                </th>
+                {!isInvestor && (
+                  <th style={{ padding: '14px 12px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: '155px', textAlign: 'center', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                    Login Access
+                  </th>
+                )}
                 <th style={{ padding: '14px 14px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: '115px', textAlign: 'center', verticalAlign: 'middle' }}>
                   Actions
                 </th>
@@ -605,12 +618,12 @@ const Businesses = () => {
                           fontWeight: '600', 
                           padding: '2px 8px', 
                           borderRadius: '6px', 
-                          background: b.operationsType === 'sales' ? '#EFF6FF' : b.operationsType === 'purchases' ? '#FEF3C7' : '#F8FAFC', 
-                          color: b.operationsType === 'sales' ? '#1D4ED8' : b.operationsType === 'purchases' ? '#B45309' : '#475569',
+                          background: b.operationsType === 'none' ? '#F8FAFC' : '#FEF3C7', 
+                          color: b.operationsType === 'none' ? '#475569' : '#B45309',
                           width: 'fit-content',
-                          border: `1px solid ${b.operationsType === 'sales' ? '#BFDBFE' : b.operationsType === 'purchases' ? '#FDE68A' : '#E2E8F0'}`
+                          border: `1px solid ${b.operationsType === 'none' ? '#E2E8F0' : '#FDE68A'}`
                         }}>
-                          {b.operationsType === 'sales' ? '📈 Sales Only' : b.operationsType === 'purchases' ? '🛒 Purchases' : '🔁 Sales & Purchases'}
+                          {b.operationsType === 'none' ? '🧾 Billing Only' : '🛒 Purchases & Billing'}
                         </span>
                       </div>
                     </td>
@@ -658,70 +671,72 @@ const Businesses = () => {
                       </div>
                     </td>
 
-                    <td style={{ padding: '14px 12px', textAlign: 'center', verticalAlign: 'middle' }}>
-                      {b.email ? (
-                        <button
-                          onClick={() => handleOpenLoginModal(b)}
-                          className="notranslate"
-                          translate="no"
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '7px',
-                            background: '#EFF6FF',
-                            border: '1px solid #BFDBFE',
-                            color: '#1D4ED8',
-                            padding: '7px 14px',
-                            borderRadius: '8px',
-                            fontSize: '13px',
-                            fontWeight: '600',
-                            whiteSpace: 'nowrap',
-                            cursor: 'pointer',
-                            transition: 'all 0.15s ease',
-                            boxShadow: '0 1px 2px rgba(37, 99, 235, 0.05)'
-                          }}
-                          onMouseOver={(e) => { e.currentTarget.style.background = '#DBEAFE'; }}
-                          onMouseOut={(e) => { e.currentTarget.style.background = '#EFF6FF'; }}
-                        >
-                          <KeyRound size={15} />
-                          <span>Manage Login</span>
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleOpenLoginModal(b)}
-                          className="notranslate"
-                          translate="no"
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '7px',
-                            background: '#F8FAFC',
-                            border: '1px dashed #93C5FD',
-                            color: '#2563EB',
-                            padding: '7px 14px',
-                            borderRadius: '8px',
-                            fontSize: '13px',
-                            fontWeight: '600',
-                            whiteSpace: 'nowrap',
-                            cursor: 'pointer',
-                            transition: 'all 0.15s ease'
-                          }}
-                          onMouseOver={(e) => { 
-                            e.currentTarget.style.background = '#EFF6FF'; 
-                            e.currentTarget.style.borderColor = '#2563EB'; 
-                          }}
-                          onMouseOut={(e) => { 
-                            e.currentTarget.style.background = '#F8FAFC'; 
-                            e.currentTarget.style.borderColor = '#93C5FD'; 
-                          }}
-                        >
-                          <KeyRound size={15} />
-                          <span>Set Login</span>
-                        </button>
-                      )}
-                    </td>
+                    {!isInvestor && (
+                      <td style={{ padding: '14px 12px', textAlign: 'center', verticalAlign: 'middle' }}>
+                        {b.email ? (
+                          <button
+                            onClick={() => handleOpenLoginModal(b)}
+                            className="notranslate"
+                            translate="no"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '7px',
+                              background: '#EFF6FF',
+                              border: '1px solid #BFDBFE',
+                              color: '#1D4ED8',
+                              padding: '7px 14px',
+                              borderRadius: '8px',
+                              fontSize: '13px',
+                              fontWeight: '600',
+                              whiteSpace: 'nowrap',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease',
+                              boxShadow: '0 1px 2px rgba(37, 99, 235, 0.05)'
+                            }}
+                            onMouseOver={(e) => { e.currentTarget.style.background = '#DBEAFE'; }}
+                            onMouseOut={(e) => { e.currentTarget.style.background = '#EFF6FF'; }}
+                          >
+                            <KeyRound size={15} />
+                            <span>Manage Login</span>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleOpenLoginModal(b)}
+                            className="notranslate"
+                            translate="no"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '7px',
+                              background: '#F8FAFC',
+                              border: '1px dashed #93C5FD',
+                              color: '#2563EB',
+                              padding: '7px 14px',
+                              borderRadius: '8px',
+                              fontSize: '13px',
+                              fontWeight: '600',
+                              whiteSpace: 'nowrap',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease'
+                            }}
+                            onMouseOver={(e) => { 
+                              e.currentTarget.style.background = '#EFF6FF'; 
+                              e.currentTarget.style.borderColor = '#2563EB'; 
+                            }}
+                            onMouseOut={(e) => { 
+                              e.currentTarget.style.background = '#F8FAFC'; 
+                              e.currentTarget.style.borderColor = '#93C5FD'; 
+                            }}
+                          >
+                            <KeyRound size={15} />
+                            <span>Set Login</span>
+                          </button>
+                        )}
+                      </td>
+                    )}
                     <td style={{ padding: '14px 14px', textAlign: 'center', verticalAlign: 'middle' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
                         {/* View Business */}
@@ -736,26 +751,30 @@ const Businesses = () => {
                         </button>
 
                         {/* Edit Business */}
-                        <button 
-                          onClick={() => handleEdit(b)}
-                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#F1F5F9', color: '#475569', border: '1px solid #E2E8F0', borderRadius: '6px', cursor: 'pointer', transition: 'all 0.15s' }}
-                          title="Edit Business"
-                          onMouseOver={(e) => { e.currentTarget.style.background = '#E2E8F0'; e.currentTarget.style.color = '#0F172A'; }}
-                          onMouseOut={(e) => { e.currentTarget.style.background = '#F1F5F9'; e.currentTarget.style.color = '#475569'; }}
-                        >
-                          <Pencil size={14} />
-                        </button>
+                        {!isInvestor && (
+                          <>
+                            <button 
+                              onClick={() => handleEdit(b)}
+                              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#F1F5F9', color: '#475569', border: '1px solid #E2E8F0', borderRadius: '6px', cursor: 'pointer', transition: 'all 0.15s' }}
+                              title="Edit Business"
+                              onMouseOver={(e) => { e.currentTarget.style.background = '#E2E8F0'; e.currentTarget.style.color = '#0F172A'; }}
+                              onMouseOut={(e) => { e.currentTarget.style.background = '#F1F5F9'; e.currentTarget.style.color = '#475569'; }}
+                            >
+                              <Pencil size={14} />
+                            </button>
 
-                        {/* Delete Business */}
-                        <button 
-                          onClick={() => setDeleteId(b._id)}
-                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#FEF2F2', color: '#EF4444', border: '1px solid #FECACA', borderRadius: '6px', cursor: 'pointer', transition: 'all 0.15s' }}
-                          title="Delete Business"
-                          onMouseOver={(e) => e.currentTarget.style.background = '#FEE2E2'}
-                          onMouseOut={(e) => e.currentTarget.style.background = '#FEF2F2'}
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                            {/* Delete Business */}
+                            <button 
+                              onClick={() => setDeleteId(b._id)}
+                              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#FEF2F2', color: '#EF4444', border: '1px solid #FECACA', borderRadius: '6px', cursor: 'pointer', transition: 'all 0.15s' }}
+                              title="Delete Business"
+                              onMouseOver={(e) => e.currentTarget.style.background = '#FEE2E2'}
+                              onMouseOut={(e) => e.currentTarget.style.background = '#FEF2F2'}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -1010,39 +1029,17 @@ const Businesses = () => {
                     {/* Operations Flow */}
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                        <Repeat size={15} color="#2563EB" />
+                        <ShoppingCart size={15} color="#2563EB" />
                         <label style={{ fontSize: '13px', fontWeight: '600', color: '#1E293B', margin: 0 }}>
-                          Trade Operations <span style={{ color: '#EF4444' }}>*</span>
+                          Purchasing Operations <span style={{ color: '#EF4444' }}>*</span>
                         </label>
                       </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
-                        <button
-                          type="button"
-                          onClick={() => setFormData({ ...formData, operationsType: 'sales' })}
-                          style={{
-                            padding: '10px 6px',
-                            borderRadius: '8px',
-                            border: formData.operationsType === 'sales' ? '2px solid #2563EB' : '1px solid #CBD5E1',
-                            background: formData.operationsType === 'sales' ? '#EFF6FF' : '#FFFFFF',
-                            color: formData.operationsType === 'sales' ? '#1D4ED8' : '#475569',
-                            fontWeight: formData.operationsType === 'sales' ? '600' : '500',
-                            fontSize: '12px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            gap: '5px',
-                            cursor: 'pointer',
-                            transition: 'all 0.15s ease'
-                          }}
-                        >
-                          <TrendingUp size={16} />
-                          <span>Sales</span>
-                        </button>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                         <button
                           type="button"
                           onClick={() => setFormData({ ...formData, operationsType: 'purchases' })}
                           style={{
-                            padding: '10px 6px',
+                            padding: '10px 8px',
                             borderRadius: '8px',
                             border: formData.operationsType === 'purchases' ? '2px solid #2563EB' : '1px solid #CBD5E1',
                             background: formData.operationsType === 'purchases' ? '#EFF6FF' : '#FFFFFF',
@@ -1058,18 +1055,18 @@ const Businesses = () => {
                           }}
                         >
                           <ShoppingCart size={16} />
-                          <span>Purchases</span>
+                          <span>Purchases & Procurement</span>
                         </button>
                         <button
                           type="button"
-                          onClick={() => setFormData({ ...formData, operationsType: 'both' })}
+                          onClick={() => setFormData({ ...formData, operationsType: 'none' })}
                           style={{
-                            padding: '10px 6px',
+                            padding: '10px 8px',
                             borderRadius: '8px',
-                            border: (formData.operationsType === 'both' || !formData.operationsType) ? '2px solid #2563EB' : '1px solid #CBD5E1',
-                            background: (formData.operationsType === 'both' || !formData.operationsType) ? '#EFF6FF' : '#FFFFFF',
-                            color: (formData.operationsType === 'both' || !formData.operationsType) ? '#1D4ED8' : '#475569',
-                            fontWeight: (formData.operationsType === 'both' || !formData.operationsType) ? '600' : '500',
+                            border: formData.operationsType === 'none' ? '2px solid #2563EB' : '1px solid #CBD5E1',
+                            background: formData.operationsType === 'none' ? '#EFF6FF' : '#FFFFFF',
+                            color: formData.operationsType === 'none' ? '#1D4ED8' : '#475569',
+                            fontWeight: formData.operationsType === 'none' ? '600' : '500',
                             fontSize: '12px',
                             display: 'flex',
                             flexDirection: 'column',
@@ -1079,8 +1076,8 @@ const Businesses = () => {
                             transition: 'all 0.15s ease'
                           }}
                         >
-                          <Repeat size={16} />
-                          <span>Both</span>
+                          <CheckCircle2 size={16} />
+                          <span>Billing Only (No Purchases)</span>
                         </button>
                       </div>
                     </div>

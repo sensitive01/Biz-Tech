@@ -120,6 +120,8 @@ const TenantDashboard = () => {
           <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#0F172A', marginBottom: '8px', letterSpacing: '-0.5px' }}>
             {currentUser?.role === 'employee' 
               ? `Welcome back, ${currentUser?.fullName || 'Employee'}!` 
+              : currentUser?.role === 'investor'
+              ? `Welcome back, ${currentUser?.fullName || 'Stakeholder'}!`
               : tenantType === 1 
               ? 'My Business Overview' 
               : tenantType === 2 
@@ -129,6 +131,8 @@ const TenantDashboard = () => {
           <p style={{ color: '#64748B', fontSize: '15px', margin: 0 }}>
             {currentUser?.role === 'employee' 
               ? `Employee Portal • ${currentUser?.designation || 'Staff'} • ${currentUser?.branchName || 'Workspace'}` 
+              : currentUser?.role === 'investor'
+              ? `Investor Portal • Transparent Financial & Operational Overview (View-Only)`
               : "Here's what's happening in your workspace today."}
           </p>
         </div>
@@ -194,20 +198,6 @@ const TenantDashboard = () => {
               </div>
             </div>
           </div>
-          <button
-            onClick={() => navigate('/tenant/branches')}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '8px',
-              padding: '10px 20px', background: '#F8FAFC',
-              border: '1px solid #CBD5E1', borderRadius: '8px',
-              color: '#1E293B', fontWeight: '600', fontSize: '13px',
-              cursor: 'pointer', transition: 'all 0.2s'
-            }}
-            onMouseOver={(e) => { e.currentTarget.style.background = '#EFF6FF'; e.currentTarget.style.borderColor = '#93C5FD'; e.currentTarget.style.color = '#2563EB'; }}
-            onMouseOut={(e) => { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.borderColor = '#CBD5E1'; e.currentTarget.style.color = '#1E293B'; }}
-          >
-            Manage Branch &rarr;
-          </button>
         </div>
       )}
 

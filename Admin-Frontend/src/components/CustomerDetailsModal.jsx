@@ -4,7 +4,7 @@ import {
   X, Store, Users, Map, Building2, User, Mail, Phone, MapPin, 
   Briefcase, Calendar, ShieldCheck, CheckCircle2, AlertCircle, 
   RefreshCw, Maximize2, Minimize2, ExternalLink, Layers, 
-  CreditCard, IndianRupee, Package, ShoppingCart, Loader2 
+  CreditCard, IndianRupee, Package, ShoppingCart, Loader2, Landmark 
 } from 'lucide-react';
 
 const CustomerDetailsModal = ({ customerId, initialCustomer, onClose }) => {
@@ -43,10 +43,12 @@ const CustomerDetailsModal = ({ customerId, initialCustomer, onClose }) => {
   const branches = details?.branches || [];
   const employees = details?.employees || [];
   const businesses = details?.businesses || (customer.businesses || []);
+  const investors = details?.investors || [];
   const counts = details?.counts || {
     branches: branches.length,
     employees: employees.length,
     businesses: businesses.length || 1,
+    investors: investors.length,
     customers: 0,
     inventory: 0,
     sales: 0
@@ -211,13 +213,25 @@ const CustomerDetailsModal = ({ customerId, initialCustomer, onClose }) => {
             </div>
           </div>
 
-          <div style={{ background: 'white', padding: '12px 16px', borderRadius: '12px', border: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Store size={20} /></div>
-            <div>
-              <div style={{ fontSize: '11px', color: '#64748B', fontWeight: '600', textTransform: 'uppercase' }}>Branches</div>
-              <div style={{ fontSize: '18px', fontWeight: '700', color: '#0F172A' }}>{counts.branches}</div>
+          {businessType > 2 && (
+            <div style={{ background: 'white', padding: '12px 16px', borderRadius: '12px', border: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Store size={20} /></div>
+              <div>
+                <div style={{ fontSize: '11px', color: '#64748B', fontWeight: '600', textTransform: 'uppercase' }}>Branches</div>
+                <div style={{ fontSize: '18px', fontWeight: '700', color: '#0F172A' }}>{counts.branches}</div>
+              </div>
             </div>
-          </div>
+          )}
+
+          {businessType >= 3 && (
+            <div style={{ background: 'white', padding: '12px 16px', borderRadius: '12px', border: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Landmark size={20} /></div>
+              <div>
+                <div style={{ fontSize: '11px', color: '#64748B', fontWeight: '600', textTransform: 'uppercase' }}>Investors</div>
+                <div style={{ fontSize: '18px', fontWeight: '700', color: '#0F172A' }}>{counts.investors}</div>
+              </div>
+            </div>
+          )}
 
           <div style={{ background: 'white', padding: '12px 16px', borderRadius: '12px', border: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: '#F0FDF4', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Users size={20} /></div>
@@ -255,9 +269,10 @@ const CustomerDetailsModal = ({ customerId, initialCustomer, onClose }) => {
         }}>
           {[
             { id: 'overview', label: 'Profile & Overview', icon: User },
-            { id: 'branches', label: `Branches (${counts.branches})`, icon: Store },
+            ...(businessType > 2 ? [{ id: 'branches', label: `Branches (${counts.branches})`, icon: Store }] : []),
             { id: 'employees', label: `Staff & Team (${counts.employees})`, icon: Users },
             ...(businessType === 4 || businesses.length > 1 ? [{ id: 'businesses', label: `Businesses (${counts.businesses})`, icon: Building2 }] : []),
+            ...(businessType >= 3 ? [{ id: 'investors', label: `Investors (${investors.length})`, icon: Landmark }] : []),
             { id: 'workspace', label: 'Live Tenant Workspace', icon: Layers }
           ].map(tab => {
             const Icon = tab.icon;
@@ -576,6 +591,63 @@ const CustomerDetailsModal = ({ customerId, initialCustomer, onClose }) => {
                       </tbody>
                     </table>
                   </div>
+                </div>
+              )}
+
+              {/* TAB: INVESTORS (TYPE 3 & 4) */}
+              {activeTab === 'investors' && (
+                <div style={{ background: 'white', borderRadius: '14px', border: '1px solid #E2E8F0', overflow: 'hidden' }}>
+                  <div style={{ padding: '16px 20px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h3 style={{ margin: 0, fontSize: '16px', color: '#0F172A', fontWeight: '600' }}>
+                      Registered Investors ({investors.length})
+                    </h3>
+                  </div>
+
+                  {investors.length === 0 ? (
+                    <div style={{ padding: '40px 20px', textAlign: 'center', color: '#64748B' }}>
+                      <Landmark size={36} color="#94A3B8" style={{ margin: '0 auto 12px auto' }} />
+                      <div style={{ fontSize: '15px', fontWeight: '600', color: '#0F172A' }}>No Investors Configured</div>
+                      <div style={{ fontSize: '13px', marginTop: '4px' }}>This client has not registered any equity stakeholders yet.</div>
+                    </div>
+                  ) : (
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '600px' }}>
+                        <thead>
+                          <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#64748B', fontSize: '12px', textTransform: 'uppercase' }}>
+                            <th style={{ padding: '12px 20px', fontWeight: '600' }}>Investor</th>
+                            <th style={{ padding: '12px 20px', fontWeight: '600' }}>Investment</th>
+                            <th style={{ padding: '12px 20px', fontWeight: '600' }}>Equity Share</th>
+                            <th style={{ padding: '12px 20px', fontWeight: '600' }}>Scope</th>
+                            <th style={{ padding: '12px 20px', fontWeight: '600' }}>Portal Login</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {investors.map((inv, idx) => (
+                            <tr key={inv._id || idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                              <td style={{ padding: '14px 20px', fontWeight: '600', color: '#0F172A' }}>
+                                <div>{inv.name}</div>
+                                <div style={{ fontSize: '12px', color: '#64748B', fontWeight: '400' }}>{inv.email || inv.phone || '-'}</div>
+                              </td>
+                              <td style={{ padding: '14px 20px', color: '#16A34A', fontWeight: '700' }}>
+                                ₹{Number(inv.investmentAmount || 0).toLocaleString()}
+                              </td>
+                              <td style={{ padding: '14px 20px', color: '#0F172A', fontWeight: '600' }}>
+                                {inv.equityPercentage || 0}%
+                              </td>
+                              <td style={{ padding: '14px 20px', color: '#64748B', fontSize: '13px' }}>
+                                {inv.associatedBranch || 'All Branches'}
+                              </td>
+                              <td style={{ padding: '14px 20px' }}>
+                                <span style={{ background: inv.email ? '#F0FDF4' : '#F1F5F9', color: inv.email ? '#16A34A' : '#64748B', padding: '3px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: '600' }}>
+                                  {inv.email ? (inv.isLoginEnabled !== false ? 'Active' : 'Disabled') : 'Not Configured'}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               )}
 

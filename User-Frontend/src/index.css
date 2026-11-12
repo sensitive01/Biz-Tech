@@ -1146,3 +1146,18 @@ body, .top-header, .sidebar, .card, .input-field, .btn-secondary {
   border-color: var(--border-color) !important;
 }
 
+/* ============================================================ */
+/* INVESTOR VIEW-ONLY ACCESS ENFORCEMENT                        */
+/* ============================================================ */
+.role-investor .content-canvas button:has(svg.lucide-plus),
+.role-investor .content-canvas button:has(svg.lucide-trash2),
+.role-investor .content-canvas button:has(svg.lucide-trash),
+.role-investor .content-canvas button:has(svg.lucide-pencil),
+.role-investor .btn-create,
+.role-investor .btn-add,
+.role-investor .btn-edit,
+.role-investor .btn-delete {
+  display: none !important;
+}
+
+

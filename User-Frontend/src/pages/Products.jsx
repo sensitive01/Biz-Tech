@@ -1,7 +1,8 @@
 import { exportToCSV } from '../utils/exportToCSV';
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import { ArrowUp, ArrowDown, Plus, Search, Package, Tag, Trash2, Pencil, X, AlertTriangle, ArrowUpDown, Download } from 'lucide-react';
+import { ArrowUp, ArrowDown, Plus, Search, Package, Tag, Trash2, Pencil, X, AlertTriangle, ArrowUpDown, Download, Barcode } from 'lucide-react';
 import TablePagination from '../components/TablePagination';
 
 const getImageUrl = (image) => {
@@ -13,6 +14,7 @@ const getImageUrl = (image) => {
 };
 
 const Products = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('categories');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
@@ -53,7 +55,8 @@ const Products = () => {
       return null;
     }
   })();
-  const offeringType = storedUser?.businessOfferingType || 'both';
+  const offeringType = storedUser?.businessOfferingType || storedUser?.offeringType || localStorage.getItem('businessOfferingType') || 'product';
+  const isBothProductAndService = offeringType === 'both' || (Array.isArray(storedUser?.offerings) && storedUser.offerings.includes('product') && storedUser.offerings.includes('service'));
   const operationsType = storedUser?.businessOperationsType || 'both';
   const defaultItemType = offeringType === 'service' ? 'Service' : 'Product';
   const defaultTransactionType = operationsType === 'purchases' ? 'Purchase' : 'Sales';
@@ -339,6 +342,16 @@ const Products = () => {
             <button onClick={() => setActiveTab('products')} style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '14px', fontWeight: '600', background: activeTab === 'products' ? 'white' : 'transparent', color: activeTab === 'products' ? '#0F172A' : '#64748B', border: 'none', boxShadow: activeTab === 'products' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: 'all 0.2s' }}>
               {offeringType === 'service' ? 'Services' : offeringType === 'product' ? 'Products' : 'Products & Services'}
             </button>
+            {isBothProductAndService && (
+              <button 
+                type="button"
+                onClick={() => navigate('/tenant/sales?tab=barcode')} 
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '6px', fontSize: '13px', fontWeight: '700', background: '#EDE9FE', color: '#6D28D9', border: '1px solid #DDD6FE', cursor: 'pointer', transition: 'all 0.2s' }}
+                title="Manage Barcodes for Products and Services"
+              >
+                <Barcode size={15} /> Barcode Manager
+              </button>
+            )}
           </div>
           
           <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'space-between' }}>

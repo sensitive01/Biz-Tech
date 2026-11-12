@@ -56,6 +56,16 @@ const UserSchema = new mongoose.Schema({
     enum: ['products_services', 'inventory', 'purchases', 'sales', 'expenses'],
     default: []
   },
+  offeringType: {
+    type: String,
+    enum: ['product', 'service', 'both'],
+    default: 'product'
+  },
+  businessOfferingType: {
+    type: String,
+    enum: ['product', 'service', 'both'],
+    default: 'product'
+  },
   businesses: [{
     businessId: { type: String, trim: true },
     businessCode: { type: String, trim: true },

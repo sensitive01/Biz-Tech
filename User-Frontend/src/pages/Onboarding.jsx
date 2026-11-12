@@ -178,11 +178,27 @@ const Onboarding = () => {
   const toggleSelection = (category, value) => {
     setSelections(prev => {
       const current = prev[category];
-      if (current.includes(value)) {
-        return { ...prev, [category]: current.filter(item => item !== value) };
-      } else {
-        return { ...prev, [category]: [...current, value] };
+      const updatedList = current.includes(value)
+        ? current.filter(item => item !== value)
+        : [...current, value];
+
+      if (category === 'offering') {
+        const hasProd = updatedList.includes('product');
+        const hasServ = updatedList.includes('service');
+        const offType = (hasProd && hasServ) ? 'both' : (hasProd ? 'product' : (hasServ ? 'service' : 'product'));
+        localStorage.setItem('businessOfferingType', offType);
+        localStorage.setItem('userOfferings', JSON.stringify(updatedList));
+
+        try {
+          const u = JSON.parse(localStorage.getItem('user') || '{}');
+          u.offeringType = offType;
+          u.businessOfferingType = offType;
+          u.offerings = updatedList;
+          localStorage.setItem('user', JSON.stringify(u));
+        } catch {}
       }
+
+      return { ...prev, [category]: updatedList };
     });
   };
 
@@ -207,10 +223,10 @@ const Onboarding = () => {
     // Steps 3 & 4: Offerings & Operations
     if (tenantType === 4) {
       steps.push({ id: 'offering', title: 'Products & Services', desc: 'Per business offerings', icon: <Package size={24} /> });
-      steps.push({ id: 'operation', title: 'Operations Type', desc: 'Per business operations', icon: <TrendingUp size={24} /> });
+      steps.push({ id: 'operation', title: 'Purchases & Procurement', desc: 'Per business purchasing', icon: <ShoppingCart size={24} /> });
     } else {
       steps.push({ id: 'offering', title: 'Products & Services', desc: 'What do you offer?', icon: <Package size={24} /> });
-      steps.push({ id: 'operation', title: 'Operations Type', desc: 'Purchase or Sale', icon: <TrendingUp size={24} /> });
+      steps.push({ id: 'operation', title: 'Purchases & Procurement', desc: 'Vendor purchasing options', icon: <ShoppingCart size={24} /> });
     }
 
     // Step 5: Employees (Type 1 now includes employees)
@@ -242,15 +258,14 @@ const Onboarding = () => {
     let payloadEmployees = employees;
     let payloadBusinesses = tenantType === 4 ? (customPayload.businesses || businesses) : [];
 
-    let modules = ['expenses'];
+    let modules = ['expenses', 'sales']; // Billing (sales) is MANDATORY across all user logins!
     if (tenantType === 4) {
       payloadBusinesses.forEach(biz => {
         const off = biz.offeringType || 'both';
-        const op = biz.operationsType || 'both';
+        const op = biz.operationsType || 'purchases';
         if (off === 'product' || off === 'both') modules.push('products_services', 'inventory');
         if (off === 'service' || off === 'both') modules.push('products_services');
         if (op === 'purchase' || op === 'both' || op === 'purchases') modules.push('purchases');
-        if (op === 'sale' || op === 'both' || op === 'sales') modules.push('sales');
       });
     } else {
       if (selections.offering.includes('product')) modules.push('products_services', 'inventory');
@@ -258,8 +273,8 @@ const Onboarding = () => {
         if (!modules.includes('products_services')) modules.push('products_services');
       }
       if (selections.operation.includes('purchase')) modules.push('purchases');
-      if (selections.operation.includes('sale')) modules.push('sales');
     }
+    modules.push('sales'); // Ensure Billing is mandatory
     modules = [...new Set(modules)];
 
     if (tenantType === 1) {
@@ -276,12 +291,32 @@ const Onboarding = () => {
       }));
     }
 
+    let offeringType = 'product';
+    if (tenantType === 4) {
+      const hasProd = payloadBusinesses.some(b => b.offeringType === 'product' || b.offeringType === 'both');
+      const hasServ = payloadBusinesses.some(b => b.offeringType === 'service' || b.offeringType === 'both');
+      offeringType = (hasProd && hasServ) ? 'both' : (hasProd ? 'product' : 'service');
+    } else {
+      const hasProd = selections.offering.includes('product');
+      const hasServ = selections.offering.includes('service');
+      if (hasProd && hasServ) {
+        offeringType = 'both';
+      } else if (hasProd) {
+        offeringType = 'product';
+      } else if (hasServ) {
+        offeringType = 'service';
+      }
+    }
+
     const payload = {
       singleBusiness,
       businesses: payloadBusinesses,
       branches: payloadBranches,
       employees: payloadEmployees,
       modules,
+      offeringType,
+      businessOfferingType: offeringType,
+      offerings: selections.offering,
       ...customPayload
     };
 
@@ -298,7 +333,15 @@ const Onboarding = () => {
       if (res.ok) {
         const data = await res.json();
         if (data.user) {
-          localStorage.setItem('user', JSON.stringify(data.user));
+          const userWithOffering = {
+            ...data.user,
+            offeringType,
+            businessOfferingType: offeringType,
+            offerings: selections.offering
+          };
+          localStorage.setItem('user', JSON.stringify(userWithOffering));
+          localStorage.setItem('businessOfferingType', offeringType);
+          localStorage.setItem('userOfferings', JSON.stringify(selections.offering));
           if (data.user.modules) {
             localStorage.setItem('modules', JSON.stringify(data.user.modules));
           }
@@ -394,10 +437,10 @@ const Onboarding = () => {
                             fontWeight: '600',
                             padding: '3px 8px',
                             borderRadius: '6px',
-                            background: b.operationsType === 'sales' ? '#EFF6FF' : b.operationsType === 'purchases' ? '#FEF3C7' : '#F1F5F9',
-                            color: b.operationsType === 'sales' ? '#1D4ED8' : b.operationsType === 'purchases' ? '#B45309' : '#334155'
+                            background: b.operationsType === 'none' ? '#F1F5F9' : '#FEF3C7',
+                            color: b.operationsType === 'none' ? '#475569' : '#B45309'
                           }}>
-                            {b.operationsType === 'sales' ? '📈 Sales Only' : b.operationsType === 'purchases' ? '🛒 Purchases Only' : '🔁 Both'}
+                            {b.operationsType === 'none' ? '🧾 Billing Only' : '🛒 Purchases & Billing'}
                           </span>
                         </td>
                         <td style={{ padding: '12px 14px', textAlign: 'right' }}>
@@ -563,36 +606,15 @@ const Onboarding = () => {
                     {/* Trade Operations */}
                     <div>
                       <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                        <Repeat size={15} color="#2563EB" />
-                        <span>Trade Operations *</span>
+                        <ShoppingCart size={15} color="#2563EB" />
+                        <span>Purchases & Procurement *</span>
                       </label>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
-                        <button
-                          type="button"
-                          onClick={() => setNewBusiness({ ...newBusiness, operationsType: 'sales' })}
-                          style={{
-                            padding: '9px 4px',
-                            borderRadius: '8px',
-                            border: newBusiness.operationsType === 'sales' ? '2px solid #2563EB' : '1px solid #CBD5E1',
-                            background: newBusiness.operationsType === 'sales' ? '#EFF6FF' : '#FFFFFF',
-                            color: newBusiness.operationsType === 'sales' ? '#1D4ED8' : '#475569',
-                            fontWeight: newBusiness.operationsType === 'sales' ? '600' : '500',
-                            fontSize: '12px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            gap: '4px',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          <TrendingUp size={16} />
-                          <span>Sales Only</span>
-                        </button>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                         <button
                           type="button"
                           onClick={() => setNewBusiness({ ...newBusiness, operationsType: 'purchases' })}
                           style={{
-                            padding: '9px 4px',
+                            padding: '10px 8px',
                             borderRadius: '8px',
                             border: newBusiness.operationsType === 'purchases' ? '2px solid #2563EB' : '1px solid #CBD5E1',
                             background: newBusiness.operationsType === 'purchases' ? '#EFF6FF' : '#FFFFFF',
@@ -607,18 +629,18 @@ const Onboarding = () => {
                           }}
                         >
                           <ShoppingCart size={16} />
-                          <span>Purchases</span>
+                          <span>Purchases Enabled</span>
                         </button>
                         <button
                           type="button"
-                          onClick={() => setNewBusiness({ ...newBusiness, operationsType: 'both' })}
+                          onClick={() => setNewBusiness({ ...newBusiness, operationsType: 'none' })}
                           style={{
-                            padding: '9px 4px',
+                            padding: '10px 8px',
                             borderRadius: '8px',
-                            border: (newBusiness.operationsType === 'both' || !newBusiness.operationsType) ? '2px solid #2563EB' : '1px solid #CBD5E1',
-                            background: (newBusiness.operationsType === 'both' || !newBusiness.operationsType) ? '#EFF6FF' : '#FFFFFF',
-                            color: (newBusiness.operationsType === 'both' || !newBusiness.operationsType) ? '#1D4ED8' : '#475569',
-                            fontWeight: (newBusiness.operationsType === 'both' || !newBusiness.operationsType) ? '600' : '500',
+                            border: newBusiness.operationsType === 'none' ? '2px solid #2563EB' : '1px solid #CBD5E1',
+                            background: newBusiness.operationsType === 'none' ? '#EFF6FF' : '#FFFFFF',
+                            color: newBusiness.operationsType === 'none' ? '#1D4ED8' : '#475569',
+                            fontWeight: newBusiness.operationsType === 'none' ? '600' : '500',
                             fontSize: '12px',
                             display: 'flex',
                             flexDirection: 'column',
@@ -627,8 +649,8 @@ const Onboarding = () => {
                             cursor: 'pointer'
                           }}
                         >
-                          <Repeat size={16} />
-                          <span>Both</span>
+                          <CheckCircle2 size={16} />
+                          <span>Billing Only</span>
                         </button>
                       </div>
                     </div>
@@ -1298,9 +1320,9 @@ const Onboarding = () => {
       if (tenantType === 4) {
         return (
           <div className="animate-fade-in" style={{ padding: '24px' }}>
-            <h2 style={{ fontSize: '28px', marginBottom: '8px' }}>Trade Operations by Business</h2>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '28px' }}>
-              Select trade workflows (Sales, Purchases, or Both) for each business separately. Each business can have independent sales or purchasing modules.
+            <h2 style={{ fontSize: '28px', marginBottom: '8px' }}>Purchasing Operations by Business</h2>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
+              Configure whether each conglomerate business engages in vendor purchasing and procurement.
             </p>
 
             {businesses.length === 0 ? (
@@ -1315,7 +1337,7 @@ const Onboarding = () => {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {businesses.map((biz, idx) => {
-                  const currentOp = biz.operationsType || 'both';
+                  const hasPurchases = biz.operationsType !== 'none';
                   return (
                     <div 
                       key={idx}
@@ -1354,47 +1376,16 @@ const Onboarding = () => {
                             fontWeight: '600',
                             padding: '4px 10px',
                             borderRadius: '20px',
-                            background: currentOp === 'sales' ? '#ECFDF5' : currentOp === 'purchases' ? '#FEF3C7' : '#EFF6FF',
-                            color: currentOp === 'sales' ? '#047857' : currentOp === 'purchases' ? '#B45309' : '#1D4ED8'
+                            background: hasPurchases ? '#FEF3C7' : '#F1F5F9',
+                            color: hasPurchases ? '#B45309' : '#475569'
                           }}>
-                            {currentOp === 'sales' ? '📈 Sales Only' : currentOp === 'purchases' ? '🛒 Purchases Only' : '🔁 Sales & Purchases'}
+                            {hasPurchases ? '🛒 Purchases & Billing' : '🧾 Billing Only'}
                           </span>
                         </div>
                       </div>
 
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '10px' }}>
-                        {/* Sales Only */}
-                        <div
-                          onClick={() => {
-                            const updated = businesses.map((b, i) => i === idx ? { ...b, operationsType: 'sales' } : b);
-                            setBusinesses(updated);
-                            saveProgress({ businesses: updated });
-                          }}
-                          style={{
-                            padding: '12px 12px',
-                            borderRadius: '10px',
-                            border: `2px solid ${currentOp === 'sales' ? '#047857' : 'var(--border-color)'}`,
-                            background: currentOp === 'sales' ? '#ECFDF5' : 'white',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '10px',
-                            position: 'relative',
-                            minWidth: 0,
-                            transition: 'all 0.15s ease'
-                          }}
-                        >
-                          <div style={{ width: '34px', height: '34px', flexShrink: 0, borderRadius: '8px', background: currentOp === 'sales' ? 'white' : '#F8FAFC', color: currentOp === 'sales' ? '#047857' : '#64748B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <TrendingUp size={17} />
-                          </div>
-                          <div style={{ minWidth: 0, flex: 1 }}>
-                            <div style={{ fontSize: '13px', fontWeight: '600', color: currentOp === 'sales' ? '#047857' : '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Sales Only</div>
-                            <div style={{ fontSize: '11px', color: '#64748B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Invoices & revenue</div>
-                          </div>
-                          {currentOp === 'sales' && <CheckCircle2 size={16} color="#047857" style={{ flexShrink: 0, marginLeft: 'auto' }} />}
-                        </div>
-
-                        {/* Purchases Only */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                        {/* Purchases Enabled */}
                         <div
                           onClick={() => {
                             const updated = businesses.map((b, i) => i === idx ? { ...b, operationsType: 'purchases' } : b);
@@ -1402,58 +1393,56 @@ const Onboarding = () => {
                             saveProgress({ businesses: updated });
                           }}
                           style={{
-                            padding: '12px 12px',
+                            padding: '14px 16px',
                             borderRadius: '10px',
-                            border: `2px solid ${currentOp === 'purchases' ? '#B45309' : 'var(--border-color)'}`,
-                            background: currentOp === 'purchases' ? '#FEF3C7' : 'white',
+                            border: `2px solid ${hasPurchases ? '#B45309' : 'var(--border-color)'}`,
+                            background: hasPurchases ? '#FEF3C7' : 'white',
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '10px',
+                            gap: '12px',
                             position: 'relative',
-                            minWidth: 0,
                             transition: 'all 0.15s ease'
                           }}
                         >
-                          <div style={{ width: '34px', height: '34px', flexShrink: 0, borderRadius: '8px', background: currentOp === 'purchases' ? 'white' : '#F8FAFC', color: currentOp === 'purchases' ? '#B45309' : '#64748B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <ShoppingCart size={17} />
+                          <div style={{ width: '38px', height: '38px', flexShrink: 0, borderRadius: '8px', background: hasPurchases ? 'white' : '#F8FAFC', color: hasPurchases ? '#B45309' : '#64748B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <ShoppingCart size={18} />
                           </div>
                           <div style={{ minWidth: 0, flex: 1 }}>
-                            <div style={{ fontSize: '13px', fontWeight: '600', color: currentOp === 'purchases' ? '#B45309' : '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Purchases Only</div>
-                            <div style={{ fontSize: '11px', color: '#64748B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Procurement & bills</div>
+                            <div style={{ fontSize: '14px', fontWeight: '600', color: hasPurchases ? '#B45309' : '#1E293B' }}>Purchases & Procurement</div>
+                            <div style={{ fontSize: '12px', color: '#64748B' }}>Vendor POs, supplier bills & inventory</div>
                           </div>
-                          {currentOp === 'purchases' && <CheckCircle2 size={16} color="#B45309" style={{ flexShrink: 0, marginLeft: 'auto' }} />}
+                          {hasPurchases && <CheckCircle2 size={18} color="#B45309" style={{ flexShrink: 0, marginLeft: 'auto' }} />}
                         </div>
 
-                        {/* Both */}
+                        {/* Billing Only */}
                         <div
                           onClick={() => {
-                            const updated = businesses.map((b, i) => i === idx ? { ...b, operationsType: 'both' } : b);
+                            const updated = businesses.map((b, i) => i === idx ? { ...b, operationsType: 'none' } : b);
                             setBusinesses(updated);
                             saveProgress({ businesses: updated });
                           }}
                           style={{
-                            padding: '12px 12px',
+                            padding: '14px 16px',
                             borderRadius: '10px',
-                            border: `2px solid ${currentOp === 'both' ? 'var(--primary-blue)' : 'var(--border-color)'}`,
-                            background: currentOp === 'both' ? '#EFF6FF' : 'white',
+                            border: `2px solid ${!hasPurchases ? 'var(--primary-blue)' : 'var(--border-color)'}`,
+                            background: !hasPurchases ? '#EFF6FF' : 'white',
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '10px',
+                            gap: '12px',
                             position: 'relative',
-                            minWidth: 0,
                             transition: 'all 0.15s ease'
                           }}
                         >
-                          <div style={{ width: '34px', height: '34px', flexShrink: 0, borderRadius: '8px', background: currentOp === 'both' ? 'white' : '#F8FAFC', color: currentOp === 'both' ? 'var(--primary-blue)' : '#64748B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Repeat size={17} />
+                          <div style={{ width: '38px', height: '38px', flexShrink: 0, borderRadius: '8px', background: !hasPurchases ? 'white' : '#F8FAFC', color: !hasPurchases ? 'var(--primary-blue)' : '#64748B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <CheckCircle2 size={18} />
                           </div>
                           <div style={{ minWidth: 0, flex: 1 }}>
-                            <div style={{ fontSize: '13px', fontWeight: '600', color: currentOp === 'both' ? 'var(--primary-blue)' : '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Both Operations</div>
-                            <div style={{ fontSize: '11px', color: '#64748B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Full buy & sell cycles</div>
+                            <div style={{ fontSize: '14px', fontWeight: '600', color: !hasPurchases ? 'var(--primary-blue)' : '#1E293B' }}>Billing Only (No Purchases)</div>
+                            <div style={{ fontSize: '12px', color: '#64748B' }}>Customer invoices & sales revenue only</div>
                           </div>
-                          {currentOp === 'both' && <CheckCircle2 size={16} color="var(--primary-blue)" style={{ flexShrink: 0, marginLeft: 'auto' }} />}
+                          {!hasPurchases && <CheckCircle2 size={18} color="var(--primary-blue)" style={{ flexShrink: 0, marginLeft: 'auto' }} />}
                         </div>
                       </div>
                     </div>
@@ -1466,42 +1455,39 @@ const Onboarding = () => {
       }
 
       const isPurchase = selections.operation.includes('purchase');
-      const isSale = selections.operation.includes('sale');
 
       return (
         <div className="animate-fade-in" style={{ padding: '24px' }}>
-          <h2 style={{ fontSize: '28px', marginBottom: '8px' }}>What type of operations?</h2>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '32px' }}>Select Purchase, Sale, or Both to enable respective accounting modules.</p>
+          <h2 style={{ fontSize: '28px', marginBottom: '8px' }}>Purchasing & Procurement Operations</h2>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '28px' }}>
+            Do you purchase goods, stock, or raw materials from external vendors and suppliers?
+          </p>
           
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+          <div style={{ maxWidth: '420px' }}>
             <div 
-              onClick={() => toggleSelection('operation', 'purchase')}
+              onClick={() => {
+                const next = isPurchase ? [] : ['purchase'];
+                setSelections(prev => ({ ...prev, operation: next }));
+                saveProgress({ operation: next });
+              }}
               style={{ 
-                padding: '24px', border: `2px solid ${isPurchase ? 'var(--primary-blue)' : 'var(--border-color)'}`, 
-                borderRadius: '12px', cursor: 'pointer', background: isPurchase ? '#EFF6FF' : 'white', transition: 'all 0.2s', position: 'relative'
+                padding: '24px', 
+                border: `2px solid ${isPurchase ? 'var(--primary-blue)' : 'var(--border-color)'}`, 
+                borderRadius: '12px', 
+                cursor: 'pointer', 
+                background: isPurchase ? '#EFF6FF' : 'white', 
+                transition: 'all 0.2s', 
+                position: 'relative'
               }}
             >
               {isPurchase && <CheckCircle2 size={20} color="var(--primary-blue)" style={{ position: 'absolute', top: '16px', right: '16px' }} />}
               <div style={{ width: '48px', height: '48px', background: isPurchase ? 'white' : '#F8FAFC', borderRadius: '12px', color: isPurchase ? '#2563EB' : '#64748B', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
                 <ShoppingCart size={24} />
               </div>
-              <h4 style={{ fontSize: '18px', marginBottom: '8px', color: 'var(--text-title)' }}>Purchases</h4>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: 0, lineHeight: '1.5' }}>You buy items from vendors or suppliers.</p>
-            </div>
-            
-            <div 
-              onClick={() => toggleSelection('operation', 'sale')}
-              style={{ 
-                padding: '24px', border: `2px solid ${isSale ? 'var(--primary-blue)' : 'var(--border-color)'}`, 
-                borderRadius: '12px', cursor: 'pointer', background: isSale ? '#EFF6FF' : 'white', transition: 'all 0.2s', position: 'relative'
-              }}
-            >
-              {isSale && <CheckCircle2 size={20} color="var(--primary-blue)" style={{ position: 'absolute', top: '16px', right: '16px' }} />}
-              <div style={{ width: '48px', height: '48px', background: isSale ? 'white' : '#F8FAFC', borderRadius: '12px', color: isSale ? '#2563EB' : '#64748B', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
-                <TrendingUp size={24} />
-              </div>
-              <h4 style={{ fontSize: '18px', marginBottom: '8px', color: 'var(--text-title)' }}>Sales</h4>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: 0, lineHeight: '1.5' }}>You sell goods or services to customers.</p>
+              <h4 style={{ fontSize: '18px', marginBottom: '8px', color: 'var(--text-title)' }}>Purchases & Procurement</h4>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: 0, lineHeight: '1.5' }}>
+                Enable vendor purchase orders, supplier bills, and procurement stock management.
+              </p>
             </div>
           </div>
         </div>

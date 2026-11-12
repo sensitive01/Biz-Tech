@@ -24,12 +24,11 @@ const auth = (req, res, next) => {
 };
 
 const DEFAULT_EMPLOYEE_MODULES = [
-  'attendance',
-  'leaves',
   'customers',
   'expenses',
   'documents',
-  'reminders'
+  'reminders',
+  'sales'
 ];
 
 const escapeRegex = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

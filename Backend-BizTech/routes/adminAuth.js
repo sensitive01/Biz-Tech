@@ -19,6 +19,7 @@ const Attendance = require('../models/Attendance');
 const Leave = require('../models/Leave');
 const Reminder = require('../models/Reminder');
 const Document = require('../models/Document');
+const Investor = require('../models/Investor');
 
 // Helper to find or seed the default superadmin
 const getAdminFromRequest = async (req) => {
@@ -299,7 +300,8 @@ router.get('/users/:id/details', async (req, res) => {
       reminders,
       documents,
       categories,
-      subcategories
+      subcategories,
+      investors
     ] = await Promise.all([
       Branch.find({ tenantId: matchTenant }).select('-password').sort({ createdAt: -1 }),
       Employee.find({ tenantId: matchTenant }).select('-password').sort({ createdAt: -1 }),
@@ -314,7 +316,8 @@ router.get('/users/:id/details', async (req, res) => {
       Reminder.find({ tenantId: matchTenant }).sort({ date: -1 }),
       Document.find({ tenantId: matchTenant }).sort({ createdAt: -1 }),
       Category.find({ tenantId: matchTenant }).sort({ createdAt: -1 }),
-      SubCategory.find({ tenantId: matchTenant }).populate('categoryId', 'name').sort({ createdAt: -1 })
+      SubCategory.find({ tenantId: matchTenant }).populate('categoryId', 'name').sort({ createdAt: -1 }),
+      Investor.find({ tenantId: matchTenant }).select('-password').sort({ createdAt: -1 })
     ]);
 
     const totalSalesAmount = sales.reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
@@ -353,6 +356,10 @@ router.get('/users/:id/details', async (req, res) => {
         businessPhone: user.businessPhone || user.phone || 'N/A',
         createdAt: user.createdAt,
         modules: user.modules || [],
+        offeringType: user.offeringType || 'product',
+        businessOfferingType: user.businessOfferingType || user.offeringType || 'product',
+        operationsType: user.operationsType || 'purchases',
+        businessOperationsType: user.businessOperationsType || user.operationsType || 'purchases',
         businesses: user.businesses || [],
         subscriptionStatus: user.subscriptionStatus || 'Active',
         subscriptionBillingCycle: user.subscriptionBillingCycle || 'Monthly',
@@ -377,6 +384,7 @@ router.get('/users/:id/details', async (req, res) => {
       documents: documents || [],
       categories: categories || [],
       subcategories: subcategories || [],
+      investors: investors || [],
       financials: {
         totalSales: totalSalesAmount,
         totalExpenses: totalExpensesAmount,
@@ -398,7 +406,8 @@ router.get('/users/:id/details', async (req, res) => {
         reminders: reminders ? reminders.length : 0,
         documents: documents ? documents.length : 0,
         categories: categories ? categories.length : 0,
-        subcategories: subcategories ? subcategories.length : 0
+        subcategories: subcategories ? subcategories.length : 0,
+        investors: investors ? investors.length : 0
       },
       impersonationToken: token
     });
@@ -768,7 +777,8 @@ router.put('/users/:id', async (req, res) => {
       fullName, businessName, email, phone, industry, 
       address, regNo, businessPhone, subscriptionStatus, 
       subscriptionBillingCycle, subscriptionCustomAmount,
-      password, employeeLimit, branchLimit, businessLimit 
+      password, employeeLimit, branchLimit, businessLimit,
+      modules, offeringType, businessOfferingType, operationsType, businessOperationsType, businessType
     } = req.body;
 
     const user = await User.findById(req.params.id);
@@ -785,6 +795,30 @@ router.put('/users/:id', async (req, res) => {
     if (subscriptionStatus !== undefined) user.subscriptionStatus = subscriptionStatus;
     if (subscriptionBillingCycle !== undefined) user.subscriptionBillingCycle = subscriptionBillingCycle;
     if (subscriptionCustomAmount !== undefined) user.subscriptionCustomAmount = Number(subscriptionCustomAmount);
+    if (businessType !== undefined && businessType !== null) {
+      user.businessType = Number(businessType);
+    }
+    if (modules !== undefined && Array.isArray(modules)) {
+      // Billing ('sales') is permanent and mandatory across all user logins
+      const sanitizedModules = Array.from(new Set([...modules, 'sales']));
+      user.modules = sanitizedModules;
+    }
+    if (offeringType !== undefined) {
+      user.offeringType = offeringType;
+      user.businessOfferingType = offeringType;
+    }
+    if (businessOfferingType !== undefined) {
+      user.businessOfferingType = businessOfferingType;
+      user.offeringType = businessOfferingType;
+    }
+    if (operationsType !== undefined) {
+      user.operationsType = operationsType;
+      user.businessOperationsType = operationsType;
+    }
+    if (businessOperationsType !== undefined) {
+      user.businessOperationsType = businessOperationsType;
+      user.operationsType = businessOperationsType;
+    }
     if (employeeLimit !== undefined) {
       user.employeeLimit = (employeeLimit === '' || employeeLimit === null || Number(employeeLimit) === 0) ? null : Number(employeeLimit);
     }
@@ -1610,6 +1644,123 @@ router.delete('/subcategories/:id', async (req, res) => {
     res.json({ message: 'SubCategory deleted successfully' });
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+});
+
+// --- INVESTORS CRUD (ADMIN ON BEHALF OF CUSTOMER) ---
+router.post('/investors', async (req, res) => {
+  try {
+    const { 
+      tenantId, name, email, password, phone, investmentAmount, 
+      investmentDate, ownershipPercentage, associatedBusiness, 
+      associatedBranch, status, isLoginEnabled, notes 
+    } = req.body;
+
+    if (!tenantId || !name || !email) {
+      return res.status(400).json({ message: 'Tenant ID, name, and email are required' });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const existing = await Investor.findOne({ email: cleanEmail });
+    if (existing) {
+      return res.status(400).json({ message: 'Email is already registered for another investor' });
+    }
+
+    const initialPassword = password || Math.random().toString(36).slice(-8);
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(initialPassword, salt);
+
+    const count = await Investor.countDocuments({ tenantId });
+    const investorId = `INV-${String(count + 1).padStart(3, '0')}`;
+
+    const investor = new Investor({
+      investorId,
+      name,
+      email: cleanEmail,
+      password: hashedPassword,
+      phone: phone || '',
+      investmentAmount: Number(investmentAmount) || 0,
+      investmentDate: investmentDate || Date.now(),
+      ownershipPercentage: Number(ownershipPercentage) || 0,
+      associatedBusiness: associatedBusiness || 'All Businesses',
+      associatedBranch: associatedBranch || 'All Branches',
+      status: status || 'Active',
+      isLoginEnabled: isLoginEnabled !== false,
+      notes: notes || '',
+      tenantId,
+      role: 'investor'
+    });
+
+    await investor.save();
+    const saved = investor.toObject();
+    delete saved.password;
+    res.status(201).json({ message: 'Investor registered successfully', investor: saved });
+  } catch (err) {
+    console.error('Error creating investor via admin:', err);
+    res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
+router.put('/investors/:id', async (req, res) => {
+  try {
+    const {
+      name, email, phone, investmentAmount, investmentDate,
+      ownershipPercentage, associatedBusiness, associatedBranch,
+      status, isLoginEnabled, notes
+    } = req.body;
+
+    const investor = await Investor.findById(req.params.id);
+    if (!investor) return res.status(404).json({ message: 'Investor not found' });
+
+    if (name !== undefined) investor.name = name;
+    if (email !== undefined) investor.email = email.trim().toLowerCase();
+    if (phone !== undefined) investor.phone = phone;
+    if (investmentAmount !== undefined) investor.investmentAmount = Number(investmentAmount);
+    if (investmentDate !== undefined) investor.investmentDate = investmentDate;
+    if (ownershipPercentage !== undefined) investor.ownershipPercentage = Number(ownershipPercentage);
+    if (associatedBusiness !== undefined) investor.associatedBusiness = associatedBusiness;
+    if (associatedBranch !== undefined) investor.associatedBranch = associatedBranch;
+    if (status !== undefined) investor.status = status;
+    if (isLoginEnabled !== undefined) investor.isLoginEnabled = Boolean(isLoginEnabled);
+    if (notes !== undefined) investor.notes = notes;
+
+    await investor.save();
+    const saved = investor.toObject();
+    delete saved.password;
+    res.json({ message: 'Investor updated successfully', investor: saved });
+  } catch (err) {
+    console.error('Error updating investor via admin:', err);
+    res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
+router.put('/investors/:id/credentials', async (req, res) => {
+  try {
+    const { password } = req.body;
+    if (!password || password.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters' });
+    }
+    const investor = await Investor.findById(req.params.id);
+    if (!investor) return res.status(404).json({ message: 'Investor not found' });
+
+    const salt = await bcrypt.genSalt(10);
+    investor.password = await bcrypt.hash(password, salt);
+    await investor.save();
+    res.json({ message: 'Investor password updated successfully' });
+  } catch (err) {
+    console.error('Error updating investor password via admin:', err);
+    res.status(500).json({ message: err.message || 'Server error' });
+  }
+});
+
+router.delete('/investors/:id', async (req, res) => {
+  try {
+    const deleted = await Investor.findByIdAndDelete(req.params.id);
+    if (!deleted) return res.status(404).json({ message: 'Investor not found' });
+    res.json({ message: 'Investor removed successfully' });
+  } catch (err) {
+    console.error('Error deleting investor via admin:', err);
+    res.status(500).json({ message: err.message || 'Server error' });
   }
 });
 

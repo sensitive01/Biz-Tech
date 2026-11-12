@@ -44,6 +44,15 @@ const Branches = () => {
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const tenantType = Number(localStorage.getItem('tenantType')) || 1;
+  const currentUser = (() => {
+    try {
+      const u = localStorage.getItem('user');
+      return u ? JSON.parse(u) : null;
+    } catch (e) {
+      return null;
+    }
+  })();
+  const isInvestor = currentUser?.role === 'investor';
   const [userBusinesses, setUserBusinesses] = useState([]);
 
   const requestSort = (key) => {
@@ -375,26 +384,28 @@ const Branches = () => {
               : 'Manage your store locations, assign managers, and track branch contact details.'}
           </p>
         </div>
-        {tenantType === 2 ? (
-          branches.length === 0 ? (
+        {!isInvestor && (
+          tenantType === 2 ? (
+            branches.length === 0 ? (
+              <button 
+                onClick={handleOpenAdd} 
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', background: '#2563EB', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
+              >
+                <Plus size={18} /> Configure Branch
+              </button>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '8px', color: '#1D4ED8', fontSize: '13px', fontWeight: '600' }}>
+                <CheckCircle2 size={16} /> Single Branch Archetype (Type 2)
+              </div>
+            )
+          ) : (
             <button 
               onClick={handleOpenAdd} 
               style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', background: '#2563EB', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
             >
-              <Plus size={18} /> Configure Branch
+              <Plus size={18} /> Add New Branch
             </button>
-          ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '8px', color: '#1D4ED8', fontSize: '13px', fontWeight: '600' }}>
-              <CheckCircle2 size={16} /> Single Branch Archetype (Type 2)
-            </div>
           )
-        ) : (
-          <button 
-            onClick={handleOpenAdd} 
-            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', background: '#2563EB', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
-          >
-            <Plus size={18} /> Add New Branch
-          </button>
         )}
       </div>
 
@@ -491,9 +502,11 @@ const Branches = () => {
                 <th onClick={() => requestSort('contactNumber')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: hasBusinessCol ? '14%' : '17%', minWidth: '125px', verticalAlign: 'middle' }}>
                   <div style={{ display: 'flex', alignItems: 'center' }}>Contact {renderSortIcon('contactNumber')}</div>
                 </th>
-                <th style={{ padding: '14px 12px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: '145px', textAlign: 'center', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
-                  Login Access
-                </th>
+                {!isInvestor && (
+                  <th style={{ padding: '14px 12px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: '145px', textAlign: 'center', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                    Login Access
+                  </th>
+                )}
                 <th style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: '105px', textAlign: 'center', verticalAlign: 'middle' }}>
                   Action
                 </th>
@@ -572,73 +585,75 @@ const Branches = () => {
                         <span>{branch.contactNumber || '—'}</span>
                       </div>
                     </td>
-                    <td style={{ padding: '14px 12px', textAlign: 'center', verticalAlign: 'middle' }}>
-                      {branch.email ? (
-                        <button
-                          onClick={() => handleOpenLoginModal(branch)}
-                          className="notranslate"
-                          translate="no"
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '7px',
-                            background: '#EFF6FF',
-                            border: '1px solid #BFDBFE',
-                            color: '#1D4ED8',
-                            padding: '7px 14px',
-                            borderRadius: '8px',
-                            fontSize: '13px',
-                            fontWeight: '600',
-                            whiteSpace: 'nowrap',
-                            cursor: 'pointer',
-                            transition: 'all 0.15s ease',
-                            boxShadow: '0 1px 2px rgba(37, 99, 235, 0.05)'
-                          }}
-                          onMouseOver={(e) => { e.currentTarget.style.background = '#DBEAFE'; }}
-                          onMouseOut={(e) => { e.currentTarget.style.background = '#EFF6FF'; }}
-                          title={branch.email}
-                        >
-                          <KeyRound size={15} />
-                          <span>Manage Login</span>
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleOpenLoginModal(branch)}
-                          className="notranslate"
-                          translate="no"
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '7px',
-                            padding: '7px 14px',
-                            borderRadius: '8px',
-                            background: '#F8FAFC',
-                            border: '1px dashed #CBD5E1',
-                            color: '#475569',
-                            fontSize: '13px',
-                            fontWeight: '600',
-                            whiteSpace: 'nowrap',
-                            cursor: 'pointer',
-                            transition: 'all 0.15s ease'
-                          }}
-                          onMouseOver={(e) => {
-                            e.currentTarget.style.borderColor = '#2563EB';
-                            e.currentTarget.style.color = '#2563EB';
-                            e.currentTarget.style.background = '#EFF6FF';
-                          }}
-                          onMouseOut={(e) => {
-                            e.currentTarget.style.borderColor = '#CBD5E1';
-                            e.currentTarget.style.color = '#475569';
-                            e.currentTarget.style.background = '#F8FAFC';
-                          }}
-                        >
-                          <KeyRound size={15} />
-                          <span>Setup Login</span>
-                        </button>
-                      )}
-                    </td>
+                    {!isInvestor && (
+                      <td style={{ padding: '14px 12px', textAlign: 'center', verticalAlign: 'middle' }}>
+                        {branch.email ? (
+                          <button
+                            onClick={() => handleOpenLoginModal(branch)}
+                            className="notranslate"
+                            translate="no"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '7px',
+                              background: '#EFF6FF',
+                              border: '1px solid #BFDBFE',
+                              color: '#1D4ED8',
+                              padding: '7px 14px',
+                              borderRadius: '8px',
+                              fontSize: '13px',
+                              fontWeight: '600',
+                              whiteSpace: 'nowrap',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease',
+                              boxShadow: '0 1px 2px rgba(37, 99, 235, 0.05)'
+                            }}
+                            onMouseOver={(e) => { e.currentTarget.style.background = '#DBEAFE'; }}
+                            onMouseOut={(e) => { e.currentTarget.style.background = '#EFF6FF'; }}
+                            title={branch.email}
+                          >
+                            <KeyRound size={15} />
+                            <span>Manage Login</span>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleOpenLoginModal(branch)}
+                            className="notranslate"
+                            translate="no"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '7px',
+                              padding: '7px 14px',
+                              borderRadius: '8px',
+                              background: '#F8FAFC',
+                              border: '1px dashed #CBD5E1',
+                              color: '#475569',
+                              fontSize: '13px',
+                              fontWeight: '600',
+                              whiteSpace: 'nowrap',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease'
+                            }}
+                            onMouseOver={(e) => {
+                              e.currentTarget.style.borderColor = '#2563EB';
+                              e.currentTarget.style.color = '#2563EB';
+                              e.currentTarget.style.background = '#EFF6FF';
+                            }}
+                            onMouseOut={(e) => {
+                              e.currentTarget.style.borderColor = '#CBD5E1';
+                              e.currentTarget.style.color = '#475569';
+                              e.currentTarget.style.background = '#F8FAFC';
+                            }}
+                          >
+                            <KeyRound size={15} />
+                            <span>Setup Login</span>
+                          </button>
+                        )}
+                      </td>
+                    )}
                     <td style={{ padding: '14px 16px', textAlign: 'center', verticalAlign: 'middle' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
                         <button 
@@ -650,24 +665,28 @@ const Branches = () => {
                         >
                           <Eye size={15} />
                         </button>
-                        <button 
-                          onClick={() => handleEdit(branch)}
-                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#F1F5F9', color: '#475569', border: '1px solid #E2E8F0', borderRadius: '6px', cursor: 'pointer', transition: 'all 0.15s' }}
-                          title="Edit Branch"
-                          onMouseOver={(e) => { e.currentTarget.style.background = '#E2E8F0'; e.currentTarget.style.color = '#0F172A'; }}
-                          onMouseOut={(e) => { e.currentTarget.style.background = '#F1F5F9'; e.currentTarget.style.color = '#475569'; }}
-                        >
-                          <Pencil size={14} />
-                        </button>
-                        <button 
-                          onClick={() => setDeleteBranchId(branch._id)}
-                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#FEF2F2', color: '#EF4444', border: '1px solid #FECACA', borderRadius: '6px', cursor: 'pointer', transition: 'all 0.15s' }}
-                          title="Delete Branch"
-                          onMouseOver={(e) => e.currentTarget.style.background = '#FEE2E2'} 
-                          onMouseOut={(e) => e.currentTarget.style.background = '#FEF2F2'}
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        {!isInvestor && (
+                          <>
+                            <button 
+                              onClick={() => handleEdit(branch)}
+                              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#F1F5F9', color: '#475569', border: '1px solid #E2E8F0', borderRadius: '6px', cursor: 'pointer', transition: 'all 0.15s' }}
+                              title="Edit Branch"
+                              onMouseOver={(e) => { e.currentTarget.style.background = '#E2E8F0'; e.currentTarget.style.color = '#0F172A'; }}
+                              onMouseOut={(e) => { e.currentTarget.style.background = '#F1F5F9'; e.currentTarget.style.color = '#475569'; }}
+                            >
+                              <Pencil size={14} />
+                            </button>
+                            <button 
+                              onClick={() => setDeleteBranchId(branch._id)}
+                              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#FEF2F2', color: '#EF4444', border: '1px solid #FECACA', borderRadius: '6px', cursor: 'pointer', transition: 'all 0.15s' }}
+                              title="Delete Branch"
+                              onMouseOver={(e) => e.currentTarget.style.background = '#FEE2E2'} 
+                              onMouseOut={(e) => e.currentTarget.style.background = '#FEF2F2'}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
