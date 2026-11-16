@@ -587,14 +587,18 @@ router.post('/onboarding', async (req, res) => {
         await Employee.findOneAndUpdate(
           { email: e.email, tenantId: userId },
           {
+            employeeId: e.employeeId || '',
             name: e.name,
             email: e.email,
             designation: e.designation || e.role || e.position || 'Staff',
             position: e.role || e.position || 'Staff',
             contactNumber: e.phone || e.contactNumber || '',
             salary,
+            dateOfJoining: e.dateOfJoining || Date.now(),
             shiftFrom: e.shiftFrom || '',
             shiftTo: e.shiftTo || '',
+            workType: e.workType || 'Full-Time',
+            address: e.address || '',
             businessName: e.business || e.businessName || '',
             branchName: e.branch || e.branchName || (createdBranches[0] ? createdBranches[0].name : 'Main Office'),
             branchId: branchMap[e.branch || e.branchName] || (createdBranches.length > 0 ? createdBranches[0]._id : null),

@@ -4,6 +4,21 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Search, Plus, Store, Users, Map, ChevronLeft, ChevronRight, Filter, ChevronDown, Download, ArrowUp, ArrowDown, ArrowUpDown, X, User, Mail, Phone, MapPin, Briefcase, Calendar, Eye, Trash2, AlertTriangle, Building2, LogIn, ExternalLink, Loader2 } from 'lucide-react';
 
+const extractCityOrArea = (address) => {
+  if (!address || typeof address !== 'string' || address === 'Not specified') return '';
+  const cleaned = address.trim().replace(/[.,;]+$/, '');
+  const parts = cleaned.split(',').map(p => p.trim()).filter(Boolean);
+  if (parts.length === 0) return '';
+  for (let i = parts.length - 1; i >= 0; i--) {
+    let part = parts[i];
+    let withoutPin = part.replace(/(?:PIN\s*:?|-)?\s*\b\d{5,6}\b/gi, '').trim();
+    if (withoutPin && !/^\d+$/.test(withoutPin)) {
+      return withoutPin.replace(/[.,;]+$/, '').trim().slice(0, 25);
+    }
+  }
+  return parts[parts.length - 1].slice(0, 25);
+};
+
 const CustomerDirectory = () => {
   const navigate = useNavigate();
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
@@ -54,25 +69,63 @@ const CustomerDirectory = () => {
     fetch(`${import.meta.env.VITE_API_URL}/api/admin/users`)
       .then(res => res.json())
       .then(data => {
-        const formattedData = data.map(user => ({
-          _id: user._id,
-          id: user._id.substring(user._id.length - 6).toUpperCase(),
-          businessName: user.businessName || (user.fullName + "'s Business"),
-          type: user.businessType,
-          typeLabel: `Type ${user.businessType}: ${user.businessType === 1 ? 'Sole Operator' : user.businessType === 2 ? 'Single Branch + Staff' : user.businessType === 3 ? 'Multi-Branch Enterprise' : 'Multi-Business Conglomerate'}`,
-          typeDesc: user.businessType === 1 ? '1 Owner • 1 Shop' : user.businessType === 2 ? '1 Owner • 1 Shop' : user.businessType === 3 ? '1 Owner • Multiple Branches' : '1 Owner • Multiple Businesses',
-          contactName: user.fullName,
-          contactEmail: user.email,
-          contactPhone: user.phone || 'N/A',
-          industry: user.industry || 'Not specified',
-          fullAddress: user.address || 'Not specified',
-          joinedAt: user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A',
-          locations: user.address || (user.businessType >= 3 ? 'Multiple Locations' : '1 Shop'),
-          staff: user.businessType === 1 ? 'Owner Only' : 'Staff Enrolled',
-          staffDesc: user.businessType === 1 ? '0 Staff' : 'Uses Roster',
-          status: 'Active',
-          modules: user.modules || []
-        }));
+        const formattedData = data.map(user => {
+          const bType = Number(user.businessType) || 1;
+          const typeLabel = bType === 1 
+            ? 'Type 1: Sole Operator' 
+            : bType === 2 
+            ? 'Type 2: Single Branch + Staff' 
+            : bType === 3 
+            ? 'Type 3: Multi-Branch Enterprise' 
+            : 'Type 4: Multi-Business Conglomerate';
+
+          // Branch count for Type 3:
+          const brCount = Number(
+            user.branchCount ?? 
+            user.branchesCount ?? 
+            (Array.isArray(user.branches) ? user.branches.length : undefined)
+          ) || 0;
+
+          // Business count for Type 4:
+          const bizCount = (Array.isArray(user.businesses) && user.businesses.length > 0)
+            ? user.businesses.length
+            : (Number(user.businessCount ?? user.businessesCount) || 1);
+
+          // Location display:
+          // Type 1 & 2: 1 Shop
+          // Type 3: How many branches they have (e.g. 3 Branches)
+          // Type 4: How many businesses they have (e.g. X Businesses)
+          let locationDisplay = '1 Shop';
+          if (bType === 1 || bType === 2) {
+            locationDisplay = '1 Shop';
+          } else if (bType === 3) {
+            locationDisplay = brCount === 1 ? '1 Branch' : `${brCount} Branches`;
+          } else if (bType === 4) {
+            locationDisplay = bizCount === 1 ? '1 Business' : `${bizCount} Businesses`;
+          }
+
+          return {
+            _id: user._id,
+            id: user._id.substring(user._id.length - 6).toUpperCase(),
+            businessName: user.businessName || (user.fullName + "'s Business"),
+            type: bType,
+            typeLabel,
+            contactName: user.fullName,
+            contactEmail: user.email,
+            contactPhone: user.phone || 'N/A',
+            industry: user.industry || 'Not specified',
+            fullAddress: user.address && user.address.trim() ? user.address.trim() : 'Not specified',
+            city: extractCityOrArea(user.address),
+            branchCount: brCount,
+            businessCount: bizCount,
+            joinedAt: user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A',
+            locations: locationDisplay,
+            staff: bType === 1 ? 'Owner Only' : 'Staff Enrolled',
+            staffDesc: bType === 1 ? '0 Staff' : 'Uses Roster',
+            status: 'Active',
+            modules: user.modules || []
+          };
+        });
         setCustomersData(formattedData);
         setLoading(false);
       })
@@ -113,7 +166,11 @@ const CustomerDirectory = () => {
         (customer.contactEmail && customer.contactEmail.toLowerCase().includes(q)) ||
         (customer.contactPhone && customer.contactPhone.toLowerCase().includes(q)) ||
         (customer.id && customer.id.toLowerCase().includes(q)) ||
-        (customer.industry && customer.industry.toLowerCase().includes(q))
+        (customer.industry && customer.industry.toLowerCase().includes(q)) ||
+        (customer.typeLabel && customer.typeLabel.toLowerCase().includes(q)) ||
+        (customer.locations && customer.locations.toLowerCase().includes(q)) ||
+        (customer.city && customer.city.toLowerCase().includes(q)) ||
+        (customer.fullAddress && customer.fullAddress.toLowerCase().includes(q))
       );
 
       let matchesFilter = true;
@@ -277,8 +334,6 @@ const CustomerDirectory = () => {
         </div>
       </div>
 
-     
-
       {/* Data Table */}
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto', width: '100%' }}>
@@ -286,7 +341,7 @@ const CustomerDirectory = () => {
           <thead>
             <tr style={{ background: '#F8FAFC', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               <th style={{ padding: '16px 24px', fontWeight: '600', width: '60px' }}>S.NO</th>
-              <th onClick={() => requestSort('businessName')} style={{ padding: '16px 24px', fontWeight: '600', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
+              <th onClick={() => requestSort('businessName')} style={{ padding: '16px 24px', fontWeight: '600', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', width: '100px'  }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span>Business Name</span> {renderSortIcon('businessName')}</div>
               </th>
               <th onClick={() => requestSort('type')} style={{ padding: '16px 24px', fontWeight: '600', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
@@ -346,26 +401,49 @@ const CustomerDirectory = () => {
                       </div>
                     </div>
                   </td>
-                  <td style={{ padding: '16px 24px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
-                      <span className="badge" style={{ background: `var(--badge-type${customer.type}-bg)`, color: customer.type === 1 ? 'var(--primary-blue)' : `var(--badge-type${customer.type}-text)` }}>{customer.typeLabel}</span>
-                      <span style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        {customer.typeDesc}
-                      </span>
-                    </div>
+                  <td style={{ padding: '16px 24px', whiteSpace: 'nowrap' }}>
+                    <span 
+                      className="badge" 
+                      style={{ 
+                        background: `var(--badge-type${customer.type}-bg)`, 
+                        color: customer.type === 1 ? 'var(--primary-blue)' : `var(--badge-type${customer.type}-text)`,
+                        whiteSpace: 'nowrap',
+                        fontWeight: '600',
+                        fontSize: '12px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '5px 12px'
+                      }}
+                    >
+                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'currentColor', flexShrink: 0 }} />
+                      {customer.typeLabel}
+                    </span>
                   </td>
                   <td style={{ padding: '16px 24px' }}>
                     <div style={{ fontWeight: '500', color: 'var(--text-title)', fontSize: '14px' }}>{customer.contactName}</div>
                     <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{customer.contactEmail}</div>
                   </td>
-                  <td style={{ padding: '16px 24px' }}>
-                    <span className="badge" style={{ 
-                      background: 'var(--badge-type1-bg)', 
-                      color: 'var(--text-title)', 
-                      border: '1px solid var(--border-color)',
-                      fontWeight: '500'
-                    }}>
-                      {customer.locations}
+                  <td style={{ padding: '16px 24px', whiteSpace: 'nowrap' }}>
+                    <span 
+                      className="badge" 
+                      style={{ 
+                        display: 'inline-flex', 
+                        alignItems: 'center', 
+                        gap: '6px', 
+                        padding: '5px 12px', 
+                        borderRadius: '6px', 
+                        fontSize: '12px', 
+                        fontWeight: '500', 
+                        background: 'var(--badge-type1-bg)', 
+                        color: 'var(--text-title)', 
+                        border: '1px solid var(--border-color)', 
+                        whiteSpace: 'nowrap' 
+                      }}
+                      title={customer.fullAddress !== 'Not specified' ? customer.fullAddress : undefined}
+                    >
+                      <MapPin size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                      <span>{customer.locations}</span>
                     </span>
                   </td>
                   <td style={{ padding: '16px 24px' }}>

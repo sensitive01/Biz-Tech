@@ -34,7 +34,7 @@ const LEAVE_TYPES = [
   'Maternity / Paternity Leave',
   'Bereavement Leave',
   'Compensatory Off',
-  'Other Leave'
+  'Other'
 ];
 
 const PERMISSION_TYPES = [
@@ -45,7 +45,7 @@ const PERMISSION_TYPES = [
   'Doctor / Medical Checkup',
   'Emergency / Family',
   'Bank / Official Errand',
-  'Other Permission'
+  'Other'
 ];
 
 const LeaveRequests = () => {
@@ -67,6 +67,7 @@ const LeaveRequests = () => {
     employeeId: '',
     category: 'Leave', // 'Leave' | 'Permission'
     type: 'Annual Leave',
+    customType: '',
     startDate: '',
     endDate: '',
     timeFrom: '10:00',
@@ -82,6 +83,9 @@ const LeaveRequests = () => {
     action: 'Approved', // 'Approved' | 'Rejected'
     note: ''
   });
+
+  // Delete Confirmation Modal state
+  const [deleteConfirmLeave, setDeleteConfirmLeave] = useState(null);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -166,6 +170,7 @@ const LeaveRequests = () => {
       employeeId: initialEmpId,
       category: 'Leave',
       type: 'Annual Leave',
+      customType: '',
       startDate: today,
       endDate: today,
       timeFrom: '10:00',
@@ -181,10 +186,25 @@ const LeaveRequests = () => {
     const startStr = leave.startDate ? new Date(leave.startDate).toISOString().split('T')[0] : '';
     const endStr = leave.endDate ? new Date(leave.endDate).toISOString().split('T')[0] : startStr;
 
+    const isStandardLeave = LEAVE_TYPES.includes(leave.type);
+    const isStandardPermission = PERMISSION_TYPES.includes(leave.type);
+    const isKnown = leave.category === 'Permission' ? isStandardPermission : isStandardLeave;
+
+    let selectedType = leave.type || (leave.category === 'Permission' ? 'Personal Permission' : 'Annual Leave');
+    let customVal = '';
+
+    if (!isKnown && leave.type) {
+      selectedType = 'Other';
+      customVal = leave.type;
+    } else if (leave.type === 'Other' || leave.type === 'Other Leave' || leave.type === 'Other Permission') {
+      selectedType = 'Other';
+    }
+
     setFormData({
       employeeId: leave.employeeId?._id || leave.employeeId || '',
       category: leave.category || 'Leave',
-      type: leave.type || (leave.category === 'Permission' ? 'Personal Permission' : 'Annual Leave'),
+      type: selectedType,
+      customType: customVal,
       startDate: startStr,
       endDate: endStr,
       timeFrom: leave.timeFrom || '10:00',
@@ -195,22 +215,28 @@ const LeaveRequests = () => {
     setShowModal(true);
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this record?')) return;
+  const handleDeleteClick = (leave) => {
+    setDeleteConfirmLeave(leave);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirmLeave) return;
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/leaves/${id}`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/leaves/${deleteConfirmLeave._id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
+        setDeleteConfirmLeave(null);
         fetchData();
       } else {
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         alert(data.error || 'Failed to delete record');
       }
     } catch (err) {
       console.error(err);
+      alert('Error deleting leave record');
     }
   };
 
@@ -224,6 +250,15 @@ const LeaveRequests = () => {
       const method = editingLeave ? 'PUT' : 'POST';
 
       const payload = { ...formData };
+      if (payload.type === 'Other' || payload.type === 'Other Leave' || payload.type === 'Other Permission') {
+        if (!payload.customType || !payload.customType.trim()) {
+          alert(`Please mention what kind of other ${payload.category === 'Permission' ? 'permission' : 'leave'} it is.`);
+          return;
+        }
+        payload.type = payload.customType.trim();
+      }
+      delete payload.customType;
+
       if (payload.category === 'Permission') {
         payload.endDate = payload.startDate;
       }
@@ -407,7 +442,7 @@ const LeaveRequests = () => {
           onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
         >
           <Plus size={18} /> 
-          {isSoleOperator ? 'Record Time-Off / Permission' : isEmployee ? 'Apply Leave / Permission' : 'New Leave / Permission'}
+          {isSoleOperator ? 'Add Leaves / Permission' : isEmployee ? 'Apply Leave / Permission' : 'Add Leaves / Permission'}
         </button>
       </div>
 
@@ -511,9 +546,9 @@ const LeaveRequests = () => {
 
       {/* Filter and Control Bar */}
       <div style={{ display: 'flex', gap: '14px', marginBottom: '20px', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', flex: '1 1 500px' }}>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
           {/* Search */}
-          <div style={{ flex: '1 1 240px', minWidth: '200px', position: 'relative' }}>
+          <div style={{ width: '280px', position: 'relative' }}>
             <Search size={18} color="#94A3B8" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
             <input 
               type="text" 
@@ -524,17 +559,6 @@ const LeaveRequests = () => {
             />
           </div>
 
-          {/* Category Toggle Filter */}
-          <select 
-            value={filterCategory} 
-            onChange={(e) => setFilterCategory(e.target.value)} 
-            style={{ padding: '10px 14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '10px', color: '#334155', fontWeight: '500', fontSize: '14px', outline: 'none', cursor: 'pointer' }}
-          >
-            <option value="all">Category: All</option>
-            <option value="Leave">🏖️ Leaves Only</option>
-            <option value="Permission">⏱️ Permissions Only</option>
-          </select>
-
           {/* Status Filter (if Approval Workflow exists) */}
           {hasApprovalWorkflow && (
             <select 
@@ -543,11 +567,25 @@ const LeaveRequests = () => {
               style={{ padding: '10px 14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '10px', color: '#334155', fontWeight: '500', fontSize: '14px', outline: 'none', cursor: 'pointer' }}
             >
               <option value="all">Status: All</option>
-              <option value="Pending">⏳ Pending</option>
-              <option value="Approved">✅ Approved</option>
-              <option value="Rejected">❌ Rejected</option>
+              <option value="Pending">Pending</option>
+              <option value="Approved">Approved</option>
+              <option value="Rejected">Rejected</option>
             </select>
           )}
+        </div>
+
+        {/* Right Controls: Category, Date, Custom Range & Export */}
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+          {/* Category Toggle Filter */}
+          <select 
+            value={filterCategory} 
+            onChange={(e) => setFilterCategory(e.target.value)} 
+            style={{ padding: '10px 14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '10px', color: '#334155', fontWeight: '500', fontSize: '14px', outline: 'none', cursor: 'pointer' }}
+          >
+            <option value="all">Category: All</option>
+            <option value="Leave">Leaves Only</option>
+            <option value="Permission">Permissions Only</option>
+          </select>
 
           {/* Time Filter */}
           <select 
@@ -560,10 +598,7 @@ const LeaveRequests = () => {
             <option value="30">Last 30 Days</option>
             <option value="custom">Custom Range</option>
           </select>
-        </div>
 
-        {/* Custom Range & Export */}
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
           {filterDays === 'custom' && (
             <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
               <input type="date" value={customStartDate} onChange={(e) => setCustomStartDate(e.target.value)} style={{ padding: '8px 10px', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '13px' }} />
@@ -781,7 +816,7 @@ const LeaveRequests = () => {
                         {canModify ? (
                           <button 
                             title="Delete" 
-                            onClick={() => handleDelete(leave._id)} 
+                            onClick={() => handleDeleteClick(leave)} 
                             style={{ background: '#FEE2E2', border: 'none', color: '#EF4444', cursor: 'pointer', padding: '7px', borderRadius: '7px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                           >
                             <Trash2 size={15} />
@@ -845,7 +880,7 @@ const LeaveRequests = () => {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', padding: '4px', background: '#F1F5F9', borderRadius: '12px', marginBottom: '20px' }}>
               <button
                 type="button"
-                onClick={() => setFormData({ ...formData, category: 'Leave', type: LEAVE_TYPES[0] })}
+                onClick={() => setFormData({ ...formData, category: 'Leave', type: LEAVE_TYPES[0], customType: '' })}
                 style={{
                   padding: '10px 14px',
                   borderRadius: '9px',
@@ -867,7 +902,7 @@ const LeaveRequests = () => {
               </button>
               <button
                 type="button"
-                onClick={() => setFormData({ ...formData, category: 'Permission', type: PERMISSION_TYPES[0] })}
+                onClick={() => setFormData({ ...formData, category: 'Permission', type: PERMISSION_TYPES[0], customType: '' })}
                 style={{
                   padding: '10px 14px',
                   borderRadius: '9px',
@@ -927,12 +962,19 @@ const LeaveRequests = () => {
               {/* Type Dropdown (Leave Types vs Permission Types) */}
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
-                  {formData.category === 'Leave' ? 'Leave Type' : 'Permission Type'}
+                  {formData.category === 'Leave' ? 'Leave Type' : 'Permission Type'} *
                 </label>
                 <select 
                   value={formData.type} 
-                  onChange={e => setFormData({ ...formData, type: e.target.value })} 
-                  style={{ width: '100%', padding: '11px 14px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none' }}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setFormData(prev => ({
+                      ...prev,
+                      type: val,
+                      customType: (val !== 'Other' && val !== 'Other Leave' && val !== 'Other Permission') ? '' : prev.customType
+                    }));
+                  }} 
+                  style={{ width: '100%', padding: '11px 14px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none', background: 'white' }}
                 >
                   {formData.category === 'Leave' ? (
                     LEAVE_TYPES.map(t => <option key={t} value={t}>{t}</option>)
@@ -940,6 +982,34 @@ const LeaveRequests = () => {
                     PERMISSION_TYPES.map(t => <option key={t} value={t}>{t}</option>)
                   )}
                 </select>
+
+                {/* If Type is "Other", provide input to mention what it is */}
+                {(formData.type === 'Other' || formData.type === 'Other Leave' || formData.type === 'Other Permission') && (
+                  <div style={{ marginTop: '10px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#2563EB', marginBottom: '5px' }}>
+                      Specify {formData.category === 'Leave' ? 'Leave' : 'Permission'} Type *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder={formData.category === 'Leave' ? "Please mention what leave it is (e.g. Marriage Leave, Exam Leave)" : "Please mention what permission it is (e.g. Passport Office, Bank Visit)"}
+                      value={formData.customType}
+                      onChange={e => setFormData({ ...formData, customType: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '10px 14px',
+                        borderRadius: '10px',
+                        border: '1px solid #2563EB',
+                        background: '#EFF6FF',
+                        fontSize: '14px',
+                        color: '#0F172A',
+                        outline: 'none',
+                        boxSizing: 'border-box'
+                      }}
+                      autoFocus
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Conditional Date / Time Fields */}
@@ -1177,6 +1247,43 @@ const LeaveRequests = () => {
                 }}
               >
                 Confirm {reviewModal.action}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* MODAL 3: DELETE CONFIRMATION MODAL */}
+      {deleteConfirmLeave && createPortal(
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.45)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '24px' }}>
+          <div style={{ background: 'white', padding: '32px 28px', borderRadius: '20px', width: '100%', maxWidth: '420px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out', textAlign: 'center', boxSizing: 'border-box' }}>
+            <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: '#FEE2E2', color: '#DC2626', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 18px auto' }}>
+              <Trash2 size={26} />
+            </div>
+            <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#0F172A', margin: '0 0 10px 0' }}>Delete Request</h2>
+            <p style={{ color: '#64748B', margin: '0 0 24px 0', fontSize: '14px', lineHeight: '1.5' }}>
+              Are you sure you want to delete this {deleteConfirmLeave.category || 'leave'} request for <strong>{deleteConfirmLeave.employeeId?.name || 'Staff'}</strong>? This action cannot be undone.
+            </p>
+            
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button 
+                type="button" 
+                onClick={() => setDeleteConfirmLeave(null)} 
+                style={{ flex: 1, padding: '12px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '10px', color: '#475569', fontWeight: '600', fontSize: '14px', cursor: 'pointer', transition: 'background 0.2s' }}
+                onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} 
+                onMouseOut={(e) => e.currentTarget.style.background = 'white'}
+              >
+                Cancel
+              </button>
+              <button 
+                type="button" 
+                onClick={handleConfirmDelete} 
+                style={{ flex: 1, padding: '12px', background: '#DC2626', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', fontSize: '14px', cursor: 'pointer', transition: 'background 0.2s', boxShadow: '0 4px 6px -1px rgba(220,38,38,0.25)' }}
+                onMouseOver={(e) => e.currentTarget.style.background = '#B91C1C'} 
+                onMouseOut={(e) => e.currentTarget.style.background = '#DC2626'}
+              >
+                Yes, Delete
               </button>
             </div>
           </div>

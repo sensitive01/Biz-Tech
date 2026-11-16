@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertCircle, CheckCircle2, AlertTriangle, Info, X } from 'lucide-react';
+import { AlertCircle, CheckCircle2, AlertTriangle, Info, X, HelpCircle } from 'lucide-react';
 
 let alertListener = null;
+let confirmListener = null;
 
 /**
- * Programmatically trigger the in-app popup modal:
+ * Programmatically trigger the in-app alert popup:
  * showAlert("This email address is already assigned to an Employee account.");
  * showAlert({ title: "Email Conflict", message: "...", type: "error" });
  */
@@ -15,6 +16,23 @@ export const showAlert = (content, options = {}) => {
   } else if (typeof window !== 'undefined' && window.__showAppAlert) {
     window.__showAppAlert(content, options);
   }
+};
+
+/**
+ * Programmatically trigger the in-app confirmation popup:
+ * const ok = await showConfirm("Are you sure you want to delete this record?");
+ * if (ok) { ... }
+ */
+export const showConfirm = (content, options = {}) => {
+  return new Promise((resolve) => {
+    if (confirmListener) {
+      confirmListener(content, { ...options, onResolve: resolve });
+    } else if (typeof window !== 'undefined' && window.__showAppConfirm) {
+      window.__showAppConfirm(content, { ...options, onResolve: resolve });
+    } else {
+      resolve(false);
+    }
+  });
 };
 
 export const AlertModal = () => {
@@ -56,6 +74,7 @@ export const AlertModal = () => {
       }
 
       setModalState({
+        isConfirm: false,
         title,
         message,
         type,
@@ -64,13 +83,46 @@ export const AlertModal = () => {
       });
     };
 
-    alertListener = handleTrigger;
-    window.__showAppAlert = handleTrigger;
+    const handleConfirmTrigger = (content, opts = {}) => {
+      let message = '';
+      let title = opts.title || 'Please Confirm';
+      let type = opts.type || 'warning';
 
-    // Intercept native window.alert so all existing calls across the app automatically show this popup
+      if (typeof content === 'string') {
+        message = content;
+      } else if (content && typeof content === 'object') {
+        message = content.message || content.text || JSON.stringify(content);
+        title = content.title || title;
+        type = content.type || type;
+      }
+
+      setModalState({
+        isConfirm: true,
+        title,
+        message,
+        type,
+        confirmText: opts.confirmText || 'Confirm',
+        cancelText: opts.cancelText || 'Cancel',
+        onResolve: opts.onResolve || null
+      });
+    };
+
+    alertListener = handleTrigger;
+    confirmListener = handleConfirmTrigger;
+    window.__showAppAlert = handleTrigger;
+    window.__showAppConfirm = handleConfirmTrigger;
+
+    // Intercept native window.alert so all calls across the app show this popup
     const originalAlert = window.alert;
     window.alert = (msg) => {
       handleTrigger(msg);
+    };
+
+    // Intercept native window.confirm to eliminate native browser confirm dialogs
+    const originalConfirm = window.confirm;
+    window.confirm = (msg) => {
+      handleTrigger(msg, { title: 'Confirmation Required', type: 'warning' });
+      return false;
     };
 
     const handleCustomEvent = (e) => {
@@ -82,25 +134,12 @@ export const AlertModal = () => {
 
     return () => {
       alertListener = null;
+      confirmListener = null;
       window.alert = originalAlert;
+      window.confirm = originalConfirm;
       window.removeEventListener('app-alert-popup', handleCustomEvent);
     };
   }, []);
-
-  // Keyboard shortcut: Escape or Enter closes the modal
-  useEffect(() => {
-    if (!modalState) return;
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape' || e.key === 'Enter') {
-        e.preventDefault();
-        handleClose();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [modalState]);
-
-  if (!modalState) return null;
 
   const handleClose = () => {
     if (modalState?.onConfirm) {
@@ -109,13 +148,50 @@ export const AlertModal = () => {
     setModalState(null);
   };
 
+  const handleConfirmAction = () => {
+    if (modalState?.onResolve) {
+      modalState.onResolve(true);
+    }
+    if (modalState?.onConfirm) {
+      try { modalState.onConfirm(); } catch (err) { console.error(err); }
+    }
+    setModalState(null);
+  };
+
+  const handleCancelAction = () => {
+    if (modalState?.onResolve) {
+      modalState.onResolve(false);
+    }
+    setModalState(null);
+  };
+
+  // Keyboard shortcut: Escape cancels/closes, Enter confirms
+  useEffect(() => {
+    if (!modalState) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (modalState.isConfirm) handleCancelAction();
+        else handleClose();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (modalState.isConfirm) handleConfirmAction();
+        else handleClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [modalState]);
+
+  if (!modalState) return null;
+
   const isError = modalState.type === 'error';
   const isWarning = modalState.type === 'warning';
   const isSuccess = modalState.type === 'success';
 
   const iconBg = isError ? '#FEF2F2' : isWarning ? '#FFFBEB' : isSuccess ? '#F0FDF4' : '#EFF6FF';
   const iconColor = isError ? '#DC2626' : isWarning ? '#D97706' : isSuccess ? '#16A34A' : '#2563EB';
-  const IconComponent = isError ? AlertCircle : isWarning ? AlertTriangle : isSuccess ? CheckCircle2 : Info;
+  const IconComponent = modalState.isConfirm ? HelpCircle : isError ? AlertCircle : isWarning ? AlertTriangle : isSuccess ? CheckCircle2 : Info;
 
   return createPortal(
     <div 
@@ -127,12 +203,15 @@ export const AlertModal = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 9999999, // Ensure it always floats above any underlying modal
+        zIndex: 9999999,
         padding: '20px',
         animation: 'fadeIn 0.15s ease-out'
       }}
       onClick={(e) => {
-        if (e.target === e.currentTarget) handleClose();
+        if (e.target === e.currentTarget) {
+          if (modalState.isConfirm) handleCancelAction();
+          else handleClose();
+        }
       }}
     >
       <div 
@@ -154,7 +233,7 @@ export const AlertModal = () => {
       >
         {/* Close (X) button */}
         <button
-          onClick={handleClose}
+          onClick={modalState.isConfirm ? handleCancelAction : handleClose}
           style={{
             position: 'absolute',
             top: '14px',
@@ -217,31 +296,80 @@ export const AlertModal = () => {
           {modalState.message}
         </p>
 
-        {/* Action Button */}
-        <button
-          type="button"
-          onClick={handleClose}
-          autoFocus
-          style={{
-            width: '100%',
-            padding: '11px 20px',
-            background: isError ? '#DC2626' : '#2563EB',
-            color: 'white',
-            border: 'none',
-            borderRadius: '10px',
-            fontSize: '14px',
-            fontWeight: '600',
-            cursor: 'pointer',
-            boxShadow: isError 
-              ? '0 4px 12px rgba(220, 38, 38, 0.25)' 
-              : '0 4px 12px rgba(37, 99, 235, 0.25)',
-            transition: 'transform 0.1s, opacity 0.15s'
-          }}
-          onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.98)'}
-          onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
-        >
-          {modalState.confirmText}
-        </button>
+        {/* Action Buttons */}
+        {modalState.isConfirm ? (
+          <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
+            <button
+              type="button"
+              onClick={handleCancelAction}
+              style={{
+                flex: 1,
+                padding: '11px 16px',
+                background: 'white',
+                border: '1px solid #CBD5E1',
+                borderRadius: '10px',
+                fontSize: '14px',
+                fontWeight: '600',
+                color: '#475569',
+                cursor: 'pointer',
+                transition: 'background 0.15s'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = '#F8FAFC'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+            >
+              {modalState.cancelText || 'Cancel'}
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmAction}
+              autoFocus
+              style={{
+                flex: 1,
+                padding: '11px 16px',
+                background: isError ? '#DC2626' : '#2563EB',
+                color: 'white',
+                border: 'none',
+                borderRadius: '10px',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                boxShadow: isError 
+                  ? '0 4px 12px rgba(220, 38, 38, 0.25)' 
+                  : '0 4px 12px rgba(37, 99, 235, 0.25)',
+                transition: 'transform 0.1s, opacity 0.15s'
+              }}
+              onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.98)'}
+              onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+            >
+              {modalState.confirmText || 'Confirm'}
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={handleClose}
+            autoFocus
+            style={{
+              width: '100%',
+              padding: '11px 20px',
+              background: isError ? '#DC2626' : '#2563EB',
+              color: 'white',
+              border: 'none',
+              borderRadius: '10px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              boxShadow: isError 
+                ? '0 4px 12px rgba(220, 38, 38, 0.25)' 
+                : '0 4px 12px rgba(37, 99, 235, 0.25)',
+              transition: 'transform 0.1s, opacity 0.15s'
+            }}
+            onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.98)'}
+            onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+          >
+            {modalState.confirmText}
+          </button>
+        )}
       </div>
     </div>,
     document.body
@@ -249,4 +377,3 @@ export const AlertModal = () => {
 };
 
 export default AlertModal;
-

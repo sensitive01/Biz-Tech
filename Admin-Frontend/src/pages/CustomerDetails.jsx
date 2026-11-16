@@ -666,7 +666,11 @@ const CustomerDetails = () => {
         'Branch': e.branchName || 'Main',
         'Email': e.email || '-',
         'Contact': e.contactNumber || '-',
+        'Shift Timing': e.shiftFrom && e.shiftTo ? `${e.shiftFrom} - ${e.shiftTo}` : '-',
+        'Employment Type': e.workType || 'Full-Time',
         'Salary': e.salary || 0,
+        'Date of Joining': e.dateOfJoining ? new Date(e.dateOfJoining).toLocaleDateString() : '-',
+        'Address': e.address || '-',
         'Status': e.status || 'Active',
         'Login Access': e.email ? (e.isLoginEnabled !== false ? 'Active' : 'Disabled') : 'Not Configured'
       }));
@@ -1399,7 +1403,22 @@ const CustomerDetails = () => {
       let eCount = employees.length + 1;
       while (existingEmpIds.has(`EMP-${String(eCount).padStart(3, '0')}`)) { eCount++; }
       const suggestedEmpId = `EMP-${String(eCount).padStart(3, '0')}`;
-      initialFormData = { tenantId, employeeId: suggestedEmpId, name: '', email: '', position: '', contactNumber: '', salary: '', status: 'Active', ...overrides };
+      initialFormData = { 
+        tenantId, 
+        employeeId: suggestedEmpId, 
+        name: '', 
+        email: '', 
+        position: '', 
+        contactNumber: '', 
+        shiftFrom: '09:00',
+        shiftTo: '18:00',
+        workType: 'Full-Time',
+        salary: '', 
+        dateOfJoining: new Date().toISOString().split('T')[0],
+        address: '',
+        status: 'Active', 
+        ...overrides 
+      };
     } else if (type === 'business') {
       const existingBizIds = new Set(businesses.map(b => (b.businessId || b.businessCode || '').trim().toUpperCase()));
       let bizCount = businesses.length + 1;
@@ -1546,6 +1565,9 @@ const CustomerDetails = () => {
         salary: item.salary || 0,
         shiftFrom: item.shiftFrom || '',
         shiftTo: item.shiftTo || '',
+        workType: item.workType || 'Full-Time',
+        dateOfJoining: item.dateOfJoining ? item.dateOfJoining.substring(0, 10) : '',
+        address: item.address || '',
         status: item.status || 'Active',
         branchName: item.branchName || ''
       };
@@ -6567,7 +6589,7 @@ const CustomerDetails = () => {
                     : fieldKey === 'businessId' 
                     ? 'Business ID' 
                     : fieldKey.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-                  const isSelect = !isEmployeeFieldInEmployee && ['subscriptionStatus', 'subscriptionBillingCycle', 'status', 'isLoginEnabled', 'offeringType', 'type', 'itemType', 'transactionType', 'categoryId', 'subCategoryId', 'employeeId'].includes(fieldKey) && !fieldKey.toLowerCase().includes('phone');
+                  const isSelect = !isEmployeeFieldInEmployee && ['subscriptionStatus', 'subscriptionBillingCycle', 'status', 'isLoginEnabled', 'offeringType', 'operationsType', 'type', 'itemType', 'transactionType', 'categoryId', 'subCategoryId', 'employeeId', 'workType'].includes(fieldKey) && !fieldKey.toLowerCase().includes('phone');
 
                   return (
                     <div key={fieldKey} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -6666,6 +6688,10 @@ const CustomerDetails = () => {
                               <option value="Casual Leave">Casual Leave</option>
                               <option value="Annual Leave">Annual Leave</option>
                               <option value="Unpaid">Unpaid</option>
+                              <option value="Maternity / Paternity Leave">Maternity / Paternity Leave</option>
+                              <option value="Bereavement Leave">Bereavement Leave</option>
+                              <option value="Compensatory Off">Compensatory Off</option>
+                              <option value="Other">Other</option>
                             </>
                           )}
                           {fieldKey === 'isLoginEnabled' && (
@@ -6685,6 +6711,15 @@ const CustomerDetails = () => {
                             <>
                               <option value="purchases">Purchases & Procurement</option>
                               <option value="billing_only">Billing Only (No Purchases)</option>
+                            </>
+                          )}
+                          {fieldKey === 'workType' && (
+                            <>
+                              <option value="Full-Time">Full-Time</option>
+                              <option value="Part-Time">Part-Time</option>
+                              <option value="Shift-Based">Shift-Based</option>
+                              <option value="Contract">Contract</option>
+                              <option value="Intern">Intern</option>
                             </>
                           )}
                           {fieldKey === 'associatedBranch' && (
@@ -6711,7 +6746,7 @@ const CustomerDetails = () => {
                         />
                       ) : (
                         <input
-                          type={typeof val === 'number' || ['amount', 'price', 'salary', 'stock', 'quantity', 'notifyBeforeDays'].includes(fieldKey) ? 'number' : fieldKey.toLowerCase().includes('date') ? 'date' : 'text'}
+                          type={typeof val === 'number' || ['amount', 'price', 'salary', 'stock', 'quantity', 'notifyBeforeDays'].includes(fieldKey) ? 'number' : fieldKey.toLowerCase().includes('date') ? 'date' : ['shiftFrom', 'shiftTo', 'checkIn', 'checkOut'].includes(fieldKey) ? 'time' : 'text'}
                           value={val ?? ''}
                           placeholder={getFieldPlaceholder(fieldKey, editModalData.type)}
                           onChange={(e) => {
@@ -6777,7 +6812,7 @@ const CustomerDetails = () => {
                     const isBoolean = typeof fieldValue === 'boolean';
                     const isDate = fieldKey.toLowerCase().includes('date');
                     const isNumber = typeof fieldValue === 'number' || ['amount', 'price', 'salary', 'stock', 'quantity', 'notifyBeforeDays'].includes(fieldKey);
-                    const isSelect = !isEmployeeFieldInEmployee && ['status', 'type', 'customerType', 'offeringType', 'subscriptionStatus', 'subscriptionBillingCycle', 'itemType', 'transactionType', 'categoryId', 'subCategoryId', 'employeeId'].includes(fieldKey);
+                    const isSelect = !isEmployeeFieldInEmployee && ['status', 'type', 'customerType', 'offeringType', 'operationsType', 'subscriptionStatus', 'subscriptionBillingCycle', 'itemType', 'transactionType', 'categoryId', 'subCategoryId', 'employeeId', 'workType'].includes(fieldKey);
                     const isTextarea = ['description', 'reason', 'address'].includes(fieldKey);
                     const placeholder = getFieldPlaceholder(fieldKey, addModalData.type);
                     return (
@@ -6841,12 +6876,13 @@ const CustomerDetails = () => {
                             {fieldKey === 'status' && addModalData.type === 'leave' && (<><option value="Pending">Pending</option><option value="Approved">Approved</option><option value="Rejected">Rejected</option></>)}
                             {fieldKey === 'status' && addModalData.type === 'reminder' && (<><option value="Pending">Pending</option><option value="Completed">Completed</option></>)}
                             {fieldKey === 'status' && !['attendance','leave','reminder'].includes(addModalData.type) && (<><option value="Active">Active</option><option value="Inactive">Inactive</option><option value="Paid">Paid</option><option value="Pending">Pending</option><option value="Cancelled">Cancelled</option></>)}
-                            {fieldKey === 'type' && addModalData.type === 'leave' && (<><option value="Sick Leave">Sick Leave</option><option value="Casual Leave">Casual Leave</option><option value="Annual Leave">Annual Leave</option><option value="Unpaid">Unpaid</option></>)}
+                            {fieldKey === 'type' && addModalData.type === 'leave' && (<><option value="Sick Leave">Sick Leave</option><option value="Casual Leave">Casual Leave</option><option value="Annual Leave">Annual Leave</option><option value="Unpaid">Unpaid</option><option value="Maternity / Paternity Leave">Maternity / Paternity Leave</option><option value="Bereavement Leave">Bereavement Leave</option><option value="Compensatory Off">Compensatory Off</option><option value="Other">Other</option></>)}
                             {fieldKey === 'type' && addModalData.type === 'document' && (<><option value="Contract">Contract</option><option value="Invoice">Invoice</option><option value="Certificate">Certificate</option><option value="Report">Report</option><option value="Other">Other</option></>)}
                             {fieldKey === 'type' && addModalData.type === 'branch' && (<><option value="Store">Store</option><option value="Warehouse">Warehouse</option><option value="Office">Office</option></>)}
                             {fieldKey === 'customerType' && (<><option value="Retail">Retail</option><option value="Wholesale">Wholesale</option><option value="Corporate">Corporate</option></>)}
                             {fieldKey === 'offeringType' && (<><option value="both">Both Products & Services</option><option value="product">Products Only</option><option value="service">Services Only</option></>)}
                             {fieldKey === 'operationsType' && (<><option value="purchases">Purchases & Procurement</option><option value="billing_only">Billing Only (No Purchases)</option></>)}
+                            {fieldKey === 'workType' && (<><option value="Full-Time">Full-Time</option><option value="Part-Time">Part-Time</option><option value="Shift-Based">Shift-Based</option><option value="Contract">Contract</option><option value="Intern">Intern</option></>)}
                             {fieldKey === 'associatedBranch' && (<><option value="All Branches">All Branches</option>{branches.map(b => (<option key={b._id || b.name} value={b.name}>{b.name}</option>))}</>)}
                           </select>
                         ) : isTextarea ? (
@@ -6859,7 +6895,7 @@ const CustomerDetails = () => {
                           />
                         ) : (
                           <input
-                            type={isDate ? 'date' : isNumber ? 'number' : 'text'}
+                            type={isDate ? 'date' : isNumber ? 'number' : ['shiftFrom', 'shiftTo', 'checkIn', 'checkOut'].includes(fieldKey) ? 'time' : 'text'}
                             value={fieldValue ?? ''}
                             placeholder={placeholder}
                             onChange={(e) => setAddModalData(p => ({ ...p, formData: { ...p.formData, [fieldKey]: isNumber ? (e.target.value === '' ? '' : Number(e.target.value)) : e.target.value } }))}

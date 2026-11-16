@@ -247,11 +247,32 @@ router.put('/change-password', async (req, res) => {
 });
 
 // @route   GET /api/admin/users
-// @desc    Get all users (customers)
+// @desc    Get all users (customers) with scale metrics
 router.get('/users', async (req, res) => {
   try {
     const users = await User.find().sort({ createdAt: -1 });
-    res.json(users);
+
+    const usersWithCounts = await Promise.all(users.map(async (u) => {
+      const matchTenant = { $in: [u._id.toString(), u._id] };
+      const [brCount, empCount] = await Promise.all([
+        Branch.countDocuments({ tenantId: matchTenant }),
+        Employee.countDocuments({ tenantId: matchTenant })
+      ]);
+
+      const userObj = u.toObject();
+      userObj.branchCount = brCount;
+      userObj.branchesCount = brCount;
+      userObj.employeeCount = empCount;
+      userObj.employeesCount = empCount;
+      const bizCount = (u.businesses && u.businesses.length > 0)
+        ? u.businesses.length
+        : (u.businessType === 4 ? 1 : 0);
+      userObj.businessCount = bizCount;
+      userObj.businessesCount = bizCount;
+      return userObj;
+    }));
+
+    res.json(usersWithCounts);
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');

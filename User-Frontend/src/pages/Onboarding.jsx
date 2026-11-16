@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Store, Users, Map, Package, ArrowRight, ArrowLeft, CheckCircle2, Building2, ShoppingCart, TrendingUp, Briefcase, Menu, X, Trash2, Edit2, Plus, Boxes, Repeat } from 'lucide-react';
+import { Store, Users, Map, Package, ArrowRight, ArrowLeft, CheckCircle2, Building2, ShoppingCart, TrendingUp, Briefcase, Menu, X, Trash2, Edit2, Plus, Boxes, Repeat, AlertCircle } from 'lucide-react';
+import ThemeToggle from '../components/ThemeToggle';
 
 const DESIGNATION_OPTIONS = [
   'Store Manager',
@@ -17,6 +18,14 @@ const DESIGNATION_OPTIONS = [
   'Security Guard',
   'General Staff',
   'Other'
+];
+
+const WORK_TYPE_OPTIONS = [
+  'Full-Time',
+  'Part-Time',
+  'Shift-Based',
+  'Contract',
+  'Intern'
 ];
 
 const Onboarding = () => {
@@ -41,6 +50,7 @@ const Onboarding = () => {
   const [businesses, setBusinesses] = useState([]);
   const [showBusinessForm, setShowBusinessForm] = useState(true);
   const [editingBusinessIndex, setEditingBusinessIndex] = useState(null);
+  const [deleteConfirmBusiness, setDeleteConfirmBusiness] = useState(null);
   const [newBusiness, setNewBusiness] = useState({ 
     name: '', 
     regNo: '', 
@@ -58,7 +68,51 @@ const Onboarding = () => {
   // State for Employees
   const [employees, setEmployees] = useState([]);
   const [showEmployeeForm, setShowEmployeeForm] = useState(false);
-  const [newEmployee, setNewEmployee] = useState({ name: '', designation: '', customDesignation: '', role: '', email: '', phone: '', shiftFrom: '', shiftTo: '', salary: '', branch: 'Main Branch', business: '' });
+  const [employeeFormError, setEmployeeFormError] = useState('');
+  const [newEmployee, setNewEmployee] = useState({ 
+    employeeId: 'EMP-001',
+    name: '', 
+    designation: '', 
+    customDesignation: '', 
+    role: '', 
+    email: '', 
+    phone: '', 
+    shiftFrom: '09:00', 
+    shiftTo: '18:00', 
+    workType: 'Full-Time',
+    salary: '', 
+    dateOfJoining: new Date().toISOString().split('T')[0],
+    address: '',
+    branch: 'Main Branch', 
+    business: '' 
+  });
+
+  const getNextEmployeeId = (empList = employees) => {
+    const existingIds = new Set((empList || []).map(e => (e.employeeId || '').trim().toUpperCase()));
+    let count = (empList || []).length + 1;
+    while (existingIds.has(`EMP-${String(count).padStart(3, '0')}`)) {
+      count++;
+    }
+    return `EMP-${String(count).padStart(3, '0')}`;
+  };
+
+  const getInitialNewEmployee = (empList = employees) => ({
+    employeeId: getNextEmployeeId(empList),
+    name: '',
+    email: '',
+    phone: '',
+    designation: '',
+    customDesignation: '',
+    role: '',
+    shiftFrom: '09:00',
+    shiftTo: '18:00',
+    workType: 'Full-Time',
+    salary: '',
+    dateOfJoining: new Date().toISOString().split('T')[0],
+    address: '',
+    branch: branches[0]?.name || 'Main Branch',
+    business: (tenantType === 4 && businesses.length > 0) ? businesses[0].name : ''
+  });
 
   // Intercept browser back button while on onboarding to navigate to landing page
   useEffect(() => {
@@ -464,13 +518,7 @@ const Onboarding = () => {
                               <Edit2 size={16} />
                             </button>
                             <button
-                              onClick={() => {
-                                if (window.confirm(`Remove ${b.name}?`)) {
-                                  const updated = businesses.filter((_, i) => i !== idx);
-                                  setBusinesses(updated);
-                                  saveProgress({ businesses: updated });
-                                }
-                              }}
+                              onClick={() => setDeleteConfirmBusiness({ index: idx, name: b.name })}
                               style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', padding: '4px' }}
                               title="Delete Business"
                             >
@@ -1286,11 +1334,11 @@ const Onboarding = () => {
               onClick={() => toggleSelection('offering', 'product')}
               style={{ 
                 padding: '24px', border: `2px solid ${isProduct ? 'var(--primary-blue)' : 'var(--border-color)'}`, 
-                borderRadius: '12px', cursor: 'pointer', background: isProduct ? '#EFF6FF' : 'white', transition: 'all 0.2s', position: 'relative'
+                borderRadius: '12px', cursor: 'pointer', background: isProduct ? 'rgba(37, 99, 235, 0.12)' : 'var(--card-bg)', transition: 'all 0.2s', position: 'relative'
               }}
             >
               {isProduct && <CheckCircle2 size={20} color="var(--primary-blue)" style={{ position: 'absolute', top: '16px', right: '16px' }} />}
-              <div style={{ width: '48px', height: '48px', background: isProduct ? 'white' : '#F8FAFC', borderRadius: '12px', color: isProduct ? '#2563EB' : '#64748B', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+              <div style={{ width: '48px', height: '48px', background: isProduct ? 'var(--primary-blue)' : 'var(--bg-color)', borderRadius: '12px', color: isProduct ? '#ffffff' : 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
                 <Package size={24} />
               </div>
               <h4 style={{ fontSize: '18px', marginBottom: '8px', color: 'var(--text-title)' }}>Physical Products</h4>
@@ -1301,11 +1349,11 @@ const Onboarding = () => {
               onClick={() => toggleSelection('offering', 'service')}
               style={{ 
                 padding: '24px', border: `2px solid ${isService ? 'var(--primary-blue)' : 'var(--border-color)'}`, 
-                borderRadius: '12px', cursor: 'pointer', background: isService ? '#EFF6FF' : 'white', transition: 'all 0.2s', position: 'relative'
+                borderRadius: '12px', cursor: 'pointer', background: isService ? 'rgba(37, 99, 235, 0.12)' : 'var(--card-bg)', transition: 'all 0.2s', position: 'relative'
               }}
             >
               {isService && <CheckCircle2 size={20} color="var(--primary-blue)" style={{ position: 'absolute', top: '16px', right: '16px' }} />}
-              <div style={{ width: '48px', height: '48px', background: isService ? 'white' : '#F8FAFC', borderRadius: '12px', color: isService ? '#2563EB' : '#64748B', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+              <div style={{ width: '48px', height: '48px', background: isService ? 'var(--primary-blue)' : 'var(--bg-color)', borderRadius: '12px', color: isService ? '#ffffff' : 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
                 <Briefcase size={24} />
               </div>
               <h4 style={{ fontSize: '18px', marginBottom: '8px', color: 'var(--text-title)' }}>Services</h4>
@@ -1475,13 +1523,13 @@ const Onboarding = () => {
                 border: `2px solid ${isPurchase ? 'var(--primary-blue)' : 'var(--border-color)'}`, 
                 borderRadius: '12px', 
                 cursor: 'pointer', 
-                background: isPurchase ? '#EFF6FF' : 'white', 
+                background: isPurchase ? 'rgba(37, 99, 235, 0.12)' : 'var(--card-bg)', 
                 transition: 'all 0.2s', 
                 position: 'relative'
               }}
             >
               {isPurchase && <CheckCircle2 size={20} color="var(--primary-blue)" style={{ position: 'absolute', top: '16px', right: '16px' }} />}
-              <div style={{ width: '48px', height: '48px', background: isPurchase ? 'white' : '#F8FAFC', borderRadius: '12px', color: isPurchase ? '#2563EB' : '#64748B', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+              <div style={{ width: '48px', height: '48px', background: isPurchase ? 'var(--primary-blue)' : 'var(--bg-color)', borderRadius: '12px', color: isPurchase ? '#ffffff' : 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
                 <ShoppingCart size={24} />
               </div>
               <h4 style={{ fontSize: '18px', marginBottom: '8px', color: 'var(--text-title)' }}>Purchases & Procurement</h4>
@@ -1510,14 +1558,15 @@ const Onboarding = () => {
           
           {employees.length > 0 && !showEmployeeForm && (
             <div style={{ width: '100%', overflowX: 'auto', marginBottom: '24px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '680px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '780px' }}>
                 <thead style={{ background: '#F8FAFC' }}>
                   <tr>
                     <th style={{ padding: '12px 14px', textAlign: 'center', fontSize: '13px', color: 'var(--text-secondary)', width: '45px' }}>S.No</th>
-                    <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', minWidth: '110px' }}>Name</th>
+                    <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', minWidth: '90px' }}>ID</th>
+                    <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', minWidth: '120px' }}>Name</th>
                     <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', minWidth: '170px' }}>Role & Branch</th>
                     <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', minWidth: '160px' }}>Contact</th>
-                    <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', minWidth: '110px' }}>Shift</th>
+                    <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', minWidth: '130px' }}>Shift & Type</th>
                     <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', minWidth: '90px' }}>Salary</th>
                     <th style={{ padding: '12px 14px', textAlign: 'center', fontSize: '13px', color: 'var(--text-secondary)', width: '50px' }}>Action</th>
                   </tr>
@@ -1526,6 +1575,11 @@ const Onboarding = () => {
                   {employees.map((emp, idx) => (
                     <tr key={idx} style={{ borderTop: '1px solid var(--border-color)' }}>
                       <td style={{ padding: '12px 14px', fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '500', textAlign: 'center' }}>{idx + 1}</td>
+                      <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
+                        <span style={{ fontFamily: 'monospace', fontWeight: '600', color: 'var(--primary-blue)', background: '#EFF6FF', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', border: '1px solid #DBEAFE' }}>
+                          {emp.employeeId || `EMP-${String(idx + 1).padStart(3, '0')}`}
+                        </span>
+                      </td>
                       <td style={{ padding: '12px 14px', fontWeight: '600', color: '#0F172A', whiteSpace: 'nowrap' }}>{emp.name}</td>
                       <td style={{ padding: '12px 14px' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
@@ -1541,14 +1595,17 @@ const Onboarding = () => {
                       <td style={{ padding: '12px 14px', color: 'var(--text-secondary)' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                           <span style={{ fontSize: '13px', color: '#334155', whiteSpace: 'nowrap' }}>{emp.email}</span>
-                          <span style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{emp.phone}</span>
+                          <span style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{emp.phone || '—'}</span>
                         </div>
                       </td>
                       <td style={{ padding: '12px 14px', color: 'var(--text-secondary)', whiteSpace: 'nowrap', fontSize: '13px' }}>
-                        {emp.shiftFrom && emp.shiftTo ? `${emp.shiftFrom} - ${emp.shiftTo}` : '—'}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                          <span>{emp.shiftFrom && emp.shiftTo ? `${emp.shiftFrom} - ${emp.shiftTo}` : '09:00 - 18:00'}</span>
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{emp.workType || 'Full-Time'}</span>
+                        </div>
                       </td>
                       <td style={{ padding: '12px 14px', color: '#0F172A', fontWeight: '500', whiteSpace: 'nowrap', fontSize: '13px' }}>
-                        {emp.salary || '—'}
+                        {emp.salary ? `₹${emp.salary}` : '—'}
                       </td>
                       <td style={{ padding: '12px 14px', textAlign: 'center' }}>
                         <button
@@ -1570,19 +1627,8 @@ const Onboarding = () => {
               </table>
               <button 
                 onClick={() => {
-                  setNewEmployee({
-                    name: '',
-                    designation: '',
-                    customDesignation: '',
-                    role: '',
-                    email: '',
-                    phone: '',
-                    shiftFrom: '',
-                    shiftTo: '',
-                    salary: '',
-                    branch: branches[0]?.name || 'Main Branch',
-                    business: (tenantType === 4 && businesses.length > 0) ? businesses[0].name : ''
-                  });
+                  setNewEmployee(getInitialNewEmployee());
+                  setEmployeeFormError('');
                   setShowEmployeeForm(true);
                 }}
                 style={{ marginTop: '16px', padding: '8px 16px', background: 'white', border: '1px solid var(--primary-blue)', color: 'var(--primary-blue)', borderRadius: '6px', fontWeight: '600', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
@@ -1594,10 +1640,85 @@ const Onboarding = () => {
 
           {showEmployeeForm ? (
             <div style={{ padding: '24px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+              {employeeFormError && (
+                <div style={{
+                  background: '#FEF2F2',
+                  border: '1px solid #FECACA',
+                  borderRadius: '10px',
+                  padding: '12px 14px',
+                  marginBottom: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  color: '#991B1B',
+                  fontSize: '13px'
+                }}>
+                  <AlertCircle size={18} color="#DC2626" style={{ flexShrink: 0 }} />
+                  <span style={{ fontWeight: '600' }}>{employeeFormError}</span>
+                </div>
+              )}
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
                 <div className="input-group">
+                  <label className="input-label">Employee ID *</label>
+                  <input 
+                    type="text" 
+                    className="input-field" 
+                    placeholder="e.g. EMP-001" 
+                    value={newEmployee.employeeId} 
+                    onChange={e => {
+                      setNewEmployee({ ...newEmployee, employeeId: e.target.value });
+                      if (employeeFormError) setEmployeeFormError('');
+                    }} 
+                  />
+                </div>
+                <div className="input-group">
                   <label className="input-label">Full Name *</label>
-                  <input type="text" className="input-field" placeholder="Enter employee name" value={newEmployee.name} onChange={e => setNewEmployee({...newEmployee, name: e.target.value})} />
+                  <input 
+                    type="text" 
+                    className="input-field" 
+                    placeholder="Enter employee name" 
+                    value={newEmployee.name} 
+                    onChange={e => {
+                      setNewEmployee({ ...newEmployee, name: e.target.value });
+                      if (employeeFormError) setEmployeeFormError('');
+                    }} 
+                  />
+                </div>
+                <div className="input-group">
+                  <label className="input-label">Email Address *</label>
+                  <input 
+                    type="email" 
+                    className="input-field" 
+                    placeholder="Enter employee email" 
+                    value={newEmployee.email} 
+                    onChange={e => {
+                      setNewEmployee({ ...newEmployee, email: e.target.value });
+                      if (employeeFormError) setEmployeeFormError('');
+                    }} 
+                  />
+                </div>
+                <div className="input-group">
+                  <label className="input-label">Contact Number</label>
+                  <input 
+                    type="tel" 
+                    inputMode="numeric"
+                    maxLength={10}
+                    pattern="[0-9]{10}"
+                    className="input-field" 
+                    placeholder="Enter 10-digit number" 
+                    value={newEmployee.phone} 
+                    onChange={e => {
+                      const numericVal = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      setNewEmployee({ ...newEmployee, phone: numericVal });
+                      if (employeeFormError) setEmployeeFormError('');
+                    }} 
+                  />
+                  {newEmployee.phone && newEmployee.phone.length > 0 && newEmployee.phone.length < 10 && (
+                    <span style={{ fontSize: '12px', color: '#EF4444', marginTop: '2px', display: 'block' }}>
+                      Please enter a full 10-digit number
+                    </span>
+                  )}
                 </div>
                 <div className="input-group">
                   <label className="input-label">Designation *</label>
@@ -1611,6 +1732,7 @@ const Onboarding = () => {
                         designation: val,
                         role: prev.role || (val !== 'Other' ? val : '')
                       }));
+                      if (employeeFormError) setEmployeeFormError('');
                     }}
                   >
                     <option value="">-- Select Designation --</option>
@@ -1625,13 +1747,80 @@ const Onboarding = () => {
                       style={{ marginTop: '6px' }}
                       placeholder="Enter custom designation" 
                       value={newEmployee.customDesignation} 
-                      onChange={e => setNewEmployee({...newEmployee, customDesignation: e.target.value})} 
+                      onChange={e => setNewEmployee({ ...newEmployee, customDesignation: e.target.value })} 
                     />
                   )}
                 </div>
                 <div className="input-group">
                   <label className="input-label">Position / Role</label>
-                  <input type="text" className="input-field" placeholder="e.g. Lead Cashier, Senior Associate" value={newEmployee.role} onChange={e => setNewEmployee({...newEmployee, role: e.target.value})} />
+                  <input 
+                    type="text" 
+                    className="input-field" 
+                    placeholder="e.g. Lead Cashier / Sales" 
+                    value={newEmployee.role} 
+                    onChange={e => setNewEmployee({ ...newEmployee, role: e.target.value })} 
+                  />
+                </div>
+                <div className="input-group">
+                  <label className="input-label">Shift Timing</label>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <input 
+                      type="time" 
+                      className="input-field" 
+                      style={{ flex: 1 }} 
+                      value={newEmployee.shiftFrom} 
+                      onChange={e => setNewEmployee({ ...newEmployee, shiftFrom: e.target.value })} 
+                    />
+                    <span style={{ color: 'var(--text-muted)', fontSize: '13px', fontWeight: '500' }}>to</span>
+                    <input 
+                      type="time" 
+                      className="input-field" 
+                      style={{ flex: 1 }} 
+                      value={newEmployee.shiftTo} 
+                      onChange={e => setNewEmployee({ ...newEmployee, shiftTo: e.target.value })} 
+                    />
+                  </div>
+                </div>
+                <div className="input-group">
+                  <label className="input-label">Employment Type</label>
+                  <select
+                    className="input-field"
+                    value={newEmployee.workType}
+                    onChange={e => setNewEmployee({ ...newEmployee, workType: e.target.value })}
+                  >
+                    {WORK_TYPE_OPTIONS.map(opt => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="input-group">
+                  <label className="input-label">Monthly Salary (₹)</label>
+                  <input 
+                    type="text" 
+                    className="input-field" 
+                    placeholder="e.g. 50000" 
+                    value={newEmployee.salary} 
+                    onChange={e => setNewEmployee({ ...newEmployee, salary: e.target.value })} 
+                  />
+                </div>
+                <div className="input-group">
+                  <label className="input-label">Date of Joining</label>
+                  <input 
+                    type="date" 
+                    className="input-field" 
+                    value={newEmployee.dateOfJoining} 
+                    onChange={e => setNewEmployee({ ...newEmployee, dateOfJoining: e.target.value })} 
+                  />
+                </div>
+                <div className="input-group" style={{ gridColumn: '1 / span 2' }}>
+                  <label className="input-label">Residential / Contact Address</label>
+                  <input 
+                    type="text" 
+                    className="input-field" 
+                    placeholder="Enter employee residential address (street, city, pin code)" 
+                    value={newEmployee.address} 
+                    onChange={e => setNewEmployee({ ...newEmployee, address: e.target.value })} 
+                  />
                 </div>
 
                 {/* Branch / Business assignment tailored per tenantType */}
@@ -1710,106 +1899,88 @@ const Onboarding = () => {
                     </div>
                   </div>
                 )}
-
-                <div className="input-group">
-                  <label className="input-label">Email Address</label>
-                  <input type="email" className="input-field" placeholder="Enter employee email" value={newEmployee.email} onChange={e => setNewEmployee({...newEmployee, email: e.target.value})} />
-                </div>
-                <div className="input-group">
-                  <label className="input-label">Phone Number</label>
-                  <input 
-                    type="tel" 
-                    inputMode="numeric"
-                    maxLength={10}
-                    pattern="[0-9]{10}"
-                    className="input-field" 
-                    placeholder="Enter 10-digit number" 
-                    value={newEmployee.phone} 
-                    onChange={e => setNewEmployee({...newEmployee, phone: e.target.value.replace(/\D/g, '').slice(0, 10)})} 
-                  />
-                  {newEmployee.phone && newEmployee.phone.length > 0 && newEmployee.phone.length < 10 && (
-                    <span style={{ fontSize: '12px', color: '#EF4444', marginTop: '2px', display: 'block' }}>
-                      Please enter a full 10-digit number
-                    </span>
-                  )}
-                </div>
-                <div className="input-group">
-                  <label className="input-label">Shift Timing</label>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <input type="time" className="input-field" style={{ flex: 1 }} value={newEmployee.shiftFrom} onChange={e => setNewEmployee({...newEmployee, shiftFrom: e.target.value})} />
-                    <span style={{ color: 'var(--text-muted)' }}>to</span>
-                    <input type="time" className="input-field" style={{ flex: 1 }} value={newEmployee.shiftTo} onChange={e => setNewEmployee({...newEmployee, shiftTo: e.target.value})} />
-                  </div>
-                </div>
-                <div className="input-group">
-                  <label className="input-label">Monthly Salary</label>
-                  <input type="text" className="input-field" placeholder="₹25,000" value={newEmployee.salary} onChange={e => setNewEmployee({...newEmployee, salary: e.target.value})} />
-                </div>
               </div>
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                <button onClick={() => setShowEmployeeForm(false)} className="btn-secondary" style={{ padding: '8px 16px' }}>Cancel</button>
-                <button onClick={() => {
-                  if (newEmployee.name.trim()) {
-                    if (newEmployee.phone && newEmployee.phone.length !== 10) {
-                      alert('Phone number must be exactly 10 digits.');
-                      return;
-                    }
-                    const assignedBranch = tenantType === 2
-                      ? (branches[0]?.name || 'Main Branch')
-                      : (newEmployee.branch || branches[0]?.name || 'Main Branch');
-
-                    const finalDesignation = newEmployee.designation === 'Other'
-                      ? (newEmployee.customDesignation?.trim() || 'Other')
-                      : (newEmployee.designation?.trim() || newEmployee.role?.trim() || 'Staff');
-                    const finalRole = newEmployee.role?.trim() || finalDesignation;
-
-                    const empData = {
-                      ...newEmployee,
-                      name: newEmployee.name.trim(),
-                      designation: finalDesignation,
-                      role: finalRole,
-                      branch: assignedBranch,
-                      business: tenantType === 4 ? newEmployee.business : ''
-                    };
-                    delete empData.customDesignation;
-
-                    const updated = [...employees, empData];
-                    setEmployees(updated);
-                    setNewEmployee({
-                      name: '',
-                      designation: '',
-                      customDesignation: '',
-                      role: '',
-                      email: '',
-                      phone: '',
-                      shiftFrom: '',
-                      shiftTo: '',
-                      salary: '',
-                      branch: branches[0]?.name || 'Main Branch',
-                      business: (tenantType === 4 && businesses.length > 0) ? businesses[0].name : ''
-                    });
+                <button 
+                  onClick={() => {
+                    setEmployeeFormError('');
                     setShowEmployeeForm(false);
-                    saveProgress({ employees: updated });
+                  }} 
+                  className="btn-secondary" 
+                  style={{ padding: '8px 16px' }}
+                >
+                  Cancel
+                </button>
+                <button onClick={() => {
+                  if (!newEmployee.name.trim()) {
+                    setEmployeeFormError('Please enter the employee full name.');
+                    return;
                   }
-                }} className="btn-primary" style={{ padding: '8px 16px' }} disabled={!newEmployee.name.trim()}>Save Employee</button>
+                  if (!newEmployee.email.trim()) {
+                    setEmployeeFormError('Please enter the employee email address.');
+                    return;
+                  }
+                  if (!/\S+@\S+\.\S+/.test(newEmployee.email.trim())) {
+                    setEmployeeFormError('Please enter a valid email address.');
+                    return;
+                  }
+                  if (employees.some(e => (e.email || '').trim().toLowerCase() === newEmployee.email.trim().toLowerCase())) {
+                    setEmployeeFormError('This email address is already assigned to an employee.');
+                    return;
+                  }
+                  const finalEmpId = (newEmployee.employeeId?.trim() || getNextEmployeeId()).toUpperCase();
+                  if (employees.some(e => (e.employeeId || '').trim().toUpperCase() === finalEmpId)) {
+                    setEmployeeFormError('This Employee ID is already assigned to an employee.');
+                    return;
+                  }
+                  if (newEmployee.phone && newEmployee.phone.length !== 10) {
+                    setEmployeeFormError('Phone number must be exactly 10 digits.');
+                    return;
+                  }
+                  const assignedBranch = tenantType === 2
+                    ? (branches[0]?.name || 'Main Branch')
+                    : (newEmployee.branch || branches[0]?.name || 'Main Branch');
+
+                  const finalDesignation = newEmployee.designation === 'Other'
+                    ? (newEmployee.customDesignation?.trim() || 'Other')
+                    : (newEmployee.designation?.trim() || newEmployee.role?.trim() || 'Staff');
+                  const finalRole = newEmployee.role?.trim() || finalDesignation;
+
+                  const empData = {
+                    ...newEmployee,
+                    employeeId: finalEmpId,
+                    name: newEmployee.name.trim(),
+                    email: newEmployee.email.trim().toLowerCase(),
+                    phone: newEmployee.phone ? newEmployee.phone.trim() : '',
+                    designation: finalDesignation,
+                    role: finalRole,
+                    shiftFrom: newEmployee.shiftFrom || '09:00',
+                    shiftTo: newEmployee.shiftTo || '18:00',
+                    workType: newEmployee.workType || 'Full-Time',
+                    salary: newEmployee.salary || '',
+                    dateOfJoining: newEmployee.dateOfJoining || new Date().toISOString().split('T')[0],
+                    address: newEmployee.address ? newEmployee.address.trim() : '',
+                    branch: assignedBranch,
+                    business: tenantType === 4 ? newEmployee.business : ''
+                  };
+                  delete empData.customDesignation;
+
+                  const updated = [...employees, empData];
+                  setEmployees(updated);
+                  setNewEmployee(getInitialNewEmployee(updated));
+                  setEmployeeFormError('');
+                  setShowEmployeeForm(false);
+                  saveProgress({ employees: updated });
+                }} className="btn-primary" style={{ padding: '8px 16px' }} disabled={!newEmployee.name.trim()}>
+                  Save Employee
+                </button>
               </div>
             </div>
           ) : employees.length === 0 && (
             <div 
               onClick={() => {
-                setNewEmployee({
-                  name: '',
-                  designation: '',
-                  customDesignation: '',
-                  role: '',
-                  email: '',
-                  phone: '',
-                  shiftFrom: '',
-                  shiftTo: '',
-                  salary: '',
-                  branch: branches[0]?.name || 'Main Branch',
-                  business: (tenantType === 4 && businesses.length > 0) ? businesses[0].name : ''
-                });
+                setNewEmployee(getInitialNewEmployee());
+                setEmployeeFormError('');
                 setShowEmployeeForm(true);
               }} 
               style={{ border: '2px dashed var(--border-color)', borderRadius: '12px', padding: '32px', textAlign: 'center', background: '#F8FAFC', cursor: 'pointer', transition: 'border 0.2s' }} 
@@ -1819,7 +1990,7 @@ const Onboarding = () => {
               <div style={{ width: '48px', height: '48px', background: '#EFF6FF', borderRadius: '50%', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto' }}>
                 <Users size={24} />
               </div>
-              <h4 style={{ margin: '0 0 8px 0', fontSize: '16px', color: 'var(--text-title)' }}>Invite an Employee</h4>
+              <h4 style={{ margin: '0 0 8px 0', fontSize: '16px', color: 'var(--text-title)' }}>Add an Employee</h4>
               <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: 0 }}>
                 {tenantType === 2 
                   ? 'Add staff members to your branch.' 
@@ -1852,21 +2023,24 @@ const Onboarding = () => {
             </div>
             <span style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-title)', fontFamily: 'Plus Jakarta Sans', letterSpacing: '-0.5px' }}>BizTech</span>
           </div>
-          <button className="sidebar-close-btn" onClick={() => setIsSidebarOpen(false)}>
-            <X size={24} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <ThemeToggle size="small" />
+            <button className="sidebar-close-btn" onClick={() => setIsSidebarOpen(false)}>
+              <X size={24} />
+            </button>
+          </div>
         </div>
 
         <h3 style={{ fontSize: '14px', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-muted)', marginBottom: '32px' }}>Setup Progress</h3>
         
         <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', position: 'relative' }}>
           {/* Vertical Line */}
-          <div style={{ position: 'absolute', left: '15px', top: '20px', bottom: '20px', width: '2px', background: '#F1F5F9', zIndex: 0 }}></div>
+          <div style={{ position: 'absolute', left: '15px', top: '20px', bottom: '20px', width: '2px', background: 'var(--border-color)', zIndex: 0 }}></div>
           
           {activeSteps.map((step, idx) => {
             const isCompleted = idx < currentStep;
             const isActive = idx === currentStep;
-            const color = isCompleted ? '#10B981' : isActive ? 'var(--primary-blue)' : '#CBD5E1';
+            const color = isCompleted ? '#10B981' : isActive ? 'var(--primary-blue)' : 'var(--border-color)';
             
             return (
               <div 
@@ -1879,9 +2053,9 @@ const Onboarding = () => {
               >
                 <div style={{ 
                   width: '32px', height: '32px', borderRadius: '50%', 
-                  background: isCompleted ? '#10B981' : isActive ? 'var(--primary-blue)' : 'white', 
+                  background: isCompleted ? '#10B981' : isActive ? 'var(--primary-blue)' : 'var(--card-bg)', 
                   border: `2px solid ${color}`,
-                  color: isCompleted || isActive ? 'white' : '#CBD5E1',
+                  color: isCompleted || isActive ? 'white' : 'var(--text-muted)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                   transition: 'all 0.3s'
                 }}>
@@ -1908,9 +2082,12 @@ const Onboarding = () => {
             </div>
             <span style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-title)', fontFamily: 'Plus Jakarta Sans', letterSpacing: '-0.5px' }}>BizTech</span>
           </div>
-          <button className="sidebar-close-btn" onClick={() => setIsSidebarOpen(true)}>
-            <Menu size={24} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <ThemeToggle size="small" />
+            <button className="sidebar-close-btn" onClick={() => setIsSidebarOpen(true)}>
+              <Menu size={24} />
+            </button>
+          </div>
         </div>
 
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
@@ -1924,7 +2101,8 @@ const Onboarding = () => {
           
           <button 
             onClick={handleBack} 
-            style={{ padding: '12px 24px', background: 'white', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-title)', fontWeight: '600', fontSize: '15px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+            className="btn-secondary"
+            style={{ padding: '12px 24px', borderRadius: '8px', fontSize: '15px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
           >
             <ArrowLeft size={18} /> Back
           </button>
@@ -1951,6 +2129,45 @@ const Onboarding = () => {
         </div>
 
       </div>
+
+      {/* Delete Business Confirmation Popup Modal */}
+      {deleteConfirmBusiness && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.55)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '20px' }}>
+          <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', padding: '30px 24px 22px 24px', borderRadius: '18px', width: '100%', maxWidth: '420px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', textAlign: 'center', boxSizing: 'border-box' }}>
+            <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: '#FEE2E2', color: '#DC2626', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto' }}>
+              <Trash2 size={26} />
+            </div>
+            <h3 style={{ fontSize: '19px', fontWeight: '700', color: 'var(--text-title)', margin: '0 0 8px 0' }}>Remove Business</h3>
+            <p style={{ color: 'var(--text-secondary)', margin: '0 0 24px 0', fontSize: '14px', lineHeight: '1.5' }}>
+              Are you sure you want to remove <strong>{deleteConfirmBusiness.name}</strong> from your conglomerate setup?
+            </p>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button 
+                type="button" 
+                onClick={() => setDeleteConfirmBusiness(null)} 
+                className="btn-secondary"
+                style={{ flex: 1, padding: '11px', borderRadius: '10px', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button 
+                type="button" 
+                onClick={() => {
+                  const updated = businesses.filter((_, i) => i !== deleteConfirmBusiness.index);
+                  setBusinesses(updated);
+                  saveProgress({ businesses: updated });
+                  setDeleteConfirmBusiness(null);
+                }} 
+                style={{ flex: 1, padding: '11px', background: '#DC2626', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 12px rgba(220,38,38,0.25)', transition: 'background 0.15s' }}
+                onMouseOver={(e) => e.currentTarget.style.background = '#B91C1C'} 
+                onMouseOut={(e) => e.currentTarget.style.background = '#DC2626'}
+              >
+                Yes, Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

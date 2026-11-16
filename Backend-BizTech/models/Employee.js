@@ -12,9 +12,11 @@ const employeeSchema = new mongoose.Schema({
   status: { type: String, enum: ['Active', 'Inactive', 'On Leave'], default: 'Active' },
   shiftFrom: { type: String, default: '' },
   shiftTo: { type: String, default: '' },
+  workType: { type: String, default: 'Full-Time' },
+  address: { type: String, default: '' },
   businessName: { type: String, default: '' },
   branchName: { type: String, default: '' },
-  branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' }, // Optional, will be set for type 3
+  branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
   tenantId: { type: String, default: 'default_tenant' },
   password: { type: String },
   isLoginEnabled: { type: Boolean, default: true },

@@ -94,6 +94,14 @@ const DESIGNATION_OPTIONS = [
   'Other'
 ];
 
+const WORK_TYPE_OPTIONS = [
+  'Full-Time',
+  'Part-Time',
+  'Shift-Based',
+  'Contract',
+  'Intern'
+];
+
 const Employees = () => {
   const [employees, setEmployees] = useState([]);
   const [branches, setBranches] = useState([]);
@@ -224,6 +232,10 @@ const Employees = () => {
     contactNumber: '',
     salary: '',
     dateOfJoining: '',
+    shiftFrom: '09:00',
+    shiftTo: '18:00',
+    workType: 'Full-Time',
+    address: '',
     status: 'Active',
     branchId: ''
   });
@@ -252,7 +264,11 @@ const Employees = () => {
       position: '',
       contactNumber: '',
       salary: '',
-      dateOfJoining: '',
+      dateOfJoining: new Date().toISOString().split('T')[0],
+      shiftFrom: '09:00',
+      shiftTo: '18:00',
+      workType: 'Full-Time',
+      address: '',
       status: 'Active',
       branchId: ''
     });
@@ -275,6 +291,10 @@ const Employees = () => {
       contactNumber: employee.contactNumber || '',
       salary: employee.salary !== undefined ? employee.salary : '',
       dateOfJoining: employee.dateOfJoining ? employee.dateOfJoining.substring(0, 10) : '',
+      shiftFrom: employee.shiftFrom || '',
+      shiftTo: employee.shiftTo || '',
+      workType: employee.workType || 'Full-Time',
+      address: employee.address || '',
       status: employee.status || 'Active',
       branchId: employee.branchId?._id || employee.branchId || ''
     });
@@ -378,6 +398,10 @@ const Employees = () => {
           contactNumber: '',
           salary: '',
           dateOfJoining: '',
+          shiftFrom: '09:00',
+          shiftTo: '18:00',
+          workType: 'Full-Time',
+          address: '',
           status: 'Active',
           branchId: ''
         });
@@ -572,8 +596,11 @@ const Employees = () => {
                 'Business': e.businessName || '',
                 'Branch': e.branchName || (e.branchId?.name || ''),
                 'Phone': e.contactNumber || '',
+                'Shift Timing': e.shiftFrom && e.shiftTo ? `${e.shiftFrom} - ${e.shiftTo}` : '',
+                'Employment Type': e.workType || 'Full-Time',
                 'Salary': e.salary || '',
                 'Date of Joining': e.dateOfJoining ? new Date(e.dateOfJoining).toLocaleDateString() : '',
+                'Address': e.address || '',
                 'Status': e.status || 'Active'
               }));
               exportToCSV(exportData, 'Employees');
@@ -926,6 +953,27 @@ const Employees = () => {
                   />
                 </div>
                 <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>Contact Number</label>
+                  <input
+                    type="tel"
+                    inputMode="numeric"
+                    maxLength={10}
+                    pattern="[0-9]{10}"
+                    value={formData.contactNumber}
+                    onChange={e => {
+                      const numericVal = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      setFormData({ ...formData, contactNumber: numericVal });
+                    }}
+                    placeholder="Enter 10-digit number"
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box' }}
+                  />
+                  {formData.contactNumber && formData.contactNumber.length > 0 && formData.contactNumber.length < 10 && (
+                    <span style={{ fontSize: '12px', color: '#EF4444', marginTop: '4px', display: 'block' }}>
+                      Please enter a full 10-digit number
+                    </span>
+                  )}
+                </div>
+                <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>Designation *</label>
                   <select
                     value={formData.designation}
@@ -967,25 +1015,34 @@ const Employees = () => {
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>Contact Number</label>
-                  <input
-                    type="tel"
-                    inputMode="numeric"
-                    maxLength={10}
-                    pattern="[0-9]{10}"
-                    value={formData.contactNumber}
-                    onChange={e => {
-                      const numericVal = e.target.value.replace(/\D/g, '').slice(0, 10);
-                      setFormData({ ...formData, contactNumber: numericVal });
-                    }}
-                    placeholder="Enter 10-digit number"
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box' }}
-                  />
-                  {formData.contactNumber && formData.contactNumber.length > 0 && formData.contactNumber.length < 10 && (
-                    <span style={{ fontSize: '12px', color: '#EF4444', marginTop: '4px', display: 'block' }}>
-                      Please enter a full 10-digit number
-                    </span>
-                  )}
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>Shift Timing</label>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <input
+                      type="time"
+                      value={formData.shiftFrom}
+                      onChange={e => setFormData({ ...formData, shiftFrom: e.target.value })}
+                      style={{ flex: 1, padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box' }}
+                    />
+                    <span style={{ color: '#64748B', fontSize: '13px', fontWeight: '500' }}>to</span>
+                    <input
+                      type="time"
+                      value={formData.shiftTo}
+                      onChange={e => setFormData({ ...formData, shiftTo: e.target.value })}
+                      style={{ flex: 1, padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box' }}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>Employment Type</label>
+                  <select
+                    value={formData.workType}
+                    onChange={e => setFormData({ ...formData, workType: e.target.value })}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box', background: 'white' }}
+                  >
+                    {WORK_TYPE_OPTIONS.map(opt => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>Salary (₹)</label>
@@ -1003,6 +1060,16 @@ const Employees = () => {
                     type="date"
                     value={formData.dateOfJoining}
                     onChange={e => setFormData({ ...formData, dateOfJoining: e.target.value })}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div style={{ gridColumn: '1 / span 2' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>Residential / Contact Address</label>
+                  <input
+                    type="text"
+                    value={formData.address}
+                    onChange={e => setFormData({ ...formData, address: e.target.value })}
+                    placeholder="Enter employee residential address (street, city, pin code)"
                     style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', color: '#0F172A', boxSizing: 'border-box' }}
                   />
                 </div>
@@ -1145,6 +1212,24 @@ const Employees = () => {
                 <p style={{ margin: '0 0 4px 0', fontSize: '11px', color: '#64748B', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Date of Joining</p>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: 0, fontSize: '14px', color: '#0F172A', fontWeight: '500' }}>
                   <Calendar size={15} color="#64748B" /> {viewEmployee.dateOfJoining ? new Date(viewEmployee.dateOfJoining).toLocaleDateString() : 'N/A'}
+                </div>
+              </div>
+              <div style={{ padding: '12px 14px', background: '#F8FAFC', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
+                <p style={{ margin: '0 0 4px 0', fontSize: '11px', color: '#64748B', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Shift Timing</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: 0, fontSize: '14px', color: '#0F172A', fontWeight: '500' }}>
+                  <Clock size={15} color="#64748B" /> {viewEmployee.shiftFrom && viewEmployee.shiftTo ? `${viewEmployee.shiftFrom} - ${viewEmployee.shiftTo}` : (viewEmployee.shiftFrom || viewEmployee.shiftTo || 'Standard')}
+                </div>
+              </div>
+              <div style={{ padding: '12px 14px', background: '#F8FAFC', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
+                <p style={{ margin: '0 0 4px 0', fontSize: '11px', color: '#64748B', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Employment Type</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: 0, fontSize: '14px', color: '#0F172A', fontWeight: '500' }}>
+                  <Briefcase size={15} color="#64748B" /> {viewEmployee.workType || 'Full-Time'}
+                </div>
+              </div>
+              <div style={{ gridColumn: '1 / span 2', padding: '12px 14px', background: '#F8FAFC', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
+                <p style={{ margin: '0 0 4px 0', fontSize: '11px', color: '#64748B', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Residential / Contact Address</p>
+                <div style={{ margin: 0, fontSize: '14px', color: '#0F172A', fontWeight: '500' }}>
+                  {viewEmployee.address || 'N/A'}
                 </div>
               </div>
               <div style={{ padding: '12px 14px', background: '#F8FAFC', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
