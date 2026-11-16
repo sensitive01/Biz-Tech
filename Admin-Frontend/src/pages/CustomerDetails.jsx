@@ -219,12 +219,6 @@ const CustomerDetails = () => {
   const subcategories = details?.subcategories || [];
   const investors = details?.investors || [];
 
-  const hasBothProductAndService = useMemo(() => {
-    const off = customer.offeringType || customer.businessOfferingType;
-    if (off === 'both') return true;
-    if (Array.isArray(customer.offerings) && customer.offerings.includes('product') && customer.offerings.includes('service')) return true;
-    return false;
-  }, [customer]);
 
   const financials = details?.financials || {
     totalSales: sales.reduce((sum, s) => sum + (Number(s.amount) || 0), 0),
@@ -5374,27 +5368,25 @@ const CustomerDetails = () => {
                   <FileText size={16} /> Quotation (Bulk Orders) ({quotations.length})
                 </button>
 
-                {hasBothProductAndService && (
-                  <button
-                    type="button"
-                    onClick={() => setSalesSubTab('barcodes')}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      padding: '9px 18px',
-                      borderRadius: '8px',
-                      border: salesSubTab === 'barcodes' ? '1px solid #7C3AED' : '1px solid #CBD5E1',
-                      background: salesSubTab === 'barcodes' ? '#F5F3FF' : 'white',
-                      color: salesSubTab === 'barcodes' ? '#6D28D9' : '#64748B',
-                      fontWeight: '700',
-                      fontSize: '13px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <Barcode size={16} /> Bar Code ({barcodes.length})
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => setSalesSubTab('barcodes')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '9px 18px',
+                    borderRadius: '8px',
+                    border: salesSubTab === 'barcodes' ? '1px solid #7C3AED' : '1px solid #CBD5E1',
+                    background: salesSubTab === 'barcodes' ? '#F5F3FF' : 'white',
+                    color: salesSubTab === 'barcodes' ? '#6D28D9' : '#64748B',
+                    fontWeight: '700',
+                    fontSize: '13px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Barcode size={16} /> Bar Code ({barcodes.length})
+                </button>
               </div>
 
               {salesSubTab === 'invoices' && (
@@ -5630,15 +5622,15 @@ const CustomerDetails = () => {
                 </div>
               )}
 
-              {/* SUB-TAB 3: BAR CODE (ONLY FOR HYBRID USERS WITH BOTH PRODUCT & SERVICE) */}
-              {salesSubTab === 'barcodes' && hasBothProductAndService && (
+              {/* SUB-TAB 3: BAR CODE */}
+              {salesSubTab === 'barcodes' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div style={{ background: '#FAF5FF', border: '1px solid #E9D5FF', borderRadius: '12px', padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <Barcode size={20} color="#7C3AED" />
                       <div>
-                        <div style={{ fontSize: '13px', fontWeight: '700', color: '#6B21A8' }}>Hybrid Offering Barcode Engine</div>
-                        <div style={{ fontSize: '12px', color: '#7E22CE' }}>Strictly active for accounts offering both Physical Products and Billable Services. Generate thermal stickers for packaging.</div>
+                        <div style={{ fontSize: '13px', fontWeight: '700', color: '#6B21A8' }}>Barcode Engine & Asset Tracking</div>
+                        <div style={{ fontSize: '12px', color: '#7E22CE' }}>Generate and print thermal stickers for products and services packaging.</div>
                       </div>
                     </div>
                   </div>

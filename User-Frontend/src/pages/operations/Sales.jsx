@@ -24,7 +24,6 @@ import {
   CheckCircle2,
   Printer,
   Sparkles,
-  Layers,
   Package,
   Wrench,
   Check
@@ -168,63 +167,23 @@ const Sales = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
 
-  // Check offeringType to determine if user offers BOTH product and service
-  const storedUser = useMemo(() => {
-    try {
-      return JSON.parse(localStorage.getItem('user') || '{}');
-    } catch {
-      return {};
-    }
-  }, []);
-
-  // Strictly only show Barcode tab if BOTH product and service are selected!
-  const hasBothProductAndService = useMemo(() => {
-    // 1. Check offerings array from storedUser or localStorage
-    const offerings = storedUser?.offerings || (() => {
-      try {
-        return JSON.parse(localStorage.getItem('userOfferings') || 'null');
-      } catch {
-        return null;
-      }
-    })();
-
-    if (Array.isArray(offerings)) {
-      return offerings.includes('product') && offerings.includes('service');
-    }
-
-    // 2. Check direct offeringType from storedUser or localStorage
-    const directType = storedUser?.businessOfferingType || storedUser?.offeringType || localStorage.getItem('businessOfferingType');
-    if (directType === 'both') return true;
-    if (directType === 'product' || directType === 'service') return false;
-
-    // 3. For Type 4 conglomerates, check if across businesses there are both products and services
-    if (Array.isArray(storedUser?.businesses) && storedUser.businesses.length > 0) {
-      const hasProd = storedUser.businesses.some(b => b.offeringType === 'product' || b.offeringType === 'both');
-      const hasServ = storedUser.businesses.some(b => b.offeringType === 'service' || b.offeringType === 'both');
-      return hasProd && hasServ;
-    }
-
-    // Strictly default to false! Do NOT show barcode unless both product and service are confirmed selected!
-    return false;
-  }, [storedUser]);
-
   // Active Tab: 'Sales' (Billing), 'Purchase', 'Quotation', 'Barcode'
   const initialType = useMemo(() => {
     if (tabParam === 'purchase') return 'Purchase';
     if (tabParam === 'quotation') return 'Quotation';
-    if (tabParam === 'barcode' && hasBothProductAndService) return 'Barcode';
+    if (tabParam === 'barcode') return 'Barcode';
     return 'Sales';
-  }, [tabParam, hasBothProductAndService]);
+  }, [tabParam]);
 
   const [type, setType] = useState(initialType);
 
-  // Safety guard: If active type is 'Barcode' but user does NOT have both product and service, revert to 'Sales'
+  // Synchronize active tab with URL query parameter
   useEffect(() => {
-    if (type === 'Barcode' && !hasBothProductAndService) {
-      setType('Sales');
-      setSearchParams({ tab: 'sales' });
-    }
-  }, [type, hasBothProductAndService, setSearchParams]);
+    if (tabParam === 'purchase') setType('Purchase');
+    else if (tabParam === 'quotation') setType('Quotation');
+    else if (tabParam === 'barcode') setType('Barcode');
+    else if (tabParam === 'sales') setType('Sales');
+  }, [tabParam]);
 
   const [salesItems, setSalesItems] = useState([]);
   const [purchaseItems, setPurchaseItems] = useState([]);
@@ -249,8 +208,6 @@ const Sales = () => {
       return DEFAULT_BARCODES;
     }
   });
-
-  const [scannedMatch, setScannedMatch] = useState(null);
 
   // Modals state
   const [showModal, setShowModal] = useState(false);
@@ -331,7 +288,6 @@ const Sales = () => {
     setSearchParams({ tab: newType.toLowerCase() });
     setCurrentPage(1);
     setSearch('');
-    setScannedMatch(null);
   };
 
   const requestSort = (key) => {
@@ -593,19 +549,9 @@ const Sales = () => {
     }
   };
 
-  // Search/Barcode scan lookup handler
+  // Search handler
   const handleSearchChange = (val) => {
     setSearch(val);
-    if (type === 'Barcode' && val.trim().length >= 4) {
-      const match = barcodes.find(b => 
-        b.code.toLowerCase().includes(val.toLowerCase()) || 
-        b.sku.toLowerCase().includes(val.toLowerCase()) ||
-        b.name.toLowerCase().includes(val.toLowerCase())
-      );
-      setScannedMatch(match || null);
-    } else {
-      setScannedMatch(null);
-    }
   };
 
   // Determine active item list
@@ -838,41 +784,39 @@ const Sales = () => {
               </span>
             </button>
 
-            {/* 4. Barcode Tab (Dynamic: Only for users with both Product and Service) */}
-            {hasBothProductAndService && (
-              <button
-                type="button"
-                onClick={() => handleTabChange('Barcode')}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '8px 18px',
-                  borderRadius: '8px',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  background: type === 'Barcode' ? 'white' : 'transparent',
-                  color: type === 'Barcode' ? '#7C3AED' : '#64748B',
-                  border: 'none',
-                  boxShadow: type === 'Barcode' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                <Barcode size={15} />
-                <span>Bar Code</span>
-                <span style={{
-                  fontSize: '10px',
-                  padding: '2px 6px',
-                  borderRadius: '99px',
-                  background: type === 'Barcode' ? '#EDE9FE' : '#E2E8F0',
-                  color: type === 'Barcode' ? '#6D28D9' : '#64748B',
-                  fontWeight: '700'
-                }}>
-                  Product+Service
-                </span>
-              </button>
-            )}
+            {/* 4. Barcode Tab (Always available like Quotation) */}
+            <button
+              type="button"
+              onClick={() => handleTabChange('Barcode')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 18px',
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontWeight: '600',
+                background: type === 'Barcode' ? 'white' : 'transparent',
+                color: type === 'Barcode' ? '#7C3AED' : '#64748B',
+                border: 'none',
+                boxShadow: type === 'Barcode' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <Barcode size={15} />
+              <span>Bar Code</span>
+              <span style={{
+                fontSize: '11px',
+                padding: '2px 7px',
+                borderRadius: '99px',
+                background: type === 'Barcode' ? '#EDE9FE' : '#E2E8F0',
+                color: type === 'Barcode' ? '#6D28D9' : '#64748B',
+                fontWeight: '700'
+              }}>
+                {barcodes.length}
+              </span>
+            </button>
           </div>
         </div>
 
@@ -1054,49 +998,6 @@ const Sales = () => {
         )}
       </div>
 
-      {/* Interactive Live Barcode Scanner / Instant Lookup (For Barcode Tab) */}
-      {type === 'Barcode' && (
-        <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '16px 20px', marginBottom: '24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Barcode size={22} color="#7C3AED" />
-            <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#0F172A' }}>Barcode Scanner & Rapid Item Lookup</h4>
-            <span style={{ fontSize: '11px', background: '#EDE9FE', color: '#6D28D9', padding: '2px 8px', borderRadius: '12px', fontWeight: '600' }}>Active Scanner Mode</span>
-          </div>
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-            <div style={{ flex: '1 1 320px', position: 'relative' }}>
-              <Search size={18} color="#94A3B8" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
-              <input
-                type="text"
-                placeholder="Scan with handheld scanner or type barcode / SKU / name..."
-                value={search}
-                onChange={(e) => handleSearchChange(e.target.value)}
-                style={{ width: '100%', padding: '11px 14px 11px 42px', borderRadius: '10px', border: '1px solid #CBD5E1', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }}
-              />
-            </div>
-          </div>
-
-          {/* Scanned Match Result Callout */}
-          {scannedMatch && (
-            <div style={{ background: '#F0FDF4', border: '1px solid #86EFAC', borderRadius: '10px', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', animation: 'fadeIn 0.2s ease' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <CheckCircle2 size={24} color="#16A34A" />
-                <div>
-                  <div style={{ fontWeight: '700', fontSize: '14px', color: '#166534' }}>Scanned Match: {scannedMatch.name}</div>
-                  <div style={{ fontSize: '12px', color: '#15803D' }}>Barcode: {scannedMatch.code} • SKU: {scannedMatch.sku} • Price: ₹{scannedMatch.price}</div>
-                </div>
-              </div>
-              <button 
-                type="button"
-                onClick={() => setPrintingBarcode(scannedMatch)}
-                style={{ padding: '8px 16px', background: '#16A34A', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
-              >
-                <Printer size={14} /> Print Label
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Control Bar: Search, Date Filter, Export */}
       <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ flex: '0 1 300px', minWidth: '240px', position: 'relative' }}>
@@ -1235,7 +1136,7 @@ const Sales = () => {
               </tbody>
             </table>
           ) : type === 'Barcode' ? (
-            /* VIEW B: BARCODE TABLE (ONLY FOR PRODUCT + SERVICE USERS) */
+            /* VIEW B: BARCODE TABLE */
             <table style={{ width: '100%', minWidth: '950px', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>
                 <tr style={{ background: '#F8FAFC' }}>
@@ -1752,7 +1653,7 @@ const Sales = () => {
         </div>, document.body
       )}
 
-      {/* MODAL 5: ADD / GENERATE BARCODE (HYBRID PRODUCT & SERVICE) */}
+      {/* MODAL 5: ADD / GENERATE BARCODE */}
       {showBarcodeModal && createPortal(
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.45)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '24px' }}>
           <div style={{ background: 'white', padding: '32px', borderRadius: '20px', width: '100%', maxWidth: '520px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>

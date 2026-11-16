@@ -342,16 +342,14 @@ const Products = () => {
             <button onClick={() => setActiveTab('products')} style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '14px', fontWeight: '600', background: activeTab === 'products' ? 'white' : 'transparent', color: activeTab === 'products' ? '#0F172A' : '#64748B', border: 'none', boxShadow: activeTab === 'products' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: 'all 0.2s' }}>
               {offeringType === 'service' ? 'Services' : offeringType === 'product' ? 'Products' : 'Products & Services'}
             </button>
-            {isBothProductAndService && (
-              <button 
-                type="button"
-                onClick={() => navigate('/tenant/sales?tab=barcode')} 
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '6px', fontSize: '13px', fontWeight: '700', background: '#EDE9FE', color: '#6D28D9', border: '1px solid #DDD6FE', cursor: 'pointer', transition: 'all 0.2s' }}
-                title="Manage Barcodes for Products and Services"
-              >
-                <Barcode size={15} /> Barcode Manager
-              </button>
-            )}
+            <button 
+              type="button"
+              onClick={() => navigate('/tenant/sales?tab=barcode')} 
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '6px', fontSize: '13px', fontWeight: '700', background: '#EDE9FE', color: '#6D28D9', border: '1px solid #DDD6FE', cursor: 'pointer', transition: 'all 0.2s' }}
+              title="Manage Barcodes for Products and Services"
+            >
+              <Barcode size={15} /> Barcode Manager
+            </button>
           </div>
           
           <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'space-between' }}>
