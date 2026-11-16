@@ -18,11 +18,6 @@ export const showAlert = (content, options = {}) => {
   }
 };
 
-/**
- * Programmatically trigger the in-app confirmation popup:
- * const ok = await showConfirm("Are you sure you want to delete this record?");
- * if (ok) { ... }
- */
 export const showConfirm = (content, options = {}) => {
   return new Promise((resolve) => {
     if (confirmListener) {

@@ -61,7 +61,7 @@ const CustomerDetails = () => {
   const [loading, setLoading] = useState(true);
   const [details, setDetails] = useState(null);
   const [error, setError] = useState(null);
-  const [activeSection, setActiveSection] = useState('overview');
+  const [activeSection, setActiveSection] = useState('dashboard');
   const [searchTerm, setSearchTerm] = useState('');
   const [previewReceiptUrl, setPreviewReceiptUrl] = useState(null);
   const [productTab, setProductTab] = useState('categories');
@@ -231,6 +231,16 @@ const CustomerDetails = () => {
     totalExpenses: expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0),
     totalPurchases: purchases.reduce((sum, p) => sum + (Number(p.amount) || 0), 0)
   };
+
+  const actualTotalSales = useMemo(() => {
+    const rawSum = (sales || []).reduce((sum, s) => sum + (Number(s.finalTotal || s.totalAmount || s.amount) || 0), 0);
+    return rawSum > 0 ? rawSum : (financials?.totalSales || 0);
+  }, [sales, financials]);
+
+  const actualTotalExpenses = useMemo(() => {
+    const rawSum = (expenses || []).reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+    return rawSum > 0 ? rawSum : (financials?.totalExpenses || 0);
+  }, [expenses, financials]);
 
   const counts = details?.counts || {
     branches: branches.length,
@@ -1705,6 +1715,7 @@ const CustomerDetails = () => {
 
   // Sidebar navigation configuration
   const sidebarItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutGrid, count: null },
     ...(businessType === 4 || businesses.length > 0 ? [{ id: 'businesses', label: 'Businesses', icon: Building2, count: counts.businesses }] : []),
     ...(businessType >= 3 ? [{ id: 'branches', label: 'Branches', icon: Map, count: counts.branches }] : []),
     ...((businessType === 3 || businessType === 4) ? [{ id: 'investors', label: 'Investors', icon: Briefcase, count: counts.investors || investors.length }] : []),
@@ -1987,6 +1998,366 @@ const CustomerDetails = () => {
         {/* Main Scrollable Canvas */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
           
+          {/* ======================================================== */}
+          {/* SECTION 0: WORKSPACE DASHBOARD                           */}
+          {/* ======================================================== */}
+          {activeSection === 'dashboard' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '1280px', margin: '0 auto', width: '100%' }}>
+              
+              {/* Dashboard Workspace Header */}
+              <div style={{
+                background: 'white',
+                borderRadius: '16px',
+                border: '1px solid #E2E8F0',
+                padding: '24px 28px',
+                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '20px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '18px' }}>
+                  <div style={{
+                    width: '56px',
+                    height: '56px',
+                    borderRadius: '14px',
+                    background: 'linear-gradient(135deg, #2563EB, #1D4ED8)',
+                    color: 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 8px 16px -4px rgba(37,99,235,0.3)',
+                    flexShrink: 0
+                  }}>
+                    <LayoutGrid size={28} />
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '6px' }}>
+                      <h1 style={{ fontSize: '24px', fontWeight: '800', color: '#0F172A', margin: 0, letterSpacing: '-0.5px' }}>
+                        {customer.businessName || `${customer.fullName}'s Workspace`}
+                      </h1>
+                      <span style={{
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        padding: '3px 10px',
+                        borderRadius: '20px',
+                        background: '#EFF6FF',
+                        color: '#1D4ED8',
+                        border: '1px solid #BFDBFE'
+                      }}>
+                        {typeLabel}
+                      </span>
+                      <span style={{
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        padding: '3px 10px',
+                        borderRadius: '20px',
+                        background: customer.subscriptionStatus === 'Active' ? '#ECFDF5' : '#FEF3C7',
+                        color: customer.subscriptionStatus === 'Active' ? '#065F46' : '#92400E',
+                        border: `1px solid ${customer.subscriptionStatus === 'Active' ? '#A7F3D0' : '#FDE68A'}`
+                      }}>
+                        ● {customer.subscriptionStatus || 'Active Tenant'}
+                      </span>
+                    </div>
+                    <p style={{ color: '#64748B', fontSize: '13px', margin: 0, display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+                      <span><strong>Primary Contact:</strong> {customer.fullName} ({customer.email})</span>
+                      {customer.phone && <span>• <strong>Phone:</strong> {customer.phone}</span>}
+                      <span>• <strong>Tenant ID:</strong> TD: {customer.tenantId || (customer._id ? String(customer._id).slice(-4).toUpperCase() : 'N/A')}</span>
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveSection('overview');
+                      setIsEditingProfile(false);
+                    }}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '8px 14px',
+                      background: '#F8FAFC',
+                      border: '1px solid #CBD5E1',
+                      borderRadius: '8px',
+                      color: '#334155',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <UserCheck size={14} color="#2563EB" /> Customer Profile
+                  </button>
+                  <button
+                    type="button"
+                    onClick={fetchCustomerDetails}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '8px 14px',
+                      background: '#2563EB',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: 'white',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 4px rgba(37,99,235,0.2)'
+                    }}
+                  >
+                    <RefreshCw size={14} /> Refresh Data
+                  </button>
+                </div>
+              </div>
+
+              {/* Single Branch Highlight Card for Type 2 */}
+              {businessType === 2 && branches.length > 0 && (
+                <div style={{
+                  background: 'white',
+                  borderRadius: '16px',
+                  border: '1px solid #E2E8F0',
+                  padding: '20px 24px',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '16px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Store size={24} />
+                    </div>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                        <h3 style={{ fontSize: '17px', fontWeight: '700', color: '#0F172A', margin: 0 }}>
+                          {branches[0]?.name || 'Main Branch'}
+                        </h3>
+                        <span style={{ fontSize: '11px', fontWeight: '600', background: '#DBEAFE', color: '#1D4ED8', padding: '2px 8px', borderRadius: '10px' }}>
+                          Single Branch Archetype
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap', fontSize: '13px', color: '#64748B' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          <MapPin size={14} color="#2563EB" /> {branches[0]?.location || 'Address not configured'}
+                        </span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          <UserCheck size={14} color="#16A34A" /> Manager: <strong>{branches[0]?.manager || 'Not Assigned'}</strong>
+                        </span>
+                        {branches[0]?.phone && (
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            <Phone size={14} color="#F59E0B" /> {branches[0].phone}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Primary KPI Metrics Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+                {/* Gross Revenue / Sales */}
+                <div style={{ background: 'white', borderRadius: '14px', border: '1px solid #E2E8F0', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                    <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#ECFDF5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <IndianRupee size={20} />
+                    </div>
+                    <span style={{ fontSize: '11px', fontWeight: '700', color: '#059669', background: '#D1FAE5', padding: '3px 8px', borderRadius: '12px' }}>
+                      {counts.sales} Records
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '13px', color: '#64748B', fontWeight: '500', marginBottom: '4px' }}>Gross Sales / Revenue</div>
+                  <div style={{ fontSize: '24px', fontWeight: '800', color: '#0F172A' }}>₹{actualTotalSales.toLocaleString('en-IN')}</div>
+                </div>
+
+                {/* Total Expenses */}
+                <div style={{ background: 'white', borderRadius: '14px', border: '1px solid #E2E8F0', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                    <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#FEF3C7', color: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Receipt size={20} />
+                    </div>
+                    <span style={{ fontSize: '11px', fontWeight: '700', color: '#D97706', background: '#FDE68A', padding: '3px 8px', borderRadius: '12px' }}>
+                      {counts.expenses} Logs
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '13px', color: '#64748B', fontWeight: '500', marginBottom: '4px' }}>Logged Expenses</div>
+                  <div style={{ fontSize: '24px', fontWeight: '800', color: '#0F172A' }}>₹{actualTotalExpenses.toLocaleString('en-IN')}</div>
+                </div>
+
+                {/* Workforce Staff */}
+                <div style={{ background: 'white', borderRadius: '14px', border: '1px solid #E2E8F0', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                    <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Users size={20} />
+                    </div>
+                    <span style={{ fontSize: '11px', fontWeight: '700', color: '#2563EB', background: '#DBEAFE', padding: '3px 8px', borderRadius: '12px' }}>
+                      Active
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '13px', color: '#64748B', fontWeight: '500', marginBottom: '4px' }}>Workforce Staff</div>
+                  <div style={{ fontSize: '24px', fontWeight: '800', color: '#0F172A' }}>{counts.employees} Employees</div>
+                </div>
+
+                {/* Products & Inventory */}
+                <div style={{ background: 'white', borderRadius: '14px', border: '1px solid #E2E8F0', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                    <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#F5F3FF', color: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Package size={20} />
+                    </div>
+                    <span style={{ fontSize: '11px', fontWeight: '700', color: '#7C3AED', background: '#EDE9FE', padding: '3px 8px', borderRadius: '12px' }}>
+                      {counts.inventory} Stock SKUs
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '13px', color: '#64748B', fontWeight: '500', marginBottom: '4px' }}>Products & Catalog</div>
+                  <div style={{ fontSize: '24px', fontWeight: '800', color: '#0F172A' }}>{counts.products} Items</div>
+                </div>
+              </div>
+
+              {/* Two Column Operations Snapshot */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '20px' }}>
+                
+                {/* Recent Billing & Sales Table */}
+                <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px 24px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <TrendingUp size={18} color="#2563EB" />
+                      <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: '#0F172A' }}>Latest Billing & Sales</h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveSection('sales')}
+                      style={{ background: 'none', border: 'none', color: '#2563EB', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}
+                    >
+                      View All ({sales.length}) →
+                    </button>
+                  </div>
+
+                  {sales.length === 0 ? (
+                    <div style={{ padding: '36px 16px', textAlign: 'center', color: '#94A3B8', fontSize: '14px', background: '#F8FAFC', borderRadius: '10px' }}>
+                      No sales records or customer invoices created yet.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {sales.slice(0, 5).map((s, idx) => (
+                        <div key={s._id || idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: '#F8FAFC', borderRadius: '10px', border: '1px solid #F1F5F9' }}>
+                          <div>
+                            <div style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A' }}>
+                              {s.invoiceNumber || s.billNumber || `Invoice #${idx + 1}`}
+                            </div>
+                            <div style={{ fontSize: '12px', color: '#64748B' }}>
+                              {s.customerName || 'Customer'} • {s.date ? new Date(s.date).toLocaleDateString() : 'Recent'}
+                            </div>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: '14px', fontWeight: '700', color: '#059669' }}>
+                              ₹{Number(s.finalTotal || s.totalAmount || s.amount || 0).toLocaleString('en-IN')}
+                            </div>
+                            <span style={{ fontSize: '11px', color: '#64748B' }}>
+                              {s.paymentMethod || 'Paid'}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Workforce & Attendance Snapshot */}
+                <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px 24px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Clock size={18} color="#2563EB" />
+                      <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: '#0F172A' }}>Workforce & Staff</h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveSection('employees')}
+                      style={{ background: 'none', border: 'none', color: '#2563EB', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}
+                    >
+                      View All ({employees.length}) →
+                    </button>
+                  </div>
+
+                  {employees.length === 0 ? (
+                    <div style={{ padding: '36px 16px', textAlign: 'center', color: '#94A3B8', fontSize: '14px', background: '#F8FAFC', borderRadius: '10px' }}>
+                      No staff members registered in this account.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {employees.slice(0, 5).map((emp, idx) => (
+                        <div key={emp._id || idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: '#F8FAFC', borderRadius: '10px', border: '1px solid #F1F5F9' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '700' }}>
+                              {(emp.name || 'E').charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A' }}>{emp.name}</div>
+                              <div style={{ fontSize: '12px', color: '#64748B' }}>{emp.designation || emp.role || 'Staff'} • {emp.employeeId || `EMP-${idx+1}`}</div>
+                            </div>
+                          </div>
+                          <div>
+                            <span style={{ fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '10px', background: '#ECFDF5', color: '#065F46' }}>
+                              {emp.workType || 'Full-Time'}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+              </div>
+
+              {/* Workspace Modules Quick Navigation Tiles */}
+              <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: '700', color: '#0F172A' }}>
+                  Customer Workspace Modules
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '12px' }}>
+                  {sidebarItems.filter(item => item.id !== 'dashboard').map((mod) => {
+                    const ModIcon = mod.icon;
+                    return (
+                      <button
+                        key={mod.id}
+                        type="button"
+                        onClick={() => setActiveSection(mod.id)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px',
+                          padding: '12px 14px',
+                          background: '#F8FAFC',
+                          border: '1px solid #E2E8F0',
+                          borderRadius: '10px',
+                          color: '#0F172A',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          transition: 'all 0.15s'
+                        }}
+                        onMouseOver={(e) => { e.currentTarget.style.borderColor = '#2563EB'; e.currentTarget.style.background = '#EFF6FF'; }}
+                        onMouseOut={(e) => { e.currentTarget.style.borderColor = '#E2E8F0'; e.currentTarget.style.background = '#F8FAFC'; }}
+                      >
+                        <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #E2E8F0' }}>
+                          <ModIcon size={18} color="#2563EB" />
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{mod.label}</div>
+                          <div style={{ fontSize: '11px', color: '#64748B' }}>{mod.count != null ? `${mod.count} records` : 'View module'}</div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+            </div>
+          )}
+
           {/* ======================================================== */}
           {/* SECTION 1: CUSTOMER PROFILE */}
           {/* ======================================================== */}
