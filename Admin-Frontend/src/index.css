@@ -221,6 +221,19 @@ button {
   min-height: calc(100vh - 64px);
 }
 
+.admin-logo-light {
+  display: block;
+}
+.admin-logo-dark {
+  display: none;
+}
+[data-theme="dark"] .admin-logo-light {
+  display: none;
+}
+[data-theme="dark"] .admin-logo-dark {
+  display: block;
+}
+
 .top-header {
   height: 64px;
   min-height: 64px;
@@ -775,4 +788,17 @@ body, .top-header, .sidebar, .card, .input-field, .btn-secondary {
 [data-theme="dark"] [style*="border: 1px solid #CBD5E1" i],
 [data-theme="dark"] [style*="border:1px solid #CBD5E1" i] {
   border-color: var(--border-color) !important;
+}
+
+/* 2x2 Pricing Cards Grid */
+.pricing-cards-2x2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+@media (max-width: 860px) {
+  .pricing-cards-2x2 {
+    grid-template-columns: 1fr;
+  }
 }

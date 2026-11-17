@@ -320,6 +320,19 @@ button {
   }
 }
 
+.landing-brand-logo-light {
+  display: block;
+}
+.landing-brand-logo-dark {
+  display: none;
+}
+[data-theme="dark"] .landing-brand-logo-light {
+  display: none;
+}
+[data-theme="dark"] .landing-brand-logo-dark {
+  display: block;
+}
+
 .landing-header {
   background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(10px);

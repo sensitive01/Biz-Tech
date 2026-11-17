@@ -183,14 +183,20 @@ const Landing = ({ defaultView }) => {
         {/* Brand Logo */}
         <div 
           onClick={() => navigateTo('home')} 
-          style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}
+          style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '38px', height: '38px', borderRadius: '10px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(37,99,235,0.2)' }}>
-            <img src="/logo.jpg" alt="BizTech Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          </div>
-          <span style={{ fontSize: '21px', fontWeight: '800', color: 'var(--text-title)', fontFamily: 'Plus Jakarta Sans', letterSpacing: '-0.5px' }}>
-            BizTech
-          </span>
+          <img 
+            src="/biztech_logo.png" 
+            alt="BizTech Logo" 
+            className="landing-brand-logo-light"
+            style={{ height: '38px', width: 'auto', objectFit: 'contain' }} 
+          />
+          <img 
+            src="/biztech_logo_dark.png" 
+            alt="BizTech Logo" 
+            className="landing-brand-logo-dark"
+            style={{ height: '38px', width: 'auto', objectFit: 'contain' }} 
+          />
         </div>
 
         {/* Desktop Navigation */}
@@ -1514,11 +1520,15 @@ const Landing = ({ defaultView }) => {
         <div className="footer-grid">
 
           <div className="footer-brand">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '24px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '34px', height: '34px', borderRadius: '8px', overflow: 'hidden' }}>
-                <img src="/logo.jpg" alt="BizTech Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              </div>
-              <span style={{ fontSize: '20px', fontWeight: '800', color: 'white', fontFamily: 'Plus Jakarta Sans', letterSpacing: '-0.5px' }}>BizTech</span>
+            <div 
+              style={{ display: 'flex', alignItems: 'center', marginBottom: '24px', cursor: 'pointer' }}
+              onClick={() => navigateTo('home')}
+            >
+              <img 
+                src="/biztech_logo_dark.png" 
+                alt="BizTech" 
+                style={{ height: '34px', width: 'auto', objectFit: 'contain' }} 
+              />
             </div>
             <p style={{ fontSize: '14px', lineHeight: '1.6', marginBottom: '24px', maxWidth: '300px' }}>
               The unified operating engine for retail commerce, barcode POS, multi-branch inventory, and modern team scheduling.

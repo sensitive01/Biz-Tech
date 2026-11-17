@@ -82,11 +82,9 @@ const AdminLayout = () => {
       {/* Top Header */}
       <header className="top-header" style={{ padding: 0 }}>
         {/* Logo Area (Left) */}
-        <div style={{ width: '240px', height: '100%', display: 'flex', alignItems: 'center', marginLeft: '50px', padding: '0 24px', gap: '10px', flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '8px', overflow: 'hidden' }}>
-            <img src="/logo.jpg" alt="BizTech Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          </div>
-          <span style={{ fontSize: '18px', fontWeight: '700', color: 'var(--text-title)', fontFamily: 'Plus Jakarta Sans' }}>BizTech</span>
+        <div style={{ width: '240px', height: '100%', display: 'flex', alignItems: 'center', padding: '0 20px', flexShrink: 0, boxSizing: 'border-box' }}>
+          <img src="/biztech_logo.png" alt="BizTech" className="admin-logo-light" style={{ height: '34px', width: 'auto', objectFit: 'contain' }} />
+          <img src="/biztech_logo_dark.png" alt="BizTech" className="admin-logo-dark" style={{ height: '34px', width: 'auto', objectFit: 'contain' }} />
         </div>
 
         {/* Header Right Content */}

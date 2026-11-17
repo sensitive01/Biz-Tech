@@ -594,14 +594,14 @@ const ContactInquiries = () => {
             <thead>
               <tr style={{ background: '#F8FAFC' }}>
                 <th style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', width: '50px' }}>S.No</th>
-                <th onClick={() => requestSort('createdAt')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
-                  <div style={{ display: 'flex', alignItems: 'center' }}>Date & Time {renderSortIcon('createdAt')}</div>
-                </th>
                 <th onClick={() => requestSort('name')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
                   <div style={{ display: 'flex', alignItems: 'center' }}>Contact / Visitor {renderSortIcon('name')}</div>
                 </th>
                 <th style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>Subject / Topic</th>
                 <th style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', minWidth: '220px' }}>Message Preview</th>
+                <th onClick={() => requestSort('createdAt')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>Date & Time {renderSortIcon('createdAt')}</div>
+                </th>
                 <th onClick={() => requestSort('status')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', width: '160px' }}>
                   <div style={{ display: 'flex', alignItems: 'center' }}>Status {renderSortIcon('status')}</div>
                 </th>
@@ -645,24 +645,9 @@ const ContactInquiries = () => {
                         {startIndex + idx + 1}
                       </td>
 
-                      {/* Date & Time */}
-                      <td style={{ padding: '14px 20px', fontSize: '13px', color: '#475569', whiteSpace: 'nowrap' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                          <span style={{ fontWeight: '600', color: '#0F172A' }}>
-                            {new Date(item.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                          </span>
-                          <span style={{ fontSize: '12px', color: '#64748B' }}>
-                            {new Date(item.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
-                          </span>
-                        </div>
-                      </td>
-
                       {/* Contact Info */}
                       <td style={{ padding: '14px 20px' }}>
                         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                          <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', fontSize: '12px', flexShrink: 0 }}>
-                            {initials}
-                          </div>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                               <span style={{ fontWeight: '700', color: '#0F172A', fontSize: '14px' }}>{item.name}</span>
@@ -702,6 +687,18 @@ const ContactInquiries = () => {
                         >
                           {item.message}
                         </p>
+                      </td>
+
+                      {/* Date & Time */}
+                      <td style={{ padding: '14px 20px', fontSize: '13px', color: '#475569', whiteSpace: 'nowrap' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                          <span style={{ fontWeight: '600', color: '#0F172A' }}>
+                            {new Date(item.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          </span>
+                          <span style={{ fontSize: '12px', color: '#64748B' }}>
+                            {new Date(item.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                          </span>
+                        </div>
                       </td>
 
                       {/* Status Dropdown (Instant Update Feature) */}

@@ -118,7 +118,7 @@ const PricingManage = () => {
       {loading ? (
         <p>Loading plans...</p>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
+        <div className="pricing-cards-2x2">
           {DEFAULT_TYPES.map(type => {
             const plan = dbPlans.find(p => p.customerType === type.title);
             const amount = plan ? plan.amount : 0;
@@ -128,7 +128,7 @@ const PricingManage = () => {
             const effectiveBusinessLimit = plan && plan.businessLimit !== undefined ? plan.businessLimit : type.defaultBusinessLimit;
 
             return (
-              <div key={type.id} style={{ background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color, #E2E8F0)', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+              <div key={type.id} style={{ background: 'var(--card-bg, white)', padding: '24px', borderRadius: '16px', border: '1px solid var(--border-color, #E2E8F0)', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
                   <h3 style={{ margin: 0, fontSize: '18px', color: 'var(--text-title)' }}>{type.title}</h3>
                   <button onClick={() => openModal(type)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748B', padding: '4px' }} title="Edit Pricing & Limits">
