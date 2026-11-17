@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { IndianRupee, Users, Store, Activity, Calendar, FileText, Settings, ArrowUpRight, ArrowDownRight, CreditCard, Clock, CheckCircle2, MapPin, UserCheck, Phone, Package, Archive, ShoppingCart, TrendingUp, ShieldCheck } from 'lucide-react';
+import { IndianRupee, Users, Store, Activity, Calendar, FileText, Settings, ArrowUpRight, ArrowDownRight, CreditCard, Clock, CheckCircle2, MapPin, UserCheck, Phone, Package, Archive, ShoppingCart, TrendingUp, ShieldCheck, Wrench } from 'lucide-react';
 
 const TenantDashboard = () => {
   const navigate = useNavigate();
@@ -278,7 +278,7 @@ const TenantDashboard = () => {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
-            {modules.includes('products_services') && (
+            {modules.includes('products_services') && currentUser?.businessOfferingType !== 'service' && (
               <div 
                 onClick={() => navigate('/tenant/products')} 
                 style={{ padding: '18px 20px', borderRadius: '12px', border: '1px solid #E2E8F0', background: '#F8FAFC', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '14px' }} 
@@ -289,8 +289,25 @@ const TenantDashboard = () => {
                   <Package size={20} />
                 </div>
                 <div>
-                  <div style={{ fontSize: '14px', fontWeight: '700', color: '#0F172A' }}>Product & Service</div>
-                  <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>Catalog, items & pricing</div>
+                  <div style={{ fontSize: '14px', fontWeight: '700', color: '#0F172A' }}>Products</div>
+                  <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>Inventory catalog & pricing</div>
+                </div>
+              </div>
+            )}
+
+            {modules.includes('products_services') && currentUser?.businessOfferingType !== 'product' && (
+              <div 
+                onClick={() => navigate('/tenant/services')} 
+                style={{ padding: '18px 20px', borderRadius: '12px', border: '1px solid #E2E8F0', background: '#F8FAFC', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '14px' }} 
+                onMouseOver={e => { e.currentTarget.style.background = '#FAF5FF'; e.currentTarget.style.borderColor = '#DDD6FE'; }} 
+                onMouseOut={e => { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.borderColor = '#E2E8F0'; }}
+              >
+                <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#EDE9FE', color: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Wrench size={20} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '14px', fontWeight: '700', color: '#0F172A' }}>Services</div>
+                  <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>Service catalog & rates</div>
                 </div>
               </div>
             )}

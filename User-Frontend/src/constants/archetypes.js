@@ -1,6 +1,3 @@
-/**
- * Tenant Business Archetypes
- */
 export const BUSINESS_ARCHETYPES = {
   TYPE_1: {
     id: 1,
@@ -46,4 +43,3 @@ export const getArchetypeById = (id) => {
 };
 
 export default BUSINESS_ARCHETYPES;
-

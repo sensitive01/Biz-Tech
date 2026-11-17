@@ -52,6 +52,12 @@ export const AppRoutes = () => {
       {/* PUBLIC & AUTH ROUTES                                     */}
       {/* ======================================================== */}
       <Route path="/" element={<Landing />} />
+      <Route path="/about" element={<Landing defaultView="about" />} />
+      <Route path="/features" element={<Landing defaultView="features" />} />
+      <Route path="/solutions" element={<Landing defaultView="solutions" />} />
+      <Route path="/pricing" element={<Landing defaultView="pricing" />} />
+      <Route path="/faq" element={<Landing defaultView="faq" />} />
+      <Route path="/contact" element={<Landing defaultView="contact" />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/impersonate" element={<Impersonate />} />
@@ -84,7 +90,8 @@ export const AppRoutes = () => {
         <Route path="leaves" element={<LeaveRequests />} />
 
         {/* Inventory & Operations */}
-        <Route path="products" element={<Products />} />
+        <Route path="products" element={<Products offeringMode="product" />} />
+        <Route path="services" element={<Products offeringMode="service" />} />
         <Route path="inventory" element={<Inventory />} />
         <Route path="purchases" element={<Purchases />} />
         <Route path="sales" element={<Sales />} />

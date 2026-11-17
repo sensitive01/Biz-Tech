@@ -69,9 +69,12 @@ const categoriesRoutes = require('./routes/categories');
 const subcategoriesRoutes = require('./routes/subcategories');
 const productsRoutes = require('./routes/products');
 const investorsRoutes = require('./routes/investors');
+const contactRoutes = require('./routes/contact');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminAuthRoutes);
+app.use('/api/admin/contact-inquiries', contactRoutes);
+app.use('/api/contact', contactRoutes);
 app.use('/api/pricing', pricingRoutes);
 app.use('/api/branches', branchesRoutes);
 app.use('/api/employees', employeesRoutes);

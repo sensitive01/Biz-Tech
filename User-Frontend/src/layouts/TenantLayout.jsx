@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation, Navigate } from 'react-router-dom';
-import { LayoutGrid, Users, Map, Calendar, LogOut, Bell, ChevronDown, Clock, Package, Archive, TrendingUp, ShoppingCart, Receipt, Building2, UserCheck, FileText, BellRing, Store, Lock, Briefcase, Eye } from 'lucide-react';
+import { LayoutGrid, Users, Map, Calendar, LogOut, Bell, ChevronDown, Clock, Package, Archive, TrendingUp, ShoppingCart, Receipt, Building2, UserCheck, FileText, BellRing, Store, Lock, Briefcase, Eye, Wrench } from 'lucide-react';
 import LanguageSelector from '../components/LanguageSelector';
 import ThemeToggle from '../components/ThemeToggle';
 
@@ -226,7 +226,7 @@ const TenantLayout = () => {
     }
 
     // Selectable operational module permission checks (Product, Inventory, Purchases, Attendance, Leaves)
-    if (path.includes('/tenant/products') && !modules.includes('products_services')) return true;
+    if ((path.includes('/tenant/products') || path.includes('/tenant/services')) && !modules.includes('products_services')) return true;
     if (path.includes('/tenant/inventory') && !modules.includes('inventory')) return true;
     if (path.includes('/tenant/purchases') && !modules.includes('purchases')) return true;
     if (path.includes('/tenant/attendance') && !modules.includes('attendance')) return true;
@@ -675,13 +675,19 @@ const TenantLayout = () => {
             </NavLink>
           )}
 
-          {/* 4. Product / Service */}
-          {modules.includes('products_services') && (
+          {/* 4a. Products (shown unless pure service) */}
+          {modules.includes('products_services') && currentUser?.businessOfferingType !== 'service' && (
             <NavLink to="/tenant/products" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <Package size={18} />
-              <span>
-                {currentUser?.businessOfferingType === 'service' ? 'Services' : currentUser?.businessOfferingType === 'product' ? 'Products' : 'Products & Services'}
-              </span>
+              <span>Products</span>
+            </NavLink>
+          )}
+
+          {/* 4b. Services (shown unless pure product) */}
+          {modules.includes('products_services') && currentUser?.businessOfferingType !== 'product' && (
+            <NavLink to="/tenant/services" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
+              <Wrench size={18} />
+              <span>Services</span>
             </NavLink>
           )}
 

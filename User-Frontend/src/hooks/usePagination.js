@@ -39,4 +39,3 @@ export const usePagination = (items = [], initialPageSize = 10) => {
 };
 
 export default usePagination;
-

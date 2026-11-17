@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
-  LayoutGrid, Users, Map, Calendar, Clock, Package, Archive, TrendingUp, 
+  LayoutGrid, Users, Map, Calendar, Clock, Package, Wrench, Archive, TrendingUp, 
   ShoppingCart, Receipt, Building2, UserCheck, FileText, BellRing, Store, 
   ArrowLeft, RefreshCw, Loader2, AlertCircle, User, Mail, Phone, MapPin, 
   Briefcase, IndianRupee, Search, Download, ExternalLink, Layers, Check, 
@@ -236,7 +236,19 @@ const CustomerDetails = () => {
     return rawSum > 0 ? rawSum : (financials?.totalExpenses || 0);
   }, [expenses, financials]);
 
-  const counts = details?.counts || {
+  const productItemsCount = useMemo(() => {
+    return products.filter(p => (p.itemType || p.categoryId?.itemType)?.toLowerCase() !== 'service').length;
+  }, [products]);
+
+  const serviceItemsCount = useMemo(() => {
+    return products.filter(p => (p.itemType || p.categoryId?.itemType)?.toLowerCase() === 'service').length;
+  }, [products]);
+
+  const counts = details?.counts ? {
+    ...details.counts,
+    products: productItemsCount,
+    services: serviceItemsCount
+  } : {
     branches: branches.length,
     employees: employees.length,
     businesses: businesses.length || 1,
@@ -244,7 +256,8 @@ const CustomerDetails = () => {
     expenses: expenses.length,
     sales: sales.length,
     inventory: inventory.length,
-    products: products.length,
+    products: productItemsCount,
+    services: serviceItemsCount,
     customers: customersList.length,
     purchases: purchases.length,
     attendance: attendance.length,
@@ -699,40 +712,41 @@ const CustomerDetails = () => {
         'Date': formatDate(s.date)
       }));
       filename = 'Sales';
-    } else if (sectionName === 'products') {
+    } else if (sectionName === 'products' || sectionName === 'services') {
+      const isServ = sectionName === 'services' || activeSection === 'services';
       if (productTab === 'categories') {
         dataToExport = filteredCategories.map((c, idx) => ({
           'S.No': idx + 1,
           'Name': c.name,
-          'Item Type': c.itemType || 'product',
+          'Item Type': c.itemType || (isServ ? 'Service' : 'Product'),
           'Transaction Type': c.transactionType || 'both',
           'Description': c.description || '-',
           'Created At': formatDate(c.createdAt)
         }));
-        filename = 'Categories';
+        filename = isServ ? 'Service_Categories' : 'Product_Categories';
       } else if (productTab === 'subcategories') {
         dataToExport = filteredSubcategories.map((sc, idx) => ({
           'S.No': idx + 1,
           'Name': sc.name,
           'Parent Category': sc.categoryId?.name || '-',
-          'Item Type': sc.itemType || 'product',
+          'Item Type': sc.itemType || (isServ ? 'Service' : 'Product'),
           'Transaction Type': sc.transactionType || 'both',
           'Description': sc.description || '-',
           'Created At': formatDate(sc.createdAt)
         }));
-        filename = 'SubCategories';
+        filename = isServ ? 'Service_SubCategories' : 'Product_SubCategories';
       } else {
         dataToExport = filteredProducts.map((p, idx) => ({
           'S.No': idx + 1,
           'Name': p.name,
-          'SKU': p.sku || '-',
+          ...(!isServ ? { 'SKU': p.sku || '-' } : {}),
           'Category': p.categoryId?.name || p.category || 'General',
           'SubCategory': p.subCategoryId?.name || p.subCategory || '-',
-          'Type': p.itemType || p.type || 'Product',
+          'Type': p.itemType || (isServ ? 'Service' : 'Product'),
           'Price': p.price || 0,
-          'Stock': p.stock || 0
+          ...(!isServ ? { 'Stock': p.stock || 0 } : {})
         }));
-        filename = 'Products';
+        filename = isServ ? 'Services' : 'Products';
       }
     } else if (sectionName === 'inventory') {
       dataToExport = filteredInventory.map((i, idx) => ({
@@ -889,44 +903,70 @@ const CustomerDetails = () => {
     return sortList(filtered);
   }, [inventory, searchTerm, sortConfig, filterDays, customStartDate, customEndDate]);
 
+  const isServicesSection = activeSection === 'services';
+
   const filteredCategories = useMemo(() => {
     const q = searchTerm.toLowerCase();
     const dateFiltered = applyDateFilter(categories, 'createdAt');
-    const filtered = dateFiltered.filter(c => 
-      (c.name && c.name.toLowerCase().includes(q)) || 
-      (c.itemType && c.itemType.toLowerCase().includes(q)) || 
-      (c.transactionType && c.transactionType.toLowerCase().includes(q)) ||
-      (c.description && c.description.toLowerCase().includes(q))
-    );
+    const filtered = dateFiltered.filter(c => {
+      const type = c.itemType?.toLowerCase();
+      if (isServicesSection) {
+        if (type !== 'service') return false;
+      } else if (activeSection === 'products') {
+        if (type === 'service') return false;
+      }
+      return (
+        (c.name && c.name.toLowerCase().includes(q)) || 
+        (c.itemType && c.itemType.toLowerCase().includes(q)) || 
+        (c.transactionType && c.transactionType.toLowerCase().includes(q)) ||
+        (c.description && c.description.toLowerCase().includes(q))
+      );
+    });
     return sortList(filtered);
-  }, [categories, searchTerm, sortConfig, filterDays, customStartDate, customEndDate]);
+  }, [categories, searchTerm, sortConfig, filterDays, customStartDate, customEndDate, activeSection, isServicesSection]);
 
   const filteredSubcategories = useMemo(() => {
     const q = searchTerm.toLowerCase();
     const dateFiltered = applyDateFilter(subcategories, 'createdAt');
-    const filtered = dateFiltered.filter(sc => 
-      (sc.name && sc.name.toLowerCase().includes(q)) || 
-      (sc.categoryId?.name && sc.categoryId.name.toLowerCase().includes(q)) ||
-      (sc.itemType && sc.itemType.toLowerCase().includes(q)) || 
-      (sc.transactionType && sc.transactionType.toLowerCase().includes(q)) ||
-      (sc.description && sc.description.toLowerCase().includes(q))
-    );
+    const filtered = dateFiltered.filter(sc => {
+      const type = (sc.itemType || sc.categoryId?.itemType)?.toLowerCase();
+      if (isServicesSection) {
+        if (type !== 'service') return false;
+      } else if (activeSection === 'products') {
+        if (type === 'service') return false;
+      }
+      return (
+        (sc.name && sc.name.toLowerCase().includes(q)) || 
+        (sc.categoryId?.name && sc.categoryId.name.toLowerCase().includes(q)) ||
+        (sc.itemType && sc.itemType.toLowerCase().includes(q)) || 
+        (sc.transactionType && sc.transactionType.toLowerCase().includes(q)) ||
+        (sc.description && sc.description.toLowerCase().includes(q))
+      );
+    });
     return sortList(filtered);
-  }, [subcategories, searchTerm, sortConfig, filterDays, customStartDate, customEndDate]);
+  }, [subcategories, searchTerm, sortConfig, filterDays, customStartDate, customEndDate, activeSection, isServicesSection]);
 
   const filteredProducts = useMemo(() => {
     const q = searchTerm.toLowerCase();
     const dateFiltered = applyDateFilter(products, 'createdAt');
-    const filtered = dateFiltered.filter(p => 
-      (p.name && p.name.toLowerCase().includes(q)) || 
-      (p.sku && p.sku.toLowerCase().includes(q)) || 
-      (p.category && p.category.toLowerCase().includes(q)) ||
-      (p.categoryId?.name && p.categoryId.name.toLowerCase().includes(q)) ||
-      (p.subCategoryId?.name && p.subCategoryId.name.toLowerCase().includes(q)) ||
-      (p.subCategory && p.subCategory.toLowerCase().includes(q))
-    );
+    const filtered = dateFiltered.filter(p => {
+      const type = (p.itemType || p.categoryId?.itemType)?.toLowerCase();
+      if (isServicesSection) {
+        if (type !== 'service') return false;
+      } else if (activeSection === 'products') {
+        if (type === 'service') return false;
+      }
+      return (
+        (p.name && p.name.toLowerCase().includes(q)) || 
+        (p.sku && p.sku.toLowerCase().includes(q)) || 
+        (p.category && p.category.toLowerCase().includes(q)) ||
+        (p.categoryId?.name && p.categoryId.name.toLowerCase().includes(q)) ||
+        (p.subCategoryId?.name && p.subCategoryId.name.toLowerCase().includes(q)) ||
+        (p.subCategory && p.subCategory.toLowerCase().includes(q))
+      );
+    });
     return sortList(filtered);
-  }, [products, searchTerm, sortConfig, filterDays, customStartDate, customEndDate]);
+  }, [products, searchTerm, sortConfig, filterDays, customStartDate, customEndDate, activeSection, isServicesSection]);
 
   const filteredCustomersList = useMemo(() => {
     const q = searchTerm.toLowerCase();
@@ -1436,11 +1476,42 @@ const CustomerDetails = () => {
     } else if (type === 'inventory') {
       initialFormData = { tenantId, itemName: '', sku: '', category: '', quantity: '', price: '', ...overrides };
     } else if (type === 'product') {
-      initialFormData = { tenantId, name: '', sku: '', categoryId: categories[0]?._id || '', subCategoryId: '', price: '', stock: '', description: '', ...overrides };
+      const isServ = isServicesSection || overrides.itemType === 'Service';
+      const availableCats = categories.filter(c => isServ ? c.itemType?.toLowerCase() === 'service' : c.itemType?.toLowerCase() !== 'service');
+      initialFormData = { 
+        tenantId, 
+        name: '', 
+        ...(isServ ? {} : { sku: '' }), 
+        categoryId: availableCats[0]?._id || '', 
+        subCategoryId: '', 
+        price: '', 
+        ...(isServ ? {} : { stock: '' }), 
+        itemType: isServ ? 'Service' : 'Product',
+        description: '', 
+        ...overrides 
+      };
     } else if (type === 'category') {
-      initialFormData = { tenantId, name: '', itemType: 'product', transactionType: 'both', description: '', ...overrides };
+      const isServ = isServicesSection || overrides.itemType === 'Service';
+      initialFormData = { 
+        tenantId, 
+        name: '', 
+        itemType: isServ ? 'Service' : 'Product', 
+        transactionType: 'both', 
+        description: '', 
+        ...overrides 
+      };
     } else if (type === 'subcategory') {
-      initialFormData = { tenantId, name: '', categoryId: categories[0]?._id || '', itemType: 'product', transactionType: 'both', description: '' };
+      const isServ = isServicesSection || overrides.itemType === 'Service';
+      const availableCats = categories.filter(c => isServ ? c.itemType?.toLowerCase() === 'service' : c.itemType?.toLowerCase() !== 'service');
+      initialFormData = { 
+        tenantId, 
+        name: '', 
+        categoryId: availableCats[0]?._id || '', 
+        itemType: isServ ? 'Service' : 'Product', 
+        transactionType: 'both', 
+        description: '',
+        ...overrides
+      };
     } else if (type === 'customer') {
       initialFormData = { tenantId, name: '', companyName: '', customerType: 'Retail', email: '', phone: '', address: '', ...overrides };
     } else if (type === 'purchase') {
@@ -1614,27 +1685,31 @@ const CustomerDetails = () => {
         price: item.price || 0
       };
     } else if (type === 'product') {
+      const isServ = (item.itemType || item.categoryId?.itemType)?.toLowerCase() === 'service' || isServicesSection;
       initialFormData = {
         name: item.name || '',
-        sku: item.sku || '',
+        ...(isServ ? {} : { sku: item.sku || '' }),
         categoryId: item.categoryId?._id || item.categoryId || '',
         subCategoryId: item.subCategoryId?._id || item.subCategoryId || '',
         price: item.price || 0,
-        stock: item.stock || 0,
+        ...(isServ ? {} : { stock: item.stock || 0 }),
+        itemType: isServ ? 'Service' : 'Product',
         description: item.description || ''
       };
     } else if (type === 'category') {
+      const isServ = item.itemType?.toLowerCase() === 'service' || isServicesSection;
       initialFormData = {
         name: item.name || '',
-        itemType: item.itemType || 'product',
+        itemType: isServ ? 'Service' : 'Product',
         transactionType: item.transactionType || 'both',
         description: item.description || ''
       };
     } else if (type === 'subcategory') {
+      const isServ = (item.itemType || item.categoryId?.itemType)?.toLowerCase() === 'service' || isServicesSection;
       initialFormData = {
         name: item.name || '',
         categoryId: item.categoryId?._id || item.categoryId || '',
-        itemType: item.itemType || 'product',
+        itemType: isServ ? 'Service' : 'Product',
         transactionType: item.transactionType || 'both',
         description: item.description || ''
       };
@@ -1713,7 +1788,8 @@ const CustomerDetails = () => {
     ...(businessType === 4 || businesses.length > 0 ? [{ id: 'businesses', label: 'Businesses', icon: Building2, count: counts.businesses }] : []),
     ...(businessType >= 3 ? [{ id: 'branches', label: 'Branches', icon: Map, count: counts.branches }] : []),
     ...((businessType === 3 || businessType === 4) ? [{ id: 'investors', label: 'Investors', icon: Briefcase, count: counts.investors || investors.length }] : []),
-    { id: 'products', label: customer.offeringType === 'service' ? 'Services' : customer.offeringType === 'product' ? 'Products' : 'Products & Services', icon: Package, count: counts.products },
+    ...(customer.offeringType !== 'service' ? [{ id: 'products', label: 'Products', icon: Package, count: counts.products }] : []),
+    ...(customer.offeringType !== 'product' ? [{ id: 'services', label: 'Services', icon: Wrench, count: counts.services }] : []),
     ...(customer.offeringType !== 'service' ? [{ id: 'inventory', label: 'Stock / Inventory', icon: Archive, count: counts.inventory }] : []),
     { id: 'customers', label: 'Customers', icon: UserCheck, count: counts.customers },
     { id: 'expenses', label: 'Expenses', icon: Receipt, count: counts.expenses },
@@ -2197,19 +2273,43 @@ const CustomerDetails = () => {
                   <div style={{ fontSize: '24px', fontWeight: '800', color: '#0F172A' }}>{counts.employees} Employees</div>
                 </div>
 
-                {/* Products & Inventory */}
-                <div style={{ background: 'white', borderRadius: '14px', border: '1px solid #E2E8F0', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                    <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#F5F3FF', color: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Package size={20} />
+                {/* Products */}
+                {customer.offeringType !== 'service' && (
+                  <div 
+                    onClick={() => setActiveSection('products')} 
+                    style={{ background: 'white', borderRadius: '14px', border: '1px solid #E2E8F0', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', cursor: 'pointer' }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                      <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#F5F3FF', color: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Package size={20} />
+                      </div>
+                      <span style={{ fontSize: '11px', fontWeight: '700', color: '#7C3AED', background: '#EDE9FE', padding: '3px 8px', borderRadius: '12px' }}>
+                        {counts.inventory} Stock SKUs
+                      </span>
                     </div>
-                    <span style={{ fontSize: '11px', fontWeight: '700', color: '#7C3AED', background: '#EDE9FE', padding: '3px 8px', borderRadius: '12px' }}>
-                      {counts.inventory} Stock SKUs
-                    </span>
+                    <div style={{ fontSize: '13px', color: '#64748B', fontWeight: '500', marginBottom: '4px' }}>Products & Catalog</div>
+                    <div style={{ fontSize: '24px', fontWeight: '800', color: '#0F172A' }}>{counts.products} Products</div>
                   </div>
-                  <div style={{ fontSize: '13px', color: '#64748B', fontWeight: '500', marginBottom: '4px' }}>Products & Catalog</div>
-                  <div style={{ fontSize: '24px', fontWeight: '800', color: '#0F172A' }}>{counts.products} Items</div>
-                </div>
+                )}
+
+                {/* Services */}
+                {customer.offeringType !== 'product' && (
+                  <div 
+                    onClick={() => setActiveSection('services')} 
+                    style={{ background: 'white', borderRadius: '14px', border: '1px solid #E2E8F0', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', cursor: 'pointer' }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                      <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Wrench size={20} />
+                      </div>
+                      <span style={{ fontSize: '11px', fontWeight: '700', color: '#2563EB', background: '#DBEAFE', padding: '3px 8px', borderRadius: '12px' }}>
+                        Active
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '13px', color: '#64748B', fontWeight: '500', marginBottom: '4px' }}>Services & Catalog</div>
+                    <div style={{ fontSize: '24px', fontWeight: '800', color: '#0F172A' }}>{counts.services} Services</div>
+                  </div>
+                )}
               </div>
 
               {/* Two Column Operations Snapshot */}
@@ -4349,27 +4449,29 @@ const CustomerDetails = () => {
           {/* ======================================================== */}
           {/* SECTION 7: PRODUCTS & SERVICES (CATEGORIES, SUBCATEGORIES, PRODUCTS) */}
           {/* ======================================================== */}
-          {activeSection === 'products' && (
+          {(activeSection === 'products' || activeSection === 'services') && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
               
               {/* Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
                 <div>
                   <h1 style={{ fontSize: '24px', fontWeight: '700', color: '#0F172A', margin: '0 0 6px 0', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563EB', border: '1px solid #DBEAFE' }}>
-                      <Package size={22} />
+                    <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: isServicesSection ? '#EFF6FF' : '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563EB', border: '1px solid #DBEAFE' }}>
+                      {isServicesSection ? <Wrench size={22} /> : <Package size={22} />}
                     </div>
-                    Products & Services Catalog
+                    {isServicesSection ? 'Services Catalog' : 'Products Catalog'}
                   </h1>
                   <p style={{ color: '#64748B', fontSize: '14px', margin: 0 }}>
-                    Manage categories, sub categories, and your product & service inventory.
+                    {isServicesSection 
+                      ? 'Manage categories, sub categories, and your services catalog.' 
+                      : 'Manage categories, sub categories, and your product inventory.'}
                   </p>
                 </div>
                 <button 
                   onClick={() => openAddModal(productTab === 'categories' ? 'category' : productTab === 'subcategories' ? 'subcategory' : 'product')} 
                   style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', background: '#2563EB', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
                 >
-                  <Plus size={17} /> Add New {productTab === 'categories' ? 'Category' : productTab === 'subcategories' ? 'Sub Category' : 'Product / Service'}
+                  <Plus size={17} /> Add New {productTab === 'categories' ? 'Category' : productTab === 'subcategories' ? 'Sub Category' : (isServicesSection ? 'Service' : 'Product')}
                 </button>
               </div>
 
@@ -4393,7 +4495,9 @@ const CustomerDetails = () => {
                   <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Tag size={22} /></div>
                   <div>
                     <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Categories</p>
-                    <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{categories.length}</h3>
+                    <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>
+                      {categories.filter(c => isServicesSection ? c.itemType?.toLowerCase() === 'service' : c.itemType?.toLowerCase() !== 'service').length}
+                    </h3>
                   </div>
                 </div>
 
@@ -4415,7 +4519,9 @@ const CustomerDetails = () => {
                   <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#F5F3FF', color: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Layers size={22} /></div>
                   <div>
                     <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Sub Categories</p>
-                    <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{subcategories.length}</h3>
+                    <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>
+                      {subcategories.filter(sc => isServicesSection ? (sc.itemType || sc.categoryId?.itemType)?.toLowerCase() === 'service' : (sc.itemType || sc.categoryId?.itemType)?.toLowerCase() !== 'service').length}
+                    </h3>
                   </div>
                 </div>
 
@@ -4434,10 +4540,14 @@ const CustomerDetails = () => {
                     transition: 'all 0.15s'
                   }}
                 >
-                  <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#F0FDF4', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Package size={22} /></div>
+                  <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: isServicesSection ? '#EFF6FF' : '#F0FDF4', color: isServicesSection ? '#2563EB' : '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {isServicesSection ? <Wrench size={22} /> : <Package size={22} />}
+                  </div>
                   <div>
-                    <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Products & Services</p>
-                    <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{products.length}</h3>
+                    <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>{isServicesSection ? 'Services' : 'Products'}</p>
+                    <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>
+                      {products.filter(p => isServicesSection ? (p.itemType || p.categoryId?.itemType)?.toLowerCase() === 'service' : (p.itemType || p.categoryId?.itemType)?.toLowerCase() !== 'service').length}
+                    </h3>
                   </div>
                 </div>
               </div>
@@ -4499,7 +4609,7 @@ const CustomerDetails = () => {
                         transition: 'all 0.15s' 
                       }}
                     >
-                      Products & Services
+                      {isServicesSection ? 'Services' : 'Products'}
                     </button>
                   </div>
 
@@ -4509,7 +4619,7 @@ const CustomerDetails = () => {
                       <Search size={18} color="#94A3B8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
                       <input 
                         type="text" 
-                        placeholder={productTab === 'categories' ? "Search categories by name, type, description..." : productTab === 'subcategories' ? "Search subcategories by name, parent category..." : "Search products by name, SKU, category..."}
+                        placeholder={productTab === 'categories' ? "Search categories by name, type, description..." : productTab === 'subcategories' ? "Search subcategories by name, parent category..." : (isServicesSection ? "Search services by name, category..." : "Search products by name, SKU, category...")}
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         style={{ width: '100%', padding: '11px 16px 11px 44px', borderRadius: '10px', border: '1px solid #E2E8F0', fontSize: '14px', outline: 'none', background: 'white', boxSizing: 'border-box' }}
@@ -4544,7 +4654,7 @@ const CustomerDetails = () => {
                       )}
 
                       <button 
-                        onClick={() => exportSectionCSV('products')}
+                        onClick={() => exportSectionCSV(isServicesSection ? 'services' : 'products')}
                         style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 14px', borderRadius: '8px', border: '1px solid #E2E8F0', background: 'white', color: '#475569', fontSize: '13px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s' }}
                         onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'}
                         onMouseOut={(e) => e.currentTarget.style.background = 'white'}
@@ -4592,8 +4702,8 @@ const CustomerDetails = () => {
                                 </div>
                               </td>
                               <td style={{ padding: '14px 20px' }}>
-                                <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px', background: item.itemType === 'service' ? '#F0FDF4' : '#EFF6FF', color: item.itemType === 'service' ? '#16A34A' : '#2563EB', fontWeight: '600', textTransform: 'capitalize' }}>
-                                  {item.itemType || 'Product'}
+                                <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px', background: item.itemType === 'service' || item.itemType === 'Service' ? '#F0FDF4' : '#EFF6FF', color: item.itemType === 'service' || item.itemType === 'Service' ? '#16A34A' : '#2563EB', fontWeight: '600', textTransform: 'capitalize' }}>
+                                  {item.itemType || (isServicesSection ? 'Service' : 'Product')}
                                 </span>
                               </td>
                               <td style={{ padding: '14px 20px' }}>
@@ -4661,8 +4771,8 @@ const CustomerDetails = () => {
                                 </span>
                               </td>
                               <td style={{ padding: '14px 20px' }}>
-                                <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px', background: item.itemType === 'service' ? '#F0FDF4' : '#EFF6FF', color: item.itemType === 'service' ? '#16A34A' : '#2563EB', fontWeight: '600', textTransform: 'capitalize' }}>
-                                  {item.itemType || item.categoryId?.itemType || 'Product'}
+                                <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px', background: item.itemType === 'service' || item.itemType === 'Service' ? '#F0FDF4' : '#EFF6FF', color: item.itemType === 'service' || item.itemType === 'Service' ? '#16A34A' : '#2563EB', fontWeight: '600', textTransform: 'capitalize' }}>
+                                  {item.itemType || item.categoryId?.itemType || (isServicesSection ? 'Service' : 'Product')}
                                 </span>
                               </td>
                               <td style={{ padding: '14px 20px' }}>
@@ -4698,15 +4808,19 @@ const CustomerDetails = () => {
                           <th onClick={() => requestSort('name')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
                             <div style={{ display: 'flex', alignItems: 'center' }}>Name {renderSortIcon('name')}</div>
                           </th>
-                          <th onClick={() => requestSort('sku')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
-                            <div style={{ display: 'flex', alignItems: 'center' }}>SKU {renderSortIcon('sku')}</div>
-                          </th>
+                          {!isServicesSection && (
+                            <th onClick={() => requestSort('sku')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
+                              <div style={{ display: 'flex', alignItems: 'center' }}>SKU {renderSortIcon('sku')}</div>
+                            </th>
+                          )}
                           <th onClick={() => requestSort('category')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
                             <div style={{ display: 'flex', alignItems: 'center' }}>Category & SubCategory {renderSortIcon('category')}</div>
                           </th>
-                          <th onClick={() => requestSort('stock')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
-                            <div style={{ display: 'flex', alignItems: 'center' }}>Stock {renderSortIcon('stock')}</div>
-                          </th>
+                          {!isServicesSection && (
+                            <th onClick={() => requestSort('stock')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
+                              <div style={{ display: 'flex', alignItems: 'center' }}>Stock {renderSortIcon('stock')}</div>
+                            </th>
+                          )}
                           <th onClick={() => requestSort('price')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
                             <div style={{ display: 'flex', alignItems: 'center' }}>Price {renderSortIcon('price')}</div>
                           </th>
@@ -4715,13 +4829,15 @@ const CustomerDetails = () => {
                       </thead>
                       <tbody>
                         {filteredProducts.length === 0 ? (
-                          <tr><td colSpan="7" style={{ padding: '36px 20px', textAlign: 'center', color: '#64748B' }}>No products or services found.</td></tr>
+                          <tr><td colSpan={isServicesSection ? 5 : 7} style={{ padding: '36px 20px', textAlign: 'center', color: '#64748B' }}>No {isServicesSection ? 'services' : 'products'} found.</td></tr>
                         ) : (
                           paginatedProducts.map((item, idx) => (
                             <tr key={item._id || idx} style={{ borderBottom: '1px solid #F1F5F9', transition: 'background 0.15s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
                               <td style={{ padding: '14px 20px', fontSize: '13px', color: '#64748B', fontWeight: '500' }}>{startIndex + idx + 1}</td>
                               <td style={{ padding: '14px 20px', fontWeight: '600', color: '#0F172A', fontSize: '13px' }}>{item.name}</td>
-                              <td style={{ padding: '14px 20px', color: '#64748B', fontFamily: 'monospace', fontSize: '12px' }}>{item.sku || 'N/A'}</td>
+                              {!isServicesSection && (
+                                <td style={{ padding: '14px 20px', color: '#64748B', fontFamily: 'monospace', fontSize: '12px' }}>{item.sku || 'N/A'}</td>
+                              )}
                               <td style={{ padding: '14px 20px' }}>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                   <span style={{ fontSize: '12px', fontWeight: '600', color: '#1E293B' }}>
@@ -4737,13 +4853,15 @@ const CustomerDetails = () => {
                                   )}
                                 </div>
                               </td>
-                              <td style={{ padding: '14px 20px', fontWeight: '600', color: '#0F172A', fontSize: '13px' }}>{item.stock ?? 0}</td>
+                              {!isServicesSection && (
+                                <td style={{ padding: '14px 20px', fontWeight: '600', color: '#0F172A', fontSize: '13px' }}>{item.stock ?? 0}</td>
+                              )}
                               <td style={{ padding: '14px 20px', fontWeight: '700', color: '#2563EB', fontSize: '13px' }}>{formatCurrency(item.price)}</td>
                               <td style={{ padding: '14px 20px', textAlign: 'right' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
-                                  <button onClick={() => setViewModalData({ type: 'product', data: item })} style={{ padding: '6px', borderRadius: '6px', background: '#F1F5F9', border: 'none', color: '#475569', cursor: 'pointer' }}><Eye size={15} /></button>
+                                  <button onClick={() => setViewModalData({ type: isServicesSection ? 'service' : 'product', data: item })} style={{ padding: '6px', borderRadius: '6px', background: '#F1F5F9', border: 'none', color: '#475569', cursor: 'pointer' }}><Eye size={15} /></button>
                                   <button onClick={() => openEditModal('product', item)} style={{ padding: '6px', borderRadius: '6px', background: '#EFF6FF', border: 'none', color: '#2563EB', cursor: 'pointer' }}><Edit2 size={15} /></button>
-                                  <button onClick={() => setDeleteConfirm({ type: 'product', id: item._id, name: item.name })} style={{ padding: '6px', borderRadius: '6px', background: '#FEE2E2', border: 'none', color: '#EF4444', cursor: 'pointer' }}><Trash2 size={15} /></button>
+                                  <button onClick={() => setDeleteConfirm({ type: 'product', id: item._id, name: item.name, isService: isServicesSection })} style={{ padding: '6px', borderRadius: '6px', background: '#FEE2E2', border: 'none', color: '#EF4444', cursor: 'pointer' }}><Trash2 size={15} /></button>
                                 </div>
                               </td>
                             </tr>
@@ -4761,7 +4879,7 @@ const CustomerDetails = () => {
                   totalItems={productTab === 'categories' ? filteredCategories.length : productTab === 'subcategories' ? filteredSubcategories.length : filteredProducts.length}
                   itemsPerPage={itemsPerPage}
                   setItemsPerPage={setItemsPerPage}
-                  itemName={productTab === 'categories' ? 'categories' : productTab === 'subcategories' ? 'sub categories' : 'products & services'}
+                  itemName={productTab === 'categories' ? 'categories' : productTab === 'subcategories' ? 'sub categories' : (isServicesSection ? 'services' : 'products')}
                 />
 
               </div>
@@ -6894,7 +7012,7 @@ const CustomerDetails = () => {
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Eye size={18} color="#2563EB" />
                 <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '700', color: '#0F172A', textTransform: 'capitalize' }}>
-                  {viewModalData.type} Details
+                  {(viewModalData.type === 'product' && (viewModalData.data?.itemType === 'Service' || isServicesSection)) ? 'Service' : viewModalData.type} Details
                 </h3>
               </div>
               <button onClick={() => setViewModalData(null)} style={{ cursor: 'pointer', color: '#64748B' }}><X size={20} /></button>
@@ -6933,7 +7051,7 @@ const CustomerDetails = () => {
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Edit2 size={18} color="#2563EB" />
                 <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '700', color: '#0F172A', textTransform: 'capitalize' }}>
-                  Edit {editModalData.type === 'user' ? 'Customer Profile' : editModalData.type}
+                  Edit {editModalData.type === 'user' ? 'Customer Profile' : (editModalData.type === 'product' && (editModalData.formData?.itemType === 'Service' || editModalData.data?.itemType === 'Service' || isServicesSection)) ? 'Service' : editModalData.type}
                 </h3>
               </div>
               <button onClick={() => setEditModalData(null)} style={{ cursor: 'pointer', color: '#64748B' }}><X size={20} /></button>
@@ -6981,23 +7099,33 @@ const CustomerDetails = () => {
                           {fieldKey === 'categoryId' && (
                             <>
                               <option value="">Select Category</option>
-                              {categories.map(c => (
-                                <option key={c._id} value={c._id}>{c.name}</option>
-                              ))}
+                              {categories
+                                .filter(c => {
+                                  if (editModalData.type === 'product') {
+                                    const isServ = editModalData.formData?.itemType === 'Service' || isServicesSection;
+                                    return isServ ? c.itemType?.toLowerCase() === 'service' : c.itemType?.toLowerCase() !== 'service';
+                                  }
+                                  return true;
+                                })
+                                .map(c => (
+                                  <option key={c._id} value={c._id}>{c.name}</option>
+                                ))}
                             </>
                           )}
                           {fieldKey === 'subCategoryId' && (
                             <>
                               <option value="">Select Sub Category (Optional)</option>
-                              {subcategories.map(sc => (
-                                <option key={sc._id} value={sc._id}>{sc.name} ({sc.categoryId?.name || 'General'})</option>
-                              ))}
+                              {subcategories
+                                .filter(sc => !editModalData.formData.categoryId || (sc.categoryId?._id || sc.categoryId) === editModalData.formData.categoryId)
+                                .map(sc => (
+                                  <option key={sc._id} value={sc._id}>{sc.name} ({sc.categoryId?.name || 'General'})</option>
+                                ))}
                             </>
                           )}
                           {fieldKey === 'itemType' && (
                             <>
-                              <option value="product">Product</option>
-                              <option value="service">Service</option>
+                              <option value="Product">Product</option>
+                              <option value="Service">Service</option>
                             </>
                           )}
                           {fieldKey === 'transactionType' && (
@@ -7151,7 +7279,7 @@ const CustomerDetails = () => {
             <div style={{ padding: '20px 24px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '700', color: '#0F172A' }}>
-                  {addModalData.type === 'attendance' ? 'Mark Attendance' : `Add ${addModalData.type.charAt(0).toUpperCase() + addModalData.type.slice(1)}`}
+                  {addModalData.type === 'attendance' ? 'Mark Attendance' : (addModalData.type === 'product' && (addModalData.formData?.itemType === 'Service' || isServicesSection)) ? 'Add Service' : `Add ${addModalData.type.charAt(0).toUpperCase() + addModalData.type.slice(1)}`}
                 </h3>
                 <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#64748B' }}>Fill in the details below</p>
               </div>
@@ -7207,9 +7335,17 @@ const CustomerDetails = () => {
                             {fieldKey === 'categoryId' && (
                               <>
                                 <option value="">Select Category...</option>
-                                {categories.map(c => (
-                                  <option key={c._id} value={c._id}>{c.name}</option>
-                                ))}
+                                {categories
+                                  .filter(c => {
+                                    if (addModalData.type === 'product') {
+                                      const isServ = addModalData.formData?.itemType === 'Service' || isServicesSection;
+                                      return isServ ? c.itemType?.toLowerCase() === 'service' : c.itemType?.toLowerCase() !== 'service';
+                                    }
+                                    return true;
+                                  })
+                                  .map(c => (
+                                    <option key={c._id} value={c._id}>{c.name}</option>
+                                  ))}
                               </>
                             )}
                             {fieldKey === 'subCategoryId' && (
@@ -7224,8 +7360,8 @@ const CustomerDetails = () => {
                             )}
                             {fieldKey === 'itemType' && (
                               <>
-                                <option value="product">Product</option>
-                                <option value="service">Service</option>
+                                <option value="Product">Product</option>
+                                <option value="Service">Service</option>
                               </>
                             )}
                             {fieldKey === 'transactionType' && (
@@ -7275,7 +7411,7 @@ const CustomerDetails = () => {
                 </button>
                 <button type="submit" disabled={savingAction} className="btn-primary" style={{ fontSize: '13px', padding: '8px 18px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                   {savingAction ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Plus size={14} />}
-                  {addModalData.type === 'attendance' ? 'Mark Attendance' : `Add ${addModalData.type.charAt(0).toUpperCase() + addModalData.type.slice(1)}`}
+                  {addModalData.type === 'attendance' ? 'Mark Attendance' : (addModalData.type === 'product' && (addModalData.formData?.itemType === 'Service' || isServicesSection)) ? 'Add Service' : `Add ${addModalData.type.charAt(0).toUpperCase() + addModalData.type.slice(1)}`}
                 </button>
               </div>
             </form>
@@ -7294,7 +7430,7 @@ const CustomerDetails = () => {
             </div>
 
             <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '700', color: '#0F172A' }}>
-              Delete {deleteConfirm.type === 'user' ? 'Customer Account' : deleteConfirm.type.charAt(0).toUpperCase() + deleteConfirm.type.slice(1)}?
+              Delete {deleteConfirm.type === 'user' ? 'Customer Account' : (deleteConfirm.type === 'product' && deleteConfirm.isService) ? 'Service' : deleteConfirm.type.charAt(0).toUpperCase() + deleteConfirm.type.slice(1)}?
             </h3>
             
             <p style={{ margin: '0 0 24px 0', fontSize: '14px', color: '#64748B', lineHeight: '1.5' }}>

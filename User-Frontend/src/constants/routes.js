@@ -1,6 +1,3 @@
-/**
- * Application Route Paths
- */
 export const ROUTES = {
   // Public
   HOME: '/',
@@ -21,6 +18,7 @@ export const ROUTES = {
     BUSINESSES: '/tenant/businesses',
     BRANCHES: '/tenant/branches',
     PRODUCTS: '/tenant/products',
+    SERVICES: '/tenant/services',
     INVENTORY: '/tenant/inventory',
     CUSTOMERS: '/tenant/customers',
     EXPENSES: '/tenant/expenses',
@@ -41,4 +39,3 @@ export const ROUTES = {
 };
 
 export default ROUTES;
-

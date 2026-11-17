@@ -328,7 +328,7 @@ router.get('/users/:id/details', async (req, res) => {
       Employee.find({ tenantId: matchTenant }).select('-password').sort({ createdAt: -1 }),
       Customer.find({ tenantId: matchTenant }).sort({ createdAt: -1 }),
       Inventory.find({ tenantId: matchTenant }).sort({ createdAt: -1 }),
-      Product.find({ tenantId: matchTenant }).populate('categoryId', 'name').populate('subCategoryId', 'name').sort({ createdAt: -1 }),
+      Product.find({ tenantId: matchTenant }).populate('categoryId', 'name itemType transactionType').populate('subCategoryId', 'name itemType transactionType').sort({ createdAt: -1 }),
       Sale.find({ tenantId: matchTenant }).sort({ createdAt: -1 }),
       Expense.find({ tenantId: matchTenant }).sort({ createdAt: -1 }),
       Purchase.find({ tenantId: matchTenant }).sort({ createdAt: -1 }),
@@ -337,7 +337,7 @@ router.get('/users/:id/details', async (req, res) => {
       Reminder.find({ tenantId: matchTenant }).sort({ date: -1 }),
       Document.find({ tenantId: matchTenant }).sort({ createdAt: -1 }),
       Category.find({ tenantId: matchTenant }).sort({ createdAt: -1 }),
-      SubCategory.find({ tenantId: matchTenant }).populate('categoryId', 'name').sort({ createdAt: -1 }),
+      SubCategory.find({ tenantId: matchTenant }).populate('categoryId', 'name itemType transactionType').sort({ createdAt: -1 }),
       Investor.find({ tenantId: matchTenant }).select('-password').sort({ createdAt: -1 })
     ]);
 
@@ -418,7 +418,8 @@ router.get('/users/:id/details', async (req, res) => {
         businesses: (user.businesses && user.businesses.length > 0) ? user.businesses.length : 1,
         customers: customers ? customers.length : 0,
         inventory: inventory ? inventory.length : 0,
-        products: products ? products.length : 0,
+        products: products ? products.filter(p => (p.itemType || p.categoryId?.itemType)?.toLowerCase() !== 'service').length : 0,
+        services: products ? products.filter(p => (p.itemType || p.categoryId?.itemType)?.toLowerCase() === 'service').length : 0,
         sales: sales ? sales.length : 0,
         expenses: expenses ? expenses.length : 0,
         purchases: purchases ? purchases.length : 0,
@@ -1364,6 +1365,9 @@ router.put('/products/:id', async (req, res) => {
       { new: true }
     );
     if (!updated) return res.status(404).json({ message: 'Product not found' });
+    if (updated.itemType === 'Service') {
+      await Inventory.deleteMany({ productId: updated._id });
+    }
     res.json(updated);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -1374,6 +1378,7 @@ router.delete('/products/:id', async (req, res) => {
   try {
     const deleted = await Product.findByIdAndDelete(req.params.id);
     if (!deleted) return res.status(404).json({ message: 'Product not found' });
+    await Inventory.deleteMany({ productId: deleted._id });
     res.json({ message: 'Product deleted successfully' });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -1528,6 +1533,23 @@ router.post('/products', async (req, res) => {
   try {
     const prod = new Product(req.body);
     const saved = await prod.save();
+    // Only auto-create inventory entry if it's a product (not service)
+    if (saved.itemType === 'Product' || (!saved.itemType && saved.itemType !== 'Service')) {
+      let categoryName = '';
+      if (saved.categoryId) {
+        const cat = await Category.findById(saved.categoryId);
+        if (cat) categoryName = cat.name;
+      }
+      await Inventory.create({
+        tenantId: saved.tenantId,
+        itemName: saved.name,
+        sku: saved.sku || '',
+        category: categoryName,
+        quantity: Number(saved.stock) || 0,
+        price: Number(saved.price) || 0,
+        productId: saved._id
+      });
+    }
     res.status(201).json(saved);
   } catch (err) {
     res.status(400).json({ message: err.message });

@@ -11,6 +11,7 @@ import Settings from './pages/Settings';
 import PricingManage from './pages/PricingManage';
 import AdminProfile from './pages/AdminProfile';
 import ManageSubscriptions from './pages/ManageSubscriptions';
+import ContactInquiries from './pages/ContactInquiries';
 import NotFound from './pages/NotFound';
 import AlertModal from './components/AlertModal';
 
@@ -29,6 +30,7 @@ function App() {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="customers" element={<CustomerDirectory />} />
           <Route path="customers/new" element={<AddCustomer />} />
+          <Route path="inquiries" element={<ContactInquiries />} />
           <Route path="subscriptions" element={<ManageSubscriptions />} />
           <Route path="profile" element={<AdminProfile />} />
           <Route path="pricing" element={<PricingManage />} />

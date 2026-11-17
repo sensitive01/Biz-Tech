@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate, Navigate } from 'react-router-dom';
-import { LayoutGrid, Building2, Settings, Bell, User, ChevronDown, Hexagon, ShieldAlert, LogOut, Receipt, ShieldCheck } from 'lucide-react';
+import { LayoutGrid, Building2, Settings, Bell, User, ChevronDown, Hexagon, ShieldAlert, LogOut, Receipt, ShieldCheck, Mail } from 'lucide-react';
 import ThemeToggle from '../components/ThemeToggle';
 
 const AdminLayout = () => {
@@ -201,6 +201,21 @@ const AdminLayout = () => {
           >
             <Building2 size={18} />
             Customer Directory
+          </NavLink>
+
+          <NavLink 
+            to="/admin/inquiries" 
+            style={({isActive}) => ({
+              display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: 'var(--radius-lg)',
+              color: isActive ? 'var(--primary-blue)' : 'var(--text-secondary)',
+              background: isActive ? '#EFF4FF' : 'transparent',
+              fontWeight: isActive ? '600' : '500',
+              fontSize: '14px',
+              textDecoration: 'none'
+            })}
+          >
+            <Mail size={18} />
+            Contact Inquiries
           </NavLink>
 
           <NavLink 

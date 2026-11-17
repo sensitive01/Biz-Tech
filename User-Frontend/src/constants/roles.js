@@ -1,6 +1,3 @@
-/**
- * Employee Designations & Work Types
- */
 export const DESIGNATION_OPTIONS = [
   'Store Manager',
   'Branch Manager',
@@ -30,4 +27,3 @@ export default {
   DESIGNATION_OPTIONS,
   WORK_TYPE_OPTIONS,
 };
-
