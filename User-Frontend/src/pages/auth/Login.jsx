@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, Clock, AlertTriangle, CheckCircle2, ShieldAlert } from 'lucide-react';
 import LanguageSelector from '@/components/LanguageSelector';
 import ThemeToggle from '@/components/ThemeToggle';
 
@@ -12,6 +12,8 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [pendingApprovalInfo, setPendingApprovalInfo] = useState(null);
+  const [rejectionInfo, setRejectionInfo] = useState(null);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -48,12 +50,37 @@ const Login = () => {
           localStorage.removeItem('activeBusiness');
         }
 
-        navigate('/tenant/dashboard');
+        // Check if onboarding is completed
+        if (data.requiresOnboarding || data.user?.isOnboardingCompleted === false) {
+          navigate('/onboarding', { replace: true });
+        } else {
+          navigate('/tenant/dashboard', { replace: true });
+        }
       } else {
-        setError(data.message || 'Login failed');
+        if (data.isPendingApproval) {
+          setPendingApprovalInfo({
+            message: data.message,
+            approvalDetails: data.approvalDetails
+          });
+          setRejectionInfo(null);
+          setError('');
+        } else if (data.isRejected) {
+          setRejectionInfo({
+            message: data.message,
+            rejectionReason: data.rejectionReason
+          });
+          setPendingApprovalInfo(null);
+          setError('');
+        } else {
+          setError(data.message || 'Login failed');
+          setPendingApprovalInfo(null);
+          setRejectionInfo(null);
+        }
       }
     } catch (err) {
       setError('Server error. Please try again later.');
+      setPendingApprovalInfo(null);
+      setRejectionInfo(null);
     } finally {
       setLoading(false);
     }
@@ -91,7 +118,53 @@ const Login = () => {
             Access your store dashboard, inventory, and business tools
           </p>
 
-          {error && <div style={{ color: '#EF4444', fontSize: '14px', marginBottom: '16px', textAlign: 'center', background: '#FEF2F2', padding: '8px', borderRadius: '6px', width: '100%' }}>{error}</div>}
+          {/* Pending Approval Notice */}
+          {pendingApprovalInfo && (
+            <div style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: '12px', padding: '16px', marginBottom: '18px', width: '100%', textAlign: 'left', boxSizing: 'border-box' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#B45309', fontWeight: '700', fontSize: '14px', marginBottom: '6px' }}>
+                <Clock size={18} /> Payment Verification Pending
+              </div>
+              <p style={{ fontSize: '13px', color: '#92400E', margin: '0 0 10px 0', lineHeight: '1.5' }}>
+                {pendingApprovalInfo.message || 'Your payment proof has been submitted and is currently being verified by the platform admin. Once approved, you will be able to log in to your workspace.'}
+              </p>
+              {pendingApprovalInfo.approvalDetails && (
+                <div style={{ background: 'white', borderRadius: '8px', padding: '10px 12px', fontSize: '12px', border: '1px solid #FDE68A', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                  {pendingApprovalInfo.approvalDetails.planName && (
+                    <div><strong style={{ color: '#475569' }}>Plan:</strong> <span style={{ color: '#0F172A', fontWeight: '600' }}>{pendingApprovalInfo.approvalDetails.planName} ({pendingApprovalInfo.approvalDetails.billingCycle || 'Monthly'})</span></div>
+                  )}
+                  {pendingApprovalInfo.approvalDetails.amount > 0 && (
+                    <div><strong style={{ color: '#475569' }}>Total Amount:</strong> <span style={{ color: '#2563EB', fontWeight: '700' }}>₹{pendingApprovalInfo.approvalDetails.amount.toLocaleString()}</span></div>
+                  )}
+                  {pendingApprovalInfo.approvalDetails.utrNumber && (
+                    <div><strong style={{ color: '#475569' }}>Submitted UTR:</strong> <span style={{ fontFamily: 'monospace', fontWeight: '700', color: '#0F172A', background: '#F1F5F9', padding: '2px 6px', borderRadius: '4px' }}>{pendingApprovalInfo.approvalDetails.utrNumber}</span></div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Rejection Notice */}
+          {rejectionInfo && (
+            <div style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: '12px', padding: '16px', marginBottom: '18px', width: '100%', textAlign: 'left', boxSizing: 'border-box' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#DC2626', fontWeight: '700', fontSize: '14px', marginBottom: '6px' }}>
+                <AlertTriangle size={18} /> Payment Verification Rejected
+              </div>
+              <p style={{ fontSize: '13px', color: '#B91C1C', margin: '0 0 8px 0', lineHeight: '1.5' }}>
+                {rejectionInfo.message || 'Your payment proof could not be verified by the admin.'}
+              </p>
+              {rejectionInfo.rejectionReason && (
+                <div style={{ background: 'white', borderRadius: '8px', padding: '10px 12px', fontSize: '12px', border: '1px solid #FECACA', color: '#991B1B' }}>
+                  <strong>Admin Reason:</strong> {rejectionInfo.rejectionReason}
+                </div>
+              )}
+            </div>
+          )}
+
+          {error && !pendingApprovalInfo && !rejectionInfo && (
+            <div style={{ color: '#EF4444', fontSize: '14px', marginBottom: '16px', textAlign: 'center', background: '#FEF2F2', padding: '10px', borderRadius: '8px', width: '100%', boxSizing: 'border-box', border: '1px solid #FCA5A5' }}>
+              {error}
+            </div>
+          )}
 
           <form onSubmit={handleLogin} style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
             

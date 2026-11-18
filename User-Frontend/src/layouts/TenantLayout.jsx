@@ -226,9 +226,12 @@ const TenantLayout = () => {
     }
 
     // Selectable operational module permission checks (Product, Inventory, Purchases, Attendance, Leaves)
-    if ((path.includes('/tenant/products') || path.includes('/tenant/services')) && !modules.includes('products_services')) return true;
-    if (path.includes('/tenant/inventory') && !modules.includes('inventory')) return true;
-    if (path.includes('/tenant/purchases') && !modules.includes('purchases')) return true;
+    const isServiceOnly = currentUser?.offeringType === 'service' || currentUser?.businessOfferingType === 'service';
+    const isProductOnly = currentUser?.offeringType === 'product' || currentUser?.businessOfferingType === 'product';
+    if (path.includes('/tenant/purchases') && isServiceOnly) return true;
+    if (path.includes('/tenant/products') && isServiceOnly) return true;
+    if (path.includes('/tenant/inventory') && isServiceOnly) return true;
+    if (path.includes('/tenant/services') && isProductOnly) return true;
     if (path.includes('/tenant/attendance') && !modules.includes('attendance')) return true;
     if (path.includes('/tenant/leaves') && !modules.includes('leaves')) return true;
     // Billing (/tenant/sales) is mandatory for all logins
@@ -675,16 +678,16 @@ const TenantLayout = () => {
             </NavLink>
           )}
 
-          {/* 4a. Products (shown unless pure service) */}
-          {modules.includes('products_services') && currentUser?.businessOfferingType !== 'service' && (
+          {/* 4a. Products (shown if offering is product or both) */}
+          {(currentUser?.offeringType === 'product' || currentUser?.offeringType === 'both' || currentUser?.businessOfferingType === 'product' || currentUser?.businessOfferingType === 'both' || (!currentUser?.offeringType && !currentUser?.businessOfferingType)) && (
             <NavLink to="/tenant/products" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <Package size={18} />
               <span>Products</span>
             </NavLink>
           )}
 
-          {/* 4b. Services (shown unless pure product) */}
-          {modules.includes('products_services') && currentUser?.businessOfferingType !== 'product' && (
+          {/* 4b. Services (shown if offering is service, both, or institution) */}
+          {(currentUser?.offeringType === 'service' || currentUser?.offeringType === 'both' || currentUser?.offeringType === 'institution' || currentUser?.businessOfferingType === 'service' || currentUser?.businessOfferingType === 'both' || currentUser?.businessOfferingType === 'institution') && (
             <NavLink to="/tenant/services" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <Wrench size={18} />
               <span>Services</span>
@@ -692,7 +695,7 @@ const TenantLayout = () => {
           )}
 
           {/* 5. Stock / Inventory (hidden for pure service businesses) */}
-          {modules.includes('inventory') && currentUser?.businessOfferingType !== 'service' && (
+          {currentUser?.offeringType !== 'service' && currentUser?.businessOfferingType !== 'service' && (
             <NavLink to="/tenant/inventory" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <Archive size={18} />
               <span>Stock / Inventory</span>
@@ -715,8 +718,8 @@ const TenantLayout = () => {
             </NavLink>
           )}
 
-          {/* 8. Purchases (hidden for sales-only businesses) */}
-          {modules.includes('purchases') && currentUser?.businessOperationsType !== 'sales' && (
+          {/* 8. Purchases (shown ONLY if Product is selected) */}
+          {(currentUser?.offeringType === 'product' || currentUser?.offeringType === 'both' || currentUser?.businessOfferingType === 'product' || currentUser?.businessOfferingType === 'both' || (!currentUser?.offeringType && !currentUser?.businessOfferingType)) && (
             <NavLink to="/tenant/purchases" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <ShoppingCart size={18} />
               <span>Purchases</span>

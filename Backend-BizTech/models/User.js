@@ -27,6 +27,10 @@ const UserSchema = new mongoose.Schema({
     type: Number,
     default: 1
   },
+  isOnboardingCompleted: {
+    type: Boolean,
+    default: false
+  },
   businessName: {
     type: String,
     required: false
@@ -47,6 +51,22 @@ const UserSchema = new mongoose.Schema({
     type: String,
     required: false
   },
+  panNumber: {
+    type: String,
+    trim: true,
+    uppercase: true,
+    sparse: true
+  },
+  ownerName: {
+    type: String,
+    default: ''
+  },
+  gstNumber: {
+    type: String,
+    default: '',
+    trim: true,
+    uppercase: true
+  },
   createdAt: {
     type: Date,
     default: Date.now
@@ -58,12 +78,12 @@ const UserSchema = new mongoose.Schema({
   },
   offeringType: {
     type: String,
-    enum: ['product', 'service', 'both'],
+    enum: ['product', 'service', 'both', 'institution'],
     default: 'product'
   },
   businessOfferingType: {
     type: String,
-    enum: ['product', 'service', 'both'],
+    enum: ['product', 'service', 'both', 'institution'],
     default: 'product'
   },
   businesses: [{
@@ -80,9 +100,12 @@ const UserSchema = new mongoose.Schema({
     password: { type: String },
     isLoginEnabled: { type: Boolean, default: true },
     regNo: String,
+    panNumber: { type: String, trim: true, uppercase: true },
+    ownerName: { type: String, default: '' },
+    gstNumber: { type: String, default: '', trim: true, uppercase: true },
     offeringType: {
       type: String,
-      enum: ['product', 'service', 'both'],
+      enum: ['product', 'service', 'both', 'institution'],
       default: 'both'
     },
     operationsType: {
@@ -94,8 +117,23 @@ const UserSchema = new mongoose.Schema({
   }],
   subscriptionStatus: {
     type: String,
-    enum: ['Active', 'Trial', 'Pending Renewal', 'Expired', 'Cancelled'],
+    enum: ['Active', 'Trial', 'Pending Renewal', 'Expired', 'Cancelled', 'Pending Approval', 'Rejected'],
     default: 'Active'
+  },
+  paymentProof: {
+    approvalId: { type: mongoose.Schema.Types.ObjectId, ref: 'PaymentApproval' },
+    utrNumber: { type: String, default: '' },
+    proofUrl: { type: String, default: '' },
+    originalFileName: { type: String, default: '' },
+    status: {
+      type: String,
+      enum: ['Pending', 'Approved', 'Rejected'],
+      default: 'Pending'
+    },
+    submittedAt: { type: Date },
+    reviewedAt: { type: Date },
+    reviewedBy: { type: String, default: '' },
+    rejectionReason: { type: String, default: '' }
   },
   subscriptionBillingCycle: {
     type: String,
@@ -119,6 +157,37 @@ const UserSchema = new mongoose.Schema({
   businessLimit: {
     type: Number,
     default: null
+  },
+  category: {
+    type: String,
+    default: ''
+  },
+  subCategory: {
+    type: String,
+    default: ''
+  },
+  documents: {
+    pan: { type: String, default: '' },
+    gstin: { type: String, default: '' },
+    msme: { type: String, default: '' },
+    fssai: { type: String, default: '' },
+    tradeLicense: { type: String, default: '' },
+    customDocuments: [{
+      name: { type: String, default: '' },
+      number: { type: String, default: '' },
+      fileName: { type: String, default: '' }
+    }]
+  },
+  subscription: {
+    planId: { type: String, default: '' },
+    planName: { type: String, default: 'Trial' },
+    amount: { type: Number, default: 0 },
+    billingCycle: { type: String, default: 'Monthly' },
+    paymentMethod: { type: String, default: 'Trial' },
+    paymentStatus: { type: String, default: 'Active' },
+    transactionId: { type: String, default: '' },
+    startDate: { type: Date, default: Date.now },
+    validUntil: { type: Date }
   }
 });
 

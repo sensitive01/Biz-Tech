@@ -175,6 +175,7 @@ router.get('/profile', async (req, res) => {
       designation: admin.designation || 'Platform Administrator',
       department: admin.department || 'Operations & Management',
       avatar: admin.avatar || '',
+      upiId: admin.upiId || 'biztech@upi',
       createdAt: admin.createdAt
     });
   } catch (err) {
@@ -188,7 +189,7 @@ router.get('/profile', async (req, res) => {
 router.put('/profile', async (req, res) => {
   try {
     const admin = await getAdminFromRequest(req);
-    const { name, phone, email, designation, department, avatar } = req.body;
+    const { name, phone, email, designation, department, avatar, upiId } = req.body;
 
     if (name) admin.name = name;
     if (phone) admin.phone = phone;
@@ -196,6 +197,7 @@ router.put('/profile', async (req, res) => {
     if (designation) admin.designation = designation;
     if (department) admin.department = department;
     if (avatar !== undefined) admin.avatar = avatar;
+    if (upiId !== undefined) admin.upiId = upiId.trim();
 
     await admin.save();
 
@@ -208,6 +210,7 @@ router.put('/profile', async (req, res) => {
       designation: admin.designation,
       department: admin.department,
       avatar: admin.avatar,
+      upiId: admin.upiId || 'biztech@upi',
       createdAt: admin.createdAt
     });
   } catch (err) {

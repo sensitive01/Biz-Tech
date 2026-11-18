@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Edit2, IndianRupee, Users, Map, Building2 } from 'lucide-react';
+import { Edit2, IndianRupee, Users, Map, Building2, Tag } from 'lucide-react';
 
 const DEFAULT_TYPES = [
   { id: 1, title: 'Type 1: Sole Operator', desc: '1 Owner • 1 Shop • Owner-managed staff, attendance & leaves', defaultLimit: 10, defaultBranchLimit: null, defaultBusinessLimit: null },
@@ -17,6 +17,7 @@ const PricingManage = () => {
     id: null, 
     customerType: '', 
     amount: 0, 
+    annualDiscountPercent: 0,
     description: '', 
     employeeLimit: '', 
     branchLimit: '', 
@@ -56,7 +57,8 @@ const PricingManage = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customerType: formData.customerType,
-          amount: formData.amount,
+          amount: Number(formData.amount),
+          annualDiscountPercent: formData.annualDiscountPercent === '' ? 0 : Math.min(100, Math.max(0, Number(formData.annualDiscountPercent))),
           description: formData.description,
           employeeLimit: formData.employeeLimit === '' ? null : Number(formData.employeeLimit),
           branchLimit: formData.branchLimit === '' ? null : Number(formData.branchLimit),
@@ -84,6 +86,7 @@ const PricingManage = () => {
         id: existingPlan._id, 
         customerType: existingPlan.customerType, 
         amount: existingPlan.amount, 
+        annualDiscountPercent: existingPlan.annualDiscountPercent !== undefined && existingPlan.annualDiscountPercent !== null ? existingPlan.annualDiscountPercent : 0,
         description: existingPlan.description,
         employeeLimit: existingPlan.employeeLimit != null ? existingPlan.employeeLimit : (defaultType.defaultLimit != null ? defaultType.defaultLimit : ''),
         branchLimit: existingPlan.branchLimit != null ? existingPlan.branchLimit : (defaultType.defaultBranchLimit != null ? defaultType.defaultBranchLimit : ''),
@@ -94,6 +97,7 @@ const PricingManage = () => {
         id: null, 
         customerType: defaultType.title, 
         amount: 0, 
+        annualDiscountPercent: 0,
         description: defaultType.desc,
         employeeLimit: defaultType.defaultLimit != null ? defaultType.defaultLimit : '',
         branchLimit: defaultType.defaultBranchLimit != null ? defaultType.defaultBranchLimit : '',
@@ -136,9 +140,58 @@ const PricingManage = () => {
                   </button>
                 </div>
                 
-                <div style={{ fontSize: '32px', fontWeight: '700', color: 'var(--text-title)', marginBottom: '12px', display: 'flex', alignItems: 'center' }}>
+                <div style={{ fontSize: '32px', fontWeight: '700', color: 'var(--text-title)', marginBottom: '8px', display: 'flex', alignItems: 'center' }}>
                   <IndianRupee size={28} />{amount} <span style={{ fontSize: '14px', color: 'var(--text-muted)', fontWeight: 'normal', marginLeft: '4px' }}>/ mo</span>
                 </div>
+
+                {/* Annual Pricing & Discount badge */}
+                {(() => {
+                  const annualDiscount = plan && plan.annualDiscountPercent !== undefined && plan.annualDiscountPercent !== null ? Number(plan.annualDiscountPercent) : 0;
+                  const fullAnnual = Number(amount) * 12;
+                  const discountedAnnual = annualDiscount > 0 ? Math.round(fullAnnual * (1 - annualDiscount / 100)) : fullAnnual;
+                  return (
+                    <div style={{ marginBottom: '14px' }}>
+                      {annualDiscount > 0 ? (
+                        <div style={{ 
+                          display: 'inline-flex', 
+                          alignItems: 'center', 
+                          gap: '6px', 
+                          background: '#ECFDF5', 
+                          color: '#047857', 
+                          border: '1px solid #A7F3D0',
+                          padding: '4px 10px', 
+                          borderRadius: '8px', 
+                          fontSize: '12px', 
+                          fontWeight: '600'
+                        }}>
+                          <Tag size={13} />
+                          <span>Annual: ₹{discountedAnnual.toLocaleString()}/yr</span>
+                          <span style={{ background: '#10B981', color: 'white', padding: '1px 6px', borderRadius: '6px', fontSize: '10px', fontWeight: '700' }}>
+                            {annualDiscount}% OFF
+                          </span>
+                          <span style={{ color: '#94A3B8', textDecoration: 'line-through', fontSize: '11px' }}>
+                            ₹{fullAnnual.toLocaleString()}
+                          </span>
+                        </div>
+                      ) : (
+                        <div style={{ 
+                          display: 'inline-flex', 
+                          alignItems: 'center', 
+                          gap: '6px', 
+                          background: '#F8FAFC', 
+                          color: '#64748B', 
+                          border: '1px solid #E2E8F0',
+                          padding: '4px 10px', 
+                          borderRadius: '8px', 
+                          fontSize: '12px', 
+                          fontWeight: '500'
+                        }}>
+                          <span>Annual: ₹{fullAnnual.toLocaleString()}/yr (No discount)</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '14px' }}>
                   <span style={{ 
@@ -221,11 +274,71 @@ const PricingManage = () => {
                 <input 
                   placeholder="Enter the monthly amount" 
                   type="number" 
+                  min="0"
                   value={formData.amount} 
-                  onChange={e => setFormData({ ...formData, amount: e.target.value })} 
+                  onFocus={(e) => { if (e.target.value === '0') e.target.select(); }}
+                  onChange={(e) => {
+                    let val = e.target.value;
+                    if (val.length > 1 && val.startsWith('0')) {
+                      val = String(Number(val));
+                    }
+                    setFormData({ ...formData, amount: val });
+                  }} 
                   required
                   style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #CBD5E1', boxSizing: 'border-box' }}
                 />
+              </div>
+
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '14px', fontWeight: '500', color: '#334155' }}>
+                    Annual Discount (%)
+                  </label>
+                  {Number(formData.annualDiscountPercent || 0) > 0 && (
+                    <span style={{ fontSize: '12px', color: '#10B981', fontWeight: '700' }}>
+                      Saves ₹{Math.round((Number(formData.amount || 0) * 12) * (Number(formData.annualDiscountPercent || 0) / 100)).toLocaleString()}/yr
+                    </span>
+                  )}
+                </div>
+                <input 
+                  placeholder="e.g. 15 (Enter 0 for no discount)" 
+                  type="number" 
+                  min="0"
+                  max="100"
+                  value={formData.annualDiscountPercent} 
+                  onWheel={(e) => e.target.blur()}
+                  onFocus={(e) => { if (e.target.value === '0') e.target.select(); }}
+                  onChange={(e) => {
+                    let val = e.target.value;
+                    if (val.length > 1 && val.startsWith('0')) {
+                      val = String(Number(val));
+                    }
+                    if (val !== '') {
+                      const num = Number(val);
+                      if (isNaN(num) || num < 0) val = '0';
+                      else if (num > 100) val = '100';
+                    }
+                    setFormData({ ...formData, annualDiscountPercent: val });
+                  }} 
+                  style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #CBD5E1', boxSizing: 'border-box' }}
+                />
+                
+                {/* Live Preview Box */}
+                <div style={{ background: '#F8FAFC', padding: '10px 12px', borderRadius: '8px', marginTop: '6px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#475569' }}>
+                  <div style={{ fontWeight: '600', color: '#1E293B', marginBottom: '2px' }}>Annual Calculation Preview:</div>
+                  <div>
+                    Full 12-Month Total: <strong>₹{(Number(formData.amount || 0) * 12).toLocaleString()}</strong>
+                  </div>
+                  {Number(formData.annualDiscountPercent || 0) > 0 ? (
+                    <div style={{ color: '#047857', fontWeight: '600', marginTop: '2px' }}>
+                      After {formData.annualDiscountPercent}% Discount: ₹{Math.round((Number(formData.amount || 0) * 12) * (1 - Number(formData.annualDiscountPercent || 0) / 100)).toLocaleString()} / year
+                    </div>
+                  ) : (
+                    <div style={{ color: '#64748B', marginTop: '2px' }}>
+                      No discount configured. Customer will be charged full ₹{(Number(formData.amount || 0) * 12).toLocaleString()} / year.
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div>

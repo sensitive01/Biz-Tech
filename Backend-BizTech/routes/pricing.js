@@ -20,7 +20,7 @@ router.get('/', async (req, res) => {
 // @access  Admin
 router.post('/', async (req, res) => {
   try {
-    const { customerType, amount, description, employeeLimit, branchLimit, businessLimit } = req.body;
+    const { customerType, amount, description, employeeLimit, branchLimit, businessLimit, annualDiscountPercent } = req.body;
     let plan = await Pricing.findOne({ customerType });
     if (plan) {
       return res.status(400).json({ message: 'Pricing for this customer type already exists' });
@@ -28,13 +28,15 @@ router.post('/', async (req, res) => {
     const cleanLimit = (employeeLimit === '' || employeeLimit === null || Number(employeeLimit) === 0) ? null : Number(employeeLimit);
     const cleanBranchLimit = (branchLimit === '' || branchLimit === null || Number(branchLimit) === 0) ? null : Number(branchLimit);
     const cleanBusinessLimit = (businessLimit === '' || businessLimit === null || Number(businessLimit) === 0) ? null : Number(businessLimit);
+    const cleanDiscount = (annualDiscountPercent === '' || annualDiscountPercent === null || isNaN(Number(annualDiscountPercent))) ? 0 : Math.min(100, Math.max(0, Number(annualDiscountPercent)));
     plan = new Pricing({ 
       customerType, 
       amount, 
       description, 
       employeeLimit: cleanLimit,
       branchLimit: cleanBranchLimit,
-      businessLimit: cleanBusinessLimit
+      businessLimit: cleanBusinessLimit,
+      annualDiscountPercent: cleanDiscount
     });
     await plan.save();
     res.json(plan);
@@ -49,7 +51,7 @@ router.post('/', async (req, res) => {
 // @access  Admin
 router.put('/:id', async (req, res) => {
   try {
-    const { customerType, amount, description, employeeLimit, branchLimit, businessLimit } = req.body;
+    const { customerType, amount, description, employeeLimit, branchLimit, businessLimit, annualDiscountPercent } = req.body;
     let plan = await Pricing.findById(req.params.id);
     if (!plan) {
       return res.status(404).json({ message: 'Pricing plan not found' });
@@ -66,6 +68,9 @@ router.put('/:id', async (req, res) => {
     }
     if (businessLimit !== undefined) {
       plan.businessLimit = (businessLimit === '' || businessLimit === null || Number(businessLimit) === 0) ? null : Number(businessLimit);
+    }
+    if (annualDiscountPercent !== undefined) {
+      plan.annualDiscountPercent = (annualDiscountPercent === '' || annualDiscountPercent === null || isNaN(Number(annualDiscountPercent))) ? 0 : Math.min(100, Math.max(0, Number(annualDiscountPercent)));
     }
     
     await plan.save();

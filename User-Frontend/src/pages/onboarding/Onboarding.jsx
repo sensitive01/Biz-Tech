@@ -1,378 +1,508 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Store, Users, Map, Package, ArrowRight, ArrowLeft, CheckCircle2, Building2, ShoppingCart, TrendingUp, Briefcase, Menu, X, Trash2, Edit2, Plus, Boxes, Repeat, AlertCircle } from 'lucide-react';
+import { 
+  Building2, Package, Wrench, Boxes, FileText, CheckCircle2, 
+  ArrowRight, ArrowLeft, QrCode, CreditCard, ShieldCheck, 
+  Upload, Check, AlertCircle, Loader2, Sparkles, RefreshCw, X, Menu, Copy,
+  Plus, Trash2, Send, Clock, AlertTriangle, Eye, Landmark
+} from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import ThemeToggle from '@/components/ThemeToggle';
 
-const DESIGNATION_OPTIONS = [
-  'Store Manager',
-  'Branch Manager',
-  'Assistant Manager',
-  'Shift Supervisor',
-  'Sales Executive',
-  'Cashier',
-  'Accountant',
-  'Inventory Specialist',
-  'Customer Support',
-  'Technician',
-  'Delivery Executive',
-  'Security Guard',
-  'General Staff',
-  'Other'
+// Business Categories
+const BUSINESS_CATEGORIES = [
+  { id: 'manufacturing', label: 'Manufacturing', desc: 'Factories, production units, assembly, custom fabrication' },
+  { id: 'distributor', label: 'Distributor / Wholesaler', desc: 'Stockists, bulk supply chain, B2B wholesale dealers' },
+  { id: 'retail', label: 'Retail Storefront', desc: 'Shops, supermarkets, boutiques, showrooms, commercial outlets' },
+  { id: 'others', label: 'Others (Specify)', desc: 'Custom business model or specialized industry' }
 ];
 
-const WORK_TYPE_OPTIONS = [
-  'Full-Time',
-  'Part-Time',
-  'Shift-Based',
-  'Contract',
-  'Intern'
+// Industry Sub-Categories
+const SUB_CATEGORIES = [
+  'Automobile & Spare Parts',
+  'Grocery & Provisions',
+  'Supermarket & Departmental',
+  'Electronics & Electrical Appliances',
+  'Fashion, Apparel & Footwear',
+  'Pharmacy, Medical & Healthcare',
+  'Hardware, Sanitary & Construction',
+  'Restaurant, Cafe & Food Services',
+  'Professional, IT & Consulting Services',
+  'Others'
+];
+
+const ONBOARDING_STEPS = [
+  { id: 'business', title: 'Register Business', desc: 'Legal entity & address' },
+  { id: 'offering', title: 'Products & Services', desc: 'Select revenue model' },
+  { id: 'category', title: 'Business Category', desc: 'Operational tier' },
+  { id: 'subcategory', title: 'Industry Sub-Category', desc: 'Specific market segment' },
+  { id: 'documents', title: 'Documentations', desc: 'Statutory compliance' },
+  { id: 'plan_payment', title: 'Plan & Payment', desc: 'Select tier & activate' }
 ];
 
 const Onboarding = () => {
   const navigate = useNavigate();
-  const [tenantType, setTenantType] = useState(() => Number(localStorage.getItem('tenantType')) || 1);
   const [currentStep, setCurrentStep] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 768);
 
-  // State for Type 2 Single Branch editing
-  const [isEditingBranch, setIsEditingBranch] = useState(false);
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth > 768) {
+        setIsSidebarOpen(true);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
-  // State for the new selections
-  const [selections, setSelections] = useState({
-    offering: [],
-    operation: []
+  // 1. Business Info State
+  const [businessInfo, setBusinessInfo] = useState(() => {
+    let defaultOwner = '';
+    let defaultEmail = '';
+    let defaultPhone = '';
+    try {
+      const stored = JSON.parse(localStorage.getItem('user'));
+      if (stored) {
+        defaultOwner = stored.fullName || '';
+        defaultEmail = stored.email || '';
+        defaultPhone = stored.phone || '';
+      }
+    } catch (e) {}
+
+    return {
+      name: '',
+      brandName: '',
+      ownerName: defaultOwner,
+      panNumber: '',
+      gstNumber: '',
+      regNo: '',
+      phone: defaultPhone,
+      email: defaultEmail,
+      address: '',
+      city: '',
+      state: '',
+      pincode: ''
+    };
   });
 
-  // State for Single Business (Type 1, 2, 3)
-  const [singleBusiness, setSingleBusiness] = useState({ name: '', regNo: '', phone: '', address: '' });
+  const [panChecking, setPanChecking] = useState(false);
+  const [panCheckResult, setPanCheckResult] = useState(null);
 
-  // State for Businesses (Type 4)
-  const [businesses, setBusinesses] = useState([]);
-  const [showBusinessForm, setShowBusinessForm] = useState(true);
-  const [editingBusinessIndex, setEditingBusinessIndex] = useState(null);
-  const [deleteConfirmBusiness, setDeleteConfirmBusiness] = useState(null);
-  const [newBusiness, setNewBusiness] = useState({ 
-    name: '', 
-    regNo: '', 
-    phone: '', 
-    address: '',
-    offeringType: 'both',
-    operationsType: 'both'
+  // 2. Offering Selection State ('product', 'service', 'both')
+  const [offeringType, setOfferingType] = useState('product');
+
+  // 3. Category State
+  const [category, setCategory] = useState('retail');
+  const [customCategory, setCustomCategory] = useState('');
+
+  // 4. Sub-Category State
+  const [subCategory, setSubCategory] = useState('Grocery & Provisions');
+  const [customSubCategory, setCustomSubCategory] = useState('');
+
+  // 5. Documentations State
+  const [documents, setDocuments] = useState({
+    pan: '',
+    gstin: '',
+    msme: '',
+    fssai: '',
+    tradeLicense: ''
   });
+  const [uploadedFiles, setUploadedFiles] = useState({});
+  const [customDocuments, setCustomDocuments] = useState([]);
 
-  // State for Branches
-  const [branches, setBranches] = useState([]);
-  const [showBranchForm, setShowBranchForm] = useState(false);
-  const [newBranch, setNewBranch] = useState({ name: '', location: '', manager: '', phone: '', type: 'Store', business: '' });
+  // 6. Plan & Payment State
+  const [pricingPlans, setPricingPlans] = useState([]);
+  const [selectedPlanId, setSelectedPlanId] = useState('Type 2: Single Branch + Staff');
+  const [billingCycle, setBillingCycle] = useState('Monthly'); // 'Monthly' | 'Annual'
+  const [paymentMethod, setPaymentMethod] = useState('upi_qr'); // 'upi_qr' | 'razorpay' | 'trial'
+  const [showRazorpayModal, setShowRazorpayModal] = useState(false);
+  const [razorpayTab, setRazorpayTab] = useState('card');
+  const [upiVerified, setUpiVerified] = useState(false);
+  const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
+  const [adminUpiId, setAdminUpiId] = useState('biztech@upi');
+  const [razorpayKeyId, setRazorpayKeyId] = useState('rzp_test_U18JZ6gYj3ozhP');
+  const [upiCopied, setUpiCopied] = useState(false);
+  const [utrNumber, setUtrNumber] = useState('');
+  const [proofFile, setProofFile] = useState(null);
+  const [proofPreview, setProofPreview] = useState(null);
+  const [uploadingProof, setUploadingProof] = useState(false);
+  const [submittedApprovalData, setSubmittedApprovalData] = useState(null);
 
-  // State for Employees
-  const [employees, setEmployees] = useState([]);
-  const [showEmployeeForm, setShowEmployeeForm] = useState(false);
-  const [employeeFormError, setEmployeeFormError] = useState('');
-  const [newEmployee, setNewEmployee] = useState({ 
-    employeeId: 'EMP-001',
-    name: '', 
-    designation: '', 
-    customDesignation: '', 
-    role: '', 
-    email: '', 
-    phone: '', 
-    shiftFrom: '09:00', 
-    shiftTo: '18:00', 
-    workType: 'Full-Time',
-    salary: '', 
-    dateOfJoining: new Date().toISOString().split('T')[0],
-    address: '',
-    branch: 'Main Branch', 
-    business: '' 
-  });
-
-  const getNextEmployeeId = (empList = employees) => {
-    const existingIds = new Set((empList || []).map(e => (e.employeeId || '').trim().toUpperCase()));
-    let count = (empList || []).length + 1;
-    while (existingIds.has(`EMP-${String(count).padStart(3, '0')}`)) {
-      count++;
+  const handleProofFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setProofFile(file);
+      setError('');
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setProofPreview(reader.result);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        setProofPreview(null);
+      }
     }
-    return `EMP-${String(count).padStart(3, '0')}`;
   };
 
-  const getInitialNewEmployee = (empList = employees) => ({
-    employeeId: getNextEmployeeId(empList),
-    name: '',
-    email: '',
-    phone: '',
-    designation: '',
-    customDesignation: '',
-    role: '',
-    shiftFrom: '09:00',
-    shiftTo: '18:00',
-    workType: 'Full-Time',
-    salary: '',
-    dateOfJoining: new Date().toISOString().split('T')[0],
-    address: '',
-    branch: branches[0]?.name || 'Main Branch',
-    business: (tenantType === 4 && businesses.length > 0) ? businesses[0].name : ''
-  });
-
-  // Intercept browser back button while on onboarding to navigate to landing page
+  // Fetch Payment Configuration (Admin UPI ID & Razorpay Public Key)
   useEffect(() => {
-    const handlePopState = () => {
-      navigate('/', { replace: true });
-    };
-
-    window.history.pushState(null, '', window.location.href);
-    window.addEventListener('popstate', handlePopState);
-
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-    };
-  }, [navigate]);
-
-  // Fetch prefilled data on mount (strictly scoped to the authenticated tenant)
-  useEffect(() => {
-    const fetchPrefilledData = async () => {
-      const token = localStorage.getItem('token');
-      if (!token) return;
-
+    const fetchPaymentConfig = async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/onboarding-data`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/payment/config`);
         if (res.ok) {
           const data = await res.json();
-          const { user, branches: existingBranches, employees: existingEmployees } = data;
+          if (data.upiId) setAdminUpiId(data.upiId);
+          if (data.razorpayKeyId) setRazorpayKeyId(data.razorpayKeyId);
+        }
+      } catch (err) {
+        console.error('Error fetching payment config:', err);
+      }
+    };
+    fetchPaymentConfig();
+  }, []);
 
-          if (user) {
-            const savedType = Number(localStorage.getItem('tenantType'));
-            if (savedType) {
-              setTenantType(savedType);
-            } else if (user.businessType) {
-              const typeNum = Number(user.businessType);
-              localStorage.setItem('tenantType', typeNum.toString());
-              setTenantType(typeNum);
-            }
+  // Prefill initial user contact details if logged in
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const storedUserStr = localStorage.getItem('user');
+    if (!token && !storedUserStr) {
+      navigate('/register', { replace: true });
+      return;
+    }
 
-            setSingleBusiness({
-              name: user.businessName || '',
-              regNo: user.regNo || '',
-              phone: user.businessPhone || user.phone || '',
-              address: user.address || ''
-            });
+    try {
+      if (storedUserStr) {
+        const u = JSON.parse(storedUserStr);
+        setBusinessInfo(prev => ({
+          ...prev,
+          name: u.businessName || prev.name,
+          email: u.email || prev.email,
+          phone: u.phone || prev.phone,
+          address: u.address || prev.address
+        }));
+        if (u.offeringType) setOfferingType(u.offeringType);
+        if (u.category) setCategory(u.category);
+        if (u.subCategory) setSubCategory(u.subCategory);
+      }
+    } catch (e) {
+      console.error('Error parsing stored user:', e);
+    }
+  }, [navigate]);
 
-            setNewBusiness(prev => ({
-              ...prev,
-              phone: user.businessPhone || user.phone || ''
-            }));
-
-            if (user.businesses && Array.isArray(user.businesses) && user.businesses.length > 0) {
-              setBusinesses(user.businesses.map(b => ({
-                ...b,
-                offeringType: b.offeringType || 'both',
-                operationsType: b.operationsType || 'both'
-              })));
-              setShowBusinessForm(false);
-            } else {
-              setBusinesses([]);
-              setShowBusinessForm(true);
-            }
-
-            if (user.modules && Array.isArray(user.modules) && user.modules.length > 0) {
-              const off = new Set();
-              const op = new Set();
-              if (user.modules.includes('products_services') || user.modules.includes('inventory')) {
-                off.add('product');
-              }
-              if (user.modules.includes('purchases')) op.add('purchase');
-              if (user.modules.includes('sales')) op.add('sale');
-              setSelections({
-                offering: Array.from(off),
-                operation: Array.from(op)
-              });
-            }
-          }
-
-          if (existingBranches && Array.isArray(existingBranches)) {
-            const mappedBranches = existingBranches.map(b => ({
-              name: b.name,
-              location: b.location || '',
-              manager: b.manager || '',
-              phone: b.contactNumber || b.phone || '',
-              type: b.type || 'Store',
-              business: b.businessName || ''
-            }));
-            setBranches(mappedBranches);
-            if (mappedBranches.length > 0) {
-              setShowBranchForm(false);
-            }
-          }
-
-          if (existingEmployees && Array.isArray(existingEmployees)) {
-            const mappedEmployees = existingEmployees.map(e => ({
-              name: e.name,
-              role: e.position || e.role || '',
-              email: e.email,
-              phone: e.contactNumber || e.phone || '',
-              shiftFrom: e.shiftFrom || '',
-              shiftTo: e.shiftTo || '',
-              salary: e.salary ? (typeof e.salary === 'number' ? `₹${e.salary.toLocaleString()}` : e.salary) : '',
-              branch: e.branchName || 'Main Office',
-              business: e.businessName || ''
-            }));
-            setEmployees(mappedEmployees);
+  // Fetch Pricing Plans
+  useEffect(() => {
+    const fetchPricing = async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/pricing`);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            setPricingPlans(data);
           }
         }
       } catch (err) {
-        console.error("Error loading prefilled onboarding data:", err);
+        console.error('Error fetching plans:', err);
       }
     };
-
-    fetchPrefilledData();
+    fetchPricing();
   }, []);
 
-  const toggleSelection = (category, value) => {
-    setSelections(prev => {
-      const current = prev[category];
-      const updatedList = current.includes(value)
-        ? current.filter(item => item !== value)
-        : [...current, value];
+  const defaultPlans = [
+    { title: 'Type 1: Sole Operator', amount: 1000, desc: '1 Owner • 1 Shop • Basic billing & inventory' },
+    { title: 'Type 2: Single Branch + Staff', amount: 2000, desc: '1 Store • Staff attendance • Barcode POS' },
+    { title: 'Type 3: Multi-Branch Enterprise', amount: 3000, desc: 'Multiple branches • Inter-store stock transfers' },
+    { title: 'Type 4: Multi-Business Conglomerate', amount: 4000, desc: 'Multiple businesses • Holding rollups' }
+  ];
 
-      if (category === 'offering') {
-        const hasProd = updatedList.includes('product');
-        const hasServ = updatedList.includes('service');
-        const offType = (hasProd && hasServ) ? 'both' : (hasProd ? 'product' : (hasServ ? 'service' : 'product'));
-        localStorage.setItem('businessOfferingType', offType);
-        localStorage.setItem('userOfferings', JSON.stringify(updatedList));
+  const getPlanDetails = (title) => {
+    const plan = pricingPlans.find(p => p.customerType === title);
+    const defaultP = defaultPlans.find(p => p.title === title) || defaultPlans[1];
+    const monthlyBase = plan ? Number(plan.amount) : defaultP.amount;
+    const discountPercent = (plan && typeof plan.annualDiscountPercent === 'number') ? plan.annualDiscountPercent : 0;
+    const fullAnnual = monthlyBase * 12;
 
-        try {
-          const u = JSON.parse(localStorage.getItem('user') || '{}');
-          u.offeringType = offType;
-          u.businessOfferingType = offType;
-          u.offerings = updatedList;
-          localStorage.setItem('user', JSON.stringify(u));
-        } catch {}
-      }
+    if (billingCycle === 'Annual') {
+      const discountedAnnual = discountPercent > 0 
+        ? Math.round(fullAnnual * (1 - discountPercent / 100))
+        : fullAnnual;
+      return {
+        title,
+        desc: plan?.description || defaultP.desc,
+        monthlyAmount: monthlyBase,
+        fullAnnual,
+        discountPercent,
+        savings: fullAnnual - discountedAnnual,
+        amount: discountedAnnual,
+        isAnnual: true
+      };
+    }
 
-      return { ...prev, [category]: updatedList };
-    });
+    return {
+      title,
+      desc: plan?.description || defaultP.desc,
+      monthlyAmount: monthlyBase,
+      fullAnnual,
+      discountPercent,
+      savings: 0,
+      amount: monthlyBase,
+      isAnnual: false
+    };
   };
 
-  // Define active steps dynamically based on tenantType archetype
-  const activeSteps = useMemo(() => {
-    const steps = [];
+  const activePlan = getPlanDetails(selectedPlanId);
+  const taxAmount = Math.round(activePlan.amount * 0.18);
+  const grandTotal = activePlan.amount + taxAmount;
 
-    // Step 1: Business (Type 4: multiple businesses, Types 1-3: single business)
-    if (tenantType === 4) {
-      steps.push({ id: 'business', title: 'Register Businesses', desc: 'Conglomerate entities', icon: <Building2 size={24} /> });
-    } else {
-      steps.push({ id: 'business', title: 'Register Business', desc: 'Basic info and location', icon: <Store size={24} /> });
+  // File upload simulation handler
+  const handleFileUpload = (docKey, e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setUploadedFiles(prev => ({
+        ...prev,
+        [docKey]: file.name
+      }));
+    }
+  };
+
+  // Custom Document Handlers
+  const handleAddCustomDoc = () => {
+    setCustomDocuments(prev => [
+      ...prev,
+      { id: Date.now(), name: '', number: '', fileName: '' }
+    ]);
+  };
+
+  const handleRemoveCustomDoc = (id) => {
+    setCustomDocuments(prev => prev.filter(doc => doc.id !== id));
+  };
+
+  const updateCustomDoc = (id, field, value) => {
+    setCustomDocuments(prev => prev.map(doc => 
+      doc.id === id ? { ...doc, [field]: value } : doc
+    ));
+  };
+
+  const handleCustomFileUpload = (id, e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setCustomDocuments(prev => prev.map(doc => 
+        doc.id === id ? { ...doc, fileName: file.name } : doc
+      ));
+    }
+  };
+
+  // PAN Check Handler
+  const checkPanAvailability = async (pan) => {
+    if (!pan || pan.length !== 10) return;
+    const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+    if (!panRegex.test(pan)) {
+      setPanCheckResult({ checked: true, exists: true, message: 'Invalid format (Must be 5 capital letters, 4 digits, 1 capital letter, e.g. ABCDE1234F)' });
+      return;
     }
 
-    // Step 2: Branches (Type 1 has NO branch step!)
-    if (tenantType === 2) {
-      steps.push({ id: 'branches', title: 'Register Branch', desc: 'Single branch location', icon: <Map size={24} /> });
-    } else if (tenantType === 3 || tenantType === 4) {
-      steps.push({ id: 'branches', title: 'Register Branches', desc: 'Add multiple locations', icon: <Map size={24} /> });
-    }
-
-    // Steps 3 & 4: Offerings & Operations
-    if (tenantType === 4) {
-      steps.push({ id: 'offering', title: 'Products & Services', desc: 'Per business offerings', icon: <Package size={24} /> });
-      steps.push({ id: 'operation', title: 'Purchases & Procurement', desc: 'Per business purchasing', icon: <ShoppingCart size={24} /> });
-    } else {
-      steps.push({ id: 'offering', title: 'Products & Services', desc: 'What do you offer?', icon: <Package size={24} /> });
-      steps.push({ id: 'operation', title: 'Purchases & Procurement', desc: 'Vendor purchasing options', icon: <ShoppingCart size={24} /> });
-    }
-
-    // Step 5: Employees (Type 1 now includes employees)
-    if (tenantType === 1) {
-      steps.push({ id: 'employees', title: 'Register Employees', desc: 'Add staff members', icon: <Users size={24} /> });
-    } else if (tenantType === 2) {
-      steps.push({ id: 'employees', title: 'Register Employees', desc: 'Invite your branch staff', icon: <Users size={24} /> });
-    } else if (tenantType === 3) {
-      steps.push({ id: 'employees', title: 'Register Employees', desc: 'Assign staff to branches', icon: <Users size={24} /> });
-    } else if (tenantType === 4) {
-      steps.push({ id: 'employees', title: 'Register Employees', desc: 'Staff across businesses', icon: <Users size={24} /> });
-    }
-
-    return steps;
-  }, [tenantType]);
-
-  // Keep currentStep within range if activeSteps changes
-  useEffect(() => {
-    if (currentStep >= activeSteps.length) {
-      setCurrentStep(Math.max(0, activeSteps.length - 1));
-    }
-  }, [activeSteps.length, currentStep]);
-
-  const saveProgress = async (customPayload = {}) => {
-    const token = localStorage.getItem('token');
-    if (!token) return;
-
-    let payloadBranches = branches;
-    let payloadEmployees = employees;
-    let payloadBusinesses = tenantType === 4 ? (customPayload.businesses || businesses) : [];
-
-    let modules = ['expenses', 'sales']; // Billing (sales) is MANDATORY across all user logins!
-    if (tenantType === 4) {
-      payloadBusinesses.forEach(biz => {
-        const off = biz.offeringType || 'both';
-        const op = biz.operationsType || 'purchases';
-        if (off === 'product' || off === 'both') modules.push('products_services', 'inventory');
-        if (off === 'service' || off === 'both') modules.push('products_services');
-        if (op === 'purchase' || op === 'both' || op === 'purchases') modules.push('purchases');
+    try {
+      setPanChecking(true);
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/check-pan?pan=${encodeURIComponent(pan)}`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
       });
-    } else {
-      if (selections.offering.includes('product')) modules.push('products_services', 'inventory');
-      if (selections.offering.includes('service')) {
-        if (!modules.includes('products_services')) modules.push('products_services');
+      const data = await res.json();
+      if (!res.ok || data.exists) {
+        setPanCheckResult({ checked: true, exists: true, message: data.message || `The PAN card number ${pan} is already registered.` });
+      } else {
+        setPanCheckResult({ checked: true, exists: false, message: 'PAN is available and unique.' });
       }
-      if (selections.operation.includes('purchase')) modules.push('purchases');
+    } catch (err) {
+      console.error('PAN check error:', err);
+    } finally {
+      setPanChecking(false);
     }
-    modules.push('sales'); // Ensure Billing is mandatory
-    modules = [...new Set(modules)];
+  };
 
-    if (tenantType === 1) {
-      // Type 1: Single store, owner managed
-      payloadBranches = [];
-      payloadEmployees = employees.map(emp => ({ ...emp, branch: 'Main' }));
-    } else if (tenantType === 2) {
-      // Type 2: Single branch only, staff assigned to this single branch
-      payloadBranches = branches.slice(0, 1);
-      const defaultBranch = payloadBranches[0]?.name || 'Main Branch';
-      payloadEmployees = employees.map(emp => ({
-        ...emp,
-        branch: defaultBranch
+  // Step Validation
+  const validateCurrentStep = () => {
+    setError('');
+    if (currentStep === 0) {
+      if (!businessInfo.name.trim()) {
+        setError('Please enter your business or legal company name.');
+        return false;
+      }
+      if (!businessInfo.ownerName || !businessInfo.ownerName.trim()) {
+        setError('Business Owner Name is mandatory. Please enter the owner name.');
+        return false;
+      }
+      if (!businessInfo.panNumber || !businessInfo.panNumber.trim()) {
+        setError('PAN Card Number is mandatory. Please enter your business PAN.');
+        return false;
+      }
+      const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+      const cleanPan = businessInfo.panNumber.trim().toUpperCase();
+      if (!panRegex.test(cleanPan)) {
+        setError('Invalid PAN format. Must be 10 characters (5 capital letters, 4 digits, 1 capital letter, e.g. ABCDE1234F).');
+        return false;
+      }
+      if (panCheckResult?.exists) {
+        setError(panCheckResult.message || `The PAN card number ${cleanPan} is already registered with another business.`);
+        return false;
+      }
+      if (businessInfo.gstNumber && businessInfo.gstNumber.trim()) {
+        const cleanGst = businessInfo.gstNumber.trim().toUpperCase();
+        if (cleanGst.length !== 15) {
+          setError('GST Number should be 15 alphanumeric characters (e.g. 29ABCDE1234F1Z5).');
+          return false;
+        }
+      }
+      if (!businessInfo.phone.trim() || businessInfo.phone.length < 10) {
+        setError('Please enter a valid 10-digit phone number.');
+        return false;
+      }
+      if (!businessInfo.email.trim() || !businessInfo.email.includes('@')) {
+        setError('Please enter a valid business email.');
+        return false;
+      }
+      if (!businessInfo.address.trim()) {
+        setError('Please enter your street address.');
+        return false;
+      }
+      if (!businessInfo.city.trim() || !businessInfo.state.trim() || !businessInfo.pincode.trim()) {
+        setError('Please complete city, state, and pincode.');
+        return false;
+      }
+    } else if (currentStep === 2) {
+      if (category === 'others' && !customCategory.trim()) {
+        setError('Please specify your custom category.');
+        return false;
+      }
+    } else if (currentStep === 3) {
+      if (subCategory === 'Others' && !customSubCategory.trim()) {
+        setError('Please specify your industry segment.');
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const handleNext = async () => {
+    if (!validateCurrentStep()) return;
+
+    // Verify PAN uniqueness on step 0
+    if (currentStep === 0) {
+      const cleanPan = businessInfo.panNumber.trim().toUpperCase();
+      try {
+        setLoading(true);
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/check-pan?pan=${encodeURIComponent(cleanPan)}`, {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        });
+        const data = await res.json();
+        if (!res.ok || data.exists) {
+          setError(data.message || `This PAN Card Number (${cleanPan}) is already registered with another business. Please use a unique PAN.`);
+          setPanCheckResult({ checked: true, exists: true, message: data.message });
+          setLoading(false);
+          return;
+        }
+        setPanCheckResult({ checked: true, exists: false, message: 'PAN is available and unique.' });
+      } catch (err) {
+        console.error('PAN verification error:', err);
+      } finally {
+        setLoading(false);
+      }
+
+      // Sync with documents
+      setDocuments(prev => ({ 
+        ...prev, 
+        pan: cleanPan,
+        gstin: (businessInfo.gstNumber || '').trim().toUpperCase() || prev.gstin
       }));
     }
 
-    let offeringType = 'product';
-    if (tenantType === 4) {
-      const hasProd = payloadBusinesses.some(b => b.offeringType === 'product' || b.offeringType === 'both');
-      const hasServ = payloadBusinesses.some(b => b.offeringType === 'service' || b.offeringType === 'both');
-      offeringType = (hasProd && hasServ) ? 'both' : (hasProd ? 'product' : 'service');
-    } else {
-      const hasProd = selections.offering.includes('product');
-      const hasServ = selections.offering.includes('service');
-      if (hasProd && hasServ) {
-        offeringType = 'both';
-      } else if (hasProd) {
-        offeringType = 'product';
-      } else if (hasServ) {
-        offeringType = 'service';
-      }
+    if (currentStep < ONBOARDING_STEPS.length - 1) {
+      setCurrentStep(prev => prev + 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const handleBack = () => {
+    setError('');
+    if (currentStep > 0) {
+      setCurrentStep(prev => prev - 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  // Final Onboarding Completion
+  const handleCompleteOnboarding = async (paymentOverride = null, txnIdOverride = null, paymentProofPayload = null) => {
+    setLoading(true);
+    setError('');
+
+    const token = localStorage.getItem('token');
+    const selectedFinalCategory = category === 'others' ? (customCategory.trim() || 'General Business') : category;
+    const selectedFinalSubCategory = subCategory === 'Others' ? (customSubCategory.trim() || 'General Trade') : subCategory;
+
+    // Determine active operational modules according to offeringType
+    const modules = ['sales', 'expenses', 'customers'];
+    if (offeringType === 'product' || offeringType === 'both') {
+      modules.push('products_services', 'inventory', 'purchases');
+    }
+    if (offeringType === 'service' || offeringType === 'both' || offeringType === 'institution') {
+      if (!modules.includes('products_services')) modules.push('products_services');
     }
 
+    const resolvedMethod = paymentOverride || paymentMethod;
+
+    const cleanPan = (businessInfo.panNumber || '').trim().toUpperCase();
+    const cleanGst = (businessInfo.gstNumber || '').trim().toUpperCase();
+    const cleanOwner = (businessInfo.ownerName || '').trim();
+
     const payload = {
-      singleBusiness,
-      businesses: payloadBusinesses,
-      branches: payloadBranches,
-      employees: payloadEmployees,
-      modules,
+      panNumber: cleanPan,
+      ownerName: cleanOwner,
+      gstNumber: cleanGst,
+      singleBusiness: {
+        name: businessInfo.name,
+        brandName: businessInfo.brandName,
+        ownerName: cleanOwner,
+        contactPerson: cleanOwner,
+        panNumber: cleanPan,
+        gstNumber: cleanGst,
+        taxNumber: cleanGst,
+        regNo: businessInfo.regNo,
+        phone: businessInfo.phone,
+        email: businessInfo.email,
+        address: `${businessInfo.address}, ${businessInfo.city}, ${businessInfo.state} - ${businessInfo.pincode}`
+      },
+      businessName: businessInfo.name,
+      address: `${businessInfo.address}, ${businessInfo.city}, ${businessInfo.state} - ${businessInfo.pincode}`,
+      regNo: businessInfo.regNo,
+      phone: businessInfo.phone,
       offeringType,
       businessOfferingType: offeringType,
-      offerings: selections.offering,
-      ...customPayload
+      category: selectedFinalCategory,
+      subCategory: selectedFinalSubCategory,
+      documents: {
+        ...documents,
+        pan: cleanPan,
+        gstin: cleanGst || documents.gstin,
+        customDocuments: customDocuments.filter(d => d.name.trim() || d.number.trim() || d.fileName)
+      },
+      modules,
+      subscription: {
+        planId: selectedPlanId,
+        planName: activePlan.title,
+        amount: grandTotal,
+        billingCycle,
+        paymentMethod: resolvedMethod,
+        paymentStatus: paymentProofPayload ? 'Pending Approval' : 'Active',
+        transactionId: txnIdOverride || `TXN-${Date.now()}`
+      }
     };
+
+    if (paymentProofPayload) {
+      payload.paymentProof = paymentProofPayload;
+    }
 
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/onboarding`, {
@@ -384,1629 +514,213 @@ const Onboarding = () => {
         body: JSON.stringify(payload)
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        if (data.user) {
-          const userWithOffering = {
-            ...data.user,
-            offeringType,
-            businessOfferingType: offeringType,
-            offerings: selections.offering
-          };
-          localStorage.setItem('user', JSON.stringify(userWithOffering));
-          localStorage.setItem('businessOfferingType', offeringType);
-          localStorage.setItem('userOfferings', JSON.stringify(selections.offering));
-          if (data.user.modules) {
-            localStorage.setItem('modules', JSON.stringify(data.user.modules));
-          }
-        }
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || 'Failed to complete onboarding');
       }
-    } catch (err) {
-      console.error("Error saving onboarding data:", err);
-    }
-  };
 
-  const handleNext = async () => {
-    const currentStepObj = activeSteps[currentStep];
-    if (currentStepObj?.id === 'business' && tenantType !== 4) {
-      if (singleBusiness.phone && singleBusiness.phone.length !== 10) {
-        alert('Contact phone must be exactly 10 digits.');
+      if (data.isPendingApproval) {
+        // Clear local session tokens so user cannot bypass without approval
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('modules');
+        localStorage.removeItem('tenantType');
+
+        setSubmittedApprovalData({
+          businessName: businessInfo.name || 'Your Business',
+          brandName: businessInfo.brandName || '',
+          ownerName: cleanOwner || 'Business Owner',
+          email: businessInfo.email,
+          phone: businessInfo.phone,
+          planTitle: activePlan.title,
+          billingCycle,
+          grandTotal,
+          utrNumber: txnIdOverride || utrNumber,
+          proofUrl: paymentProofPayload?.proofUrl || proofPreview,
+          fileName: paymentProofPayload?.originalFileName || proofFile?.name || 'Payment Receipt',
+          submittedAt: new Date()
+        });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
         return;
       }
-    }
-    await saveProgress();
-    if (currentStep < activeSteps.length - 1) {
-      setCurrentStep(prev => prev + 1);
-    } else {
+
+      // Update local session
+      if (data.user) {
+        localStorage.setItem('user', JSON.stringify(data.user));
+        localStorage.setItem('tenantType', String(data.user.businessType || 1));
+        localStorage.setItem('modules', JSON.stringify(data.user.modules || modules));
+      }
+
+      // Smooth transition to tenant dashboard
       navigate('/tenant/dashboard', { replace: true });
+    } catch (err) {
+      console.error('Onboarding completion error:', err);
+      setError(err.message || 'Server error. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleBack = () => {
-    if (currentStep > 0) {
-      setCurrentStep(prev => prev - 1);
-    } else {
-      navigate('/');
+  // UPI QR Payment & Proof Submission Handler
+  const handleUpiSubmit = async () => {
+    setError('');
+    const cleanUtr = (utrNumber || '').trim();
+    if (!cleanUtr || cleanUtr.length < 6) {
+      setError('Please enter a valid 12-digit UPI Reference / UTR Number.');
+      return;
+    }
+
+    if (!proofFile) {
+      setError('Please upload your payment screenshot or receipt proof before submitting.');
+      return;
+    }
+
+    try {
+      setUploadingProof(true);
+      setLoading(true);
+
+      const formData = new FormData();
+      formData.append('proof', proofFile);
+
+      const uploadRes = await fetch(`${import.meta.env.VITE_API_URL}/api/payment/upload-proof`, {
+        method: 'POST',
+        body: formData
+      });
+
+      const uploadData = await uploadRes.json();
+      if (!uploadRes.ok || !uploadData.success) {
+        throw new Error(uploadData.message || 'Failed to upload payment proof file');
+      }
+
+      const proofPayload = {
+        utrNumber: cleanUtr,
+        proofUrl: uploadData.fileUrl,
+        originalFileName: uploadData.originalName || proofFile.name
+      };
+
+      await handleCompleteOnboarding('UPI (Admin QR)', cleanUtr, proofPayload);
+    } catch (err) {
+      console.error('UPI submission error:', err);
+      setError(err.message || 'Failed to submit payment verification. Please try again.');
+    } finally {
+      setUploadingProof(false);
+      setLoading(false);
     }
   };
 
-  const handleSkip = async () => {
-    await saveProgress();
-    navigate('/tenant/dashboard', { replace: true });
-  };
+  // Official Razorpay Gateway Checkout Handler
+  const handleRazorpayCheckout = async () => {
+    setLoading(true);
+    setError('');
 
-  const renderStepContent = () => {
-    const stepId = activeSteps[currentStep].id;
+    // 1. Ensure Razorpay SDK script is loaded
+    const loadScript = () => {
+      return new Promise((resolve) => {
+        if (window.Razorpay) return resolve(true);
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.onload = () => resolve(true);
+        script.onerror = () => resolve(false);
+        document.body.appendChild(script);
+      });
+    };
 
-    if (stepId === 'business') {
-      if (tenantType === 4) {
-        return (
-          <div className="animate-fade-in" style={{ padding: '24px' }}>
-            <h2 style={{ fontSize: '28px', marginBottom: '8px' }}>Register Businesses</h2>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '32px' }}>Add all primary business entities in your conglomerate and define their offering & operations.</p>
-            
-            {businesses.length > 0 && !showBusinessForm && (
-              <div style={{ width: '100%', overflowX: 'auto', marginBottom: '24px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '640px' }}>
-                  <thead style={{ background: '#F8FAFC' }}>
-                    <tr>
-                      <th style={{ padding: '12px 14px', textAlign: 'center', fontSize: '13px', color: 'var(--text-secondary)', width: '45px' }}>S.No</th>
-                      <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', minWidth: '130px' }}>Business Name</th>
-                      <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', minWidth: '110px' }}>Contact</th>
-                      <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', minWidth: '130px' }}>Offering Model</th>
-                      <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', minWidth: '130px' }}>Trade Operations</th>
-                      <th style={{ padding: '12px 14px', textAlign: 'right', fontSize: '13px', color: 'var(--text-secondary)', width: '70px' }}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {businesses.map((b, idx) => (
-                      <tr key={idx} style={{ borderTop: '1px solid var(--border-color)' }}>
-                        <td style={{ padding: '12px 14px', fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '500', textAlign: 'center' }}>{idx + 1}</td>
-                        <td style={{ padding: '12px 14px', fontWeight: '600', color: '#0F172A' }}>
-                          <div style={{ whiteSpace: 'nowrap' }}>{b.name}</div>
-                          {b.regNo && <div style={{ fontSize: '11px', color: '#64748B', whiteSpace: 'nowrap' }}>Reg: {b.regNo}</div>}
-                        </td>
-                        <td style={{ padding: '12px 14px', color: 'var(--text-secondary)', fontSize: '13px', whiteSpace: 'nowrap' }}>{b.phone || '-'}</td>
-                        <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
-                          <span style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            fontSize: '11px',
-                            fontWeight: '600',
-                            padding: '3px 8px',
-                            borderRadius: '6px',
-                            background: b.offeringType === 'service' ? '#F3E8FF' : b.offeringType === 'product' ? '#EFF6FF' : '#F0FDF4',
-                            color: b.offeringType === 'service' ? '#7E22CE' : b.offeringType === 'product' ? '#1D4ED8' : '#15803D'
-                          }}>
-                            {b.offeringType === 'service' ? '🛠️ Services' : b.offeringType === 'product' ? '📦 Products' : '🔄 Both'}
-                          </span>
-                        </td>
-                        <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
-                          <span style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            fontSize: '11px',
-                            fontWeight: '600',
-                            padding: '3px 8px',
-                            borderRadius: '6px',
-                            background: b.operationsType === 'none' ? '#F1F5F9' : '#FEF3C7',
-                            color: b.operationsType === 'none' ? '#475569' : '#B45309'
-                          }}>
-                            {b.operationsType === 'none' ? '🧾 Billing Only' : '🛒 Purchases & Billing'}
-                          </span>
-                        </td>
-                        <td style={{ padding: '12px 14px', textAlign: 'right' }}>
-                          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                            <button
-                              onClick={() => {
-                                setNewBusiness({
-                                  name: b.name || '',
-                                  regNo: b.regNo || '',
-                                  phone: b.phone || '',
-                                  address: b.address || '',
-                                  offeringType: b.offeringType || 'both',
-                                  operationsType: b.operationsType || 'both'
-                                });
-                                setEditingBusinessIndex(idx);
-                                setShowBusinessForm(true);
-                              }}
-                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#2563EB', padding: '4px' }}
-                              title="Edit Business"
-                            >
-                              <Edit2 size={16} />
-                            </button>
-                            <button
-                              onClick={() => setDeleteConfirmBusiness({ index: idx, name: b.name })}
-                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', padding: '4px' }}
-                              title="Delete Business"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <button 
-                  onClick={() => {
-                    setNewBusiness({ name: '', regNo: '', phone: '', address: '', offeringType: 'both', operationsType: 'both' });
-                    setEditingBusinessIndex(null);
-                    setShowBusinessForm(true);
-                  }}
-                  style={{ marginTop: '16px', padding: '8px 16px', background: 'white', border: '1px solid var(--primary-blue)', color: 'var(--primary-blue)', borderRadius: '6px', fontWeight: '600', cursor: 'pointer' }}
-                >
-                  + Add Another Business
-                </button>
-              </div>
-            )}
-
-            {showBusinessForm && (
-              <div style={{ padding: '24px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-                <h4 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: '700', color: '#0F172A' }}>
-                  {editingBusinessIndex !== null ? 'Edit Business Entity' : 'New Business Entity'}
-                </h4>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
-                  <div className="input-group" style={{ gridColumn: '1 / span 2' }}>
-                    <label className="input-label">Shop / Business Name *</label>
-                    <input type="text" className="input-field" placeholder="Enter business name" value={newBusiness.name} onChange={e => setNewBusiness({...newBusiness, name: e.target.value})} />
-                  </div>
-                  <div className="input-group">
-                    <label className="input-label">Registration Number (Optional)</label>
-                    <input type="text" className="input-field" placeholder="GSTIN / VAT / Registration No" value={newBusiness.regNo} onChange={e => setNewBusiness({...newBusiness, regNo: e.target.value})} />
-                  </div>
-                  <div className="input-group">
-                    <label className="input-label">Contact Phone</label>
-                    <input 
-                      type="tel" 
-                      inputMode="numeric"
-                      maxLength={10}
-                      pattern="[0-9]{10}"
-                      className="input-field" 
-                      placeholder="Enter 10-digit number" 
-                      value={newBusiness.phone} 
-                      onChange={e => setNewBusiness({...newBusiness, phone: e.target.value.replace(/\D/g, '').slice(0, 10)})} 
-                    />
-                    {newBusiness.phone && newBusiness.phone.length > 0 && newBusiness.phone.length < 10 && (
-                      <span style={{ fontSize: '12px', color: '#EF4444', marginTop: '2px', display: 'block' }}>
-                        Please enter a full 10-digit number
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Offering & Operations Configuration - Full Width */}
-                  <div style={{ gridColumn: '1 / span 2', padding: '16px', background: 'white', borderRadius: '10px', border: '1px solid var(--border-color)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                    {/* Offering Model */}
-                    <div>
-                      <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                        <Package size={15} color="#2563EB" />
-                        <span>Offering Model *</span>
-                      </label>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
-                        <button
-                          type="button"
-                          onClick={() => setNewBusiness({ ...newBusiness, offeringType: 'product' })}
-                          style={{
-                            padding: '9px 4px',
-                            borderRadius: '8px',
-                            border: newBusiness.offeringType === 'product' ? '2px solid #2563EB' : '1px solid #CBD5E1',
-                            background: newBusiness.offeringType === 'product' ? '#EFF6FF' : '#FFFFFF',
-                            color: newBusiness.offeringType === 'product' ? '#1D4ED8' : '#475569',
-                            fontWeight: newBusiness.offeringType === 'product' ? '600' : '500',
-                            fontSize: '12px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            gap: '4px',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          <Package size={16} />
-                          <span>Products</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setNewBusiness({ ...newBusiness, offeringType: 'service' })}
-                          style={{
-                            padding: '9px 4px',
-                            borderRadius: '8px',
-                            border: newBusiness.offeringType === 'service' ? '2px solid #2563EB' : '1px solid #CBD5E1',
-                            background: newBusiness.offeringType === 'service' ? '#EFF6FF' : '#FFFFFF',
-                            color: newBusiness.offeringType === 'service' ? '#1D4ED8' : '#475569',
-                            fontWeight: newBusiness.offeringType === 'service' ? '600' : '500',
-                            fontSize: '12px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            gap: '4px',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          <Briefcase size={16} />
-                          <span>Services</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setNewBusiness({ ...newBusiness, offeringType: 'both' })}
-                          style={{
-                            padding: '9px 4px',
-                            borderRadius: '8px',
-                            border: (newBusiness.offeringType === 'both' || !newBusiness.offeringType) ? '2px solid #2563EB' : '1px solid #CBD5E1',
-                            background: (newBusiness.offeringType === 'both' || !newBusiness.offeringType) ? '#EFF6FF' : '#FFFFFF',
-                            color: (newBusiness.offeringType === 'both' || !newBusiness.offeringType) ? '#1D4ED8' : '#475569',
-                            fontWeight: (newBusiness.offeringType === 'both' || !newBusiness.offeringType) ? '600' : '500',
-                            fontSize: '12px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            gap: '4px',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          <Boxes size={16} />
-                          <span>Both</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Trade Operations */}
-                    <div>
-                      <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                        <ShoppingCart size={15} color="#2563EB" />
-                        <span>Purchases & Procurement *</span>
-                      </label>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                        <button
-                          type="button"
-                          onClick={() => setNewBusiness({ ...newBusiness, operationsType: 'purchases' })}
-                          style={{
-                            padding: '10px 8px',
-                            borderRadius: '8px',
-                            border: newBusiness.operationsType === 'purchases' ? '2px solid #2563EB' : '1px solid #CBD5E1',
-                            background: newBusiness.operationsType === 'purchases' ? '#EFF6FF' : '#FFFFFF',
-                            color: newBusiness.operationsType === 'purchases' ? '#1D4ED8' : '#475569',
-                            fontWeight: newBusiness.operationsType === 'purchases' ? '600' : '500',
-                            fontSize: '12px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            gap: '4px',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          <ShoppingCart size={16} />
-                          <span>Purchases Enabled</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setNewBusiness({ ...newBusiness, operationsType: 'none' })}
-                          style={{
-                            padding: '10px 8px',
-                            borderRadius: '8px',
-                            border: newBusiness.operationsType === 'none' ? '2px solid #2563EB' : '1px solid #CBD5E1',
-                            background: newBusiness.operationsType === 'none' ? '#EFF6FF' : '#FFFFFF',
-                            color: newBusiness.operationsType === 'none' ? '#1D4ED8' : '#475569',
-                            fontWeight: newBusiness.operationsType === 'none' ? '600' : '500',
-                            fontSize: '12px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            gap: '4px',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          <CheckCircle2 size={16} />
-                          <span>Billing Only</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="input-group" style={{ gridColumn: '1 / span 2' }}>
-                    <label className="input-label">Primary Address</label>
-                    <textarea className="input-field" rows="3" placeholder="Street address, City, State, Zip..." value={newBusiness.address} onChange={e => setNewBusiness({...newBusiness, address: e.target.value})}></textarea>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                  {businesses.length > 0 && (
-                    <button 
-                      onClick={() => {
-                        setShowBusinessForm(false);
-                        setEditingBusinessIndex(null);
-                        setNewBusiness({ name: '', regNo: '', phone: '', address: '', offeringType: 'both', operationsType: 'both' });
-                      }} 
-                      className="btn-secondary" 
-                      style={{ padding: '8px 16px' }}
-                    >
-                      Cancel
-                    </button>
-                  )}
-                  <button onClick={() => {
-                    if (newBusiness.name.trim()) {
-                      if (newBusiness.phone && newBusiness.phone.length !== 10) {
-                        alert('Contact phone must be exactly 10 digits.');
-                        return;
-                      }
-                      const businessData = {
-                        ...newBusiness,
-                        name: newBusiness.name.trim(),
-                        offeringType: newBusiness.offeringType || 'both',
-                        operationsType: newBusiness.operationsType || 'both'
-                      };
-                      let updated;
-                      if (editingBusinessIndex !== null) {
-                        updated = [...businesses];
-                        updated[editingBusinessIndex] = businessData;
-                      } else {
-                        updated = [...businesses, businessData];
-                      }
-                      setBusinesses(updated);
-                      setNewBusiness({ name: '', regNo: '', phone: '', address: '', offeringType: 'both', operationsType: 'both' });
-                      setEditingBusinessIndex(null);
-                      setShowBusinessForm(false);
-                      saveProgress({ businesses: updated });
-                    }
-                  }} className="btn-primary" style={{ padding: '8px 16px' }} disabled={!newBusiness.name.trim()}>
-                    {editingBusinessIndex !== null ? 'Update Business' : 'Save Business'}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        );
-      }
-
-      return (
-        <div className="animate-fade-in" style={{ padding: '24px' }}>
-          <h2 style={{ fontSize: '28px', marginBottom: '8px' }}>Register Business</h2>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '32px' }}>Enter the primary details for your operation.</p>
-          
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-            <div className="input-group" style={{ gridColumn: '1 / span 2' }}>
-              <label className="input-label">Shop / Business Name</label>
-              <input 
-                type="text" 
-                className="input-field" 
-                placeholder="Enter business name" 
-                value={singleBusiness.name} 
-                onChange={e => setSingleBusiness({...singleBusiness, name: e.target.value})} 
-              />
-            </div>
-            <div className="input-group">
-              <label className="input-label">Registration Number (Optional)</label>
-              <input 
-                type="text" 
-                className="input-field" 
-                placeholder="GSTIN / VAT / Registration No" 
-                value={singleBusiness.regNo} 
-                onChange={e => setSingleBusiness({...singleBusiness, regNo: e.target.value})} 
-              />
-            </div>
-            <div className="input-group">
-              <label className="input-label">Contact Phone</label>
-              <input 
-                type="tel" 
-                inputMode="numeric"
-                maxLength={10}
-                pattern="[0-9]{10}"
-                className="input-field" 
-                placeholder="Enter 10-digit number" 
-                value={singleBusiness.phone} 
-                onChange={e => setSingleBusiness({...singleBusiness, phone: e.target.value.replace(/\D/g, '').slice(0, 10)})} 
-              />
-              {singleBusiness.phone && singleBusiness.phone.length > 0 && singleBusiness.phone.length < 10 && (
-                <span style={{ fontSize: '12px', color: '#EF4444', marginTop: '2px', display: 'block' }}>
-                  Please enter a full 10-digit number
-                </span>
-              )}
-            </div>
-            <div className="input-group" style={{ gridColumn: '1 / span 2' }}>
-              <label className="input-label">Primary Address</label>
-              <textarea 
-                className="input-field" 
-                rows="3" 
-                placeholder="Street address, City, State, Zip..." 
-                value={singleBusiness.address} 
-                onChange={e => setSingleBusiness({...singleBusiness, address: e.target.value})}
-              ></textarea>
-            </div>
-          </div>
-        </div>
-      );
+    const isLoaded = await loadScript();
+    if (!isLoaded) {
+      setShowRazorpayModal(true);
+      setLoading(false);
+      return;
     }
 
-    if (stepId === 'branches') {
-      // Type 2: Single Branch ONLY (No multiple branch creation allowed)
-      if (tenantType === 2) {
-        return (
-          <div className="animate-fade-in" style={{ padding: '24px' }}>
-            <h2 style={{ fontSize: '28px', marginBottom: '8px' }}>Register Branch</h2>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '32px' }}>
-              Set up the single branch location for your business operations.
-            </p>
+    try {
+      // 2. Call backend to create Razorpay Order
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/payment/create-order`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: grandTotal,
+          currency: 'INR',
+          receipt: `rcpt_${Date.now()}`,
+          notes: {
+            plan: activePlan.title,
+            cycle: billingCycle,
+            businessName: businessInfo.name
+          }
+        })
+      });
 
-            {branches.length > 0 && !isEditingBranch ? (
-              <div style={{ background: '#F8FAFC', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '24px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                      <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: 'var(--text-title)' }}>
-                        {branches[0].name}
-                      </h3>
-                      <span style={{ fontSize: '12px', background: '#EFF6FF', color: 'var(--primary-blue)', padding: '2px 8px', borderRadius: '4px', fontWeight: '600' }}>
-                        {branches[0].type || 'Retail Store'}
-                      </span>
-                      <span style={{ fontSize: '11px', background: '#E2E8F0', color: '#475569', padding: '2px 8px', borderRadius: '4px', fontWeight: '500' }}>
-                        Single Branch Only
-                      </span>
-                    </div>
-                    <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-secondary)' }}>
-                      {branches[0].location || 'No location address specified'}
-                    </p>
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setNewBranch({ ...branches[0] });
-                        setIsEditingBranch(true);
-                      }}
-                      className="btn-secondary"
-                      style={{ padding: '6px 14px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}
-                    >
-                      <Edit2 size={14} /> Edit Branch
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setBranches([]);
-                        setNewBranch({ name: '', location: '', manager: '', phone: '', type: 'Store', business: '' });
-                        saveProgress({ branches: [] });
-                      }}
-                      style={{ background: 'transparent', border: '1px solid #FCA5A5', color: '#EF4444', borderRadius: '6px', padding: '6px 12px', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-                      title="Remove Branch"
-                    >
-                      <Trash2 size={14} /> Remove
-                    </button>
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}>
-                  <div>
-                    <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>Branch Manager</span>
-                    <span style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-title)' }}>{branches[0].manager || 'Not Assigned'}</span>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>Contact Phone</span>
-                    <span style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-title)' }}>{branches[0].phone || 'Not Provided'}</span>
-                  </div>
-                </div>
-
-                <div style={{ marginTop: '20px', padding: '12px 16px', background: '#EFF6FF', borderRadius: '8px', border: '1px solid #DBEAFE', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <CheckCircle2 size={18} color="var(--primary-blue)" />
-                  <span style={{ fontSize: '13px', color: '#1E40AF' }}>
-                    Single branch configured. All employees will be assigned to this branch.
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <div style={{ padding: '24px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-                <h4 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: '600', color: 'var(--text-title)' }}>
-                  {isEditingBranch ? 'Edit Branch' : 'Enter Branch Details'}
-                </h4>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
-                  <div className="input-group">
-                    <label className="input-label">Branch Name *</label>
-                    <input
-                      type="text"
-                      className="input-field"
-                      placeholder="e.g. Main Branch"
-                      value={newBranch.name}
-                      onChange={e => setNewBranch({ ...newBranch, name: e.target.value })}
-                    />
-                  </div>
-                  <div className="input-group">
-                    <label className="input-label">Branch Type</label>
-                    <select
-                      className="input-field"
-                      value={newBranch.type || 'Store'}
-                      onChange={e => setNewBranch({ ...newBranch, type: e.target.value })}
-                    >
-                      <option value="Store">Retail Store</option>
-                      <option value="Warehouse">Warehouse</option>
-                      <option value="Office">Corporate Office</option>
-                    </select>
-                  </div>
-                  <div className="input-group" style={{ gridColumn: '1 / span 2' }}>
-                    <label className="input-label">Location / Address</label>
-                    <input
-                      type="text"
-                      className="input-field"
-                      placeholder="Complete address of this branch"
-                      value={newBranch.location}
-                      onChange={e => setNewBranch({ ...newBranch, location: e.target.value })}
-                    />
-                  </div>
-                  <div className="input-group">
-                    <label className="input-label">Branch Manager</label>
-                    <input
-                      type="text"
-                      className="input-field"
-                      placeholder="Enter manager name"
-                      value={newBranch.manager}
-                      onChange={e => setNewBranch({ ...newBranch, manager: e.target.value })}
-                    />
-                  </div>
-                  <div className="input-group">
-                    <label className="input-label">Contact Phone</label>
-                    <input
-                      type="tel"
-                      inputMode="numeric"
-                      maxLength={10}
-                      pattern="[0-9]{10}"
-                      className="input-field"
-                      placeholder="Enter 10-digit number"
-                      value={newBranch.phone}
-                      onChange={e => setNewBranch({ ...newBranch, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
-                    />
-                    {newBranch.phone && newBranch.phone.length > 0 && newBranch.phone.length < 10 && (
-                      <span style={{ fontSize: '12px', color: '#EF4444', marginTop: '2px', display: 'block' }}>
-                        Please enter a full 10-digit number
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                  {isEditingBranch && (
-                    <button
-                      type="button"
-                      onClick={() => setIsEditingBranch(false)}
-                      className="btn-secondary"
-                      style={{ padding: '8px 16px' }}
-                    >
-                      Cancel
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (newBranch.name.trim()) {
-                        if (newBranch.phone && newBranch.phone.length !== 10) {
-                          alert('Contact phone must be exactly 10 digits.');
-                          return;
-                        }
-                        const branchData = { ...newBranch, name: newBranch.name.trim() };
-                        setBranches([branchData]);
-                        setIsEditingBranch(false);
-                        saveProgress({ branches: [branchData] });
-                      }
-                    }}
-                    className="btn-primary"
-                    style={{ padding: '8px 16px' }}
-                    disabled={!newBranch.name.trim()}
-                  >
-                    Save Branch
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        );
+      const orderData = await res.json();
+      if (!res.ok || !orderData.orderId) {
+        throw new Error(orderData.message || 'Failed to create Razorpay order');
       }
 
-      // Types 3 & 4: Multiple Branch Creation Allowed
-      return (
-        <div className="animate-fade-in" style={{ padding: '24px' }}>
-          <h2 style={{ fontSize: '28px', marginBottom: '8px' }}>Register Branches</h2>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '32px' }}>
-            {tenantType === 4 ? 'Set up branches and assign them across your businesses.' : 'Set up multiple locations or warehouses for your business.'}
-          </p>
-          
-          {branches.length > 0 && !showBranchForm && (
-            <div style={{ width: '100%', overflowX: 'auto', marginBottom: '24px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '640px' }}>
-                <thead style={{ background: '#F8FAFC' }}>
-                  <tr>
-                    <th style={{ padding: '12px 14px', textAlign: 'center', fontSize: '13px', color: 'var(--text-secondary)', width: '45px' }}>S.No</th>
-                    <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', minWidth: '140px' }}>Branch Name</th>
-                    <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', width: '90px' }}>Type</th>
-                    <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', minWidth: '140px' }}>Location</th>
-                    <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', minWidth: '130px' }}>Contact</th>
-                    <th style={{ padding: '12px 14px', textAlign: 'center', fontSize: '13px', color: 'var(--text-secondary)', width: '50px' }}>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {branches.map((b, idx) => (
-                    <tr key={idx} style={{ borderTop: '1px solid var(--border-color)' }}>
-                      <td style={{ padding: '12px 14px', fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '500', textAlign: 'center' }}>{idx + 1}</td>
-                      <td style={{ padding: '12px 14px', fontWeight: '600', color: '#0F172A' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ whiteSpace: 'nowrap' }}>{b.name}</span>
-                          {tenantType === 4 && b.business && (
-                            <span style={{ fontSize: '12px', color: 'var(--primary-blue)', whiteSpace: 'nowrap' }}>{b.business}</span>
-                          )}
-                        </div>
-                      </td>
-                      <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
-                        <span style={{ fontSize: '12px', background: '#F1F5F9', padding: '4px 8px', borderRadius: '4px', fontWeight: '500' }}>{b.type}</span>
-                      </td>
-                      <td style={{ padding: '12px 14px', color: 'var(--text-secondary)', fontSize: '13px' }}>{b.location || '—'}</td>
-                      <td style={{ padding: '12px 14px', color: 'var(--text-secondary)' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ fontSize: '13px', whiteSpace: 'nowrap' }}>{b.manager || 'No manager'}</span>
-                          <span style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{b.phone}</span>
-                        </div>
-                      </td>
-                      <td style={{ padding: '12px 14px', textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const updated = branches.filter((_, i) => i !== idx);
-                            setBranches(updated);
-                            saveProgress({ branches: updated });
-                          }}
-                          style={{ background: 'transparent', border: 'none', color: '#EF4444', cursor: 'pointer', padding: '4px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-                          title="Remove Branch"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <button 
-                onClick={() => setShowBranchForm(true)}
-                style={{ marginTop: '16px', padding: '8px 16px', background: 'white', border: '1px solid var(--primary-blue)', color: 'var(--primary-blue)', borderRadius: '6px', fontWeight: '600', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-              >
-                <Plus size={16} /> Add Another Branch
-              </button>
-            </div>
-          )}
+      // 3. Configure and trigger Razorpay Checkout modal
+      const options = {
+        key: orderData.keyId || razorpayKeyId || 'rzp_test_U18JZ6gYj3ozhP',
+        amount: orderData.amount,
+        currency: orderData.currency || 'INR',
+        name: 'BizTech Platform',
+        description: `${activePlan.title} (${billingCycle}) Fee Collection`,
+        image: '/logo.jpg',
+        order_id: orderData.orderId,
+        prefill: {
+          name: businessInfo.name || 'Business Owner',
+          email: businessInfo.email || 'owner@example.com',
+          contact: businessInfo.phone || '9999999999'
+        },
+        theme: {
+          color: '#2563EB'
+        },
+        handler: async function (response) {
+          try {
+            // 4. Verify payment signature on backend
+            const verifyRes = await fetch(`${import.meta.env.VITE_API_URL}/api/payment/verify`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature
+              })
+            });
 
-          {showBranchForm ? (
-            <div style={{ padding: '24px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
-                <div className="input-group">
-                  <label className="input-label">Branch Name *</label>
-                  <input type="text" className="input-field" placeholder="Enter branch name" value={newBranch.name} onChange={e => setNewBranch({...newBranch, name: e.target.value})} />
-                </div>
-                <div className="input-group">
-                  <label className="input-label">Branch Type</label>
-                  <select className="input-field" value={newBranch.type} onChange={e => setNewBranch({...newBranch, type: e.target.value})}>
-                    <option value="Store">Retail Store</option>
-                    <option value="Warehouse">Warehouse</option>
-                    <option value="Office">Corporate Office</option>
-                  </select>
-                </div>
-                {tenantType === 4 && (
-                  <div className="input-group" style={{ gridColumn: '1 / span 2' }}>
-                    <label className="input-label">Assign to Business *</label>
-                    <select className="input-field" value={newBranch.business} onChange={e => setNewBranch({...newBranch, business: e.target.value})}>
-                      <option value="">Select a Business</option>
-                      {businesses.map((biz, idx) => (
-                        <option key={idx} value={biz.name}>{biz.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-                <div className="input-group" style={{ gridColumn: '1 / span 2' }}>
-                  <label className="input-label">Location / Address</label>
-                  <input type="text" className="input-field" placeholder="Complete address" value={newBranch.location} onChange={e => setNewBranch({...newBranch, location: e.target.value})} />
-                </div>
-                <div className="input-group">
-                  <label className="input-label">Branch Manager</label>
-                  <input type="text" className="input-field" placeholder="Enter manager name" value={newBranch.manager} onChange={e => setNewBranch({...newBranch, manager: e.target.value})} />
-                </div>
-                <div className="input-group">
-                  <label className="input-label">Contact Phone</label>
-                  <input 
-                    type="tel" 
-                    inputMode="numeric"
-                    maxLength={10}
-                    pattern="[0-9]{10}"
-                    className="input-field" 
-                    placeholder="Enter 10-digit number" 
-                    value={newBranch.phone} 
-                    onChange={e => setNewBranch({...newBranch, phone: e.target.value.replace(/\D/g, '').slice(0, 10)})} 
-                  />
-                  {newBranch.phone && newBranch.phone.length > 0 && newBranch.phone.length < 10 && (
-                    <span style={{ fontSize: '12px', color: '#EF4444', marginTop: '2px', display: 'block' }}>
-                      Please enter a full 10-digit number
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                <button onClick={() => setShowBranchForm(false)} className="btn-secondary" style={{ padding: '8px 16px' }}>Cancel</button>
-                <button onClick={() => {
-                  if(newBranch.name.trim()) {
-                    if (newBranch.phone && newBranch.phone.length !== 10) {
-                      alert('Contact phone must be exactly 10 digits.');
-                      return;
-                    }
-                    const branchData = { ...newBranch, name: newBranch.name.trim() };
-                    const updated = [...branches, branchData];
-                    setBranches(updated);
-                    setNewBranch({ name: '', location: '', manager: '', phone: '', type: 'Store', business: '' });
-                    setShowBranchForm(false);
-                    saveProgress({ branches: updated });
-                  }
-                }} className="btn-primary" style={{ padding: '8px 16px' }} disabled={!newBranch.name.trim()}>Save Branch</button>
-              </div>
-            </div>
-          ) : branches.length === 0 && (
-            <div onClick={() => setShowBranchForm(true)} style={{ border: '2px dashed var(--border-color)', borderRadius: '12px', padding: '32px', textAlign: 'center', background: '#F8FAFC', cursor: 'pointer', transition: 'border 0.2s' }} onMouseOver={(e)=>e.currentTarget.style.borderColor='var(--primary-blue)'} onMouseOut={(e)=>e.currentTarget.style.borderColor='var(--border-color)'}>
-              <div style={{ width: '48px', height: '48px', background: '#EFF6FF', borderRadius: '50%', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto' }}>
-                <Map size={24} />
-              </div>
-              <h4 style={{ margin: '0 0 8px 0', fontSize: '16px', color: 'var(--text-title)' }}>Add a New Branch</h4>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: 0 }}>Click here to define secondary locations.</p>
-            </div>
-          )}
-        </div>
-      );
-    }  
+            const verifyData = await verifyRes.json();
+            if (!verifyRes.ok) {
+              throw new Error(verifyData.message || 'Payment signature verification failed');
+            }
 
-    if (stepId === 'offering') {
-      if (tenantType === 4) {
-        return (
-          <div className="animate-fade-in" style={{ padding: '24px' }}>
-            <h2 style={{ fontSize: '28px', marginBottom: '8px' }}>Products & Services by Business</h2>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '28px' }}>
-              Select whether each business offers physical products, services, or both. Each business in your conglomerate operates independently.
-            </p>
+            // 5. Successfully verified, activate tenant workspace
+            await handleCompleteOnboarding('Razorpay', response.razorpay_payment_id);
+          } catch (err) {
+            console.error('Payment verification error:', err);
+            setError(err.message || 'Payment verification failed. Please contact support.');
+            setLoading(false);
+          }
+        },
+        modal: {
+          ondismiss: function () {
+            setLoading(false);
+          }
+        }
+      };
 
-            {businesses.length === 0 ? (
-              <div style={{ padding: '36px', textAlign: 'center', background: '#F8FAFC', borderRadius: '12px', border: '1px dashed var(--border-color)' }}>
-                <Building2 size={32} color="var(--primary-blue)" style={{ margin: '0 auto 12px auto' }} />
-                <h4 style={{ margin: '0 0 8px 0', fontSize: '16px' }}>No businesses registered yet</h4>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '16px' }}>Please go back to Step 1 to register your conglomerate businesses first.</p>
-                <button type="button" onClick={() => setCurrentStep(0)} className="btn-primary" style={{ padding: '8px 16px' }}>
-                  Go to Step 1
-                </button>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {businesses.map((biz, idx) => {
-                  const currentOff = biz.offeringType || 'both';
-                  return (
-                    <div 
-                      key={idx}
-                      style={{ 
-                        background: 'white', 
-                        border: '1px solid var(--border-color)', 
-                        borderRadius: '12px', 
-                        padding: '20px',
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#EFF6FF', color: 'var(--primary-blue)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Building2 size={20} />
-                          </div>
-                          <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <h4 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: '#0F172A' }}>{biz.name}</h4>
-                              <span style={{ fontSize: '11px', color: 'var(--text-secondary)', background: '#F1F5F9', padding: '2px 8px', borderRadius: '10px' }}>
-                                Business #{idx + 1}
-                              </span>
-                            </div>
-                            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                              {biz.phone ? `Phone: ${biz.phone}` : ''} {biz.regNo ? `• Reg No: ${biz.regNo}` : ''}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div>
-                          <span style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            fontSize: '12px',
-                            fontWeight: '600',
-                            padding: '4px 10px',
-                            borderRadius: '20px',
-                            background: currentOff === 'service' ? '#F3E8FF' : currentOff === 'product' ? '#EFF6FF' : '#F0FDF4',
-                            color: currentOff === 'service' ? '#7E22CE' : currentOff === 'product' ? '#1D4ED8' : '#15803D'
-                          }}>
-                            {currentOff === 'service' ? '🛠️ Services Only' : currentOff === 'product' ? '📦 Products Only' : '🔄 Products & Services'}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '10px' }}>
-                        {/* Products */}
-                        <div
-                          onClick={() => {
-                            const updated = businesses.map((b, i) => i === idx ? { ...b, offeringType: 'product' } : b);
-                            setBusinesses(updated);
-                            saveProgress({ businesses: updated });
-                          }}
-                          style={{
-                            padding: '12px 12px',
-                            borderRadius: '10px',
-                            border: `2px solid ${currentOff === 'product' ? 'var(--primary-blue)' : 'var(--border-color)'}`,
-                            background: currentOff === 'product' ? '#EFF6FF' : 'white',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '10px',
-                            position: 'relative',
-                            minWidth: 0,
-                            transition: 'all 0.15s ease'
-                          }}
-                        >
-                          <div style={{ width: '34px', height: '34px', flexShrink: 0, borderRadius: '8px', background: currentOff === 'product' ? 'white' : '#F8FAFC', color: currentOff === 'product' ? 'var(--primary-blue)' : '#64748B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Package size={17} />
-                          </div>
-                          <div style={{ minWidth: 0, flex: 1 }}>
-                            <div style={{ fontSize: '13px', fontWeight: '600', color: currentOff === 'product' ? 'var(--primary-blue)' : '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Products Only</div>
-                            <div style={{ fontSize: '11px', color: '#64748B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Physical stock</div>
-                          </div>
-                          {currentOff === 'product' && <CheckCircle2 size={16} color="var(--primary-blue)" style={{ flexShrink: 0, marginLeft: 'auto' }} />}
-                        </div>
-
-                        {/* Services */}
-                        <div
-                          onClick={() => {
-                            const updated = businesses.map((b, i) => i === idx ? { ...b, offeringType: 'service' } : b);
-                            setBusinesses(updated);
-                            saveProgress({ businesses: updated });
-                          }}
-                          style={{
-                            padding: '12px 12px',
-                            borderRadius: '10px',
-                            border: `2px solid ${currentOff === 'service' ? '#7E22CE' : 'var(--border-color)'}`,
-                            background: currentOff === 'service' ? '#FAF5FF' : 'white',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '10px',
-                            position: 'relative',
-                            minWidth: 0,
-                            transition: 'all 0.15s ease'
-                          }}
-                        >
-                          <div style={{ width: '34px', height: '34px', flexShrink: 0, borderRadius: '8px', background: currentOff === 'service' ? 'white' : '#F8FAFC', color: currentOff === 'service' ? '#7E22CE' : '#64748B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Briefcase size={17} />
-                          </div>
-                          <div style={{ minWidth: 0, flex: 1 }}>
-                            <div style={{ fontSize: '13px', fontWeight: '600', color: currentOff === 'service' ? '#7E22CE' : '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Services Only</div>
-                            <div style={{ fontSize: '11px', color: '#64748B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Billable services</div>
-                          </div>
-                          {currentOff === 'service' && <CheckCircle2 size={16} color="#7E22CE" style={{ flexShrink: 0, marginLeft: 'auto' }} />}
-                        </div>
-
-                        {/* Both */}
-                        <div
-                          onClick={() => {
-                            const updated = businesses.map((b, i) => i === idx ? { ...b, offeringType: 'both' } : b);
-                            setBusinesses(updated);
-                            saveProgress({ businesses: updated });
-                          }}
-                          style={{
-                            padding: '12px 12px',
-                            borderRadius: '10px',
-                            border: `2px solid ${currentOff === 'both' ? '#15803D' : 'var(--border-color)'}`,
-                            background: currentOff === 'both' ? '#F0FDF4' : 'white',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '10px',
-                            position: 'relative',
-                            minWidth: 0,
-                            transition: 'all 0.15s ease'
-                          }}
-                        >
-                          <div style={{ width: '34px', height: '34px', flexShrink: 0, borderRadius: '8px', background: currentOff === 'both' ? 'white' : '#F8FAFC', color: currentOff === 'both' ? '#15803D' : '#64748B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Boxes size={17} />
-                          </div>
-                          <div style={{ minWidth: 0, flex: 1 }}>
-                            <div style={{ fontSize: '13px', fontWeight: '600', color: currentOff === 'both' ? '#15803D' : '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Both Offerings</div>
-                            <div style={{ fontSize: '11px', color: '#64748B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Products + services</div>
-                          </div>
-                          {currentOff === 'both' && <CheckCircle2 size={16} color="#15803D" style={{ flexShrink: 0, marginLeft: 'auto' }} />}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        );
-      }
-
-      const isProduct = selections.offering.includes('product');
-      const isService = selections.offering.includes('service');
-
-      return (
-        <div className="animate-fade-in" style={{ padding: '24px' }}>
-          <h2 style={{ fontSize: '28px', marginBottom: '8px' }}>What do you offer?</h2>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '32px' }}>Select Product, Service, or Both to tailor your modules.</p>
-          
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-            <div 
-              onClick={() => toggleSelection('offering', 'product')}
-              style={{ 
-                padding: '24px', border: `2px solid ${isProduct ? 'var(--primary-blue)' : 'var(--border-color)'}`, 
-                borderRadius: '12px', cursor: 'pointer', background: isProduct ? 'rgba(37, 99, 235, 0.12)' : 'var(--card-bg)', transition: 'all 0.2s', position: 'relative'
-              }}
-            >
-              {isProduct && <CheckCircle2 size={20} color="var(--primary-blue)" style={{ position: 'absolute', top: '16px', right: '16px' }} />}
-              <div style={{ width: '48px', height: '48px', background: isProduct ? 'var(--primary-blue)' : 'var(--bg-color)', borderRadius: '12px', color: isProduct ? '#ffffff' : 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
-                <Package size={24} />
-              </div>
-              <h4 style={{ fontSize: '18px', marginBottom: '8px', color: 'var(--text-title)' }}>Physical Products</h4>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: 0, lineHeight: '1.5' }}>Physical items requiring stock and inventory tracking.</p>
-            </div>
-            
-            <div 
-              onClick={() => toggleSelection('offering', 'service')}
-              style={{ 
-                padding: '24px', border: `2px solid ${isService ? 'var(--primary-blue)' : 'var(--border-color)'}`, 
-                borderRadius: '12px', cursor: 'pointer', background: isService ? 'rgba(37, 99, 235, 0.12)' : 'var(--card-bg)', transition: 'all 0.2s', position: 'relative'
-              }}
-            >
-              {isService && <CheckCircle2 size={20} color="var(--primary-blue)" style={{ position: 'absolute', top: '16px', right: '16px' }} />}
-              <div style={{ width: '48px', height: '48px', background: isService ? 'var(--primary-blue)' : 'var(--bg-color)', borderRadius: '12px', color: isService ? '#ffffff' : 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
-                <Briefcase size={24} />
-              </div>
-              <h4 style={{ fontSize: '18px', marginBottom: '8px', color: 'var(--text-title)' }}>Services</h4>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: 0, lineHeight: '1.5' }}>On-demand services, consulting, or time-based billing.</p>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    if (stepId === 'operation') {
-      if (tenantType === 4) {
-        return (
-          <div className="animate-fade-in" style={{ padding: '24px' }}>
-            <h2 style={{ fontSize: '28px', marginBottom: '8px' }}>Purchasing Operations by Business</h2>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
-              Configure whether each conglomerate business engages in vendor purchasing and procurement.
-            </p>
-
-            {businesses.length === 0 ? (
-              <div style={{ padding: '36px', textAlign: 'center', background: '#F8FAFC', borderRadius: '12px', border: '1px dashed var(--border-color)' }}>
-                <Building2 size={32} color="var(--primary-blue)" style={{ margin: '0 auto 12px auto' }} />
-                <h4 style={{ margin: '0 0 8px 0', fontSize: '16px' }}>No businesses registered yet</h4>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '16px' }}>Please go back to Step 1 to register your conglomerate businesses first.</p>
-                <button type="button" onClick={() => setCurrentStep(0)} className="btn-primary" style={{ padding: '8px 16px' }}>
-                  Go to Step 1
-                </button>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {businesses.map((biz, idx) => {
-                  const hasPurchases = biz.operationsType !== 'none';
-                  return (
-                    <div 
-                      key={idx}
-                      style={{ 
-                        background: 'white', 
-                        border: '1px solid var(--border-color)', 
-                        borderRadius: '12px', 
-                        padding: '20px',
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#EFF6FF', color: 'var(--primary-blue)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Building2 size={20} />
-                          </div>
-                          <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <h4 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: '#0F172A' }}>{biz.name}</h4>
-                              <span style={{ fontSize: '11px', color: 'var(--text-secondary)', background: '#F1F5F9', padding: '2px 8px', borderRadius: '10px' }}>
-                                Business #{idx + 1}
-                              </span>
-                            </div>
-                            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                              {biz.phone ? `Phone: ${biz.phone}` : ''} {biz.regNo ? `• Reg No: ${biz.regNo}` : ''}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div>
-                          <span style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            fontSize: '12px',
-                            fontWeight: '600',
-                            padding: '4px 10px',
-                            borderRadius: '20px',
-                            background: hasPurchases ? '#FEF3C7' : '#F1F5F9',
-                            color: hasPurchases ? '#B45309' : '#475569'
-                          }}>
-                            {hasPurchases ? '🛒 Purchases & Billing' : '🧾 Billing Only'}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                        {/* Purchases Enabled */}
-                        <div
-                          onClick={() => {
-                            const updated = businesses.map((b, i) => i === idx ? { ...b, operationsType: 'purchases' } : b);
-                            setBusinesses(updated);
-                            saveProgress({ businesses: updated });
-                          }}
-                          style={{
-                            padding: '14px 16px',
-                            borderRadius: '10px',
-                            border: `2px solid ${hasPurchases ? '#B45309' : 'var(--border-color)'}`,
-                            background: hasPurchases ? '#FEF3C7' : 'white',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '12px',
-                            position: 'relative',
-                            transition: 'all 0.15s ease'
-                          }}
-                        >
-                          <div style={{ width: '38px', height: '38px', flexShrink: 0, borderRadius: '8px', background: hasPurchases ? 'white' : '#F8FAFC', color: hasPurchases ? '#B45309' : '#64748B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <ShoppingCart size={18} />
-                          </div>
-                          <div style={{ minWidth: 0, flex: 1 }}>
-                            <div style={{ fontSize: '14px', fontWeight: '600', color: hasPurchases ? '#B45309' : '#1E293B' }}>Purchases & Procurement</div>
-                            <div style={{ fontSize: '12px', color: '#64748B' }}>Vendor POs, supplier bills & inventory</div>
-                          </div>
-                          {hasPurchases && <CheckCircle2 size={18} color="#B45309" style={{ flexShrink: 0, marginLeft: 'auto' }} />}
-                        </div>
-
-                        {/* Billing Only */}
-                        <div
-                          onClick={() => {
-                            const updated = businesses.map((b, i) => i === idx ? { ...b, operationsType: 'none' } : b);
-                            setBusinesses(updated);
-                            saveProgress({ businesses: updated });
-                          }}
-                          style={{
-                            padding: '14px 16px',
-                            borderRadius: '10px',
-                            border: `2px solid ${!hasPurchases ? 'var(--primary-blue)' : 'var(--border-color)'}`,
-                            background: !hasPurchases ? '#EFF6FF' : 'white',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '12px',
-                            position: 'relative',
-                            transition: 'all 0.15s ease'
-                          }}
-                        >
-                          <div style={{ width: '38px', height: '38px', flexShrink: 0, borderRadius: '8px', background: !hasPurchases ? 'white' : '#F8FAFC', color: !hasPurchases ? 'var(--primary-blue)' : '#64748B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <CheckCircle2 size={18} />
-                          </div>
-                          <div style={{ minWidth: 0, flex: 1 }}>
-                            <div style={{ fontSize: '14px', fontWeight: '600', color: !hasPurchases ? 'var(--primary-blue)' : '#1E293B' }}>Billing Only (No Purchases)</div>
-                            <div style={{ fontSize: '12px', color: '#64748B' }}>Customer invoices & sales revenue only</div>
-                          </div>
-                          {!hasPurchases && <CheckCircle2 size={18} color="var(--primary-blue)" style={{ flexShrink: 0, marginLeft: 'auto' }} />}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        );
-      }
-
-      const isPurchase = selections.operation.includes('purchase');
-
-      return (
-        <div className="animate-fade-in" style={{ padding: '24px' }}>
-          <h2 style={{ fontSize: '28px', marginBottom: '8px' }}>Purchasing & Procurement Operations</h2>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '28px' }}>
-            Do you purchase goods, stock, or raw materials from external vendors and suppliers?
-          </p>
-          
-          <div style={{ maxWidth: '420px' }}>
-            <div 
-              onClick={() => {
-                const next = isPurchase ? [] : ['purchase'];
-                setSelections(prev => ({ ...prev, operation: next }));
-                saveProgress({ operation: next });
-              }}
-              style={{ 
-                padding: '24px', 
-                border: `2px solid ${isPurchase ? 'var(--primary-blue)' : 'var(--border-color)'}`, 
-                borderRadius: '12px', 
-                cursor: 'pointer', 
-                background: isPurchase ? 'rgba(37, 99, 235, 0.12)' : 'var(--card-bg)', 
-                transition: 'all 0.2s', 
-                position: 'relative'
-              }}
-            >
-              {isPurchase && <CheckCircle2 size={20} color="var(--primary-blue)" style={{ position: 'absolute', top: '16px', right: '16px' }} />}
-              <div style={{ width: '48px', height: '48px', background: isPurchase ? 'var(--primary-blue)' : 'var(--bg-color)', borderRadius: '12px', color: isPurchase ? '#ffffff' : 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
-                <ShoppingCart size={24} />
-              </div>
-              <h4 style={{ fontSize: '18px', marginBottom: '8px', color: 'var(--text-title)' }}>Purchases & Procurement</h4>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: 0, lineHeight: '1.5' }}>
-                Enable vendor purchase orders, supplier bills, and procurement stock management.
-              </p>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    if (stepId === 'employees') {
-      return (
-        <div className="animate-fade-in" style={{ padding: '24px' }}>
-          <h2 style={{ fontSize: '28px', marginBottom: '8px' }}>Register Employees</h2>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '32px' }}>
-            {tenantType === 1 
-              ? 'Add staff members to help manage your store (Owner-managed).' 
-              : tenantType === 2 
-                ? 'Add staff members to your branch location.' 
-              : tenantType === 3 
-                ? 'Add staff members and assign them to specific branches.' 
-                : 'Add staff members across your businesses and branches.'}
-          </p>
-          
-          {employees.length > 0 && !showEmployeeForm && (
-            <div style={{ width: '100%', overflowX: 'auto', marginBottom: '24px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '780px' }}>
-                <thead style={{ background: '#F8FAFC' }}>
-                  <tr>
-                    <th style={{ padding: '12px 14px', textAlign: 'center', fontSize: '13px', color: 'var(--text-secondary)', width: '45px' }}>S.No</th>
-                    <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', minWidth: '90px' }}>ID</th>
-                    <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', minWidth: '120px' }}>Name</th>
-                    <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', minWidth: '170px' }}>Role & Branch</th>
-                    <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', minWidth: '160px' }}>Contact</th>
-                    <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', minWidth: '130px' }}>Shift & Type</th>
-                    <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)', minWidth: '90px' }}>Salary</th>
-                    <th style={{ padding: '12px 14px', textAlign: 'center', fontSize: '13px', color: 'var(--text-secondary)', width: '50px' }}>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {employees.map((emp, idx) => (
-                    <tr key={idx} style={{ borderTop: '1px solid var(--border-color)' }}>
-                      <td style={{ padding: '12px 14px', fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '500', textAlign: 'center' }}>{idx + 1}</td>
-                      <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
-                        <span style={{ fontFamily: 'monospace', fontWeight: '600', color: 'var(--primary-blue)', background: '#EFF6FF', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', border: '1px solid #DBEAFE' }}>
-                          {emp.employeeId || `EMP-${String(idx + 1).padStart(3, '0')}`}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px 14px', fontWeight: '600', color: '#0F172A', whiteSpace: 'nowrap' }}>{emp.name}</td>
-                      <td style={{ padding: '12px 14px' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                          <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-title)', whiteSpace: 'nowrap' }}>{emp.designation || emp.role || 'Staff'}</span>
-                          {emp.role && emp.designation && emp.role !== emp.designation && (
-                            <span style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Role: {emp.role}</span>
-                          )}
-                          <span style={{ fontSize: '12px', color: 'var(--primary-blue)', display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
-                            <Map size={12} style={{ flexShrink: 0 }} /> {emp.branch || 'Main Branch'} {tenantType === 4 && emp.business ? `(${emp.business})` : ''}
-                          </span>
-                        </div>
-                      </td>
-                      <td style={{ padding: '12px 14px', color: 'var(--text-secondary)' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                          <span style={{ fontSize: '13px', color: '#334155', whiteSpace: 'nowrap' }}>{emp.email}</span>
-                          <span style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{emp.phone || '—'}</span>
-                        </div>
-                      </td>
-                      <td style={{ padding: '12px 14px', color: 'var(--text-secondary)', whiteSpace: 'nowrap', fontSize: '13px' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                          <span>{emp.shiftFrom && emp.shiftTo ? `${emp.shiftFrom} - ${emp.shiftTo}` : '09:00 - 18:00'}</span>
-                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{emp.workType || 'Full-Time'}</span>
-                        </div>
-                      </td>
-                      <td style={{ padding: '12px 14px', color: '#0F172A', fontWeight: '500', whiteSpace: 'nowrap', fontSize: '13px' }}>
-                        {emp.salary ? `₹${emp.salary}` : '—'}
-                      </td>
-                      <td style={{ padding: '12px 14px', textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const updated = employees.filter((_, i) => i !== idx);
-                            setEmployees(updated);
-                            saveProgress({ employees: updated });
-                          }}
-                          style={{ background: 'transparent', border: 'none', color: '#EF4444', cursor: 'pointer', padding: '4px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-                          title="Remove Employee"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <button 
-                onClick={() => {
-                  setNewEmployee(getInitialNewEmployee());
-                  setEmployeeFormError('');
-                  setShowEmployeeForm(true);
-                }}
-                style={{ marginTop: '16px', padding: '8px 16px', background: 'white', border: '1px solid var(--primary-blue)', color: 'var(--primary-blue)', borderRadius: '6px', fontWeight: '600', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-              >
-                <Plus size={16} /> Add Another Employee
-              </button>
-            </div>
-          )}
-
-          {showEmployeeForm ? (
-            <div style={{ padding: '24px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-              {employeeFormError && (
-                <div style={{
-                  background: '#FEF2F2',
-                  border: '1px solid #FECACA',
-                  borderRadius: '10px',
-                  padding: '12px 14px',
-                  marginBottom: '16px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  color: '#991B1B',
-                  fontSize: '13px'
-                }}>
-                  <AlertCircle size={18} color="#DC2626" style={{ flexShrink: 0 }} />
-                  <span style={{ fontWeight: '600' }}>{employeeFormError}</span>
-                </div>
-              )}
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
-                <div className="input-group">
-                  <label className="input-label">Employee ID *</label>
-                  <input 
-                    type="text" 
-                    className="input-field" 
-                    placeholder="e.g. EMP-001" 
-                    value={newEmployee.employeeId} 
-                    onChange={e => {
-                      setNewEmployee({ ...newEmployee, employeeId: e.target.value });
-                      if (employeeFormError) setEmployeeFormError('');
-                    }} 
-                  />
-                </div>
-                <div className="input-group">
-                  <label className="input-label">Full Name *</label>
-                  <input 
-                    type="text" 
-                    className="input-field" 
-                    placeholder="Enter employee name" 
-                    value={newEmployee.name} 
-                    onChange={e => {
-                      setNewEmployee({ ...newEmployee, name: e.target.value });
-                      if (employeeFormError) setEmployeeFormError('');
-                    }} 
-                  />
-                </div>
-                <div className="input-group">
-                  <label className="input-label">Email Address *</label>
-                  <input 
-                    type="email" 
-                    className="input-field" 
-                    placeholder="Enter employee email" 
-                    value={newEmployee.email} 
-                    onChange={e => {
-                      setNewEmployee({ ...newEmployee, email: e.target.value });
-                      if (employeeFormError) setEmployeeFormError('');
-                    }} 
-                  />
-                </div>
-                <div className="input-group">
-                  <label className="input-label">Contact Number</label>
-                  <input 
-                    type="tel" 
-                    inputMode="numeric"
-                    maxLength={10}
-                    pattern="[0-9]{10}"
-                    className="input-field" 
-                    placeholder="Enter 10-digit number" 
-                    value={newEmployee.phone} 
-                    onChange={e => {
-                      const numericVal = e.target.value.replace(/\D/g, '').slice(0, 10);
-                      setNewEmployee({ ...newEmployee, phone: numericVal });
-                      if (employeeFormError) setEmployeeFormError('');
-                    }} 
-                  />
-                  {newEmployee.phone && newEmployee.phone.length > 0 && newEmployee.phone.length < 10 && (
-                    <span style={{ fontSize: '12px', color: '#EF4444', marginTop: '2px', display: 'block' }}>
-                      Please enter a full 10-digit number
-                    </span>
-                  )}
-                </div>
-                <div className="input-group">
-                  <label className="input-label">Designation *</label>
-                  <select 
-                    className="input-field"
-                    value={newEmployee.designation} 
-                    onChange={e => {
-                      const val = e.target.value;
-                      setNewEmployee(prev => ({
-                        ...prev,
-                        designation: val,
-                        role: prev.role || (val !== 'Other' ? val : '')
-                      }));
-                      if (employeeFormError) setEmployeeFormError('');
-                    }}
-                  >
-                    <option value="">-- Select Designation --</option>
-                    {DESIGNATION_OPTIONS.map(opt => (
-                      <option key={opt} value={opt}>{opt}</option>
-                    ))}
-                  </select>
-                  {newEmployee.designation === 'Other' && (
-                    <input 
-                      type="text" 
-                      className="input-field" 
-                      style={{ marginTop: '6px' }}
-                      placeholder="Enter custom designation" 
-                      value={newEmployee.customDesignation} 
-                      onChange={e => setNewEmployee({ ...newEmployee, customDesignation: e.target.value })} 
-                    />
-                  )}
-                </div>
-                <div className="input-group">
-                  <label className="input-label">Position / Role</label>
-                  <input 
-                    type="text" 
-                    className="input-field" 
-                    placeholder="e.g. Lead Cashier / Sales" 
-                    value={newEmployee.role} 
-                    onChange={e => setNewEmployee({ ...newEmployee, role: e.target.value })} 
-                  />
-                </div>
-                <div className="input-group">
-                  <label className="input-label">Shift Timing</label>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <input 
-                      type="time" 
-                      className="input-field" 
-                      style={{ flex: 1 }} 
-                      value={newEmployee.shiftFrom} 
-                      onChange={e => setNewEmployee({ ...newEmployee, shiftFrom: e.target.value })} 
-                    />
-                    <span style={{ color: 'var(--text-muted)', fontSize: '13px', fontWeight: '500' }}>to</span>
-                    <input 
-                      type="time" 
-                      className="input-field" 
-                      style={{ flex: 1 }} 
-                      value={newEmployee.shiftTo} 
-                      onChange={e => setNewEmployee({ ...newEmployee, shiftTo: e.target.value })} 
-                    />
-                  </div>
-                </div>
-                <div className="input-group">
-                  <label className="input-label">Employment Type</label>
-                  <select
-                    className="input-field"
-                    value={newEmployee.workType}
-                    onChange={e => setNewEmployee({ ...newEmployee, workType: e.target.value })}
-                  >
-                    {WORK_TYPE_OPTIONS.map(opt => (
-                      <option key={opt} value={opt}>{opt}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="input-group">
-                  <label className="input-label">Monthly Salary (₹)</label>
-                  <input 
-                    type="text" 
-                    className="input-field" 
-                    placeholder="e.g. 50000" 
-                    value={newEmployee.salary} 
-                    onChange={e => setNewEmployee({ ...newEmployee, salary: e.target.value })} 
-                  />
-                </div>
-                <div className="input-group">
-                  <label className="input-label">Date of Joining</label>
-                  <input 
-                    type="date" 
-                    className="input-field" 
-                    value={newEmployee.dateOfJoining} 
-                    onChange={e => setNewEmployee({ ...newEmployee, dateOfJoining: e.target.value })} 
-                  />
-                </div>
-                <div className="input-group" style={{ gridColumn: '1 / span 2' }}>
-                  <label className="input-label">Residential / Contact Address</label>
-                  <input 
-                    type="text" 
-                    className="input-field" 
-                    placeholder="Enter employee residential address (street, city, pin code)" 
-                    value={newEmployee.address} 
-                    onChange={e => setNewEmployee({ ...newEmployee, address: e.target.value })} 
-                  />
-                </div>
-
-                {/* Branch / Business assignment tailored per tenantType */}
-                {tenantType === 2 && (
-                  <div className="input-group" style={{ gridColumn: '1 / span 2' }}>
-                    <label className="input-label">Assigned Branch</label>
-                    <div style={{ padding: '10px 14px', background: 'white', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '14px', fontWeight: '500', color: 'var(--text-title)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Map size={16} color="var(--primary-blue)" />
-                      <span>{branches[0]?.name || 'Main Branch'}</span>
-                      <span style={{ fontSize: '11px', background: '#F1F5F9', color: 'var(--text-secondary)', padding: '2px 8px', borderRadius: '4px', marginLeft: 'auto' }}>
-                        Single Branch Only
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                {tenantType === 3 && (
-                  <div className="input-group" style={{ gridColumn: '1 / span 2' }}>
-                    <label className="input-label">Assigned Branch *</label>
-                    <select 
-                      className="input-field" 
-                      value={newEmployee.branch} 
-                      onChange={e => setNewEmployee({ ...newEmployee, branch: e.target.value })}
-                    >
-                      {branches.length === 0 ? (
-                        <option value="Main Branch">Main Branch (Default)</option>
-                      ) : (
-                        branches.map((b, idx) => (
-                          <option key={idx} value={b.name}>{b.name} ({b.type || 'Branch'})</option>
-                        ))
-                      )}
-                    </select>
-                    {branches.length === 0 && (
-                      <span style={{ fontSize: '12px', color: '#CA8A04', marginTop: '4px', display: 'block' }}>
-                        No custom branches were registered in the previous step. Main Branch will be assigned.
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {tenantType === 4 && (
-                  <div className="input-group" style={{ gridColumn: '1 / span 2', display: 'flex', gap: '16px' }}>
-                    <div style={{ flex: 1 }}>
-                      <label className="input-label">Assigned Business *</label>
-                      <select 
-                        className="input-field" 
-                        value={newEmployee.business} 
-                        onChange={e => {
-                          const biz = e.target.value;
-                          const filteredBranches = branches.filter(b => b.business === biz);
-                          setNewEmployee({
-                            ...newEmployee,
-                            business: biz,
-                            branch: filteredBranches[0]?.name || branches[0]?.name || 'Main Branch'
-                          });
-                        }}
-                      >
-                        <option value="">Select Business</option>
-                        {businesses.map((b, idx) => <option key={idx} value={b.name}>{b.name}</option>)}
-                      </select>
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <label className="input-label">Assigned Branch *</label>
-                      <select 
-                        className="input-field" 
-                        value={newEmployee.branch} 
-                        onChange={e => setNewEmployee({ ...newEmployee, branch: e.target.value })}
-                      >
-                        <option value="">Select Branch</option>
-                        {branches
-                          .filter(b => newEmployee.business ? b.business === newEmployee.business : true)
-                          .map((b, idx) => (
-                            <option key={idx} value={b.name}>{b.name} ({b.type || 'Branch'})</option>
-                          ))}
-                      </select>
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                <button 
-                  onClick={() => {
-                    setEmployeeFormError('');
-                    setShowEmployeeForm(false);
-                  }} 
-                  className="btn-secondary" 
-                  style={{ padding: '8px 16px' }}
-                >
-                  Cancel
-                </button>
-                <button onClick={() => {
-                  if (!newEmployee.name.trim()) {
-                    setEmployeeFormError('Please enter the employee full name.');
-                    return;
-                  }
-                  if (!newEmployee.email.trim()) {
-                    setEmployeeFormError('Please enter the employee email address.');
-                    return;
-                  }
-                  if (!/\S+@\S+\.\S+/.test(newEmployee.email.trim())) {
-                    setEmployeeFormError('Please enter a valid email address.');
-                    return;
-                  }
-                  if (employees.some(e => (e.email || '').trim().toLowerCase() === newEmployee.email.trim().toLowerCase())) {
-                    setEmployeeFormError('This email address is already assigned to an employee.');
-                    return;
-                  }
-                  const finalEmpId = (newEmployee.employeeId?.trim() || getNextEmployeeId()).toUpperCase();
-                  if (employees.some(e => (e.employeeId || '').trim().toUpperCase() === finalEmpId)) {
-                    setEmployeeFormError('This Employee ID is already assigned to an employee.');
-                    return;
-                  }
-                  if (newEmployee.phone && newEmployee.phone.length !== 10) {
-                    setEmployeeFormError('Phone number must be exactly 10 digits.');
-                    return;
-                  }
-                  const assignedBranch = tenantType === 2
-                    ? (branches[0]?.name || 'Main Branch')
-                    : (newEmployee.branch || branches[0]?.name || 'Main Branch');
-
-                  const finalDesignation = newEmployee.designation === 'Other'
-                    ? (newEmployee.customDesignation?.trim() || 'Other')
-                    : (newEmployee.designation?.trim() || newEmployee.role?.trim() || 'Staff');
-                  const finalRole = newEmployee.role?.trim() || finalDesignation;
-
-                  const empData = {
-                    ...newEmployee,
-                    employeeId: finalEmpId,
-                    name: newEmployee.name.trim(),
-                    email: newEmployee.email.trim().toLowerCase(),
-                    phone: newEmployee.phone ? newEmployee.phone.trim() : '',
-                    designation: finalDesignation,
-                    role: finalRole,
-                    shiftFrom: newEmployee.shiftFrom || '09:00',
-                    shiftTo: newEmployee.shiftTo || '18:00',
-                    workType: newEmployee.workType || 'Full-Time',
-                    salary: newEmployee.salary || '',
-                    dateOfJoining: newEmployee.dateOfJoining || new Date().toISOString().split('T')[0],
-                    address: newEmployee.address ? newEmployee.address.trim() : '',
-                    branch: assignedBranch,
-                    business: tenantType === 4 ? newEmployee.business : ''
-                  };
-                  delete empData.customDesignation;
-
-                  const updated = [...employees, empData];
-                  setEmployees(updated);
-                  setNewEmployee(getInitialNewEmployee(updated));
-                  setEmployeeFormError('');
-                  setShowEmployeeForm(false);
-                  saveProgress({ employees: updated });
-                }} className="btn-primary" style={{ padding: '8px 16px' }} disabled={!newEmployee.name.trim()}>
-                  Save Employee
-                </button>
-              </div>
-            </div>
-          ) : employees.length === 0 && (
-            <div 
-              onClick={() => {
-                setNewEmployee(getInitialNewEmployee());
-                setEmployeeFormError('');
-                setShowEmployeeForm(true);
-              }} 
-              style={{ border: '2px dashed var(--border-color)', borderRadius: '12px', padding: '32px', textAlign: 'center', background: '#F8FAFC', cursor: 'pointer', transition: 'border 0.2s' }} 
-              onMouseOver={(e)=>e.currentTarget.style.borderColor='var(--primary-blue)'} 
-              onMouseOut={(e)=>e.currentTarget.style.borderColor='var(--border-color)'}
-            >
-              <div style={{ width: '48px', height: '48px', background: '#EFF6FF', borderRadius: '50%', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto' }}>
-                <Users size={24} />
-              </div>
-              <h4 style={{ margin: '0 0 8px 0', fontSize: '16px', color: 'var(--text-title)' }}>Add an Employee</h4>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: 0 }}>
-                {tenantType === 2 
-                  ? 'Add staff members to your branch.' 
-                  : tenantType === 3 
-                    ? 'Add staff members and assign them to specific branches.' 
-                    : 'Assign roles, businesses, and branches.'}
-              </p>
-            </div>
-          )}
-        </div>
-      );
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', function (resp) {
+        setError(`Payment failed: ${resp.error ? resp.error.description : 'Transaction cancelled'}`);
+        setLoading(false);
+      });
+      rzp.open();
+    } catch (err) {
+      console.error('Razorpay checkout initialization error:', err);
+      // Fallback to internal card modal
+      setShowRazorpayModal(true);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-color)', display: 'flex' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-color, #F8FAFC)', display: 'flex' }}>
       
       {/* Backdrop for mobile */}
       <div 
@@ -2016,7 +730,7 @@ const Onboarding = () => {
 
       {/* Left Sidebar Progress */}
       <div className={`onboarding-sidebar ${isSidebarOpen ? 'open' : ''}`}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '64px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }} onClick={() => navigate('/')}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '8px', overflow: 'hidden' }}>
               <img src="/logo.jpg" alt="BizTech Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -2025,144 +739,1609 @@ const Onboarding = () => {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <ThemeToggle size="small" />
-            <button className="sidebar-close-btn" onClick={() => setIsSidebarOpen(false)}>
-              <X size={24} />
+            <button className="sidebar-close-btn" onClick={() => setIsSidebarOpen(false)} title="Close Sidebar">
+              <X size={20} />
             </button>
           </div>
         </div>
 
-        <h3 style={{ fontSize: '14px', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-muted)', marginBottom: '32px' }}>Setup Progress</h3>
+        <h3 style={{ fontSize: '13px', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-muted)', marginBottom: '24px', fontWeight: '700' }}>Setup Progress</h3>
         
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', position: 'relative' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', position: 'relative' }}>
           {/* Vertical Line */}
-          <div style={{ position: 'absolute', left: '15px', top: '20px', bottom: '20px', width: '2px', background: 'var(--border-color)', zIndex: 0 }}></div>
+          <div style={{ position: 'absolute', left: '15px', top: '16px', bottom: '16px', width: '2px', background: 'var(--border-color)', zIndex: 0 }}></div>
           
-          {activeSteps.map((step, idx) => {
+          {ONBOARDING_STEPS.map((step, idx) => {
             const isCompleted = idx < currentStep;
             const isActive = idx === currentStep;
-            const color = isCompleted ? '#10B981' : isActive ? 'var(--primary-blue)' : 'var(--border-color)';
+            const color = isCompleted ? '#10B981' : isActive ? 'var(--primary-blue, #2563EB)' : 'var(--border-color, #E2E8F0)';
             
             return (
               <div 
                 key={step.id} 
-                style={{ display: 'flex', gap: '16px', zIndex: 1, cursor: 'pointer' }}
-                onClick={() => {
+                style={{ 
+                  display: 'flex', 
+                  gap: '14px', 
+                  zIndex: 1, 
+                  cursor: 'pointer',
+                  padding: '10px 12px',
+                  borderRadius: '10px',
+                  background: isActive ? 'rgba(37, 99, 235, 0.08)' : 'transparent',
+                  border: isActive ? '1px solid rgba(37, 99, 235, 0.2)' : '1px solid transparent',
+                  transition: 'all 0.2s',
+                  alignItems: 'center'
+                }}
+                onClick={async () => {
+                  if (currentStep === 0 && idx > 0) {
+                    if (!validateCurrentStep()) return;
+                    const cleanPan = (businessInfo.panNumber || '').trim().toUpperCase();
+                    try {
+                      const token = localStorage.getItem('token');
+                      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/check-pan?pan=${encodeURIComponent(cleanPan)}`, {
+                        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+                      });
+                      const data = await res.json();
+                      if (!res.ok || data.exists) {
+                        setError(data.message || `This PAN Card Number (${cleanPan}) is already registered with another business.`);
+                        setPanCheckResult({ checked: true, exists: true, message: data.message });
+                        return;
+                      }
+                      setPanCheckResult({ checked: true, exists: false, message: 'PAN is available and unique.' });
+                    } catch (e) {}
+                    setDocuments(prev => ({ ...prev, pan: cleanPan }));
+                  }
+                  setError('');
                   setCurrentStep(idx);
                   if (window.innerWidth <= 768) setIsSidebarOpen(false);
                 }}
+                title={`Jump to Step ${idx + 1}: ${step.title}`}
               >
                 <div style={{ 
                   width: '32px', height: '32px', borderRadius: '50%', 
-                  background: isCompleted ? '#10B981' : isActive ? 'var(--primary-blue)' : 'var(--card-bg)', 
+                  background: isCompleted ? '#10B981' : isActive ? 'var(--primary-blue, #2563EB)' : 'var(--card-bg, #FFFFFF)', 
                   border: `2px solid ${color}`,
-                  color: isCompleted || isActive ? 'white' : 'var(--text-muted)',
+                  color: isCompleted || isActive ? 'white' : 'var(--text-muted, #94A3B8)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                  transition: 'all 0.3s'
+                  transition: 'all 0.3s',
+                  fontWeight: '700',
+                  fontSize: '13px',
+                  boxShadow: isActive ? '0 0 0 4px rgba(37, 99, 235, 0.15)' : 'none'
                 }}>
-                  {isCompleted ? <CheckCircle2 size={16} /> : <span style={{ fontSize: '13px', fontWeight: '600' }}>{idx + 1}</span>}
+                  {isCompleted ? <CheckCircle2 size={16} /> : idx + 1}
                 </div>
-                <div>
-                  <h4 style={{ margin: '0 0 4px 0', fontSize: '15px', color: isActive || isCompleted ? 'var(--text-title)' : 'var(--text-muted)', fontWeight: isActive ? '700' : '500' }}>{step.title}</h4>
-                  <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)' }}>{step.desc}</p>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <h4 style={{ margin: '0 0 2px 0', fontSize: '14px', color: isActive ? 'var(--primary-blue, #2563EB)' : (isCompleted ? 'var(--text-title)' : 'var(--text-muted)'), fontWeight: isActive ? '700' : '600', transition: 'color 0.2s' }}>{step.title}</h4>
+                  <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary, #64748B)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{step.desc}</p>
                 </div>
               </div>
-            )
+            );
           })}
         </div>
       </div>
 
       {/* Main Content Area */}
-      <div className="onboarding-main">
+      <div className="onboarding-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         
-        {/* Header */}
-        <div className={`onboarding-header ${isSidebarOpen ? 'hide-on-desktop' : ''}`}>
+        {/* Header for mobile or when sidebar collapsed */}
+        <div className={`onboarding-header ${isSidebarOpen ? 'hide-on-desktop' : ''}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid var(--border-color)', background: 'var(--card-bg)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }} onClick={() => navigate('/')}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '8px', overflow: 'hidden' }}>
               <img src="/logo.jpg" alt="BizTech Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
             <span style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-title)', fontFamily: 'Plus Jakarta Sans', letterSpacing: '-0.5px' }}>BizTech</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '600' }}>Step {currentStep + 1} of {ONBOARDING_STEPS.length}</span>
             <ThemeToggle size="small" />
-            <button className="sidebar-close-btn" onClick={() => setIsSidebarOpen(true)}>
-              <Menu size={24} />
+            <button className="sidebar-close-btn" onClick={() => setIsSidebarOpen(true)} title="Open Steps Sidebar">
+              <Menu size={22} />
             </button>
           </div>
         </div>
 
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
-          <div className="card" style={{ width: '100%', maxWidth: '880px', minHeight: '400px', display: 'flex', flexDirection: 'column', transition: 'max-width 0.3s ease' }}>
-            {renderStepContent()}
-          </div>
-        </div>
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', padding: '36px 24px 60px 24px', overflowY: 'auto' }}>
+          <div style={{ maxWidth: '960px', width: '100%' }}>
 
-        {/* Bottom Bar - Always 3 Buttons */}
-        <div className="onboarding-footer">
-          
-          <button 
-            onClick={handleBack} 
-            className="btn-secondary"
-            style={{ padding: '12px 24px', borderRadius: '8px', fontSize: '15px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
-          >
-            <ArrowLeft size={18} /> Back
-          </button>
-          
-          <div style={{ display: 'flex', gap: '16px' }}>
-            <button 
-              onClick={handleSkip} 
-              style={{ padding: '12px 24px', background: 'transparent', border: 'none', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '15px', cursor: 'pointer', transition: 'color 0.2s' }}
-              onMouseOver={(e)=>e.currentTarget.style.color='var(--text-title)'}
-              onMouseOut={(e)=>e.currentTarget.style.color='var(--text-secondary)'}
-            >
-              Skip to dashboard
-            </button>
-            
-            <button 
-              onClick={handleNext} 
-              className="btn-primary"
-              style={{ padding: '12px 32px', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}
-            >
-              Proceed <ArrowRight size={18} />
-            </button>
-          </div>
-
-        </div>
-
-      </div>
-
-      {/* Delete Business Confirmation Popup Modal */}
-      {deleteConfirmBusiness && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.55)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '20px' }}>
-          <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', padding: '30px 24px 22px 24px', borderRadius: '18px', width: '100%', maxWidth: '420px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', textAlign: 'center', boxSizing: 'border-box' }}>
-            <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: '#FEE2E2', color: '#DC2626', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto' }}>
-              <Trash2 size={26} />
+          {/* Error Alert */}
+          {error && (
+            <div style={{
+              background: '#FEE2E2',
+              border: '1px solid #FCA5A5',
+              color: '#DC2626',
+              padding: '12px 18px',
+              borderRadius: '12px',
+              fontSize: '14px',
+              fontWeight: '500',
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px'
+            }}>
+              <AlertCircle size={18} />
+              <span>{error}</span>
             </div>
-            <h3 style={{ fontSize: '19px', fontWeight: '700', color: 'var(--text-title)', margin: '0 0 8px 0' }}>Remove Business</h3>
-            <p style={{ color: 'var(--text-secondary)', margin: '0 0 24px 0', fontSize: '14px', lineHeight: '1.5' }}>
-              Are you sure you want to remove <strong>{deleteConfirmBusiness.name}</strong> from your conglomerate setup?
-            </p>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button 
-                type="button" 
-                onClick={() => setDeleteConfirmBusiness(null)} 
-                className="btn-secondary"
-                style={{ flex: 1, padding: '11px', borderRadius: '10px', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}
+          )}
+
+          {!submittedApprovalData ? (
+            <>
+          {/* ========================================================================= */}
+          {/* STEP 1: REGISTER BUSINESS                                                 */}
+          {/* ========================================================================= */}
+          {currentStep === 0 && (
+            <div style={{ background: 'var(--card-bg, #FFFFFF)', borderRadius: '20px', border: '1px solid var(--border-color, #E2E8F0)', padding: '36px', boxShadow: '0 4px 16px rgba(0,0,0,0.03)' }}>
+              <div style={{ marginBottom: '28px' }}>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#EFF6FF', color: '#2563EB', padding: '4px 12px', borderRadius: '16px', fontSize: '12px', fontWeight: '700', marginBottom: '8px' }}>
+                  <Building2 size={14} /> Step 1: Legal Identity
+                </div>
+                <h2 style={{ fontSize: '26px', fontWeight: '800', color: 'var(--text-title, #0F172A)', margin: '0 0 6px 0' }}>Register Your Business</h2>
+                <p style={{ fontSize: '14px', color: 'var(--text-secondary, #64748B)', margin: 0 }}>Enter your primary business identity and official address for invoices and receipts.</p>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '18px', marginBottom: '18px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-title)', marginBottom: '6px' }}>
+                    Business / Company Legal Name <span style={{ color: '#EF4444' }}>*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    placeholder="e.g. Apex Enterprises Pvt Ltd" 
+                    value={businessInfo.name}
+                    onChange={(e) => setBusinessInfo({ ...businessInfo, name: e.target.value })}
+                    style={{ width: '100%', padding: '12px 14px', borderRadius: '10px', border: '1px solid var(--border-color, #E2E8F0)', background: 'var(--bg-color, white)', color: 'var(--text-title)', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-title)', marginBottom: '6px' }}>
+                    Trade / Store Display Name (Optional)
+                  </label>
+                  <input 
+                    type="text" 
+                    placeholder="e.g. Apex Superstore" 
+                    value={businessInfo.brandName}
+                    onChange={(e) => setBusinessInfo({ ...businessInfo, brandName: e.target.value })}
+                    style={{ width: '100%', padding: '12px 14px', borderRadius: '10px', border: '1px solid var(--border-color, #E2E8F0)', background: 'var(--bg-color, white)', color: 'var(--text-title)', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }}
+                  />
+                </div>
+              </div>
+
+              {/* Row 2: Owner Name & Official Business Email */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '18px', marginBottom: '18px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-title)', marginBottom: '6px' }}>
+                    Business Owner Name <span style={{ color: '#EF4444' }}>*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    placeholder="e.g. John Doe / Proprietor Name" 
+                    value={businessInfo.ownerName}
+                    onChange={(e) => setBusinessInfo({ ...businessInfo, ownerName: e.target.value })}
+                    style={{ width: '100%', padding: '12px 14px', borderRadius: '10px', border: '1px solid var(--border-color, #E2E8F0)', background: 'var(--bg-color, white)', color: 'var(--text-title)', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-title)', marginBottom: '6px' }}>
+                    Official Business Email <span style={{ color: '#EF4444' }}>*</span>
+                  </label>
+                  <input 
+                    type="email" 
+                    placeholder="contact@company.com" 
+                    value={businessInfo.email}
+                    onChange={(e) => setBusinessInfo({ ...businessInfo, email: e.target.value })}
+                    style={{ width: '100%', padding: '12px 14px', borderRadius: '10px', border: '1px solid var(--border-color, #E2E8F0)', background: 'var(--bg-color, white)', color: 'var(--text-title)', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }}
+                  />
+                </div>
+              </div>
+
+              {/* Row 3: Business PAN Card Number & GST Number (Optional) */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '18px', marginBottom: '18px' }}>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <label style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-title)' }}>
+                      Business PAN Card Number <span style={{ color: '#EF4444' }}>*</span>
+                    </label>
+                    {panChecking && (
+                      <span style={{ fontSize: '11px', color: '#2563EB', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Loader2 size={12} className="animate-spin" /> Verifying...
+                      </span>
+                    )}
+                    {!panChecking && panCheckResult?.checked && !panCheckResult.exists && (
+                      <span style={{ fontSize: '11px', color: '#16A34A', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                        <Check size={12} /> Unique PAN
+                      </span>
+                    )}
+                    {!panChecking && panCheckResult?.checked && panCheckResult.exists && (
+                      <span style={{ fontSize: '11px', color: '#EF4444', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                        <AlertCircle size={12} /> Already Registered
+                      </span>
+                    )}
+                  </div>
+                  <input 
+                    type="text" 
+                    placeholder="e.g. ABCDE1234F" 
+                    maxLength={10}
+                    value={businessInfo.panNumber}
+                    onChange={(e) => {
+                      const clean = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
+                      setBusinessInfo(prev => ({ ...prev, panNumber: clean }));
+                      setDocuments(prev => ({ ...prev, pan: clean }));
+                      setPanCheckResult(null);
+                      if (clean.length === 10) {
+                        checkPanAvailability(clean);
+                      }
+                    }}
+                    onBlur={() => {
+                      if (businessInfo.panNumber && businessInfo.panNumber.length === 10) {
+                        checkPanAvailability(businessInfo.panNumber);
+                      }
+                    }}
+                    style={{ 
+                      width: '100%', 
+                      padding: '12px 14px', 
+                      borderRadius: '10px', 
+                      border: panCheckResult?.exists ? '1.5px solid #EF4444' : (panCheckResult?.checked ? '1.5px solid #10B981' : '1px solid var(--border-color, #E2E8F0)'), 
+                      background: 'var(--bg-color, white)', 
+                      color: 'var(--text-title)', 
+                      outline: 'none', 
+                      fontSize: '14px', 
+                      boxSizing: 'border-box',
+                      fontFamily: 'monospace',
+                      fontWeight: '700',
+                      letterSpacing: '1px'
+                    }}
+                  />
+                  <span style={{ fontSize: '11px', color: panCheckResult?.exists ? '#EF4444' : '#64748B', display: 'block', marginTop: '4px' }}>
+                    {panCheckResult?.exists ? panCheckResult.message : '10-character alphanumeric PAN (capital letters & numbers). Mandatory & unique.'}
+                  </span>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-title)', marginBottom: '6px' }}>
+                    GST Number (Optional)
+                  </label>
+                  <input 
+                    type="text" 
+                    placeholder="e.g. 29ABCDE1234F1Z5" 
+                    maxLength={15}
+                    value={businessInfo.gstNumber}
+                    onChange={(e) => {
+                      const clean = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 15);
+                      setBusinessInfo(prev => ({ ...prev, gstNumber: clean }));
+                      setDocuments(prev => ({ ...prev, gstin: clean }));
+                    }}
+                    style={{ 
+                      width: '100%', 
+                      padding: '12px 14px', 
+                      borderRadius: '10px', 
+                      border: '1px solid var(--border-color, #E2E8F0)', 
+                      background: 'var(--bg-color, white)', 
+                      color: 'var(--text-title)', 
+                      outline: 'none', 
+                      fontSize: '14px', 
+                      boxSizing: 'border-box',
+                      fontFamily: 'monospace',
+                      letterSpacing: '0.5px'
+                    }}
+                  />
+                  <span style={{ fontSize: '11px', color: '#64748B', display: 'block', marginTop: '4px' }}>
+                    15-character alphanumeric GSTIN (Optional).
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '18px', marginBottom: '18px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-title)', marginBottom: '6px' }}>
+                    Official Contact Phone <span style={{ color: '#EF4444' }}>*</span>
+                  </label>
+                  <input 
+                    type="tel" 
+                    placeholder="+91 9876543210" 
+                    value={businessInfo.phone}
+                    onChange={(e) => setBusinessInfo({ ...businessInfo, phone: e.target.value })}
+                    style={{ width: '100%', padding: '12px 14px', borderRadius: '10px', border: '1px solid var(--border-color, #E2E8F0)', background: 'var(--bg-color, white)', color: 'var(--text-title)', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-title)', marginBottom: '6px' }}>
+                    Street / Building Address <span style={{ color: '#EF4444' }}>*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    placeholder="e.g. Unit 4B, Commercial Market Square, MG Road" 
+                    value={businessInfo.address}
+                    onChange={(e) => setBusinessInfo({ ...businessInfo, address: e.target.value })}
+                    style={{ width: '100%', padding: '12px 14px', borderRadius: '10px', border: '1px solid var(--border-color, #E2E8F0)', background: 'var(--bg-color, white)', color: 'var(--text-title)', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '18px', marginBottom: '24px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-title)', marginBottom: '6px' }}>
+                    City <span style={{ color: '#EF4444' }}>*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    placeholder="e.g. Bangalore" 
+                    value={businessInfo.city}
+                    onChange={(e) => setBusinessInfo({ ...businessInfo, city: e.target.value })}
+                    style={{ width: '100%', padding: '12px 14px', borderRadius: '10px', border: '1px solid var(--border-color, #E2E8F0)', background: 'var(--bg-color, white)', color: 'var(--text-title)', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-title)', marginBottom: '6px' }}>
+                    State <span style={{ color: '#EF4444' }}>*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    placeholder="e.g. Karnataka" 
+                    value={businessInfo.state}
+                    onChange={(e) => setBusinessInfo({ ...businessInfo, state: e.target.value })}
+                    style={{ width: '100%', padding: '12px 14px', borderRadius: '10px', border: '1px solid var(--border-color, #E2E8F0)', background: 'var(--bg-color, white)', color: 'var(--text-title)', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-title)', marginBottom: '6px' }}>
+                    Pincode <span style={{ color: '#EF4444' }}>*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    placeholder="e.g. 560001" 
+                    value={businessInfo.pincode}
+                    onChange={(e) => setBusinessInfo({ ...businessInfo, pincode: e.target.value })}
+                    style={{ width: '100%', padding: '12px 14px', borderRadius: '10px', border: '1px solid var(--border-color, #E2E8F0)', background: 'var(--bg-color, white)', color: 'var(--text-title)', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* STEP 2: PRODUCT & SERVICE SELECTION                                       */}
+          {/* ========================================================================= */}
+          {currentStep === 1 && (
+            <div style={{ background: 'var(--card-bg, #FFFFFF)', borderRadius: '20px', border: '1px solid var(--border-color, #E2E8F0)', padding: '36px', boxShadow: '0 4px 16px rgba(0,0,0,0.03)' }}>
+              <div style={{ marginBottom: '28px', textAlign: 'center' }}>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#EFF6FF', color: '#2563EB', padding: '4px 12px', borderRadius: '16px', fontSize: '12px', fontWeight: '700', marginBottom: '8px' }}>
+                  <Package size={14} /> Step 2: Commercial Offering
+                </div>
+                <h2 style={{ fontSize: '26px', fontWeight: '800', color: 'var(--text-title, #0F172A)', margin: '0 0 6px 0' }}>What Does Your Business Offer?</h2>
+                <p style={{ fontSize: '14px', color: 'var(--text-secondary, #64748B)', margin: 0 }}>This automatically configures your sidebar navigation and inventory modules.</p>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+                {/* Option 1: Product Based Business */}
+                <div 
+                  onClick={() => setOfferingType('product')}
+                  style={{
+                    border: offeringType === 'product' ? '2px solid #2563EB' : '1px solid var(--border-color, #E2E8F0)',
+                    background: offeringType === 'product' ? 'rgba(37,99,235,0.03)' : 'var(--card-bg, white)',
+                    borderRadius: '16px',
+                    padding: '28px 20px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    position: 'relative',
+                    textAlign: 'center',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between'
+                  }}
+                >
+                  {offeringType === 'product' && (
+                    <div style={{ position: 'absolute', top: '12px', right: '12px', color: '#2563EB' }}>
+                      <CheckCircle2 size={20} />
+                    </div>
+                  )}
+                  <div>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '800', padding: '4px 12px', borderRadius: '20px', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE', marginBottom: '14px' }}>
+                      Group 1
+                    </div>
+                    <h3 style={{ fontSize: '17px', fontWeight: '700', color: 'var(--text-title)', margin: '0 0 8px 0' }}>Product Based Business</h3>
+                    <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5', margin: 0 }}>
+                      Sells tangible goods, retail items, or wholesale stock.
+                    </p>
+                  </div>
+                  <div style={{ marginTop: '20px', padding: '7px 10px', background: '#F1F5F9', borderRadius: '8px', fontSize: '11px', color: '#475569', fontWeight: '600' }}>
+                    Enables: Products, Stock & Purchases
+                  </div>
+                </div>
+
+                {/* Option 2: Service Based Business */}
+                <div 
+                  onClick={() => setOfferingType('service')}
+                  style={{
+                    border: offeringType === 'service' ? '2px solid #2563EB' : '1px solid var(--border-color, #E2E8F0)',
+                    background: offeringType === 'service' ? 'rgba(37,99,235,0.03)' : 'var(--card-bg, white)',
+                    borderRadius: '16px',
+                    padding: '28px 20px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    position: 'relative',
+                    textAlign: 'center',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between'
+                  }}
+                >
+                  {offeringType === 'service' && (
+                    <div style={{ position: 'absolute', top: '12px', right: '12px', color: '#2563EB' }}>
+                      <CheckCircle2 size={20} />
+                    </div>
+                  )}
+                  <div>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '800', padding: '4px 12px', borderRadius: '20px', background: '#F0FDF4', color: '#15803D', border: '1px solid #BBF7D0', marginBottom: '14px' }}>
+                      Group 2
+                    </div>
+                    <h3 style={{ fontSize: '17px', fontWeight: '700', color: 'var(--text-title)', margin: '0 0 8px 0' }}>Service Based Business</h3>
+                    <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5', margin: 0 }}>
+                      Consulting, agency, maintenance, clinic, or client services.
+                    </p>
+                  </div>
+                  <div style={{ marginTop: '20px', padding: '7px 10px', background: '#F1F5F9', borderRadius: '8px', fontSize: '11px', color: '#475569', fontWeight: '600' }}>
+                    Enables: Services (Purchases & Stock hidden)
+                  </div>
+                </div>
+
+                {/* Option 3: Product & Service Based Business */}
+                <div 
+                  onClick={() => setOfferingType('both')}
+                  style={{
+                    border: offeringType === 'both' ? '2px solid #2563EB' : '1px solid var(--border-color, #E2E8F0)',
+                    background: offeringType === 'both' ? 'rgba(37,99,235,0.03)' : 'var(--card-bg, white)',
+                    borderRadius: '16px',
+                    padding: '28px 20px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    position: 'relative',
+                    textAlign: 'center',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between'
+                  }}
+                >
+                  {offeringType === 'both' && (
+                    <div style={{ position: 'absolute', top: '12px', right: '12px', color: '#2563EB' }}>
+                      <CheckCircle2 size={20} />
+                    </div>
+                  )}
+                  <div>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '800', padding: '4px 12px', borderRadius: '20px', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE', marginBottom: '14px' }}>
+                      Group 3
+                    </div>
+                    <h3 style={{ fontSize: '17px', fontWeight: '700', color: 'var(--text-title)', margin: '0 0 8px 0' }}>Product & Service Based</h3>
+                    <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5', margin: 0 }}>
+                      Combined business selling merchandise along with services/repair.
+                    </p>
+                  </div>
+                  <div style={{ marginTop: '20px', padding: '7px 10px', background: '#F1F5F9', borderRadius: '8px', fontSize: '11px', color: '#475569', fontWeight: '600' }}>
+                    Enables: Full Suite (Products, Services & Purchases)
+                  </div>
+                </div>
+
+                {/* Option 4: Institution and Organization */}
+                <div 
+                  onClick={() => setOfferingType('institution')}
+                  style={{
+                    border: offeringType === 'institution' ? '2px solid #2563EB' : '1px solid var(--border-color, #E2E8F0)',
+                    background: offeringType === 'institution' ? 'rgba(37,99,235,0.03)' : 'var(--card-bg, white)',
+                    borderRadius: '16px',
+                    padding: '28px 20px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    position: 'relative',
+                    textAlign: 'center',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between'
+                  }}
+                >
+                  {offeringType === 'institution' && (
+                    <div style={{ position: 'absolute', top: '12px', right: '12px', color: '#2563EB' }}>
+                      <CheckCircle2 size={20} />
+                    </div>
+                  )}
+                  <div>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '800', padding: '4px 12px', borderRadius: '20px', background: '#FEF3C7', color: '#B45309', border: '1px solid #FDE68A', marginBottom: '14px' }}>
+                      Group 4
+                    </div>
+                    <h3 style={{ fontSize: '17px', fontWeight: '700', color: 'var(--text-title)', margin: '0 0 8px 0' }}>Institution & Organization</h3>
+                    <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5', margin: 0 }}>
+                      Schools, colleges, NGOs, trusts, hospitals, societies, or non-profits.
+                    </p>
+                  </div>
+                  <div style={{ marginTop: '20px', padding: '7px 10px', background: '#F1F5F9', borderRadius: '8px', fontSize: '11px', color: '#475569', fontWeight: '600' }}>
+                    Enables: Core Suite (Operations, Billing & Admin)
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* STEP 3: CATEGORY SELECTION                                                */}
+          {/* ========================================================================= */}
+          {currentStep === 2 && (
+            <div style={{ background: 'var(--card-bg, #FFFFFF)', borderRadius: '20px', border: '1px solid var(--border-color, #E2E8F0)', padding: '36px', boxShadow: '0 4px 16px rgba(0,0,0,0.03)' }}>
+              <div style={{ marginBottom: '28px' }}>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#EFF6FF', color: '#2563EB', padding: '4px 12px', borderRadius: '16px', fontSize: '12px', fontWeight: '700', marginBottom: '8px' }}>
+                  <Building2 size={14} /> Step 3: Operational Model
+                </div>
+                <h2 style={{ fontSize: '26px', fontWeight: '800', color: 'var(--text-title, #0F172A)', margin: '0 0 6px 0' }}>Select Business Category</h2>
+                <p style={{ fontSize: '14px', color: 'var(--text-secondary, #64748B)', margin: 0 }}>How does your organization operate in the supply chain?</p>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '20px' }}>
+                {BUSINESS_CATEGORIES.map(cat => {
+                  const isSelected = category === cat.id;
+                  return (
+                    <div
+                      key={cat.id}
+                      onClick={() => setCategory(cat.id)}
+                      style={{
+                        border: isSelected ? '2px solid #2563EB' : '1px solid var(--border-color, #E2E8F0)',
+                        background: isSelected ? 'rgba(37,99,235,0.03)' : 'var(--card-bg, white)',
+                        borderRadius: '14px',
+                        padding: '18px 20px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      <div>
+                        <h4 style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-title)', margin: '0 0 4px 0' }}>{cat.label}</h4>
+                        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>{cat.desc}</p>
+                      </div>
+                      <div style={{
+                        width: '22px',
+                        height: '22px',
+                        borderRadius: '50%',
+                        border: isSelected ? '6px solid #2563EB' : '2px solid #CBD5E1',
+                        background: 'white'
+                      }}></div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {category === 'others' && (
+                <div style={{ marginTop: '16px', padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-title)', marginBottom: '6px' }}>
+                    Specify Your Business Category <span style={{ color: '#EF4444' }}>*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    placeholder="e.g. Research & Development / Specialized Fabrication" 
+                    value={customCategory}
+                    onChange={(e) => setCustomCategory(e.target.value)}
+                    style={{ width: '100%', padding: '11px 14px', borderRadius: '8px', border: '1px solid var(--border-color, #E2E8F0)', background: 'white', color: 'var(--text-title)', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* STEP 4: SUB-CATEGORY SELECTION                                            */}
+          {/* ========================================================================= */}
+          {currentStep === 3 && (
+            <div style={{ background: 'var(--card-bg, #FFFFFF)', borderRadius: '20px', border: '1px solid var(--border-color, #E2E8F0)', padding: '36px', boxShadow: '0 4px 16px rgba(0,0,0,0.03)' }}>
+              <div style={{ marginBottom: '28px' }}>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#EFF6FF', color: '#2563EB', padding: '4px 12px', borderRadius: '16px', fontSize: '12px', fontWeight: '700', marginBottom: '8px' }}>
+                  <Sparkles size={14} /> Step 4: Industry Specialization
+                </div>
+                <h2 style={{ fontSize: '26px', fontWeight: '800', color: 'var(--text-title, #0F172A)', margin: '0 0 6px 0' }}>Select Industry Sub-Category</h2>
+                <p style={{ fontSize: '14px', color: 'var(--text-secondary, #64748B)', margin: 0 }}>This tunes your default tax codes, invoice formats, and measurement units.</p>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', marginBottom: '20px' }}>
+                {SUB_CATEGORIES.map(sub => {
+                  const isSelected = subCategory === sub;
+                  return (
+                    <div
+                      key={sub}
+                      onClick={() => setSubCategory(sub)}
+                      style={{
+                        border: isSelected ? '2px solid #2563EB' : '1px solid var(--border-color, #E2E8F0)',
+                        background: isSelected ? 'rgba(37,99,235,0.03)' : 'var(--card-bg, white)',
+                        borderRadius: '12px',
+                        padding: '14px 16px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        fontSize: '14px',
+                        fontWeight: isSelected ? '700' : '500',
+                        color: isSelected ? '#2563EB' : 'var(--text-title)',
+                        transition: 'all 0.15s'
+                      }}
+                    >
+                      <span>{sub}</span>
+                      {isSelected && <Check size={16} color="#2563EB" />}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {subCategory === 'Others' && (
+                <div style={{ marginTop: '16px', padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-title)', marginBottom: '6px' }}>
+                    Specify Your Industry Segment <span style={{ color: '#EF4444' }}>*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    placeholder="e.g. Printing & Packaging" 
+                    value={customSubCategory}
+                    onChange={(e) => setCustomSubCategory(e.target.value)}
+                    style={{ width: '100%', padding: '11px 14px', borderRadius: '8px', border: '1px solid var(--border-color, #E2E8F0)', background: 'white', color: 'var(--text-title)', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* STEP 5: DOCUMENTATIONS                                                    */}
+          {/* ========================================================================= */}
+          {currentStep === 4 && (
+            <div style={{ background: 'var(--card-bg, #FFFFFF)', borderRadius: '20px', border: '1px solid var(--border-color, #E2E8F0)', padding: '36px', boxShadow: '0 4px 16px rgba(0,0,0,0.03)' }}>
+              <div style={{ marginBottom: '28px' }}>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#EFF6FF', color: '#2563EB', padding: '4px 12px', borderRadius: '16px', fontSize: '12px', fontWeight: '700', marginBottom: '8px' }}>
+                  <FileText size={14} /> Step 5: Statutory Compliance
+                </div>
+                <h2 style={{ fontSize: '26px', fontWeight: '800', color: 'var(--text-title, #0F172A)', margin: '0 0 6px 0' }}>Business Documentations</h2>
+                <p style={{ fontSize: '14px', color: 'var(--text-secondary, #64748B)', margin: 0 }}>
+                  Enter your official numbers and attach documents. You can also skip and upload later in Settings.
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '24px' }}>
+                {/* 1. PAN Card */}
+                <div style={{ padding: '18px', borderRadius: '12px', border: '1px solid var(--border-color, #E2E8F0)', background: 'var(--bg-color, #F8FAFC)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <span style={{ fontWeight: '700', fontSize: '14px', color: 'var(--text-title)' }}>1. Business / Proprietor PAN Card</span>
+                    {uploadedFiles.pan && <span style={{ fontSize: '12px', color: '#16A34A', fontWeight: '600' }}>✓ {uploadedFiles.pan}</span>}
+                  </div>
+                  <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                    <input 
+                      type="text" 
+                      placeholder="e.g. ABCDE1234F" 
+                      maxLength={10}
+                      value={documents.pan}
+                      onChange={(e) => setDocuments({ ...documents, pan: e.target.value.toUpperCase() })}
+                      style={{ flex: 1, minWidth: '200px', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', background: 'white', color: 'var(--text-title)', outline: 'none', fontSize: '14px' }}
+                    />
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '10px 16px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600', color: '#475569' }}>
+                      <Upload size={14} /> Upload File
+                      <input type="file" accept=".pdf,image/*" onChange={(e) => handleFileUpload('pan', e)} style={{ display: 'none' }} />
+                    </label>
+                  </div>
+                </div>
+
+                {/* 2. GSTIN Certificate */}
+                <div style={{ padding: '18px', borderRadius: '12px', border: '1px solid var(--border-color, #E2E8F0)', background: 'var(--bg-color, #F8FAFC)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <span style={{ fontWeight: '700', fontSize: '14px', color: 'var(--text-title)' }}>2. GSTIN Certificate (Optional)</span>
+                    {uploadedFiles.gstin && <span style={{ fontSize: '12px', color: '#16A34A', fontWeight: '600' }}>✓ {uploadedFiles.gstin}</span>}
+                  </div>
+                  <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                    <input 
+                      type="text" 
+                      placeholder="e.g. 29ABCDE1234F1Z5" 
+                      maxLength={15}
+                      value={documents.gstin}
+                      onChange={(e) => setDocuments({ ...documents, gstin: e.target.value.toUpperCase() })}
+                      style={{ flex: 1, minWidth: '200px', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', background: 'white', color: 'var(--text-title)', outline: 'none', fontSize: '14px' }}
+                    />
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '10px 16px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600', color: '#475569' }}>
+                      <Upload size={14} /> Upload File
+                      <input type="file" accept=".pdf,image/*" onChange={(e) => handleFileUpload('gstin', e)} style={{ display: 'none' }} />
+                    </label>
+                  </div>
+                </div>
+
+                {/* 3. MSME / Udyam */}
+                <div style={{ padding: '18px', borderRadius: '12px', border: '1px solid var(--border-color, #E2E8F0)', background: 'var(--bg-color, #F8FAFC)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <span style={{ fontWeight: '700', fontSize: '14px', color: 'var(--text-title)' }}>3. MSME / Udyam Registration (Optional)</span>
+                    {uploadedFiles.msme && <span style={{ fontSize: '12px', color: '#16A34A', fontWeight: '600' }}>✓ {uploadedFiles.msme}</span>}
+                  </div>
+                  <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                    <input 
+                      type="text" 
+                      placeholder="e.g. UDYAM-KR-03-0012345" 
+                      value={documents.msme}
+                      onChange={(e) => setDocuments({ ...documents, msme: e.target.value.toUpperCase() })}
+                      style={{ flex: 1, minWidth: '200px', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', background: 'white', color: 'var(--text-title)', outline: 'none', fontSize: '14px' }}
+                    />
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '10px 16px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600', color: '#475569' }}>
+                      <Upload size={14} /> Upload File
+                      <input type="file" accept=".pdf,image/*" onChange={(e) => handleFileUpload('msme', e)} style={{ display: 'none' }} />
+                    </label>
+                  </div>
+                </div>
+
+                {/* 4. Food License (FSSAI) */}
+                <div style={{ padding: '18px', borderRadius: '12px', border: '1px solid var(--border-color, #E2E8F0)', background: 'var(--bg-color, #F8FAFC)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <span style={{ fontWeight: '700', fontSize: '14px', color: 'var(--text-title)' }}>4. Food License (FSSAI) (For Food/Grocery/Restaurant)</span>
+                    {uploadedFiles.fssai && <span style={{ fontSize: '12px', color: '#16A34A', fontWeight: '600' }}>✓ {uploadedFiles.fssai}</span>}
+                  </div>
+                  <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                    <input 
+                      type="text" 
+                      placeholder="e.g. 10019043000000" 
+                      maxLength={14}
+                      value={documents.fssai}
+                      onChange={(e) => setDocuments({ ...documents, fssai: e.target.value })}
+                      style={{ flex: 1, minWidth: '200px', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', background: 'white', color: 'var(--text-title)', outline: 'none', fontSize: '14px' }}
+                    />
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '10px 16px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600', color: '#475569' }}>
+                      <Upload size={14} /> Upload File
+                      <input type="file" accept=".pdf,image/*" onChange={(e) => handleFileUpload('fssai', e)} style={{ display: 'none' }} />
+                    </label>
+                  </div>
+                </div>
+
+                {/* 5+. Custom / Additional Documents */}
+                {customDocuments.map((doc, index) => (
+                  <div 
+                    key={doc.id} 
+                    style={{ 
+                      padding: '18px', 
+                      borderRadius: '12px', 
+                      border: '1px solid var(--border-color, #E2E8F0)', 
+                      background: 'var(--bg-color, #F8FAFC)' 
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                      <span style={{ fontWeight: '700', fontSize: '14px', color: 'var(--text-title)' }}>
+                        {4 + index + 1}. {doc.name.trim() ? doc.name : `Custom Document #${index + 1}`}
+                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        {doc.fileName && (
+                          <span style={{ fontSize: '12px', color: '#16A34A', fontWeight: '600' }}>
+                            ✓ {doc.fileName}
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveCustomDoc(doc.id)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#EF4444',
+                            cursor: 'pointer',
+                            padding: '4px 8px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            borderRadius: '6px'
+                          }}
+                          title="Remove document"
+                        >
+                          <Trash2 size={15} /> Remove
+                        </button>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                      <input 
+                        type="text" 
+                        placeholder="Document Name (e.g. Trade License, Drug License, Fire NOC)" 
+                        value={doc.name}
+                        onChange={(e) => updateCustomDoc(doc.id, 'name', e.target.value)}
+                        style={{ flex: 1, minWidth: '200px', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', background: 'white', color: 'var(--text-title)', outline: 'none', fontSize: '14px' }}
+                      />
+                      <input 
+                        type="text" 
+                        placeholder="Registration / Certificate Number" 
+                        value={doc.number}
+                        onChange={(e) => updateCustomDoc(doc.id, 'number', e.target.value)}
+                        style={{ flex: 1, minWidth: '200px', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', background: 'white', color: 'var(--text-title)', outline: 'none', fontSize: '14px' }}
+                      />
+                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '10px 16px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600', color: '#475569', whiteSpace: 'nowrap' }}>
+                        <Upload size={14} /> Upload File
+                        <input type="file" accept=".pdf,image/*" onChange={(e) => handleCustomFileUpload(doc.id, e)} style={{ display: 'none' }} />
+                      </label>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Add New Document Action Button */}
+                <button
+                  type="button"
+                  onClick={handleAddCustomDoc}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    padding: '14px 20px',
+                    borderRadius: '12px',
+                    border: '2px dashed #2563EB',
+                    background: 'rgba(37,99,235,0.03)',
+                    color: '#2563EB',
+                    fontSize: '14px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    width: '100%',
+                    transition: 'background 0.15s ease'
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.background = 'rgba(37,99,235,0.08)'}
+                  onMouseOut={(e) => e.currentTarget.style.background = 'rgba(37,99,235,0.03)'}
+                >
+                  <Plus size={18} /> Add New Document (Name, Number & Upload)
+                </button>
+              </div>
+
+              <div style={{ textAlign: 'center', color: '#64748B', fontSize: '13px' }}>
+                Tip: You can proceed now and update your documents anytime from <strong>Settings & Compliance</strong>.
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* STEP 6: PLAN SELECTION & PAYMENT                                          */}
+          {/* ========================================================================= */}
+          {currentStep === 5 && (
+            <div style={{ background: 'var(--card-bg, #FFFFFF)', borderRadius: '20px', border: '1px solid var(--border-color, #E2E8F0)', padding: '36px', boxShadow: '0 4px 16px rgba(0,0,0,0.03)' }}>
+              <div style={{ marginBottom: '24px', textAlign: 'center' }}>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#EFF6FF', color: '#2563EB', padding: '4px 12px', borderRadius: '16px', fontSize: '12px', fontWeight: '700', marginBottom: '8px' }}>
+                  <ShieldCheck size={14} /> Final Step: Workspace Activation
+                </div>
+                <h2 style={{ fontSize: '26px', fontWeight: '800', color: 'var(--text-title, #0F172A)', margin: '0 0 6px 0' }}>Select Plan & Complete Payment</h2>
+                <p style={{ fontSize: '14px', color: 'var(--text-secondary, #64748B)', margin: 0 }}>Choose your tier and pay via instant UPI QR code or online checkout.</p>
+
+                {/* Billing Cycle Switch */}
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', background: 'var(--bg-color, #F1F5F9)', padding: '4px', borderRadius: '24px', marginTop: '18px' }}>
+                  <button
+                    onClick={() => setBillingCycle('Monthly')}
+                    style={{
+                      border: 'none',
+                      background: billingCycle === 'Monthly' ? '#2563EB' : 'transparent',
+                      color: billingCycle === 'Monthly' ? 'white' : 'var(--text-secondary)',
+                      padding: '6px 16px',
+                      borderRadius: '20px',
+                      fontWeight: '600',
+                      fontSize: '13px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Monthly
+                  </button>
+                  <button
+                    onClick={() => setBillingCycle('Annual')}
+                    style={{
+                      border: 'none',
+                      background: billingCycle === 'Annual' ? '#2563EB' : 'transparent',
+                      color: billingCycle === 'Annual' ? 'white' : 'var(--text-secondary)',
+                      padding: '6px 16px',
+                      borderRadius: '20px',
+                      fontWeight: '600',
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    Annual Billing
+                    {(() => {
+                      const maxDiscount = Math.max(0, ...pricingPlans.map(p => Number(p.annualDiscountPercent || 0)));
+                      return maxDiscount > 0 ? (
+                        <span style={{ background: '#10B981', color: 'white', fontSize: '10px', padding: '1px 6px', borderRadius: '8px', fontWeight: '700' }}>
+                          Save up to {maxDiscount}%
+                        </span>
+                      ) : (
+                        <span style={{ background: '#64748B', color: 'white', fontSize: '10px', padding: '1px 6px', borderRadius: '8px', fontWeight: '600' }}>
+                          12 Months
+                        </span>
+                      );
+                    })()}
+                  </button>
+                </div>
+              </div>
+
+              {/* Plans Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px', marginBottom: '24px' }}>
+                {defaultPlans.map(plan => {
+                  const details = getPlanDetails(plan.title);
+                  const isSelected = selectedPlanId === plan.title;
+                  return (
+                    <div
+                      key={plan.title}
+                      onClick={() => setSelectedPlanId(plan.title)}
+                      style={{
+                        border: isSelected ? '2px solid #2563EB' : '1px solid var(--border-color, #E2E8F0)',
+                        background: isSelected ? 'rgba(37,99,235,0.04)' : 'var(--card-bg, white)',
+                        borderRadius: '14px',
+                        padding: '18px 16px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        transition: 'all 0.15s',
+                        position: 'relative'
+                      }}
+                    >
+                      {isSelected && (
+                        <div style={{ position: 'absolute', top: '10px', right: '10px', color: '#2563EB' }}>
+                          <CheckCircle2 size={18} />
+                        </div>
+                      )}
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-title)', marginBottom: '4px' }}>
+                          {plan.title.replace('Type ', 'Tier ')}
+                        </div>
+                        {billingCycle === 'Annual' ? (
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', flexWrap: 'wrap' }}>
+                              <span style={{ fontSize: '20px', fontWeight: '800', color: '#2563EB' }}>
+                                ₹{details.amount.toLocaleString()}
+                              </span>
+                              <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 'normal' }}>/yr</span>
+                              {details.discountPercent > 0 && (
+                                <span style={{ fontSize: '12px', color: '#94A3B8', textDecoration: 'line-through' }}>
+                                  ₹{details.fullAnnual.toLocaleString()}
+                                </span>
+                              )}
+                            </div>
+                            {details.discountPercent > 0 ? (
+                              <div style={{ marginTop: '4px', display: 'flex', gap: '4px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                <span style={{ background: '#DCFCE7', color: '#16A34A', fontSize: '10px', fontWeight: '700', padding: '1px 6px', borderRadius: '4px' }}>
+                                  {details.discountPercent}% OFF
+                                </span>
+                                <span style={{ fontSize: '10px', color: '#64748B' }}>
+                                  (₹{Math.round(details.amount / 12).toLocaleString()}/mo)
+                                </span>
+                              </div>
+                            ) : (
+                              <div style={{ fontSize: '10px', color: '#64748B', marginTop: '3px' }}>
+                                Full annual (₹{details.monthlyAmount.toLocaleString()}/mo)
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: '22px', fontWeight: '800', color: '#2563EB', marginBottom: '4px' }}>
+                            ₹{details.amount.toLocaleString()}
+                            <span style={{ fontSize: '12px', color: '#64748B', fontWeight: 'normal' }}>/mo</span>
+                          </div>
+                        )}
+                      </div>
+                      <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: '8px 0 0 0', lineHeight: '1.4' }}>
+                        {details.desc}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Order Breakdown / Billing Summary */}
+              <div style={{ 
+                background: '#F8FAFC', 
+                border: '1px solid #E2E8F0', 
+                borderRadius: '14px', 
+                padding: '16px 20px', 
+                marginBottom: '28px' 
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', paddingBottom: '10px', borderBottom: '1px solid #E2E8F0' }}>
+                  <div>
+                    <span style={{ fontSize: '14px', fontWeight: '700', color: '#1E293B' }}>{activePlan.title}</span>
+                    <span style={{ fontSize: '12px', color: '#64748B', marginLeft: '8px' }}>
+                      ({billingCycle === 'Annual' ? 'Annual Subscription • 12 Months' : 'Monthly Subscription • 1 Month'})
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '13px', fontWeight: '600', color: '#2563EB' }}>
+                    {billingCycle === 'Annual' 
+                      ? (activePlan.discountPercent > 0 ? `${activePlan.discountPercent}% Discount Applied` : 'Standard 12-Month Rate') 
+                      : 'Standard Monthly Rate'}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', color: '#475569' }}>
+                  {billingCycle === 'Annual' ? (
+                    <>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>Base 12-Month Rate (₹{activePlan.monthlyAmount.toLocaleString()} × 12):</span>
+                        <span style={{ fontWeight: '500' }}>₹{activePlan.fullAnnual.toLocaleString()}</span>
+                      </div>
+                      {activePlan.discountPercent > 0 ? (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#16A34A', fontWeight: '600' }}>
+                          <span>Annual Special Discount ({activePlan.discountPercent}% OFF):</span>
+                          <span>-₹{activePlan.savings.toLocaleString()}</span>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748B', fontSize: '12px' }}>
+                          <span>Annual Discount:</span>
+                          <span>No discount configured (Full amount payable)</span>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Base 1-Month Plan Rate:</span>
+                      <span style={{ fontWeight: '500' }}>₹{activePlan.monthlyAmount.toLocaleString()}</span>
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '4px', borderTop: '1px dashed #E2E8F0' }}>
+                    <span>Plan Subtotal:</span>
+                    <span style={{ fontWeight: '600', color: '#0F172A' }}>₹{activePlan.amount.toLocaleString()}</span>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Goods & Services Tax (GST 18%):</span>
+                    <span style={{ fontWeight: '500' }}>₹{taxAmount.toLocaleString()}</span>
+                  </div>
+
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    fontSize: '16px', 
+                    fontWeight: '800', 
+                    color: '#0F172A', 
+                    borderTop: '2px solid #E2E8F0', 
+                    paddingTop: '10px', 
+                    marginTop: '2px' 
+                  }}>
+                    <span>Total Amount Payable:</span>
+                    <span style={{ color: '#2563EB' }}>₹{grandTotal.toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Methods */}
+              <div style={{ borderTop: '1px solid var(--border-color, #E2E8F0)', paddingTop: '24px' }}>
+                <h4 style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-title)', marginBottom: '16px' }}>Select Payment Method</h4>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', marginBottom: '24px' }}>
+                  {/* Option A: UPI QR */}
+                  <div
+                    onClick={() => setPaymentMethod('upi_qr')}
+                    style={{
+                      border: paymentMethod === 'upi_qr' ? '2px solid #2563EB' : '1px solid var(--border-color, #E2E8F0)',
+                      background: paymentMethod === 'upi_qr' ? 'rgba(37,99,235,0.03)' : 'var(--card-bg, white)',
+                      padding: '16px',
+                      borderRadius: '12px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px'
+                    }}
+                  >
+                    <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <QrCode size={20} />
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: '700', fontSize: '14px', color: 'var(--text-title)' }}>Scan UPI QR</div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>GPay, PhonePe, Paytm</div>
+                    </div>
+                  </div>
+
+                  {/* Option B: Razorpay */}
+                  <div
+                    onClick={() => setPaymentMethod('razorpay')}
+                    style={{
+                      border: paymentMethod === 'razorpay' ? '2px solid #2563EB' : '1px solid var(--border-color, #E2E8F0)',
+                      background: paymentMethod === 'razorpay' ? 'rgba(37,99,235,0.03)' : 'var(--card-bg, white)',
+                      padding: '16px',
+                      borderRadius: '12px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px'
+                    }}
+                  >
+                    <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: '#F0FDF4', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <CreditCard size={20} />
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: '700', fontSize: '14px', color: 'var(--text-title)' }}>Razorpay Checkout</div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Cards, Netbanking, Wallet</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* UPI QR Display Panel */}
+                {paymentMethod === 'upi_qr' && (
+                  <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '24px', textAlign: 'center', marginBottom: '24px' }}>
+                    <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-title)', marginBottom: '4px' }}>
+                      Scan QR to Pay Total: <span style={{ color: '#2563EB', fontSize: '18px' }}>₹{grandTotal.toLocaleString()}</span> (incl. 18% GST)
+                    </div>
+                    <p style={{ fontSize: '12px', color: '#64748B', marginBottom: '16px' }}>Scan with any UPI app on your phone (Google Pay, PhonePe, Paytm, BHIM, Cred)</p>
+
+                    {/* Dynamic Real Scannable UPI QR Code */}
+                    <div style={{ display: 'inline-block', background: 'white', padding: '16px', borderRadius: '16px', border: '1px solid #CBD5E1', boxShadow: '0 4px 14px rgba(0,0,0,0.06)', marginBottom: '14px' }}>
+                      <QRCodeSVG 
+                        value={`upi://pay?pa=${adminUpiId}&pn=BizTech%20Platform&am=${grandTotal}&cu=INR&tn=BizTech%20${encodeURIComponent(activePlan.title)}`}
+                        size={180}
+                        level="H"
+                        includeMargin={false}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '16px' }}>
+                      <span style={{ fontSize: '13px', color: '#64748B' }}>Official Platform UPI ID:</span>
+                      <span style={{ fontSize: '14px', fontWeight: '700', color: '#0F172A', fontFamily: 'monospace' }}>{adminUpiId}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(adminUpiId);
+                          setUpiCopied(true);
+                          setTimeout(() => setUpiCopied(false), 2000);
+                        }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: upiCopied ? '#10B981' : '#2563EB', display: 'flex', alignItems: 'center' }}
+                        title="Copy UPI ID"
+                      >
+                        {upiCopied ? <Check size={16} /> : <Copy size={16} />}
+                      </button>
+                    </div>
+
+                    {/* UTR / Reference ID & Proof Upload Entry */}
+                    <div style={{ maxWidth: '480px', margin: '0 auto', background: 'white', border: '1px solid #CBD5E1', borderRadius: '16px', padding: '20px', textAlign: 'left', boxShadow: '0 4px 14px rgba(0,0,0,0.04)' }}>
+                      
+                      {/* Field 1: UTR Number */}
+                      <div style={{ marginBottom: '16px' }}>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#1E293B', marginBottom: '6px' }}>
+                          Enter 12-digit UPI Reference / UTR Number <span style={{ color: '#EF4444' }}>*</span>
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. 432109876543"
+                          maxLength={22}
+                          value={utrNumber}
+                          onChange={(e) => setUtrNumber(e.target.value.replace(/[^0-9A-Za-z]/g, ''))}
+                          style={{ width: '100%', padding: '11px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none', boxSizing: 'border-box', fontFamily: 'monospace', fontWeight: '700', letterSpacing: '1px' }}
+                        />
+                        <span style={{ fontSize: '11px', color: '#64748B', marginTop: '4px', display: 'block' }}>
+                          Found in your UPI payment details (Google Pay, PhonePe, Paytm, BHIM, etc.).
+                        </span>
+                      </div>
+
+                      {/* Field 2: Upload Payment Proof */}
+                      <div style={{ marginBottom: '20px' }}>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#1E293B', marginBottom: '6px' }}>
+                          Upload Payment Screenshot / Receipt <span style={{ color: '#EF4444' }}>*</span>
+                        </label>
+
+                        {!proofFile ? (
+                          <label style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px',
+                            padding: '18px',
+                            borderRadius: '10px',
+                            border: '2px dashed #94A3B8',
+                            background: '#F8FAFC',
+                            cursor: 'pointer',
+                            textAlign: 'center',
+                            transition: 'border-color 0.2s'
+                          }}>
+                            <Upload size={24} color="#2563EB" />
+                            <span style={{ fontSize: '13px', fontWeight: '600', color: '#1E293B' }}>
+                              Click to browse or drop payment receipt
+                            </span>
+                            <span style={{ fontSize: '11px', color: '#64748B' }}>
+                              JPG, PNG, WEBP or PDF receipt (Max 15MB)
+                            </span>
+                            <input
+                              type="file"
+                              accept=".jpg,.jpeg,.png,.webp,.pdf,image/*"
+                              onChange={handleProofFileChange}
+                              style={{ display: 'none' }}
+                            />
+                          </label>
+                        ) : (
+                          <div style={{ border: '1px solid #CBD5E1', borderRadius: '10px', padding: '12px', background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                              {proofPreview ? (
+                                <img src={proofPreview} alt="Receipt preview" style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #CBD5E1' }} />
+                              ) : (
+                                <div style={{ width: '48px', height: '48px', borderRadius: '6px', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563EB' }}>
+                                  <FileText size={24} />
+                                </div>
+                              )}
+                              <div style={{ minWidth: 0 }}>
+                                <div style={{ fontSize: '13px', fontWeight: '700', color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {proofFile.name}
+                                </div>
+                                <div style={{ fontSize: '11px', color: '#16A34A', fontWeight: '600' }}>
+                                  {(proofFile.size / 1024).toFixed(1)} KB • Ready to submit
+                                </div>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => { setProofFile(null); setProofPreview(null); }}
+                              style={{ background: '#FEE2E2', border: 'none', color: '#EF4444', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}
+                            >
+                              <X size={14} /> Remove
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Submit Button */}
+                      <button
+                        type="button"
+                        onClick={handleUpiSubmit}
+                        disabled={loading || uploadingProof}
+                        style={{
+                          width: '100%',
+                          background: '#10B981',
+                          color: 'white',
+                          border: 'none',
+                          padding: '13px 20px',
+                          borderRadius: '10px',
+                          fontSize: '14px',
+                          fontWeight: '700',
+                          cursor: (loading || uploadingProof) ? 'not-allowed' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          boxShadow: '0 4px 12px rgba(16,185,129,0.25)'
+                        }}
+                      >
+                        {loading || uploadingProof ? (
+                          <>
+                            <Loader2 size={18} className="animate-spin" /> Submitting for Admin Approval...
+                          </>
+                        ) : (
+                          <>
+                            <Send size={18} /> Submit for Admin Approval
+                          </>
+                        )}
+                      </button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', marginTop: '10px', color: '#64748B', fontSize: '11px' }}>
+                        <ShieldCheck size={14} color="#10B981" />
+                        <span>Payment verified by platform admin before account access is activated.</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Razorpay Trigger Button */}
+                {paymentMethod === 'razorpay' && (
+                  <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '24px', textAlign: 'center', marginBottom: '24px' }}>
+                    <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-title)', marginBottom: '8px' }}>
+                      Total Payable: ₹{grandTotal.toLocaleString()} (incl. 18% GST)
+                    </div>
+                    <p style={{ fontSize: '13px', color: '#64748B', marginBottom: '18px' }}>
+                      Official Razorpay Gateway supporting Credit/Debit Cards, NetBanking, UPI, and Mobile Wallets.
+                    </p>
+                    <button
+                      onClick={handleRazorpayCheckout}
+                      disabled={loading}
+                      style={{
+                        background: '#0F172A',
+                        color: 'white',
+                        border: 'none',
+                        padding: '13px 28px',
+                        borderRadius: '10px',
+                        fontSize: '14px',
+                        fontWeight: '700',
+                        cursor: loading ? 'not-allowed' : 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        boxShadow: '0 4px 12px rgba(15,23,42,0.15)'
+                      }}
+                    >
+                      {loading ? <Loader2 size={18} className="animate-spin" /> : <CreditCard size={18} />}
+                      Pay ₹{grandTotal.toLocaleString()} with Razorpay
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Navigation Bottom Actions */}
+          {currentStep < 5 && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: '24px' }}>
+              <button
+                onClick={handleNext}
+                style={{
+                  background: '#2563EB',
+                  color: 'white',
+                  border: 'none',
+                  padding: '12px 28px',
+                  borderRadius: '12px',
+                  fontSize: '14px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 12px rgba(37,99,235,0.25)'
+                }}
               >
-                Cancel
+                Continue to Next Step <ArrowRight size={16} />
               </button>
-              <button 
-                type="button" 
+            </div>
+          )}
+          </>
+          ) : (
+            /* ========================================================================= */
+            /* PENDING ADMIN APPROVAL CONFIRMATION VIEW                                 */
+            /* ========================================================================= */
+            <div style={{ background: 'var(--card-bg, #FFFFFF)', borderRadius: '24px', border: '1px solid var(--border-color, #E2E8F0)', padding: '44px 32px', textAlign: 'center', boxShadow: '0 8px 30px rgba(0,0,0,0.05)', maxWidth: '640px', margin: '20px auto' }}>
+              <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: '#FEF3C7', color: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px auto', boxShadow: '0 0 0 8px #FFFBEB' }}>
+                <Clock size={36} />
+              </div>
+              
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#FEF3C7', color: '#B45309', padding: '5px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: '700', marginBottom: '14px' }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#F59E0B', display: 'inline-block' }}></span>
+                Verification Pending Admin Approval
+              </div>
+
+              <h2 style={{ fontSize: '26px', fontWeight: '800', color: 'var(--text-title, #0F172A)', margin: '0 0 10px 0' }}>
+                Payment Proof Submitted!
+              </h2>
+
+              <p style={{ fontSize: '14px', color: 'var(--text-secondary, #64748B)', lineHeight: '1.6', marginBottom: '26px', maxWidth: '520px', margin: '0 auto 26px auto' }}>
+                Thank you for completing registration for <strong>{submittedApprovalData.businessName}</strong>. Your UPI QR payment screenshot and UTR number have been sent to the platform administrator for verification.
+              </p>
+
+              {/* Details Summary Card */}
+              <div style={{ background: 'var(--bg-color, #F8FAFC)', border: '1px solid var(--border-color, #E2E8F0)', borderRadius: '16px', padding: '22px', textAlign: 'left', marginBottom: '24px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', fontSize: '13px' }}>
+                  <div>
+                    <span style={{ color: '#64748B', display: 'block', fontSize: '11px', textTransform: 'uppercase', fontWeight: '700' }}>Registered Business</span>
+                    <strong style={{ color: 'var(--text-title, #0F172A)', fontSize: '14px' }}>{submittedApprovalData.businessName}</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: '#64748B', display: 'block', fontSize: '11px', textTransform: 'uppercase', fontWeight: '700' }}>Business Owner</span>
+                    <strong style={{ color: 'var(--text-title, #0F172A)', fontSize: '14px' }}>{submittedApprovalData.ownerName}</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: '#64748B', display: 'block', fontSize: '11px', textTransform: 'uppercase', fontWeight: '700' }}>Selected Plan</span>
+                    <strong style={{ color: 'var(--text-title, #0F172A)' }}>{submittedApprovalData.planTitle} ({submittedApprovalData.billingCycle})</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: '#64748B', display: 'block', fontSize: '11px', textTransform: 'uppercase', fontWeight: '700' }}>Total Paid</span>
+                    <strong style={{ color: '#2563EB', fontSize: '16px', fontWeight: '800' }}>₹{submittedApprovalData.grandTotal.toLocaleString()}</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: '#64748B', display: 'block', fontSize: '11px', textTransform: 'uppercase', fontWeight: '700' }}>UTR / Reference Number</span>
+                    <span style={{ fontFamily: 'monospace', fontWeight: '700', color: '#0F172A', background: '#E2E8F0', padding: '3px 8px', borderRadius: '6px', fontSize: '13px', display: 'inline-block', marginTop: '2px' }}>
+                      {submittedApprovalData.utrNumber}
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ color: '#64748B', display: 'block', fontSize: '11px', textTransform: 'uppercase', fontWeight: '700' }}>Receipt File</span>
+                    <span style={{ color: '#16A34A', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                      <CheckCircle2 size={14} /> {submittedApprovalData.fileName}
+                    </span>
+                  </div>
+                </div>
+
+                {submittedApprovalData.proofUrl && (
+                  <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span style={{ fontSize: '12px', color: '#64748B', fontWeight: '600' }}>Uploaded Receipt Preview:</span>
+                    <a 
+                      href={`${import.meta.env.VITE_API_URL}${submittedApprovalData.proofUrl}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      style={{ fontSize: '12px', color: '#2563EB', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none' }}
+                    >
+                      <Eye size={14} /> View Uploaded Proof Document
+                    </a>
+                  </div>
+                )}
+              </div>
+
+              {/* Informative Guidance Banner */}
+              <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '12px', padding: '16px', fontSize: '13px', color: '#1E40AF', marginBottom: '28px', textAlign: 'left', lineHeight: '1.5' }}>
+                <strong>What happens next?</strong> Once the platform administrator verifies your payment receipt and UTR number, your account status will transition to <em>Active</em>. You can then return to the login page and sign in with your email and password to begin setting up your products, branches, and staff.
+              </div>
+
+              {/* Bottom Actions */}
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '14px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => navigate('/login')}
+                  style={{
+                    background: '#2563EB',
+                    color: 'white',
+                    border: 'none',
+                    padding: '13px 32px',
+                    borderRadius: '10px',
+                    fontWeight: '700',
+                    fontSize: '14px',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 14px rgba(37,99,235,0.25)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  Go to Login Page <ArrowRight size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate('/')}
+                  style={{
+                    background: 'var(--bg-color, #F1F5F9)',
+                    color: 'var(--text-title, #334155)',
+                    border: '1px solid var(--border-color, #CBD5E1)',
+                    padding: '13px 24px',
+                    borderRadius: '10px',
+                    fontWeight: '600',
+                    fontSize: '14px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Return to Home
+                </button>
+              </div>
+            </div>
+          )}
+
+        </div>
+      </div>
+    </div>
+
+      {/* ========================================================================= */}
+      {/* RAZORPAY PAYMENT MODAL                                                    */}
+      {/* ========================================================================= */}
+      {showRazorpayModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(15, 23, 42, 0.65)',
+          backdropFilter: 'blur(6px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '20px'
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '20px',
+            maxWidth: '460px',
+            width: '100%',
+            overflow: 'hidden',
+            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+            border: '1px solid #E2E8F0'
+          }}>
+            {/* Modal Header */}
+            <div style={{ background: '#0F172A', color: 'white', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontSize: '12px', color: '#38BDF8', fontWeight: '700' }}>RAZORPAY SECURE GATEWAY</div>
+                <div style={{ fontSize: '18px', fontWeight: '800' }}>Pay ₹{grandTotal.toLocaleString()}</div>
+              </div>
+              <button onClick={() => setShowRazorpayModal(false)} style={{ background: 'transparent', border: 'none', color: '#94A3B8', cursor: 'pointer' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: '24px' }}>
+              <div style={{ display: 'flex', gap: '8px', background: '#F1F5F9', padding: '4px', borderRadius: '10px', marginBottom: '20px' }}>
+                <button
+                  onClick={() => setRazorpayTab('card')}
+                  style={{
+                    flex: 1,
+                    border: 'none',
+                    background: razorpayTab === 'card' ? 'white' : 'transparent',
+                    color: razorpayTab === 'card' ? '#0F172A' : '#64748B',
+                    padding: '8px',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Card
+                </button>
+                <button
+                  onClick={() => setRazorpayTab('netbanking')}
+                  style={{
+                    flex: 1,
+                    border: 'none',
+                    background: razorpayTab === 'netbanking' ? 'white' : 'transparent',
+                    color: razorpayTab === 'netbanking' ? '#0F172A' : '#64748B',
+                    padding: '8px',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Netbanking
+                </button>
+                <button
+                  onClick={() => setRazorpayTab('upi')}
+                  style={{
+                    flex: 1,
+                    border: 'none',
+                    background: razorpayTab === 'upi' ? 'white' : 'transparent',
+                    color: razorpayTab === 'upi' ? '#0F172A' : '#64748B',
+                    padding: '8px',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                >
+                  UPI ID
+                </button>
+              </div>
+
+              {razorpayTab === 'card' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '20px' }}>
+                  <div>
+                    <label style={{ fontSize: '12px', fontWeight: '600', color: '#475569', display: 'block', marginBottom: '4px' }}>Card Number</label>
+                    <input type="text" placeholder="4242 •••• •••• 4242" defaultValue="4111 2222 3333 4444" style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #CBD5E1', boxSizing: 'border-box' }} />
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <div>
+                      <label style={{ fontSize: '12px', fontWeight: '600', color: '#475569', display: 'block', marginBottom: '4px' }}>Expiry</label>
+                      <input type="text" placeholder="MM/YY" defaultValue="12/28" style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #CBD5E1', boxSizing: 'border-box' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '12px', fontWeight: '600', color: '#475569', display: 'block', marginBottom: '4px' }}>CVV</label>
+                      <input type="text" placeholder="123" defaultValue="888" style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #CBD5E1', boxSizing: 'border-box' }} />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {razorpayTab === 'netbanking' && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '20px' }}>
+                  {['HDFC Bank', 'ICICI Bank', 'SBI', 'Axis Bank'].map(bank => (
+                    <div key={bank} style={{ padding: '12px', border: '1px solid #CBD5E1', borderRadius: '8px', textAlign: 'center', fontSize: '13px', fontWeight: '600', cursor: 'pointer', background: '#F8FAFC' }}>
+                      {bank}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {razorpayTab === 'upi' && (
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: '600', color: '#475569', display: 'block', marginBottom: '4px' }}>Enter VPA / UPI ID</label>
+                  <input type="text" placeholder="username@okhdfcbank" defaultValue="user@upi" style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #CBD5E1', boxSizing: 'border-box' }} />
+                </div>
+              )}
+
+              <button
                 onClick={() => {
-                  const updated = businesses.filter((_, i) => i !== deleteConfirmBusiness.index);
-                  setBusinesses(updated);
-                  saveProgress({ businesses: updated });
-                  setDeleteConfirmBusiness(null);
-                }} 
-                style={{ flex: 1, padding: '11px', background: '#DC2626', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 12px rgba(220,38,38,0.25)', transition: 'background 0.15s' }}
-                onMouseOver={(e) => e.currentTarget.style.background = '#B91C1C'} 
-                onMouseOut={(e) => e.currentTarget.style.background = '#DC2626'}
+                  setShowRazorpayModal(false);
+                  handleCompleteOnboarding('Razorpay');
+                }}
+                disabled={loading}
+                style={{
+                  width: '100%',
+                  background: '#2563EB',
+                  color: 'white',
+                  border: 'none',
+                  padding: '14px',
+                  borderRadius: '10px',
+                  fontSize: '15px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
+                }}
               >
-                Yes, Remove
+                {loading ? <Loader2 size={18} className="animate-spin" /> : <ShieldCheck size={18} />}
+                Confirm Payment & Launch Workspace
               </button>
             </div>
           </div>

@@ -125,8 +125,12 @@ const Landing = ({ defaultView }) => {
 
   const getPrice = (typeTitle, defaultAmount) => {
     const plan = pricingPlans.find(p => p.customerType === typeTitle);
-    const base = plan ? plan.amount : defaultAmount;
-    return annualBilling ? Math.round(base * 0.8) : base;
+    const base = plan ? Number(plan.amount) : defaultAmount;
+    const discount = (plan && typeof plan.annualDiscountPercent === 'number') ? plan.annualDiscountPercent : 0;
+    if (annualBilling) {
+      return discount > 0 ? Math.round(base * (1 - discount / 100)) : base;
+    }
+    return base;
   };
 
   // FAQ List
@@ -687,7 +691,12 @@ const Landing = ({ defaultView }) => {
                   }}
                 >
                   Annual Billing
-                  <span style={{ background: '#10B981', color: 'white', fontSize: '11px', padding: '2px 8px', borderRadius: '10px', fontWeight: '700' }}>Save 20%</span>
+                  {(() => {
+                    const maxDiscount = Math.max(0, ...pricingPlans.map(p => Number(p.annualDiscountPercent || 0)));
+                    return maxDiscount > 0 ? (
+                      <span style={{ background: '#10B981', color: 'white', fontSize: '11px', padding: '2px 8px', borderRadius: '10px', fontWeight: '700' }}>Save up to {maxDiscount}%</span>
+                    ) : null;
+                  })()}
                 </button>
               </div>
             </div>

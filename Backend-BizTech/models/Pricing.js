@@ -27,6 +27,12 @@ const PricingSchema = new mongoose.Schema({
     type: Number,
     default: null
   },
+  annualDiscountPercent: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 100
+  },
   createdAt: {
     type: Date,
     default: Date.now

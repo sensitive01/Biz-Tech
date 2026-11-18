@@ -2,12 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { 
   User, Mail, Phone, ShieldCheck, Briefcase, 
   Building, Lock, Eye, EyeOff, Save, CheckCircle2, 
-  AlertCircle, Edit2, Key, Calendar, Shield, Loader2, X 
+  AlertCircle, Edit2, Key, Calendar, Shield, Loader2, X,
+  QrCode, Copy, Check
 } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 
 const AdminProfile = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingUpi, setSavingUpi] = useState(false);
+  const [upiSuccess, setUpiSuccess] = useState('');
+  const [copiedUpi, setCopiedUpi] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
@@ -20,6 +25,7 @@ const AdminProfile = () => {
     role: 'Superadmin',
     designation: 'Platform Administrator',
     department: 'Operations & Security',
+    upiId: 'biztech@upi',
     createdAt: new Date().toISOString()
   });
 
@@ -87,7 +93,8 @@ const AdminProfile = () => {
           email: formData.email,
           phone: formData.phone,
           designation: formData.designation,
-          department: formData.department
+          department: formData.department,
+          upiId: formData.upiId
         })
       });
 
@@ -109,6 +116,39 @@ const AdminProfile = () => {
       setErrorMsg('Network error while updating profile.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveUpi = async (e) => {
+    if (e) e.preventDefault();
+    if (!formData.upiId || !formData.upiId.trim()) return;
+    setSavingUpi(true);
+    setUpiSuccess('');
+
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          upiId: formData.upiId.trim()
+        })
+      });
+
+      if (res.ok) {
+        const updated = await res.json();
+        setProfile(updated);
+        setFormData(updated);
+        setUpiSuccess('UPI ID updated successfully!');
+        setTimeout(() => setUpiSuccess(''), 3000);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSavingUpi(false);
     }
   };
 
@@ -272,6 +312,11 @@ const AdminProfile = () => {
             <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Briefcase size={15} color="#94A3B8" /> {profile.designation || 'Platform Administrator'}
             </span>
+            {profile.upiId && (
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <QrCode size={15} color="#2563EB" /> UPI: <strong style={{ color: 'var(--text-title)' }}>{profile.upiId}</strong>
+              </span>
+            )}
           </div>
         </div>
 
@@ -533,6 +578,77 @@ const AdminProfile = () => {
           </form>
         </div>
 
+      </div>
+
+      {/* Platform Payment UPI & QR Card */}
+      <div className="card" style={{ padding: '24px', background: 'white', borderRadius: '16px', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '28px', flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: '280px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+            <QrCode size={18} color="#2563EB" />
+            <h3 style={{ fontSize: '16px', fontWeight: '700', margin: 0, color: 'var(--text-title)' }}>
+              Payment Receiving UPI & QR
+            </h3>
+          </div>
+          <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: 'var(--text-secondary)' }}>
+            Enter your UPI ID to generate the payment QR code for new customer onboarding.
+          </p>
+
+          <form onSubmit={handleSaveUpi} style={{ display: 'flex', gap: '10px', maxWidth: '440px' }}>
+            <input 
+              type="text" 
+              className="input-field"
+              placeholder="e.g. yourname@oksbi"
+              value={formData.upiId || ''}
+              onChange={(e) => setFormData({ ...formData, upiId: e.target.value })}
+              required
+              style={{ fontSize: '14px', fontWeight: '600' }}
+            />
+            <button 
+              type="submit" 
+              disabled={savingUpi}
+              className="btn-primary"
+              style={{ padding: '10px 20px', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
+            >
+              {savingUpi ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <Save size={16} />}
+              Save UPI
+            </button>
+          </form>
+
+          {upiSuccess && (
+            <div style={{ marginTop: '10px', color: '#059669', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '600' }}>
+              <CheckCircle2 size={15} color="#10B981" /> {upiSuccess}
+            </div>
+          )}
+        </div>
+
+        {/* QR Code Container */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '16px 20px', background: '#F8FAFC', borderRadius: '14px', border: '1px solid #E2E8F0', flexShrink: 0 }}>
+          <div style={{ background: 'white', padding: '10px', borderRadius: '10px', border: '1px solid #CBD5E1', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+            <QRCodeSVG 
+              value={`upi://pay?pa=${formData.upiId || 'biztech@upi'}&pn=BizTech%20Platform&cu=INR`}
+              size={130}
+              level="H"
+              includeMargin={false}
+            />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '10px' }}>
+            <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-title)' }}>
+              {formData.upiId || 'biztech@upi'}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(formData.upiId || 'biztech@upi');
+                setCopiedUpi(true);
+                setTimeout(() => setCopiedUpi(false), 2000);
+              }}
+              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: copiedUpi ? '#10B981' : '#64748B', display: 'flex', alignItems: 'center', padding: 0 }}
+              title="Copy UPI ID"
+            >
+              {copiedUpi ? <Check size={14} /> : <Copy size={14} />}
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Permissions & Security Summary */}

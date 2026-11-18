@@ -583,9 +583,7 @@ const ContactInquiries = () => {
                 Reset Filters
               </button>
             )}
-
           </div>
-
         </div>
 
         {/* Inquiries Table */}

@@ -6,6 +6,18 @@ export const ProtectedRoute = ({ children }) => {
   if (!token) {
     return <Navigate to="/login" replace />;
   }
+
+  // If tenant owner has not completed onboarding, force them back to onboarding
+  const storedUser = localStorage.getItem('user');
+  if (storedUser) {
+    try {
+      const user = JSON.parse(storedUser);
+      if (user.role === 'owner' && user.isOnboardingCompleted === false) {
+        return <Navigate to="/onboarding" replace />;
+      }
+    } catch (e) {}
+  }
+
   return children;
 };
 

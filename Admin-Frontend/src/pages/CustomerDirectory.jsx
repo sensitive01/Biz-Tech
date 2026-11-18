@@ -608,8 +608,6 @@ const CustomerDirectory = () => {
         </div>
       </div>
 
-
-
       {/* Delete Confirmation Modal */}
       {deleteCustomerId && createPortal(
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '24px' }}>

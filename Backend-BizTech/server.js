@@ -70,9 +70,13 @@ const subcategoriesRoutes = require('./routes/subcategories');
 const productsRoutes = require('./routes/products');
 const investorsRoutes = require('./routes/investors');
 const contactRoutes = require('./routes/contact');
+const paymentRoutes = require('./routes/payment');
+const adminPaymentApprovalsRoutes = require('./routes/adminPaymentApprovals');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminAuthRoutes);
+app.use('/api/admin/payment-approvals', adminPaymentApprovalsRoutes);
+app.use('/api/payment', paymentRoutes);
 app.use('/api/admin/contact-inquiries', contactRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/pricing', pricingRoutes);

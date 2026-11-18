@@ -7,6 +7,7 @@ const Branch = require('../models/Branch');
 const Employee = require('../models/Employee');
 const Investor = require('../models/Investor');
 const Pricing = require('../models/Pricing');
+const PaymentApproval = require('../models/PaymentApproval');
 const { checkEmailInUse } = require('../utils/emailValidator');
 
 // Helper to generate a unique human-readable tenant ID
@@ -37,6 +38,71 @@ router.post('/check-email', async (req, res) => {
     res.status(200).json({ message: 'Email is available' });
   } catch (err) {
     res.status(500).json({ message: 'Server Error' });
+  }
+});
+
+// @route   ALL /api/auth/check-pan
+// @desc    Check if a PAN card number already exists in any business
+// @access  Public
+router.all('/check-pan', async (req, res) => {
+  try {
+    const rawPan = req.method === 'GET' ? req.query.pan : req.body.pan;
+    if (!rawPan || !String(rawPan).trim()) {
+      return res.status(400).json({ success: false, message: 'PAN card number is required.' });
+    }
+
+    const pan = String(rawPan).trim().toUpperCase();
+    const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+    if (!panRegex.test(pan)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid PAN format. Must be 10 characters (5 capital letters, 4 digits, 1 capital letter, e.g. ABCDE1234F).' 
+      });
+    }
+
+    // Exclude current user if token is present
+    let currentUserId = null;
+    const authHeader = req.header('Authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const token = authHeader.replace('Bearer ', '');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
+        if (decoded && decoded.user) {
+          currentUserId = decoded.user.id;
+        }
+      } catch (e) {}
+    }
+
+    const query = {
+      $or: [
+        { panNumber: pan },
+        { 'documents.pan': pan },
+        { 'businesses.panNumber': pan }
+      ]
+    };
+
+    if (currentUserId) {
+      query._id = { $ne: currentUserId };
+    }
+
+    const existing = await User.findOne(query);
+
+    if (existing) {
+      return res.status(400).json({ 
+        success: false, 
+        exists: true, 
+        message: `This PAN Card Number (${pan}) is already registered with another business. Please use a unique PAN.` 
+      });
+    }
+
+    return res.status(200).json({ 
+      success: true, 
+      exists: false, 
+      message: 'PAN is available and unique.' 
+    });
+  } catch (err) {
+    console.error('Check PAN error:', err);
+    res.status(500).json({ success: false, message: 'Server error checking PAN availability.' });
   }
 });
 
@@ -161,6 +227,35 @@ router.post('/login', async (req, res) => {
         return res.status(400).json({ message: 'Invalid Credentials' });
       }
 
+      // Check Subscription Approval Status
+      if (user.subscriptionStatus === 'Pending Approval') {
+        return res.status(403).json({
+          message: 'Your payment verification is pending admin approval. You will get access once verified by the platform admin.',
+          isPendingApproval: true,
+          subscriptionStatus: 'Pending Approval',
+          approvalDetails: {
+            businessName: user.businessName || '',
+            planName: user.subscription?.planName || 'Selected Plan',
+            amount: user.subscription?.amount || 0,
+            billingCycle: user.subscription?.billingCycle || 'Monthly',
+            utrNumber: user.paymentProof?.utrNumber || user.subscription?.transactionId || '',
+            submittedAt: user.paymentProof?.submittedAt || user.updatedAt,
+            proofUrl: user.paymentProof?.proofUrl || ''
+          }
+        });
+      }
+
+      if (user.subscriptionStatus === 'Rejected') {
+        return res.status(403).json({
+          message: user.paymentProof?.rejectionReason 
+            ? `Your payment verification was rejected: ${user.paymentProof.rejectionReason}. Please contact support or re-submit proof.` 
+            : 'Your payment verification was rejected by admin. Please contact support.',
+          isRejected: true,
+          subscriptionStatus: 'Rejected',
+          rejectionReason: user.paymentProof?.rejectionReason || ''
+        });
+      }
+
       // Ensure existing user has uniqueId
       if (!user.userId) {
         user.userId = user.get('uniqueId') || await generateUserId();
@@ -183,8 +278,11 @@ router.post('/login', async (req, res) => {
         { expiresIn: '1d' },
         (err, token) => {
           if (err) throw err;
+          const isCompleted = user.isOnboardingCompleted === true || (Boolean(user.businessName) && Boolean(user.panNumber) && Boolean(user.subscription?.planId));
+
           res.json({ 
             token, 
+            requiresOnboarding: !isCompleted,
             user: { 
               id: user.id, 
               userId: user.userId,
@@ -193,6 +291,8 @@ router.post('/login', async (req, res) => {
               role: 'owner',
               businessType: user.businessType, 
               businessName: user.businessName,
+              isOnboardingCompleted: isCompleted,
+              subscriptionStatus: user.subscriptionStatus,
               offeringType: user.offeringType,
               businessOfferingType: user.businessOfferingType || user.offeringType,
               businesses: (user.businesses || []).map(b => {
@@ -220,6 +320,19 @@ router.post('/login', async (req, res) => {
         const isBizMatch = await bcrypt.compare(password, business.password);
         if (!isBizMatch) {
           return res.status(400).json({ message: 'Invalid Credentials' });
+        }
+
+        if (parentUserWithBiz.subscriptionStatus === 'Pending Approval') {
+          return res.status(403).json({
+            message: 'The workspace subscription payment is currently pending admin approval. Please contact the business owner.',
+            isPendingApproval: true
+          });
+        }
+        if (parentUserWithBiz.subscriptionStatus === 'Rejected') {
+          return res.status(403).json({
+            message: 'The workspace subscription payment was rejected by the admin. Please contact the business owner.',
+            isRejected: true
+          });
         }
 
         const payload = {
@@ -284,6 +397,19 @@ router.post('/login', async (req, res) => {
         parentUser = await User.findById(branch.tenantId);
       }
 
+      if (parentUser && parentUser.subscriptionStatus === 'Pending Approval') {
+        return res.status(403).json({
+          message: 'The workspace subscription payment is currently pending admin approval. Please contact the business owner.',
+          isPendingApproval: true
+        });
+      }
+      if (parentUser && parentUser.subscriptionStatus === 'Rejected') {
+        return res.status(403).json({
+          message: 'The workspace subscription payment was rejected by the admin. Please contact the business owner.',
+          isRejected: true
+        });
+      }
+
       const matchedBiz = parentUser?.businesses?.find(b => b.name === branch.businessName);
       const bizOfferingType = matchedBiz?.offeringType || 'both';
       const bizOperationsType = matchedBiz?.operationsType || 'both';
@@ -344,6 +470,19 @@ router.post('/login', async (req, res) => {
       let parentUser = null;
       if (employee.tenantId && employee.tenantId !== 'default_tenant') {
         parentUser = await User.findById(employee.tenantId);
+      }
+
+      if (parentUser && parentUser.subscriptionStatus === 'Pending Approval') {
+        return res.status(403).json({
+          message: 'The workspace subscription payment is currently pending admin approval. Please contact the business owner.',
+          isPendingApproval: true
+        });
+      }
+      if (parentUser && parentUser.subscriptionStatus === 'Rejected') {
+        return res.status(403).json({
+          message: 'The workspace subscription payment was rejected by the admin. Please contact the business owner.',
+          isRejected: true
+        });
       }
 
       if (parentUser && Number(parentUser.businessType) === 1) {
@@ -502,13 +641,169 @@ router.post('/onboarding', async (req, res) => {
     if (!token) return res.status(401).json({ message: 'No token, authorization denied' });
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
-    const { businesses, singleBusiness, businessName, address, regNo, phone, branches, employees, modules, businessType, offeringType, businessOfferingType } = req.body;
+    const { 
+      businesses, singleBusiness, businessName, address, regNo, phone, 
+      branches, employees, modules, businessType, offeringType, businessOfferingType,
+      category, subCategory, documents, subscription, ownerName, gstNumber
+    } = req.body;
     const userId = decoded.user.id;
 
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
+    // Validate Mandatory & Non-duplicate PAN Card Number
+    const incomingPan = (
+      req.body.panNumber || 
+      singleBusiness?.panNumber || 
+      documents?.pan || 
+      user.panNumber || 
+      ''
+    ).trim().toUpperCase();
+
+    if (!incomingPan) {
+      return res.status(400).json({ message: 'PAN card number is mandatory for business registration.' });
+    }
+
+    const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+    if (!panRegex.test(incomingPan)) {
+      return res.status(400).json({ 
+        message: 'Invalid PAN card format. Must be 10 characters (5 capital letters, 4 digits, 1 capital letter, e.g. ABCDE1234F).' 
+      });
+    }
+
+    // Check if duplicate PAN exists across other businesses/users
+    const existingPanUser = await User.findOne({
+      _id: { $ne: userId },
+      $or: [
+        { panNumber: incomingPan },
+        { 'documents.pan': incomingPan },
+        { 'businesses.panNumber': incomingPan }
+      ]
+    });
+
+    if (existingPanUser) {
+      return res.status(400).json({ 
+        message: `This PAN Card Number (${incomingPan}) is already registered with another business. Please use a unique PAN.` 
+      });
+    }
+
+    user.panNumber = incomingPan;
+
+    // Handle Owner Name and GST Number
+    const incomingOwnerName = (
+      ownerName || 
+      singleBusiness?.ownerName || 
+      singleBusiness?.contactPerson || 
+      user.ownerName || 
+      user.fullName || 
+      ''
+    ).trim();
+    if (incomingOwnerName) {
+      user.ownerName = incomingOwnerName;
+      if (!user.fullName || user.fullName === 'Business Owner') {
+        user.fullName = incomingOwnerName;
+      }
+    }
+
+    const incomingGst = (
+      gstNumber || 
+      singleBusiness?.gstNumber || 
+      singleBusiness?.taxNumber || 
+      documents?.gstin || 
+      user.gstNumber || 
+      ''
+    ).trim().toUpperCase();
+    if (incomingGst) {
+      user.gstNumber = incomingGst;
+    }
+
     // 1. Update User details (business, modules, etc.)
+    if (category) user.category = category;
+    if (subCategory) user.subCategory = subCategory;
+    if (documents) {
+      user.documents = {
+        pan: incomingPan,
+        gstin: incomingGst || documents.gstin || user.documents?.gstin || '',
+        msme: documents.msme || user.documents?.msme || '',
+        fssai: documents.fssai || user.documents?.fssai || '',
+        tradeLicense: documents.tradeLicense || user.documents?.tradeLicense || '',
+        customDocuments: Array.isArray(documents.customDocuments) ? documents.customDocuments : (user.documents?.customDocuments || [])
+      };
+      user.markModified('documents');
+    } else {
+      if (!user.documents) user.documents = {};
+      user.documents.pan = incomingPan;
+      if (incomingGst) user.documents.gstin = incomingGst;
+    }
+    let isPendingApproval = false;
+    let createdApprovalId = null;
+
+    if (subscription) {
+      const isUpiQr = (subscription.paymentMethod || '').includes('UPI') || Boolean(req.body.paymentProof);
+      const subStatus = isUpiQr ? 'Pending Approval' : (subscription.paymentStatus || 'Active');
+      const isAnnual = (subscription.billingCycle || '').toLowerCase() === 'annual';
+      const durationMs = isAnnual ? 365 * 24 * 60 * 60 * 1000 : 30 * 24 * 60 * 60 * 1000;
+
+      user.subscription = {
+        planId: subscription.planId || user.subscription?.planId || '',
+        planName: subscription.planName || user.subscription?.planName || 'Starter Plan',
+        amount: subscription.amount !== undefined ? subscription.amount : (user.subscription?.amount || 0),
+        billingCycle: subscription.billingCycle || user.subscription?.billingCycle || 'Monthly',
+        paymentMethod: subscription.paymentMethod || (isUpiQr ? 'UPI (Admin QR)' : 'Razorpay'),
+        paymentStatus: subStatus,
+        transactionId: subscription.transactionId || `TXN-${Date.now()}`,
+        startDate: subscription.startDate || new Date(),
+        validUntil: subscription.validUntil || new Date(Date.now() + durationMs)
+      };
+      user.subscriptionStatus = subStatus;
+
+      if (isUpiQr) {
+        isPendingApproval = true;
+        const proofData = req.body.paymentProof || {};
+        const utr = (proofData.utrNumber || subscription.transactionId || '').trim();
+        const proofUrl = (proofData.proofUrl || '').trim();
+        const originalFileName = (proofData.originalFileName || '').trim();
+
+        // Create or Update PaymentApproval audit entry
+        const approvalRecord = new PaymentApproval({
+          tenantId: user._id,
+          businessName: singleBusiness?.name || businessName || user.businessName || 'New Workspace',
+          ownerName: incomingOwnerName || user.fullName || '',
+          email: user.email,
+          phone: singleBusiness?.phone || phone || user.businessPhone || user.phone || '',
+          panNumber: incomingPan,
+          businessType: user.businessType || 1,
+          planId: subscription.planId || '',
+          planName: subscription.planName || 'Starter Plan',
+          billingCycle: subscription.billingCycle || 'Monthly',
+          amount: subscription.amount !== undefined ? subscription.amount : 0,
+          paymentMethod: 'UPI (Admin QR)',
+          utrNumber: utr,
+          proofUrl: proofUrl,
+          originalFileName: originalFileName,
+          status: 'Pending',
+          history: [{
+            action: 'Submitted',
+            previousStatus: 'None',
+            newStatus: 'Pending',
+            actor: user.fullName || 'Tenant Owner',
+            note: `Payment proof submitted via UPI QR (UTR: ${utr})`,
+            timestamp: new Date()
+          }]
+        });
+        await approvalRecord.save();
+        createdApprovalId = approvalRecord._id;
+
+        user.paymentProof = {
+          approvalId: approvalRecord._id,
+          utrNumber: utr,
+          proofUrl: proofUrl,
+          originalFileName: originalFileName,
+          status: 'Pending',
+          submittedAt: new Date()
+        };
+      }
+    }
     if (offeringType) {
       user.offeringType = offeringType;
       user.businessOfferingType = offeringType;
@@ -538,6 +833,9 @@ router.post('/onboarding', async (req, res) => {
       if (singleBusiness.address) user.address = singleBusiness.address;
       if (singleBusiness.regNo) user.regNo = singleBusiness.regNo;
       if (singleBusiness.phone) user.businessPhone = singleBusiness.phone;
+      if (singleBusiness.panNumber) user.panNumber = singleBusiness.panNumber;
+      if (singleBusiness.ownerName) user.ownerName = singleBusiness.ownerName;
+      if (singleBusiness.gstNumber) user.gstNumber = singleBusiness.gstNumber;
     }
     if (businessName) user.businessName = businessName;
     if (address) user.address = address;
@@ -546,6 +844,9 @@ router.post('/onboarding', async (req, res) => {
 
     if (modules && Array.isArray(modules) && modules.length > 0) user.modules = modules;
     if (businesses && Array.isArray(businesses) && businesses.length > 0) user.businesses = businesses;
+    if (!isPendingApproval) {
+      user.isOnboardingCompleted = true;
+    }
     await user.save();
 
     // 2. Upsert Branches
@@ -610,7 +911,12 @@ router.post('/onboarding', async (req, res) => {
     }
 
     const updatedUser = await User.findById(userId).select('-password');
-    res.json({ message: 'Onboarding saved successfully', user: updatedUser });
+    res.json({
+      message: isPendingApproval ? 'Onboarding completed. Payment proof submitted for admin verification.' : 'Onboarding saved successfully',
+      user: updatedUser,
+      isPendingApproval,
+      approvalId: createdApprovalId
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: err.message });

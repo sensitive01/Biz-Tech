@@ -30,25 +30,31 @@ const Register = () => {
     setLoading(true);
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/check-email`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: formData.email })
+        body: JSON.stringify({
+          fullName: formData.fullName,
+          email: formData.email,
+          phone: formData.phone,
+          password: formData.password,
+          businessType: 1
+        })
       });
       
       const data = await res.json();
       
       if (!res.ok) {
-        setError(data.message || 'Error checking email');
+        setError(data.message || 'Registration failed');
       } else {
         Object.keys(localStorage).forEach(key => {
           if (key.startsWith('onb_')) localStorage.removeItem(key);
         });
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        localStorage.removeItem('tenantType');
-        localStorage.removeItem('modules');
-        navigate('/select-type', { state: { ...formData } });
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        localStorage.setItem('tenantType', '1');
+        localStorage.setItem('modules', JSON.stringify(data.user.modules || ['expenses', 'sales']));
+        navigate('/onboarding', { replace: true });
       }
     } catch (err) {
       setError('Server error, please try again later');

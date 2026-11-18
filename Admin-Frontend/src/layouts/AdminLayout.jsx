@@ -19,6 +19,28 @@ const AdminLayout = () => {
       return { name: 'Admin User', role: 'Superadmin', email: 'admin@biztech.com' };
     }
   });
+  const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0);
+
+  useEffect(() => {
+    const fetchPendingCount = () => {
+      const token = localStorage.getItem('adminToken');
+      if (!token) return;
+      fetch(`${import.meta.env.VITE_API_URL}/api/admin/payment-approvals/counts`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.counts) {
+            setPendingApprovalsCount(data.counts.pending || 0);
+          }
+        })
+        .catch(() => {});
+    };
+
+    fetchPendingCount();
+    const interval = setInterval(fetchPendingCount, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem('adminToken');
@@ -214,6 +236,38 @@ const AdminLayout = () => {
           >
             <Mail size={18} />
             Contact Inquiries
+          </NavLink>
+
+          <NavLink 
+            to="/admin/payment-approvals" 
+            style={({isActive}) => ({
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderRadius: 'var(--radius-lg)',
+              color: isActive ? 'var(--primary-blue)' : 'var(--text-secondary)',
+              background: isActive ? '#EFF4FF' : 'transparent',
+              fontWeight: isActive ? '600' : '500',
+              fontSize: '14px',
+              textDecoration: 'none'
+            })}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <ShieldCheck size={18} />
+              Payment Approvals
+            </div>
+            {pendingApprovalsCount > 0 && (
+              <span style={{
+                background: '#EF4444',
+                color: 'white',
+                fontSize: '11px',
+                fontWeight: '700',
+                padding: '2px 7px',
+                borderRadius: '10px',
+                minWidth: '18px',
+                textAlign: 'center',
+                boxShadow: '0 2px 6px rgba(239, 68, 68, 0.4)'
+              }}>
+                {pendingApprovalsCount}
+              </span>
+            )}
           </NavLink>
 
           <NavLink 

@@ -9,6 +9,7 @@ const AdminSchema = new mongoose.Schema({
   designation: { type: String, default: 'Platform Administrator' },
   department: { type: String, default: 'Operations & Management' },
   avatar: { type: String, default: '' },
+  upiId: { type: String, default: 'biztech@upi' },
   createdAt: { type: Date, default: Date.now }
 });
 
