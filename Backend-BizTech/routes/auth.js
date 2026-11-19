@@ -8,7 +8,9 @@ const Employee = require('../models/Employee');
 const Investor = require('../models/Investor');
 const Pricing = require('../models/Pricing');
 const PaymentApproval = require('../models/PaymentApproval');
+const Document = require('../models/Document');
 const { checkEmailInUse } = require('../utils/emailValidator');
+const { checkPhoneInUse } = require('../utils/phoneValidator');
 
 // Helper to generate a unique human-readable tenant ID
 const generateUserId = async () => {
@@ -37,6 +39,30 @@ router.post('/check-email', async (req, res) => {
     }
     res.status(200).json({ message: 'Email is available' });
   } catch (err) {
+    res.status(500).json({ message: 'Server Error' });
+  }
+});
+
+// @route   POST /api/auth/check-phone
+// @desc    Check if phone number already exists
+// @access  Public
+router.post('/check-phone', async (req, res) => {
+  try {
+    const { phone } = req.body;
+    if (!phone || !phone.trim()) {
+      return res.status(400).json({ message: 'Please provide a valid 10-digit phone number.' });
+    }
+    const cleanPhone = phone.trim().replace(/[^0-9]/g, '');
+    if (cleanPhone.length !== 10) {
+      return res.status(400).json({ message: 'Phone number must be exactly 10 digits.' });
+    }
+    const check = await checkPhoneInUse(cleanPhone);
+    if (check.taken) {
+      return res.status(400).json({ message: check.message, taken: true });
+    }
+    res.status(200).json({ message: 'Phone number is available', available: true });
+  } catch (err) {
+    console.error('Check phone error:', err);
     res.status(500).json({ message: 'Server Error' });
   }
 });
@@ -115,10 +141,20 @@ router.post('/register', async (req, res) => {
       industry, address, offeringType, businessOfferingType, modules, operationsType 
     } = req.body;
 
-    // Check if email already in use across any account tier (Owner, Business, Branch, Employee)
+    // Check if email already in use across any account tier (Owner, Business, Branch, Employee, Investor)
     const check = await checkEmailInUse(email);
     if (check.taken) {
       return res.status(400).json({ message: check.message });
+    }
+
+    // Check if phone number already in use across any account tier (Owner, Business, Branch, Employee, Investor)
+    const cleanPhone = (phone || '').trim().replace(/[^0-9]/g, '');
+    if (!cleanPhone || cleanPhone.length !== 10) {
+      return res.status(400).json({ message: 'Please provide a valid 10-digit phone number.' });
+    }
+    const phoneCheck = await checkPhoneInUse(cleanPhone);
+    if (phoneCheck.taken) {
+      return res.status(400).json({ message: phoneCheck.message });
     }
 
     // Auto-apply preset employee, branch, and business limits from pricing plan
@@ -150,7 +186,7 @@ router.post('/register', async (req, res) => {
     user = new User({
       fullName,
       email,
-      phone,
+      phone: cleanPhone,
       password,
       userId,
       businessType: targetTypeNum,
@@ -208,18 +244,25 @@ router.post('/register', async (req, res) => {
 });
 
 // @route   POST /api/auth/login
-// @desc    Authenticate user or branch & get token
+// @desc    Authenticate user, business, branch, employee, or investor via email or phone & get token
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Please provide email and password' });
+    const { email, phone, username, password } = req.body;
+    const identifier = (email || phone || username || '').trim();
+    if (!identifier || !password) {
+      return res.status(400).json({ message: 'Please provide email or phone number and password' });
     }
 
-    const cleanEmail = email.trim().toLowerCase();
+    const cleanEmail = identifier.toLowerCase();
+    const cleanPhone = identifier.replace(/[^0-9]/g, '');
+    const isPhone = cleanPhone.length >= 10;
 
-    // 1. Check if user exists (Owner Account)
-    let user = await User.findOne({ email: cleanEmail });
+    // 1. Check if user exists (Owner Account by email or phone)
+    const ownerConditions = [{ email: cleanEmail }];
+    if (isPhone) {
+      ownerConditions.push({ phone: cleanPhone });
+    }
+    let user = await User.findOne({ $or: ownerConditions });
     if (user) {
       // Validate password
       const isMatch = await bcrypt.compare(password, user.password);
@@ -308,10 +351,17 @@ router.post('/login', async (req, res) => {
       );
     }
 
-    // 2. Check if a Business exists with this email (Business Login)
-    const parentUserWithBiz = await User.findOne({ 'businesses.email': cleanEmail });
+    // 2. Check if a Business exists with this email or phone (Business Login)
+    const bizConditions = [{ 'businesses.email': cleanEmail }];
+    if (isPhone) {
+      bizConditions.push({ 'businesses.phone': cleanPhone });
+    }
+    const parentUserWithBiz = await User.findOne({ $or: bizConditions });
     if (parentUserWithBiz) {
-      const business = parentUserWithBiz.businesses.find(b => b.email === cleanEmail);
+      const business = parentUserWithBiz.businesses.find(b => 
+        (b.email && b.email.toLowerCase() === cleanEmail) ||
+        (isPhone && b.phone && b.phone.replace(/[^0-9]/g, '') === cleanPhone)
+      );
       if (business && business.password) {
         if (business.isLoginEnabled === false) {
           return res.status(403).json({ message: 'Login access for this business is currently disabled by the owner.' });
@@ -379,8 +429,12 @@ router.post('/login', async (req, res) => {
       }
     }
 
-    // 3. Check if a Branch exists with this email (Branch Login)
-    const branch = await Branch.findOne({ email: cleanEmail });
+    // 3. Check if a Branch exists with this email or phone (Branch Login)
+    const branchConditions = [{ email: cleanEmail }];
+    if (isPhone) {
+      branchConditions.push({ contactNumber: cleanPhone });
+    }
+    const branch = await Branch.findOne({ $or: branchConditions });
     if (branch && branch.password) {
       if (branch.isLoginEnabled === false) {
         return res.status(403).json({ message: 'Login access for this branch is currently disabled by the owner.' });
@@ -455,8 +509,12 @@ router.post('/login', async (req, res) => {
       );
     }
 
-    // 4. Check if an Employee exists with this email (Employee Login)
-    const employee = await Employee.findOne({ email: cleanEmail });
+    // 4. Check if an Employee exists with this email or phone (Employee Login)
+    const empConditions = [{ email: cleanEmail }];
+    if (isPhone) {
+      empConditions.push({ contactNumber: cleanPhone });
+    }
+    const employee = await Employee.findOne({ $or: empConditions });
     if (employee && employee.password) {
       if (employee.isLoginEnabled === false) {
         return res.status(403).json({ message: 'Login access for this employee is currently disabled.' });
@@ -540,8 +598,12 @@ router.post('/login', async (req, res) => {
       );
     }
 
-    // 5. Check if an Investor exists with this email (Investor Login - Type 3 & 4)
-    const investor = await Investor.findOne({ email: cleanEmail });
+    // 5. Check if an Investor exists with this email or phone (Investor Login - Type 3 & 4)
+    const invConditions = [{ email: cleanEmail }];
+    if (isPhone) {
+      invConditions.push({ phone: cleanPhone });
+    }
+    const investor = await Investor.findOne({ $or: invConditions });
     if (investor && investor.password) {
       if (investor.isLoginEnabled === false || investor.status === 'Inactive') {
         return res.status(403).json({ message: 'Login access for this investor account is currently inactive or disabled by the business owner.' });
@@ -644,7 +706,7 @@ router.post('/onboarding', async (req, res) => {
     const { 
       businesses, singleBusiness, businessName, address, regNo, phone, 
       branches, employees, modules, businessType, offeringType, businessOfferingType,
-      category, subCategory, documents, subscription, ownerName, gstNumber
+      category, categories, subCategory, documents, subscription, ownerName, gstNumber
     } = req.body;
     const userId = decoded.user.id;
 
@@ -719,6 +781,10 @@ router.post('/onboarding', async (req, res) => {
 
     // 1. Update User details (business, modules, etc.)
     if (category) user.category = category;
+    if (categories && Array.isArray(categories)) {
+      user.categories = categories;
+      if (!user.category) user.category = categories.join(', ');
+    }
     if (subCategory) user.subCategory = subCategory;
     if (documents) {
       user.documents = {
@@ -836,13 +902,28 @@ router.post('/onboarding', async (req, res) => {
       if (singleBusiness.panNumber) user.panNumber = singleBusiness.panNumber;
       if (singleBusiness.ownerName) user.ownerName = singleBusiness.ownerName;
       if (singleBusiness.gstNumber) user.gstNumber = singleBusiness.gstNumber;
+
+      if (user.businesses && user.businesses.length > 0) {
+        if (singleBusiness.name) user.businesses[0].name = singleBusiness.name;
+        if (singleBusiness.phone) user.businesses[0].phone = singleBusiness.phone;
+        if (singleBusiness.address) user.businesses[0].address = singleBusiness.address;
+        if (singleBusiness.panNumber) user.businesses[0].panNumber = singleBusiness.panNumber;
+        if (singleBusiness.ownerName) user.businesses[0].ownerName = singleBusiness.ownerName;
+        if (singleBusiness.gstNumber) user.businesses[0].gstNumber = singleBusiness.gstNumber;
+        if (singleBusiness.category || category) user.businesses[0].category = singleBusiness.category || category;
+        if (singleBusiness.categories || categories) user.businesses[0].categories = singleBusiness.categories || categories;
+      }
     }
     if (businessName) user.businessName = businessName;
     if (address) user.address = address;
     if (regNo) user.regNo = regNo;
     if (phone && !user.businessPhone) user.businessPhone = phone;
 
-    if (modules && Array.isArray(modules) && modules.length > 0) user.modules = modules;
+    if (modules && Array.isArray(modules) && modules.length > 0) {
+      user.modules = Array.from(new Set([...modules, 'documents', 'reminders', 'expenses', 'customers', 'sales']));
+    } else {
+      user.modules = Array.from(new Set([...(user.modules || []), 'documents', 'reminders', 'expenses', 'customers', 'sales']));
+    }
     if (businesses && Array.isArray(businesses) && businesses.length > 0) user.businesses = businesses;
     if (!isPendingApproval) {
       user.isOnboardingCompleted = true;
@@ -907,6 +988,131 @@ router.post('/onboarding', async (req, res) => {
           },
           { upsert: true, new: true }
         );
+      }
+    }
+
+    // 4. Sync Documents to Document collection so they appear immediately in the /tenant/documents page
+    if (documents) {
+      try {
+        const docsToSync = [];
+        const extractDoc = (docField, defaultTitle, defaultType) => {
+          if (!docField) return null;
+          if (typeof docField === 'string' && docField.trim()) {
+            return {
+              title: defaultTitle,
+              type: defaultType,
+              documentNumber: docField.trim(),
+              fileUrl: '',
+              fileName: '',
+              expiryDate: null
+            };
+          }
+          if (typeof docField === 'object' && (docField.number || docField.documentNumber || docField.fileUrl)) {
+            return {
+              title: docField.title || docField.name || defaultTitle,
+              type: docField.type || defaultType,
+              documentNumber: (docField.number || docField.documentNumber || '').trim(),
+              fileUrl: docField.fileUrl || '',
+              fileName: docField.fileName || '',
+              expiryDate: docField.expiryDate ? new Date(docField.expiryDate) : null
+            };
+          }
+          return null;
+        };
+
+        // Standard 1: PAN Card
+        const panDoc = extractDoc(documents.pan, 'Business / Proprietor PAN Card', 'ID Card');
+        if (panDoc) {
+          if (!panDoc.documentNumber && incomingPan) panDoc.documentNumber = incomingPan;
+          if (documents.panFileUrl) panDoc.fileUrl = documents.panFileUrl;
+          if (documents.panFileName) panDoc.fileName = documents.panFileName;
+          if (documents.panExpiryDate) panDoc.expiryDate = new Date(documents.panExpiryDate);
+          docsToSync.push(panDoc);
+        } else if (incomingPan) {
+          docsToSync.push({
+            title: 'Business / Proprietor PAN Card',
+            type: 'ID Card',
+            documentNumber: incomingPan,
+            fileUrl: documents.panFileUrl || '',
+            fileName: documents.panFileName || '',
+            expiryDate: documents.panExpiryDate ? new Date(documents.panExpiryDate) : null
+          });
+        }
+
+        // Standard 2: GSTIN Certificate
+        const gstDoc = extractDoc(documents.gstin, 'GSTIN Certificate', 'Certificate');
+        if (gstDoc) {
+          if (!gstDoc.documentNumber && incomingGst) gstDoc.documentNumber = incomingGst;
+          if (documents.gstinFileUrl) gstDoc.fileUrl = documents.gstinFileUrl;
+          if (documents.gstinFileName) gstDoc.fileName = documents.gstinFileName;
+          if (documents.gstinExpiryDate) gstDoc.expiryDate = new Date(documents.gstinExpiryDate);
+          docsToSync.push(gstDoc);
+        } else if (incomingGst) {
+          docsToSync.push({
+            title: 'GSTIN Certificate',
+            type: 'Certificate',
+            documentNumber: incomingGst,
+            fileUrl: documents.gstinFileUrl || '',
+            fileName: documents.gstinFileName || '',
+            expiryDate: documents.gstinExpiryDate ? new Date(documents.gstinExpiryDate) : null
+          });
+        }
+
+        // Standard 3: MSME Registration
+        const msmeDoc = extractDoc(documents.msme, 'MSME / Udyam Registration', 'Registration');
+        if (msmeDoc) {
+          if (documents.msmeFileUrl) msmeDoc.fileUrl = documents.msmeFileUrl;
+          if (documents.msmeFileName) msmeDoc.fileName = documents.msmeFileName;
+          if (documents.msmeExpiryDate) msmeDoc.expiryDate = new Date(documents.msmeExpiryDate);
+          docsToSync.push(msmeDoc);
+        }
+
+        // Standard 4: FSSAI Food License
+        const fssaiDoc = extractDoc(documents.fssai, 'Food License (FSSAI)', 'License');
+        if (fssaiDoc) {
+          if (documents.fssaiFileUrl) fssaiDoc.fileUrl = documents.fssaiFileUrl;
+          if (documents.fssaiFileName) fssaiDoc.fileName = documents.fssaiFileName;
+          if (documents.fssaiExpiryDate) fssaiDoc.expiryDate = new Date(documents.fssaiExpiryDate);
+          docsToSync.push(fssaiDoc);
+        }
+
+        // Additional / Custom Documents
+        const customList = Array.isArray(documents.customDocuments) 
+          ? documents.customDocuments 
+          : Array.isArray(documents.documentList) 
+          ? documents.documentList 
+          : [];
+
+        for (const cd of customList) {
+          if (cd.name || cd.title || cd.number || cd.documentNumber || cd.fileUrl) {
+            docsToSync.push({
+              title: cd.name || cd.title || 'Official Document',
+              type: cd.type || 'Registration',
+              documentNumber: (cd.number || cd.documentNumber || '').trim(),
+              fileUrl: cd.fileUrl || '',
+              fileName: cd.fileName || '',
+              expiryDate: cd.expiryDate ? new Date(cd.expiryDate) : null
+            });
+          }
+        }
+
+        for (const item of docsToSync) {
+          await Document.findOneAndUpdate(
+            { tenantId: userId, title: item.title },
+            { 
+              tenantId: userId,
+              title: item.title,
+              type: item.type,
+              documentNumber: item.documentNumber,
+              fileUrl: item.fileUrl,
+              fileName: item.fileName,
+              expiryDate: item.expiryDate
+            },
+            { upsert: true, new: true }
+          );
+        }
+      } catch (docErr) {
+        console.error('Error syncing onboarding documents to Document collection:', docErr);
       }
     }
 

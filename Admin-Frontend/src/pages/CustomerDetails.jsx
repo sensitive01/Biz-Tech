@@ -8,7 +8,7 @@ import {
   X, Sparkles, Eye, CreditCard, Edit2, Trash2, AlertTriangle, Save, CheckCircle2,
   ArrowUp, ArrowDown, ArrowUpDown, Plus, KeyRound, Lock, EyeOff, Tag,
   Pencil, Building, ShieldCheck, CalendarDays, List, ChevronLeft, ChevronRight, Repeat, Bell, LogOut,
-  Barcode, Printer, PieChart, DollarSign, XCircle
+  Barcode, Printer, PieChart, DollarSign, XCircle, Upload, Paperclip
 } from 'lucide-react';
 import TablePagination from '../components/TablePagination';
 import { exportToCSV } from '../utils/exportToCSV';
@@ -148,8 +148,51 @@ const CustomerDetails = () => {
   const [addModalData, setAddModalData] = useState(null);   // { type, formData }
   const [savingAction, setSavingAction] = useState(false);
   const [actionSuccessMsg, setActionSuccessMsg] = useState('');
+  const [uploadingDocFile, setUploadingDocFile] = useState(false);
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+  const handleDocumentFileUpload = async (file, targetModal = 'add') => {
+    if (!file) return;
+    try {
+      setUploadingDocFile(true);
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch(`${apiUrl}/api/documents/upload`, {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to upload document file');
+      }
+      const fileUrl = data.fileUrl;
+      if (targetModal === 'add') {
+        setAddModalData(prev => ({
+          ...prev,
+          formData: {
+            ...prev.formData,
+            fileUrl,
+            fileName: data.originalName || file.name
+          }
+        }));
+      } else if (targetModal === 'edit') {
+        setEditModalData(prev => ({
+          ...prev,
+          formData: {
+            ...prev.formData,
+            fileUrl,
+            fileName: data.originalName || file.name
+          }
+        }));
+      }
+    } catch (err) {
+      console.error('File upload error:', err);
+      alert(err.message || 'File upload failed');
+    } finally {
+      setUploadingDocFile(false);
+    }
+  };
 
   const showNotification = (msg) => {
     setActionSuccessMsg(msg);
@@ -1258,8 +1301,10 @@ const CustomerDetails = () => {
         return 'Enter reason for leave...';
       case 'notifyBeforeDays':
         return 'e.g. 1, 2, 7';
+      case 'documentNumber':
+        return 'Enter registration, certificate or card number';
       case 'fileUrl':
-        return 'https://example.com/document.pdf or paste URL';
+        return 'Upload document file';
       case 'checkIn':
         return 'e.g. 09:00';
       case 'checkOut':
@@ -1523,7 +1568,7 @@ const CustomerDetails = () => {
     } else if (type === 'reminder') {
       initialFormData = { tenantId, title: '', date: overrides.date || new Date().toISOString().split('T')[0], description: '', repeatMonthly: false, notifyBeforeDays: '', status: 'Pending', ...overrides };
     } else if (type === 'document') {
-      initialFormData = { tenantId, title: '', type: 'Contract', fileUrl: '', expiryDate: '', ...overrides };
+      initialFormData = { tenantId, title: '', type: 'Contract', documentNumber: '', fileUrl: '', expiryDate: '', ...overrides };
     } else if (type === 'investor') {
       const existingInvIds = new Set(investors.map(inv => (inv.investorId || '').trim().toUpperCase()));
       let invCount = investors.length + 1;
@@ -1761,6 +1806,7 @@ const CustomerDetails = () => {
       initialFormData = {
         title: item.title || '',
         type: item.type || 'Contract',
+        documentNumber: item.documentNumber || item.number || '',
         fileUrl: item.fileUrl || '',
         expiryDate: item.expiryDate ? new Date(item.expiryDate).toISOString().split('T')[0] : ''
       };
@@ -4224,6 +4270,9 @@ const CustomerDetails = () => {
                         <th onClick={() => requestSort('type')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
                           <div style={{ display: 'flex', alignItems: 'center' }}>Document Type {renderSortIcon('type')}</div>
                         </th>
+                        <th onClick={() => requestSort('documentNumber')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
+                          <div style={{ display: 'flex', alignItems: 'center' }}>Reg / Card No. {renderSortIcon('documentNumber')}</div>
+                        </th>
                         <th onClick={() => requestSort('expiryDate')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
                           <div style={{ display: 'flex', alignItems: 'center' }}>Expiry Date {renderSortIcon('expiryDate')}</div>
                         </th>
@@ -4233,7 +4282,7 @@ const CustomerDetails = () => {
                     </thead>
                     <tbody>
                       {filteredDocuments.length === 0 ? (
-                        <tr><td colSpan="6" style={{ padding: '36px 20px', textAlign: 'center', color: '#64748B' }}>No documents uploaded.</td></tr>
+                        <tr><td colSpan="7" style={{ padding: '36px 20px', textAlign: 'center', color: '#64748B' }}>No documents uploaded.</td></tr>
                       ) : (
                         paginatedDocuments.map((item, idx) => (
                           <tr key={item._id || idx} style={{ borderBottom: '1px solid #F1F5F9', transition: 'background 0.15s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
@@ -4244,11 +4293,14 @@ const CustomerDetails = () => {
                                 {item.type || 'General'}
                               </span>
                             </td>
+                            <td style={{ padding: '14px 20px', color: '#475569', fontSize: '13px', fontWeight: '500' }}>
+                              {item.documentNumber || item.number || '-'}
+                            </td>
                             <td style={{ padding: '14px 20px', color: '#475569', fontSize: '13px' }}>{formatDate(item.expiryDate)}</td>
                             <td style={{ padding: '14px 20px' }}>
                               {item.fileUrl ? (
-                                <a href={item.fileUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#2563EB', fontSize: '12px', fontWeight: '600' }}>
-                                  <ExternalLink size={12} /> Open File
+                                <a href={item.fileUrl.startsWith('http') ? item.fileUrl : `${apiUrl}${item.fileUrl}`} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#2563EB', fontSize: '12px', fontWeight: '600' }}>
+                                  <ExternalLink size={12} /> {item.fileName || 'Open File'}
                                 </a>
                               ) : <span style={{ color: '#94A3B8', fontSize: '12px' }}>None</span>}
                             </td>
@@ -7022,9 +7074,15 @@ const CustomerDetails = () => {
                 .filter(([key]) => !['_id', 'tenantId', 'password', '__v'].includes(key))
                 .map(([key, value]) => (
                   <div key={key} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #F1F5F9', paddingBottom: '8px' }}>
-                    <span style={{ fontSize: '13px', color: '#64748B', textTransform: 'capitalize' }}>{key.replace(/([A-Z])/g, ' $1')}</span>
+                    <span style={{ fontSize: '13px', color: '#64748B', textTransform: 'capitalize' }}>
+                      {key === 'documentNumber' ? 'Registration / Certificate / Card Number' : key === 'fileUrl' ? 'Document File' : key.replace(/([A-Z])/g, ' $1')}
+                    </span>
                     <span style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', textAlign: 'right', maxWidth: '300px' }}>
-                      {typeof value === 'boolean' ? (value ? 'Yes / Enabled' : 'No / Disabled') : typeof value === 'number' && (key.toLowerCase().includes('amount') || key.toLowerCase().includes('salary') || key.toLowerCase().includes('price')) ? formatCurrency(value) : key.toLowerCase().includes('date') || key.toLowerCase().includes('at') ? formatDate(value) : typeof value === 'object' && value !== null ? (value.name || JSON.stringify(value)) : String(value || 'N/A')}
+                      {key === 'fileUrl' && value ? (
+                        <a href={String(value).startsWith('http') ? String(value) : `${apiUrl}${value}`} target="_blank" rel="noopener noreferrer" style={{ color: '#2563EB', textDecoration: 'underline' }}>
+                          {viewModalData.data?.fileName || 'View Document'}
+                        </a>
+                      ) : typeof value === 'boolean' ? (value ? 'Yes / Enabled' : 'No / Disabled') : typeof value === 'number' && (key.toLowerCase().includes('amount') || key.toLowerCase().includes('salary') || key.toLowerCase().includes('price')) ? formatCurrency(value) : key.toLowerCase().includes('date') || key.toLowerCase().includes('at') ? formatDate(value) : typeof value === 'object' && value !== null ? (value.name || JSON.stringify(value)) : String(value || 'N/A')}
                     </span>
                   </div>
                 ))}
@@ -7069,6 +7127,10 @@ const CustomerDetails = () => {
                     ? 'Branch ID' 
                     : fieldKey === 'businessId' 
                     ? 'Business ID' 
+                    : (fieldKey === 'documentNumber' && editModalData.type === 'document')
+                    ? 'Registration / Certificate / Card Number'
+                    : (fieldKey === 'fileUrl' && editModalData.type === 'document')
+                    ? 'Upload Document'
                     : fieldKey.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
                   const isSelect = !isEmployeeFieldInEmployee && ['subscriptionStatus', 'subscriptionBillingCycle', 'status', 'isLoginEnabled', 'offeringType', 'operationsType', 'type', 'itemType', 'transactionType', 'categoryId', 'subCategoryId', 'employeeId', 'workType'].includes(fieldKey) && !fieldKey.toLowerCase().includes('phone');
 
@@ -7185,6 +7247,19 @@ const CustomerDetails = () => {
                               <option value="Other">Other</option>
                             </>
                           )}
+                          {fieldKey === 'type' && editModalData.type === 'document' && (
+                            <>
+                              <option value="Invoice">Invoice</option>
+                              <option value="Receipt">Receipt</option>
+                              <option value="Contract">Contract</option>
+                              <option value="Report">Report</option>
+                              <option value="License">License</option>
+                              <option value="Registration">Registration</option>
+                              <option value="Certificate">Certificate</option>
+                              <option value="ID Card">ID Card</option>
+                              <option value="Other">Other</option>
+                            </>
+                          )}
                           {fieldKey === 'isLoginEnabled' && (
                             <>
                               <option value="true">Enabled</option>
@@ -7235,6 +7310,47 @@ const CustomerDetails = () => {
                           }}
                           style={{ padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', outline: 'none', background: '#F8FAFC', width: '100%', boxSizing: 'border-box', resize: 'vertical' }}
                         />
+                      ) : (fieldKey === 'fileUrl' && editModalData.type === 'document') ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                            <label style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              padding: '9px 16px',
+                              background: '#EFF6FF',
+                              color: '#2563EB',
+                              border: '1px dashed #93C5FD',
+                              borderRadius: '8px',
+                              cursor: uploadingDocFile ? 'not-allowed' : 'pointer',
+                              fontSize: '13px',
+                              fontWeight: '600'
+                            }}>
+                              {uploadingDocFile ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <Upload size={16} />}
+                              {uploadingDocFile ? 'Uploading...' : 'Choose File to Upload'}
+                              <input
+                                type="file"
+                                style={{ display: 'none' }}
+                                disabled={uploadingDocFile}
+                                onChange={(e) => {
+                                  if (e.target.files?.[0]) {
+                                    handleDocumentFileUpload(e.target.files[0], 'edit');
+                                  }
+                                }}
+                              />
+                            </label>
+                            {val ? (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#16A34A', fontWeight: '500' }}>
+                                <Paperclip size={14} />
+                                <a href={val.startsWith('http') ? val : `${apiUrl}${val}`} target="_blank" rel="noopener noreferrer" style={{ color: '#2563EB', textDecoration: 'underline' }}>
+                                  {editModalData.formData?.fileName || 'View Current File'}
+                                </a>
+                              </div>
+                            ) : (
+                              <span style={{ fontSize: '12px', color: '#94A3B8' }}>No document selected</span>
+                            )}
+                          </div>
+                        </div>
                       ) : (
                         <input
                           type={typeof val === 'number' || ['amount', 'price', 'salary', 'stock', 'quantity', 'notifyBeforeDays'].includes(fieldKey) ? 'number' : fieldKey.toLowerCase().includes('date') ? 'date' : ['shiftFrom', 'shiftTo', 'checkIn', 'checkOut'].includes(fieldKey) ? 'time' : 'text'}
@@ -7299,6 +7415,10 @@ const CustomerDetails = () => {
                       ? 'Branch ID' 
                       : fieldKey === 'businessId' 
                       ? 'Business ID' 
+                      : (fieldKey === 'documentNumber' && addModalData.type === 'document')
+                      ? 'Registration / Certificate / Card Number'
+                      : (fieldKey === 'fileUrl' && addModalData.type === 'document')
+                      ? 'Upload Document'
                       : fieldKey.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
                     const isBoolean = typeof fieldValue === 'boolean';
                     const isDate = fieldKey.toLowerCase().includes('date');
@@ -7376,7 +7496,19 @@ const CustomerDetails = () => {
                             {fieldKey === 'status' && addModalData.type === 'reminder' && (<><option value="Pending">Pending</option><option value="Completed">Completed</option></>)}
                             {fieldKey === 'status' && !['attendance','leave','reminder'].includes(addModalData.type) && (<><option value="Active">Active</option><option value="Inactive">Inactive</option><option value="Paid">Paid</option><option value="Pending">Pending</option><option value="Cancelled">Cancelled</option></>)}
                             {fieldKey === 'type' && addModalData.type === 'leave' && (<><option value="Sick Leave">Sick Leave</option><option value="Casual Leave">Casual Leave</option><option value="Annual Leave">Annual Leave</option><option value="Unpaid">Unpaid</option><option value="Maternity / Paternity Leave">Maternity / Paternity Leave</option><option value="Bereavement Leave">Bereavement Leave</option><option value="Compensatory Off">Compensatory Off</option><option value="Other">Other</option></>)}
-                            {fieldKey === 'type' && addModalData.type === 'document' && (<><option value="Contract">Contract</option><option value="Invoice">Invoice</option><option value="Certificate">Certificate</option><option value="Report">Report</option><option value="Other">Other</option></>)}
+                            {fieldKey === 'type' && addModalData.type === 'document' && (
+                              <>
+                                <option value="Invoice">Invoice</option>
+                                <option value="Receipt">Receipt</option>
+                                <option value="Contract">Contract</option>
+                                <option value="Report">Report</option>
+                                <option value="License">License</option>
+                                <option value="Registration">Registration</option>
+                                <option value="Certificate">Certificate</option>
+                                <option value="ID Card">ID Card</option>
+                                <option value="Other">Other</option>
+                              </>
+                            )}
                             {fieldKey === 'type' && addModalData.type === 'branch' && (<><option value="Store">Store</option><option value="Warehouse">Warehouse</option><option value="Office">Office</option></>)}
                             {fieldKey === 'customerType' && (<><option value="Retail">Retail</option><option value="Wholesale">Wholesale</option><option value="Corporate">Corporate</option></>)}
                             {fieldKey === 'offeringType' && (<><option value="both">Both Products & Services</option><option value="product">Products Only</option><option value="service">Services Only</option></>)}
@@ -7392,6 +7524,47 @@ const CustomerDetails = () => {
                             onChange={(e) => setAddModalData(p => ({ ...p, formData: { ...p.formData, [fieldKey]: e.target.value } }))}
                             style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', outline: 'none', background: '#F8FAFC', boxSizing: 'border-box', resize: 'vertical' }}
                           />
+                        ) : (fieldKey === 'fileUrl' && addModalData.type === 'document') ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                              <label style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                padding: '9px 16px',
+                                background: '#EFF6FF',
+                                color: '#2563EB',
+                                border: '1px dashed #93C5FD',
+                                borderRadius: '8px',
+                                cursor: uploadingDocFile ? 'not-allowed' : 'pointer',
+                                fontSize: '13px',
+                                fontWeight: '600'
+                              }}>
+                                {uploadingDocFile ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <Upload size={16} />}
+                                {uploadingDocFile ? 'Uploading...' : 'Choose File to Upload'}
+                                <input
+                                  type="file"
+                                  style={{ display: 'none' }}
+                                  disabled={uploadingDocFile}
+                                  onChange={(e) => {
+                                    if (e.target.files?.[0]) {
+                                      handleDocumentFileUpload(e.target.files[0], 'add');
+                                    }
+                                  }}
+                                />
+                              </label>
+                              {fieldValue ? (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#16A34A', fontWeight: '500' }}>
+                                  <Paperclip size={14} />
+                                  <a href={fieldValue.startsWith('http') ? fieldValue : `${apiUrl}${fieldValue}`} target="_blank" rel="noopener noreferrer" style={{ color: '#2563EB', textDecoration: 'underline' }}>
+                                    {addModalData.formData?.fileName || 'View Uploaded File'}
+                                  </a>
+                                </div>
+                              ) : (
+                                <span style={{ fontSize: '12px', color: '#94A3B8' }}>No document selected</span>
+                              )}
+                            </div>
+                          </div>
                         ) : (
                           <input
                             type={isDate ? 'date' : isNumber ? 'number' : ['shiftFrom', 'shiftTo', 'checkIn', 'checkOut'].includes(fieldKey) ? 'time' : 'text'}

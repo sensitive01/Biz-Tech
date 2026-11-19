@@ -6,6 +6,7 @@ const path = require('path');
 const multer = require('multer');
 const Razorpay = require('razorpay');
 const Admin = require('../models/Admin');
+const { uploadPaymentProof } = require('../config/cloudinary');
 
 // Ensure payment proof uploads directory exists
 const proofUploadDir = path.join(__dirname, '../uploads/payment-proofs');
@@ -158,28 +159,35 @@ router.post('/verify', async (req, res) => {
 });
 
 // @route   POST /api/payment/upload-proof
-// @desc    Upload screenshot or receipt proof for UPI QR payment
+// @desc    Upload screenshot or receipt proof for UPI QR payment directly to Cloudinary
 // @access  Public
-router.post('/upload-proof', uploadProof.single('proof'), (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ success: false, message: 'No proof file provided. Please upload an image or PDF.' });
+router.post('/upload-proof', (req, res) => {
+  uploadPaymentProof.single('proof')(req, res, (err) => {
+    if (err) {
+      console.error('Payment proof upload error:', err);
+      return res.status(400).json({ success: false, message: err.message || 'Failed to upload payment proof' });
     }
+    try {
+      if (!req.file) {
+        return res.status(400).json({ success: false, message: 'No proof file provided. Please upload an image or PDF.' });
+      }
 
-    const relativeUrl = `/uploads/payment-proofs/${req.file.filename}`;
-    res.json({
-      success: true,
-      fileUrl: relativeUrl,
-      fileName: req.file.filename,
-      originalName: req.file.originalname,
-      size: req.file.size,
-      mimetype: req.file.mimetype,
-      message: 'Payment proof uploaded successfully'
-    });
-  } catch (err) {
-    console.error('Upload proof error:', err);
-    res.status(500).json({ success: false, message: err.message || 'Failed to upload payment proof' });
-  }
+      // req.file.path contains the direct Cloudinary secure HTTPS URL
+      const fileUrl = req.file.path;
+      res.json({
+        success: true,
+        fileUrl: fileUrl,
+        fileName: req.file.filename,
+        originalName: req.file.originalname,
+        size: req.file.size,
+        mimetype: req.file.mimetype,
+        message: 'Payment proof stored in Cloudinary successfully'
+      });
+    } catch (routeErr) {
+      console.error('Upload proof error:', routeErr);
+      res.status(500).json({ success: false, message: routeErr.message || 'Failed to upload payment proof' });
+    }
+  });
 });
 
 module.exports = router;

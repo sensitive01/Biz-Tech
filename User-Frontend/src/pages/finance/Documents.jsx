@@ -33,9 +33,9 @@ const Documents = () => {
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
   
-  const STANDARD_TYPES = ['Invoice', 'Receipt', 'Contract', 'Report'];
+  const STANDARD_TYPES = ['Invoice', 'Receipt', 'Contract', 'Report', 'License', 'Registration', 'Certificate', 'ID Card'];
 
-  const [formData, setFormData] = useState({ title: '', type: '', expiryDate: '' });
+  const [formData, setFormData] = useState({ title: '', type: '', documentNumber: '', expiryDate: '' });
   const [customType, setCustomType] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [existingFileUrl, setExistingFileUrl] = useState(null);
@@ -43,7 +43,7 @@ const Documents = () => {
 
   const handleOpenAdd = () => {
     setEditingItem(null);
-    setFormData({ title: '', type: '', expiryDate: '' });
+    setFormData({ title: '', type: '', documentNumber: '', expiryDate: '' });
     setCustomType('');
     setSelectedFile(null);
     setExistingFileUrl(null);
@@ -56,6 +56,7 @@ const Documents = () => {
     setFormData({
       title: item.title || '',
       type: isStandard ? item.type : (item.type ? 'Others' : ''),
+      documentNumber: item.documentNumber || item.number || '',
       expiryDate: item.expiryDate ? item.expiryDate.substring(0, 10) : ''
     });
     setCustomType(isStandard ? '' : (item.type || ''));
@@ -108,6 +109,7 @@ const Documents = () => {
       const bodyData = new FormData();
       bodyData.append('title', formData.title);
       bodyData.append('type', finalType);
+      bodyData.append('documentNumber', formData.documentNumber || '');
       if (formData.expiryDate) bodyData.append('expiryDate', formData.expiryDate);
       if (selectedFile) bodyData.append('file', selectedFile);
 
@@ -119,7 +121,7 @@ const Documents = () => {
       if (res.ok) {
         setShowModal(false);
         setEditingItem(null);
-        setFormData({ title: '', type: '', expiryDate: '' });
+        setFormData({ title: '', type: '', documentNumber: '', expiryDate: '' });
         setCustomType('');
         setSelectedFile(null);
         setExistingFileUrl(null);
@@ -272,6 +274,9 @@ const Documents = () => {
                 <th onClick={() => requestSort('type')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',  padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
                 <div style={{ display: 'flex', alignItems: 'center' }}>Type {renderSortIcon('type')}</div>
               </th>
+                <th onClick={() => requestSort('documentNumber')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',  padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
+                <div style={{ display: 'flex', alignItems: 'center' }}>Reg / Card No. {renderSortIcon('documentNumber')}</div>
+              </th>
                 <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>Document</th>
                 <th onClick={() => requestSort('expiryDate')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',  padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
                 <div style={{ display: 'flex', alignItems: 'center' }}>Expiry Date {renderSortIcon('expiryDate')}</div>
@@ -281,10 +286,10 @@ const Documents = () => {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="6" style={{ padding: '32px', textAlign: 'center', color: '#64748B' }}>Loading...</td></tr>
+                <tr><td colSpan="7" style={{ padding: '32px', textAlign: 'center', color: '#64748B' }}>Loading...</td></tr>
               ) : filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan="6" style={{ padding: '64px 32px', textAlign: 'center' }}>
+                  <td colSpan="7" style={{ padding: '64px 32px', textAlign: 'center' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                       <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}><FileText size={32} color="#3B82F6" /></div>
                       <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#0F172A', marginBottom: '8px' }}>No records found</h3>
@@ -300,6 +305,9 @@ const Documents = () => {
                       <span style={{ display: 'inline-block', padding: '4px 10px', background: '#F1F5F9', borderRadius: '6px', fontSize: '13px', fontWeight: '500', color: '#334155' }}>
                         {item.type || '-'}
                       </span>
+                    </td>
+                    <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px', fontWeight: '500' }}>
+                      {item.documentNumber || item.number || '-'}
                     </td>
                     <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px' }}>
                       {item.fileUrl ? (
@@ -359,6 +367,10 @@ const Documents = () => {
                   <option value="Invoice">Invoice</option>
                   <option value="Receipt">Receipt</option>
                   <option value="Contract">Contract</option>
+                  <option value="Certificate">Certificate</option>
+                  <option value="Registration">Registration</option>
+                  <option value="License">License</option>
+                  <option value="ID Card">ID Card</option>
                   <option value="Report">Report</option>
                   <option value="Others">Others</option>
                 </select>
@@ -377,6 +389,17 @@ const Documents = () => {
                   />
                 </div>
               )}
+
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Registration / Certificate / Card Number</label>
+                <input
+                  placeholder="e.g. REG-123456 or Card / License Number"
+                  type="text"
+                  value={formData.documentNumber || ''}
+                  onChange={e => setFormData({ ...formData, documentNumber: e.target.value })}
+                  style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }}
+                />
+              </div>
 
               <div>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Upload Document</label>
@@ -430,6 +453,10 @@ const Documents = () => {
               <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
                 <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Type</p>
                 <p style={{ margin: 0, fontSize: '16px', color: '#0F172A' }}>{viewItem.type || '-'}</p>
+              </div>
+              <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
+                <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Registration / Certificate / Card Number</p>
+                <p style={{ margin: 0, fontSize: '16px', color: '#0F172A' }}>{viewItem.documentNumber || viewItem.number || '-'}</p>
               </div>
               {viewItem.fileUrl && (
                 <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>

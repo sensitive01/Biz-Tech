@@ -9,7 +9,59 @@ import {
 import { QRCodeSVG } from 'qrcode.react';
 import ThemeToggle from '@/components/ThemeToggle';
 
-// Business Categories
+// Group 1: Product Based Business Categories (9 Multi-select Categories)
+const PRODUCT_CATEGORIES = [
+  { id: 'retail_general', label: 'Retail and General Trading', desc: 'Department stores, retail outlets, supermarkets & merchandise trade' },
+  { id: 'wholesale_dist', label: 'Wholesale and Distribution', desc: 'B2B stockists, bulk trade, import/export & regional distributorship' },
+  { id: 'food_beverage', label: 'Food and Beverage Products', desc: 'Packaged foods, beverages, bakery, dairy, agro & culinary goods' },
+  { id: 'clothing_fashion', label: 'Clothing, Fashion and Lifestyle', desc: 'Apparel, footwear, jewelry, beauty, cosmetics, accessories & fabrics' },
+  { id: 'electronics_appliances', label: 'Electronics, Electrical and Appliances', desc: 'Smart electronics, home appliances, electrical equipment & hardware' },
+  { id: 'home_furniture', label: 'Home, Furniture and Consumer Goods', desc: 'Furniture, home decor, kitchenware & domestic consumer essentials' },
+  { id: 'automobile_parts', label: 'Automobile and Spare Parts', desc: 'Automotive components, mechanical spares, lubricants & tires' },
+  { id: 'manufacturing_prod', label: 'Manufacturing and Production', desc: 'Production units, factories, assembly lines & custom fabrication' },
+  { id: 'industrial_construction', label: 'Industrial, Construction and Specialized Supplies', desc: 'Building materials, hardware, plumbing, sanitary & specialized tools' }
+];
+
+// Group 2: Service Based Business Categories (9 Multi-select Categories)
+const SERVICE_CATEGORIES = [
+  { id: 'prof_business_srv', label: 'Professional and Business Service', desc: 'Legal, accounting, financial auditing, tax advisory & consulting' },
+  { id: 'it_tech_srv', label: 'IT and Technology Service', desc: 'Software development, cloud solutions, cybersecurity, IT support & SaaS' },
+  { id: 'creative_media_srv', label: 'Creative, Design and Media Service', desc: 'Graphic design, UI/UX, video production, photography & content creation' },
+  { id: 'marketing_promo_srv', label: 'Marketing, Advertising and Promotion Service', desc: 'Digital marketing, SEO, social media management, PR & brand campaigns' },
+  { id: 'home_personal_srv', label: 'Home and Personal Service', desc: 'Cleaning, housekeeping, salon & spa, personal fitness & domestic assistance' },
+  { id: 'construction_prop_srv', label: 'Construction, Architecture and Property Service', desc: 'Architectural planning, interior design, civil contracting & real estate' },
+  { id: 'auto_transport_srv', label: 'Automobile and Transport Service', desc: 'Vehicle maintenance, fleet logistics, car rentals, courier & transport' },
+  { id: 'events_hospitality_srv', label: 'Events and Hospitality Service', desc: 'Event planning, catering, conference coordination & hospitality' },
+  { id: 'repair_maint_srv', label: 'Repair, Maintenance and Technical Service', desc: 'Equipment servicing, appliance repair, electrical, HVAC & plumbing' }
+];
+
+// Group 3: Product & Service Based Business Categories (9 Multi-select Categories)
+const BOTH_CATEGORIES = [
+  { id: 'food_hospitality', label: 'Food and Hospitality Business', desc: 'Restaurants, cafes, catering, cloud kitchens, hotels & hospitality services' },
+  { id: 'automobile_sales_service', label: 'Automobile Sales and Service Business', desc: 'Dealerships, workshops, spare parts sales, vehicle detailing & service centers' },
+  { id: 'electronics_sales_service', label: 'Electronics Sales and Service Business', desc: 'Gadget retail, appliances, repair services, installation & AMC contracts' },
+  { id: 'beauty_fashion_lifestyle', label: 'Beauty, Fashion and Lifestyle Business', desc: 'Salons, wellness spas, cosmetics retail, boutique styling & tailoring' },
+  { id: 'healthcare_retail_service', label: 'Healthcare Retail and Service Business', desc: 'Pharmacies, medical clinics, optical retail, lab diagnostics & wellness equipment' },
+  { id: 'agri_farming_business', label: 'Agriculture and Farming Business', desc: 'Agro retail, seeds, fertilizers, farming equipment, nursery & consultation' },
+  { id: 'construction_building_business', label: 'Construction and Building Business', desc: 'Building material supply, interior contracting, civil work & renovation services' },
+  { id: 'education_training_business', label: 'Education and Training Business', desc: 'Coaching centers, training academies, bookstores, study material & courses' },
+  { id: 'rental_trading_support', label: 'Rental, Trading and Business Support', desc: 'Equipment leasing, trade supplies, event equipment hire & commercial logistics' }
+];
+
+// Group 4: Institution and Organization Categories (9 Multi-select Categories)
+const INSTITUTION_CATEGORIES = [
+  { id: 'education_training_inst', label: 'Education and Training Institution', desc: 'Schools, colleges, universities, skill development centers & coaching academies' },
+  { id: 'healthcare_medical_inst', label: 'Healthcare and Medical Institution', desc: 'Hospitals, nursing homes, diagnostic clinics, wellness institutes & health trusts' },
+  { id: 'religious_spiritual_inst', label: 'Religious and Spiritual Institution', desc: 'Temples, churches, mosques, gurudwaras, spiritual retreats & ashrams' },
+  { id: 'ngo_trust_charity', label: "NGO's, Charitable Trust and Social Organisation", desc: 'Non-profit entities, social welfare foundations, relief societies & public trusts' },
+  { id: 'media_broadcasting_org', label: 'Media and Broadcasting Organisation', desc: 'News agencies, TV/radio broadcasting networks, digital publications & press houses' },
+  { id: 'film_entertainment_prod', label: 'Film, Entertainment and Production House', desc: 'Film studios, production houses, music labels, theatrical groups & creative arts' },
+  { id: 'govt_public_sector_org', label: 'Government and Public Sector Organisation', desc: 'Government agencies, municipal bodies, statutory authorities & PSU enterprises' },
+  { id: 'club_association_org', label: 'Club, Association and Membership Organisation', desc: 'Trade associations, social clubs, sports academies, alumni bodies & chambers of commerce' },
+  { id: 'research_dev_inst', label: 'Research and Development Institution', desc: 'Scientific laboratories, technology institutes, policy think tanks & research centers' }
+];
+
+// Business Categories (Default / Other groups)
 const BUSINESS_CATEGORIES = [
   { id: 'manufacturing', label: 'Manufacturing', desc: 'Factories, production units, assembly, custom fabrication' },
   { id: 'distributor', label: 'Distributor / Wholesaler', desc: 'Stockists, bulk supply chain, B2B wholesale dealers' },
@@ -90,33 +142,130 @@ const Onboarding = () => {
   const [panChecking, setPanChecking] = useState(false);
   const [panCheckResult, setPanCheckResult] = useState(null);
 
-  // 2. Offering Selection State ('product', 'service', 'both')
-  const [offeringType, setOfferingType] = useState('product');
+  // 2. Offering Selection State (Unselected by default)
+  const [offeringType, setOfferingType] = useState('');
 
-  // 3. Category State
-  const [category, setCategory] = useState('retail');
+  // 3. Category State (Unselected by default)
+  const [category, setCategory] = useState('');
   const [customCategory, setCustomCategory] = useState('');
+  const [selectedProductCategories, setSelectedProductCategories] = useState([]);
+  const [selectedServiceCategories, setSelectedServiceCategories] = useState([]);
+  const [selectedBothCategories, setSelectedBothCategories] = useState([]);
+  const [selectedInstitutionCategories, setSelectedInstitutionCategories] = useState([]);
 
-  // 4. Sub-Category State
-  const [subCategory, setSubCategory] = useState('Grocery & Provisions');
+  const toggleProductCategory = (label) => {
+    setSelectedProductCategories(prev => {
+      if (prev.includes(label)) {
+        return prev.filter(c => c !== label);
+      } else {
+        return [...prev, label];
+      }
+    });
+  };
+
+  const handleSelectAllProductCategories = () => {
+    if (selectedProductCategories.length === PRODUCT_CATEGORIES.length) {
+      setSelectedProductCategories([]);
+    } else {
+      setSelectedProductCategories(PRODUCT_CATEGORIES.map(c => c.label));
+    }
+  };
+
+  const toggleServiceCategory = (label) => {
+    setSelectedServiceCategories(prev => {
+      if (prev.includes(label)) {
+        return prev.filter(c => c !== label);
+      } else {
+        return [...prev, label];
+      }
+    });
+  };
+
+  const handleSelectAllServiceCategories = () => {
+    if (selectedServiceCategories.length === SERVICE_CATEGORIES.length) {
+      setSelectedServiceCategories([]);
+    } else {
+      setSelectedServiceCategories(SERVICE_CATEGORIES.map(c => c.label));
+    }
+  };
+
+  const toggleBothCategory = (label) => {
+    setSelectedBothCategories(prev => {
+      if (prev.includes(label)) {
+        return prev.filter(c => c !== label);
+      } else {
+        return [...prev, label];
+      }
+    });
+  };
+
+  const handleSelectAllBothCategories = () => {
+    if (selectedBothCategories.length === BOTH_CATEGORIES.length) {
+      setSelectedBothCategories([]);
+    } else {
+      setSelectedBothCategories(BOTH_CATEGORIES.map(c => c.label));
+    }
+  };
+
+  const toggleInstitutionCategory = (label) => {
+    setSelectedInstitutionCategories(prev => {
+      if (prev.includes(label)) {
+        return prev.filter(c => c !== label);
+      } else {
+        return [...prev, label];
+      }
+    });
+  };
+
+  const handleSelectAllInstitutionCategories = () => {
+    if (selectedInstitutionCategories.length === INSTITUTION_CATEGORIES.length) {
+      setSelectedInstitutionCategories([]);
+    } else {
+      setSelectedInstitutionCategories(INSTITUTION_CATEGORIES.map(c => c.label));
+    }
+  };
+
+  // 4. Sub-Category State (Unselected by default)
+  const [subCategory, setSubCategory] = useState('');
   const [customSubCategory, setCustomSubCategory] = useState('');
 
   // 5. Documentations State
   const [documents, setDocuments] = useState({
     pan: '',
+    panType: 'ID Card',
+    panExpiryDate: '',
+    panFileUrl: '',
+    panFileName: '',
+
     gstin: '',
+    gstinType: 'Certificate',
+    gstinExpiryDate: '',
+    gstinFileUrl: '',
+    gstinFileName: '',
+
     msme: '',
+    msmeType: 'Registration',
+    msmeExpiryDate: '',
+    msmeFileUrl: '',
+    msmeFileName: '',
+
     fssai: '',
+    fssaiType: 'License',
+    fssaiExpiryDate: '',
+    fssaiFileUrl: '',
+    fssaiFileName: '',
+
     tradeLicense: ''
   });
   const [uploadedFiles, setUploadedFiles] = useState({});
   const [customDocuments, setCustomDocuments] = useState([]);
+  const [uploadingDocKey, setUploadingDocKey] = useState(null);
 
-  // 6. Plan & Payment State
+  // 6. Plan & Payment State (Unselected by default)
   const [pricingPlans, setPricingPlans] = useState([]);
-  const [selectedPlanId, setSelectedPlanId] = useState('Type 2: Single Branch + Staff');
+  const [selectedPlanId, setSelectedPlanId] = useState('');
   const [billingCycle, setBillingCycle] = useState('Monthly'); // 'Monthly' | 'Annual'
-  const [paymentMethod, setPaymentMethod] = useState('upi_qr'); // 'upi_qr' | 'razorpay' | 'trial'
+  const [paymentMethod, setPaymentMethod] = useState(''); // 'upi_qr' | 'razorpay'
   const [showRazorpayModal, setShowRazorpayModal] = useState(false);
   const [razorpayTab, setRazorpayTab] = useState('card');
   const [upiVerified, setUpiVerified] = useState(false);
@@ -183,9 +332,11 @@ const Onboarding = () => {
           phone: u.phone || prev.phone,
           address: u.address || prev.address
         }));
-        if (u.offeringType) setOfferingType(u.offeringType);
-        if (u.category) setCategory(u.category);
-        if (u.subCategory) setSubCategory(u.subCategory);
+        if (u.isOnboardingCompleted) {
+          if (u.offeringType) setOfferingType(u.offeringType);
+          if (u.category) setCategory(u.category);
+          if (u.subCategory) setSubCategory(u.subCategory);
+        }
       }
     } catch (e) {
       console.error('Error parsing stored user:', e);
@@ -218,6 +369,7 @@ const Onboarding = () => {
   ];
 
   const getPlanDetails = (title) => {
+    if (!title) return null;
     const plan = pricingPlans.find(p => p.customerType === title);
     const defaultP = defaultPlans.find(p => p.title === title) || defaultPlans[1];
     const monthlyBase = plan ? Number(plan.amount) : defaultP.amount;
@@ -253,17 +405,47 @@ const Onboarding = () => {
   };
 
   const activePlan = getPlanDetails(selectedPlanId);
-  const taxAmount = Math.round(activePlan.amount * 0.18);
-  const grandTotal = activePlan.amount + taxAmount;
+  const grandTotal = activePlan ? activePlan.amount : 0;
 
-  // File upload simulation handler
-  const handleFileUpload = (docKey, e) => {
+  // Document File Upload Handler (uploads directly to backend /api/documents/upload)
+  const handleOnboardingFileUpload = async (docKey, e, isCustom = false) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setUploadedFiles(prev => ({
-        ...prev,
-        [docKey]: file.name
-      }));
+    if (!file) return;
+    try {
+      setUploadingDocKey(String(docKey));
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/documents/upload`, {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to upload document file');
+      }
+
+      if (isCustom) {
+        setCustomDocuments(prev => prev.map(doc => 
+          doc.id === docKey 
+            ? { ...doc, fileUrl: data.fileUrl, fileName: data.originalName || file.name } 
+            : doc
+        ));
+      } else {
+        setDocuments(prev => ({
+          ...prev,
+          [`${docKey}FileUrl`]: data.fileUrl,
+          [`${docKey}FileName`]: data.originalName || file.name
+        }));
+        setUploadedFiles(prev => ({
+          ...prev,
+          [docKey]: data.originalName || file.name
+        }));
+      }
+    } catch (err) {
+      console.error('File upload error:', err);
+      alert(err.message || 'File upload failed');
+    } finally {
+      setUploadingDocKey(null);
     }
   };
 
@@ -271,7 +453,7 @@ const Onboarding = () => {
   const handleAddCustomDoc = () => {
     setCustomDocuments(prev => [
       ...prev,
-      { id: Date.now(), name: '', number: '', fileName: '' }
+      { id: Date.now(), name: '', type: 'Registration', number: '', expiryDate: '', fileUrl: '', fileName: '' }
     ]);
   };
 
@@ -283,15 +465,6 @@ const Onboarding = () => {
     setCustomDocuments(prev => prev.map(doc => 
       doc.id === id ? { ...doc, [field]: value } : doc
     ));
-  };
-
-  const handleCustomFileUpload = (id, e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setCustomDocuments(prev => prev.map(doc => 
-        doc.id === id ? { ...doc, fileName: file.name } : doc
-      ));
-    }
   };
 
   // PAN Check Handler
@@ -371,12 +544,47 @@ const Onboarding = () => {
         setError('Please complete city, state, and pincode.');
         return false;
       }
-    } else if (currentStep === 2) {
-      if (category === 'others' && !customCategory.trim()) {
-        setError('Please specify your custom category.');
+    } else if (currentStep === 1) {
+      if (!offeringType) {
+        setError('Please select a commercial offering group (Group 1, 2, 3, or 4).');
         return false;
       }
+    } else if (currentStep === 2) {
+      if (offeringType === 'product') {
+        if (!selectedProductCategories || selectedProductCategories.length === 0) {
+          setError('Please select at least one product business category.');
+          return false;
+        }
+      } else if (offeringType === 'service') {
+        if (!selectedServiceCategories || selectedServiceCategories.length === 0) {
+          setError('Please select at least one service business category.');
+          return false;
+        }
+      } else if (offeringType === 'both') {
+        if (!selectedBothCategories || selectedBothCategories.length === 0) {
+          setError('Please select at least one product & service business category.');
+          return false;
+        }
+      } else if (offeringType === 'institution') {
+        if (!selectedInstitutionCategories || selectedInstitutionCategories.length === 0) {
+          setError('Please select at least one institution or organization category.');
+          return false;
+        }
+      } else {
+        if (!category) {
+          setError('Please select a business category to continue.');
+          return false;
+        }
+        if (category === 'others' && !customCategory.trim()) {
+          setError('Please specify your custom category.');
+          return false;
+        }
+      }
     } else if (currentStep === 3) {
+      if (!subCategory) {
+        setError('Please select an industry sub-category to continue.');
+        return false;
+      }
       if (subCategory === 'Others' && !customSubCategory.trim()) {
         setError('Please specify your industry segment.');
         return false;
@@ -439,11 +647,33 @@ const Onboarding = () => {
     setError('');
 
     const token = localStorage.getItem('token');
-    const selectedFinalCategory = category === 'others' ? (customCategory.trim() || 'General Business') : category;
+    let selectedFinalCategory = category;
+    let selectedCategoriesList = [];
+    if (offeringType === 'product') {
+      selectedFinalCategory = selectedProductCategories.join(', ');
+      selectedCategoriesList = selectedProductCategories;
+    } else if (offeringType === 'service') {
+      selectedFinalCategory = selectedServiceCategories.join(', ');
+      selectedCategoriesList = selectedServiceCategories;
+    } else if (offeringType === 'both') {
+      selectedFinalCategory = selectedBothCategories.join(', ');
+      selectedCategoriesList = selectedBothCategories;
+    } else if (offeringType === 'institution') {
+      selectedFinalCategory = selectedInstitutionCategories.join(', ');
+      selectedCategoriesList = selectedInstitutionCategories;
+    } else if (category === 'others') {
+      selectedFinalCategory = customCategory.trim() || 'General Business';
+      selectedCategoriesList = [selectedFinalCategory];
+    } else {
+      const found = BUSINESS_CATEGORIES.find(c => c.id === category);
+      selectedFinalCategory = found ? found.label : category;
+      selectedCategoriesList = [selectedFinalCategory];
+    }
+
     const selectedFinalSubCategory = subCategory === 'Others' ? (customSubCategory.trim() || 'General Trade') : subCategory;
 
     // Determine active operational modules according to offeringType
-    const modules = ['sales', 'expenses', 'customers'];
+    const modules = ['sales', 'expenses', 'customers', 'documents', 'reminders'];
     if (offeringType === 'product' || offeringType === 'both') {
       modules.push('products_services', 'inventory', 'purchases');
     }
@@ -472,7 +702,9 @@ const Onboarding = () => {
         regNo: businessInfo.regNo,
         phone: businessInfo.phone,
         email: businessInfo.email,
-        address: `${businessInfo.address}, ${businessInfo.city}, ${businessInfo.state} - ${businessInfo.pincode}`
+        address: `${businessInfo.address}, ${businessInfo.city}, ${businessInfo.state} - ${businessInfo.pincode}`,
+        category: selectedFinalCategory,
+        categories: selectedCategoriesList
       },
       businessName: businessInfo.name,
       address: `${businessInfo.address}, ${businessInfo.city}, ${businessInfo.state} - ${businessInfo.pincode}`,
@@ -481,17 +713,18 @@ const Onboarding = () => {
       offeringType,
       businessOfferingType: offeringType,
       category: selectedFinalCategory,
+      categories: selectedCategoriesList,
       subCategory: selectedFinalSubCategory,
       documents: {
         ...documents,
         pan: cleanPan,
         gstin: cleanGst || documents.gstin,
-        customDocuments: customDocuments.filter(d => d.name.trim() || d.number.trim() || d.fileName)
+        customDocuments: customDocuments.filter(d => (d.name || '').trim() || (d.number || '').trim() || d.fileUrl || d.fileName)
       },
       modules,
       subscription: {
         planId: selectedPlanId,
-        planName: activePlan.title,
+        planName: activePlan?.title || selectedPlanId || 'Selected Plan',
         amount: grandTotal,
         billingCycle,
         paymentMethod: resolvedMethod,
@@ -532,7 +765,7 @@ const Onboarding = () => {
           ownerName: cleanOwner || 'Business Owner',
           email: businessInfo.email,
           phone: businessInfo.phone,
-          planTitle: activePlan.title,
+          planTitle: activePlan?.title || selectedPlanId || 'Selected Plan',
           billingCycle,
           grandTotal,
           utrNumber: txnIdOverride || utrNumber,
@@ -564,6 +797,10 @@ const Onboarding = () => {
   // UPI QR Payment & Proof Submission Handler
   const handleUpiSubmit = async () => {
     setError('');
+    if (!selectedPlanId) {
+      setError('Please select a subscription plan before submitting.');
+      return;
+    }
     const cleanUtr = (utrNumber || '').trim();
     if (!cleanUtr || cleanUtr.length < 6) {
       setError('Please enter a valid 12-digit UPI Reference / UTR Number.');
@@ -610,8 +847,12 @@ const Onboarding = () => {
 
   // Official Razorpay Gateway Checkout Handler
   const handleRazorpayCheckout = async () => {
-    setLoading(true);
     setError('');
+    if (!selectedPlanId) {
+      setError('Please select a subscription plan before proceeding with payment.');
+      return;
+    }
+    setLoading(true);
 
     // 1. Ensure Razorpay SDK script is loaded
     const loadScript = () => {
@@ -642,7 +883,7 @@ const Onboarding = () => {
           currency: 'INR',
           receipt: `rcpt_${Date.now()}`,
           notes: {
-            plan: activePlan.title,
+            plan: activePlan?.title || selectedPlanId || 'Selected Plan',
             cycle: billingCycle,
             businessName: businessInfo.name
           }
@@ -660,7 +901,7 @@ const Onboarding = () => {
         amount: orderData.amount,
         currency: orderData.currency || 'INR',
         name: 'BizTech Platform',
-        description: `${activePlan.title} (${billingCycle}) Fee Collection`,
+        description: `${activePlan?.title || selectedPlanId || 'Selected Plan'} (${billingCycle}) Fee Collection`,
         image: '/logo.jpg',
         order_id: orderData.orderId,
         prefill: {
@@ -1267,62 +1508,422 @@ const Onboarding = () => {
           {/* ========================================================================= */}
           {currentStep === 2 && (
             <div style={{ background: 'var(--card-bg, #FFFFFF)', borderRadius: '20px', border: '1px solid var(--border-color, #E2E8F0)', padding: '36px', boxShadow: '0 4px 16px rgba(0,0,0,0.03)' }}>
-              <div style={{ marginBottom: '28px' }}>
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#EFF6FF', color: '#2563EB', padding: '4px 12px', borderRadius: '16px', fontSize: '12px', fontWeight: '700', marginBottom: '8px' }}>
-                  <Building2 size={14} /> Step 3: Operational Model
-                </div>
-                <h2 style={{ fontSize: '26px', fontWeight: '800', color: 'var(--text-title, #0F172A)', margin: '0 0 6px 0' }}>Select Business Category</h2>
-                <p style={{ fontSize: '14px', color: 'var(--text-secondary, #64748B)', margin: 0 }}>How does your organization operate in the supply chain?</p>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '20px' }}>
-                {BUSINESS_CATEGORIES.map(cat => {
-                  const isSelected = category === cat.id;
-                  return (
-                    <div
-                      key={cat.id}
-                      onClick={() => setCategory(cat.id)}
-                      style={{
-                        border: isSelected ? '2px solid #2563EB' : '1px solid var(--border-color, #E2E8F0)',
-                        background: isSelected ? 'rgba(37,99,235,0.03)' : 'var(--card-bg, white)',
-                        borderRadius: '14px',
-                        padding: '18px 20px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        transition: 'all 0.2s'
-                      }}
-                    >
-                      <div>
-                        <h4 style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-title)', margin: '0 0 4px 0' }}>{cat.label}</h4>
-                        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>{cat.desc}</p>
+              {offeringType === 'product' ? (
+                <>
+                  <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+                    <div>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#EFF6FF', color: '#2563EB', padding: '4px 12px', borderRadius: '16px', fontSize: '12px', fontWeight: '700', marginBottom: '8px' }}>
+                        <Building2 size={14} /> Step 3: Product Categories (Multiple Selection)
                       </div>
-                      <div style={{
-                        width: '22px',
-                        height: '22px',
-                        borderRadius: '50%',
-                        border: isSelected ? '6px solid #2563EB' : '2px solid #CBD5E1',
-                        background: 'white'
-                      }}></div>
+                      <h2 style={{ fontSize: '26px', fontWeight: '800', color: 'var(--text-title, #0F172A)', margin: '0 0 6px 0' }}>Select Business Categories</h2>
+                      <p style={{ fontSize: '14px', color: 'var(--text-secondary, #64748B)', margin: 0 }}>Select all the product categories that apply to your business (multiple selection allowed).</p>
                     </div>
-                  );
-                })}
-              </div>
 
-              {category === 'others' && (
-                <div style={{ marginTop: '16px', padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-title)', marginBottom: '6px' }}>
-                    Specify Your Business Category <span style={{ color: '#EF4444' }}>*</span>
-                  </label>
-                  <input 
-                    type="text" 
-                    placeholder="e.g. Research & Development / Specialized Fabrication" 
-                    value={customCategory}
-                    onChange={(e) => setCustomCategory(e.target.value)}
-                    style={{ width: '100%', padding: '11px 14px', borderRadius: '8px', border: '1px solid var(--border-color, #E2E8F0)', background: 'white', color: 'var(--text-title)', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }}
-                  />
-                </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '12px', fontWeight: '700', color: '#2563EB', background: '#EFF6FF', padding: '6px 14px', borderRadius: '20px', border: '1px solid #BFDBFE' }}>
+                        {selectedProductCategories.length} Selected
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleSelectAllProductCategories}
+                        style={{
+                          background: 'var(--card-bg, white)',
+                          border: '1px solid var(--border-color, #CBD5E1)',
+                          padding: '6px 12px',
+                          borderRadius: '8px',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          color: '#475569',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s'
+                        }}
+                      >
+                        {selectedProductCategories.length === PRODUCT_CATEGORIES.length ? 'Deselect All' : 'Select All'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px', marginBottom: '18px' }}>
+                    {PRODUCT_CATEGORIES.map(cat => {
+                      const isSelected = selectedProductCategories.includes(cat.label);
+                      return (
+                        <div
+                          key={cat.id}
+                          onClick={() => toggleProductCategory(cat.label)}
+                          style={{
+                            border: isSelected ? '2px solid #2563EB' : '1px solid var(--border-color, #E2E8F0)',
+                            background: isSelected ? '#EFF6FF' : 'var(--card-bg, white)',
+                            borderRadius: '14px',
+                            padding: '16px 18px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: '14px',
+                            transition: 'all 0.18s ease',
+                            boxShadow: isSelected ? '0 4px 12px rgba(37,99,235,0.08)' : 'none'
+                          }}
+                        >
+                          <div style={{
+                            width: '22px',
+                            height: '22px',
+                            borderRadius: '6px',
+                            border: isSelected ? '2px solid #2563EB' : '2px solid #CBD5E1',
+                            background: isSelected ? '#2563EB' : 'white',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                            marginTop: '2px',
+                            transition: 'all 0.15s'
+                          }}>
+                            {isSelected && <Check size={14} color="white" strokeWidth={3} />}
+                          </div>
+
+                          <div style={{ flex: 1 }}>
+                            <h4 style={{ fontSize: '15px', fontWeight: '700', color: isSelected ? '#1D4ED8' : 'var(--text-title)', margin: '0 0 4px 0', lineHeight: '1.3' }}>
+                              {cat.label}
+                            </h4>
+                            <p style={{ fontSize: '12px', color: isSelected ? '#475569' : 'var(--text-secondary)', margin: 0, lineHeight: '1.4' }}>
+                              {cat.desc}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div style={{ padding: '12px 16px', background: '#F8FAFC', borderRadius: '10px', border: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#64748B' }}>
+                    <CheckCircle2 size={16} color="#2563EB" />
+                    <span>Multiple selection enabled: Select one or more categories that apply to your product inventory.</span>
+                  </div>
+                </>
+              ) : offeringType === 'service' ? (
+                <>
+                  <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+                    <div>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#F0FDF4', color: '#16A34A', padding: '4px 12px', borderRadius: '16px', fontSize: '12px', fontWeight: '700', marginBottom: '8px' }}>
+                        <Building2 size={14} /> Step 3: Service Categories (Multiple Selection)
+                      </div>
+                      <h2 style={{ fontSize: '26px', fontWeight: '800', color: 'var(--text-title, #0F172A)', margin: '0 0 6px 0' }}>Select Service Categories</h2>
+                      <p style={{ fontSize: '14px', color: 'var(--text-secondary, #64748B)', margin: 0 }}>Select all the service categories that apply to your business (multiple selection allowed).</p>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '12px', fontWeight: '700', color: '#16A34A', background: '#F0FDF4', padding: '6px 14px', borderRadius: '20px', border: '1px solid #BBF7D0' }}>
+                        {selectedServiceCategories.length} Selected
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleSelectAllServiceCategories}
+                        style={{
+                          background: 'var(--card-bg, white)',
+                          border: '1px solid var(--border-color, #CBD5E1)',
+                          padding: '6px 12px',
+                          borderRadius: '8px',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          color: '#475569',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s'
+                        }}
+                      >
+                        {selectedServiceCategories.length === SERVICE_CATEGORIES.length ? 'Deselect All' : 'Select All'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px', marginBottom: '18px' }}>
+                    {SERVICE_CATEGORIES.map(cat => {
+                      const isSelected = selectedServiceCategories.includes(cat.label);
+                      return (
+                        <div
+                          key={cat.id}
+                          onClick={() => toggleServiceCategory(cat.label)}
+                          style={{
+                            border: isSelected ? '2px solid #16A34A' : '1px solid var(--border-color, #E2E8F0)',
+                            background: isSelected ? '#F0FDF4' : 'var(--card-bg, white)',
+                            borderRadius: '14px',
+                            padding: '16px 18px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: '14px',
+                            transition: 'all 0.18s ease',
+                            boxShadow: isSelected ? '0 4px 12px rgba(22,163,74,0.08)' : 'none'
+                          }}
+                        >
+                          <div style={{
+                            width: '22px',
+                            height: '22px',
+                            borderRadius: '6px',
+                            border: isSelected ? '2px solid #16A34A' : '2px solid #CBD5E1',
+                            background: isSelected ? '#16A34A' : 'white',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                            marginTop: '2px',
+                            transition: 'all 0.15s'
+                          }}>
+                            {isSelected && <Check size={14} color="white" strokeWidth={3} />}
+                          </div>
+
+                          <div style={{ flex: 1 }}>
+                            <h4 style={{ fontSize: '15px', fontWeight: '700', color: isSelected ? '#15803D' : 'var(--text-title)', margin: '0 0 4px 0', lineHeight: '1.3' }}>
+                              {cat.label}
+                            </h4>
+                            <p style={{ fontSize: '12px', color: isSelected ? '#475569' : 'var(--text-secondary)', margin: 0, lineHeight: '1.4' }}>
+                              {cat.desc}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div style={{ padding: '12px 16px', background: '#F8FAFC', borderRadius: '10px', border: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#64748B' }}>
+                    <CheckCircle2 size={16} color="#16A34A" />
+                    <span>Multiple selection enabled: Select one or more categories that apply to your service portfolio.</span>
+                  </div>
+                </>
+              ) : offeringType === 'both' ? (
+                <>
+                  <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+                    <div>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#F5F3FF', color: '#7C3AED', padding: '4px 12px', borderRadius: '16px', fontSize: '12px', fontWeight: '700', marginBottom: '8px' }}>
+                        <Building2 size={14} /> Step 3: Product & Service Categories (Multiple Selection)
+                      </div>
+                      <h2 style={{ fontSize: '26px', fontWeight: '800', color: 'var(--text-title, #0F172A)', margin: '0 0 6px 0' }}>Select Business Categories</h2>
+                      <p style={{ fontSize: '14px', color: 'var(--text-secondary, #64748B)', margin: 0 }}>Select all the product & service categories that apply to your business (multiple selection allowed).</p>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '12px', fontWeight: '700', color: '#7C3AED', background: '#F5F3FF', padding: '6px 14px', borderRadius: '20px', border: '1px solid #DDD6FE' }}>
+                        {selectedBothCategories.length} Selected
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleSelectAllBothCategories}
+                        style={{
+                          background: 'var(--card-bg, white)',
+                          border: '1px solid var(--border-color, #CBD5E1)',
+                          padding: '6px 12px',
+                          borderRadius: '8px',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          color: '#475569',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s'
+                        }}
+                      >
+                        {selectedBothCategories.length === BOTH_CATEGORIES.length ? 'Deselect All' : 'Select All'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px', marginBottom: '18px' }}>
+                    {BOTH_CATEGORIES.map(cat => {
+                      const isSelected = selectedBothCategories.includes(cat.label);
+                      return (
+                        <div
+                          key={cat.id}
+                          onClick={() => toggleBothCategory(cat.label)}
+                          style={{
+                            border: isSelected ? '2px solid #7C3AED' : '1px solid var(--border-color, #E2E8F0)',
+                            background: isSelected ? '#F5F3FF' : 'var(--card-bg, white)',
+                            borderRadius: '14px',
+                            padding: '16px 18px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: '14px',
+                            transition: 'all 0.18s ease',
+                            boxShadow: isSelected ? '0 4px 12px rgba(124,58,237,0.08)' : 'none'
+                          }}
+                        >
+                          <div style={{
+                            width: '22px',
+                            height: '22px',
+                            borderRadius: '6px',
+                            border: isSelected ? '2px solid #7C3AED' : '2px solid #CBD5E1',
+                            background: isSelected ? '#7C3AED' : 'white',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                            marginTop: '2px',
+                            transition: 'all 0.15s'
+                          }}>
+                            {isSelected && <Check size={14} color="white" strokeWidth={3} />}
+                          </div>
+
+                          <div style={{ flex: 1 }}>
+                            <h4 style={{ fontSize: '15px', fontWeight: '700', color: isSelected ? '#6D28D9' : 'var(--text-title)', margin: '0 0 4px 0', lineHeight: '1.3' }}>
+                              {cat.label}
+                            </h4>
+                            <p style={{ fontSize: '12px', color: isSelected ? '#475569' : 'var(--text-secondary)', margin: 0, lineHeight: '1.4' }}>
+                              {cat.desc}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div style={{ padding: '12px 16px', background: '#F8FAFC', borderRadius: '10px', border: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#64748B' }}>
+                    <CheckCircle2 size={16} color="#7C3AED" />
+                    <span>Multiple selection enabled: Select one or more categories that apply to your combined product & service business.</span>
+                  </div>
+                </>
+              ) : offeringType === 'institution' ? (
+                <>
+                  <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+                    <div>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#FEF3C7', color: '#B45309', padding: '4px 12px', borderRadius: '16px', fontSize: '12px', fontWeight: '700', marginBottom: '8px' }}>
+                        <Landmark size={14} /> Step 3: Institution & Organization Categories (Multiple Selection)
+                      </div>
+                      <h2 style={{ fontSize: '26px', fontWeight: '800', color: 'var(--text-title, #0F172A)', margin: '0 0 6px 0' }}>Select Business Categories</h2>
+                      <p style={{ fontSize: '14px', color: 'var(--text-secondary, #64748B)', margin: 0 }}>Select all the institution and organization categories that apply to your entity (multiple selection allowed).</p>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '12px', fontWeight: '700', color: '#B45309', background: '#FEF3C7', padding: '6px 14px', borderRadius: '20px', border: '1px solid #FDE68A' }}>
+                        {selectedInstitutionCategories.length} Selected
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleSelectAllInstitutionCategories}
+                        style={{
+                          background: 'var(--card-bg, white)',
+                          border: '1px solid var(--border-color, #CBD5E1)',
+                          padding: '6px 12px',
+                          borderRadius: '8px',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          color: '#475569',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s'
+                        }}
+                      >
+                        {selectedInstitutionCategories.length === INSTITUTION_CATEGORIES.length ? 'Deselect All' : 'Select All'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px', marginBottom: '18px' }}>
+                    {INSTITUTION_CATEGORIES.map(cat => {
+                      const isSelected = selectedInstitutionCategories.includes(cat.label);
+                      return (
+                        <div
+                          key={cat.id}
+                          onClick={() => toggleInstitutionCategory(cat.label)}
+                          style={{
+                            border: isSelected ? '2px solid #D97706' : '1px solid var(--border-color, #E2E8F0)',
+                            background: isSelected ? '#FFFBEB' : 'var(--card-bg, white)',
+                            borderRadius: '14px',
+                            padding: '16px 18px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: '14px',
+                            transition: 'all 0.18s ease',
+                            boxShadow: isSelected ? '0 4px 12px rgba(217,119,6,0.08)' : 'none'
+                          }}
+                        >
+                          <div style={{
+                            width: '22px',
+                            height: '22px',
+                            borderRadius: '6px',
+                            border: isSelected ? '2px solid #D97706' : '2px solid #CBD5E1',
+                            background: isSelected ? '#D97706' : 'white',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                            marginTop: '2px',
+                            transition: 'all 0.15s'
+                          }}>
+                            {isSelected && <Check size={14} color="white" strokeWidth={3} />}
+                          </div>
+
+                          <div style={{ flex: 1 }}>
+                            <h4 style={{ fontSize: '15px', fontWeight: '700', color: isSelected ? '#B45309' : 'var(--text-title)', margin: '0 0 4px 0', lineHeight: '1.3' }}>
+                              {cat.label}
+                            </h4>
+                            <p style={{ fontSize: '12px', color: isSelected ? '#475569' : 'var(--text-secondary)', margin: 0, lineHeight: '1.4' }}>
+                              {cat.desc}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div style={{ padding: '12px 16px', background: '#F8FAFC', borderRadius: '10px', border: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#64748B' }}>
+                    <CheckCircle2 size={16} color="#D97706" />
+                    <span>Multiple selection enabled: Select one or more categories that apply to your institution or organization.</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ marginBottom: '28px' }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#EFF6FF', color: '#2563EB', padding: '4px 12px', borderRadius: '16px', fontSize: '12px', fontWeight: '700', marginBottom: '8px' }}>
+                      <Building2 size={14} /> Step 3: Operational Model
+                    </div>
+                    <h2 style={{ fontSize: '26px', fontWeight: '800', color: 'var(--text-title, #0F172A)', margin: '0 0 6px 0' }}>Select Business Category</h2>
+                    <p style={{ fontSize: '14px', color: 'var(--text-secondary, #64748B)', margin: 0 }}>How does your organization operate in the supply chain?</p>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '20px' }}>
+                    {BUSINESS_CATEGORIES.map(cat => {
+                      const isSelected = category === cat.id;
+                      return (
+                        <div
+                          key={cat.id}
+                          onClick={() => setCategory(cat.id)}
+                          style={{
+                            border: isSelected ? '2px solid #2563EB' : '1px solid var(--border-color, #E2E8F0)',
+                            background: isSelected ? 'rgba(37,99,235,0.03)' : 'var(--card-bg, white)',
+                            borderRadius: '14px',
+                            padding: '18px 20px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          <div>
+                            <h4 style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-title)', margin: '0 0 4px 0' }}>{cat.label}</h4>
+                            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>{cat.desc}</p>
+                          </div>
+                          <div style={{
+                            width: '22px',
+                            height: '22px',
+                            borderRadius: '50%',
+                            border: isSelected ? '6px solid #2563EB' : '2px solid #CBD5E1',
+                            background: 'white'
+                          }}></div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {category === 'others' && (
+                    <div style={{ marginTop: '16px', padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-title)', marginBottom: '6px' }}>
+                        Specify Your Business Category <span style={{ color: '#EF4444' }}>*</span>
+                      </label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. Research & Development / Specialized Fabrication" 
+                        value={customCategory}
+                        onChange={(e) => setCustomCategory(e.target.value)}
+                        style={{ width: '100%', padding: '11px 14px', borderRadius: '8px', border: '1px solid var(--border-color, #E2E8F0)', background: 'white', color: 'var(--text-title)', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -1403,89 +2004,248 @@ const Onboarding = () => {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '24px' }}>
                 {/* 1. PAN Card */}
-                <div style={{ padding: '18px', borderRadius: '12px', border: '1px solid var(--border-color, #E2E8F0)', background: 'var(--bg-color, #F8FAFC)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                    <span style={{ fontWeight: '700', fontSize: '14px', color: 'var(--text-title)' }}>1. Business / Proprietor PAN Card</span>
-                    {uploadedFiles.pan && <span style={{ fontSize: '12px', color: '#16A34A', fontWeight: '600' }}>✓ {uploadedFiles.pan}</span>}
+                <div style={{ padding: '20px', borderRadius: '14px', border: '1px solid var(--border-color, #E2E8F0)', background: 'var(--bg-color, #F8FAFC)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontWeight: '700', fontSize: '15px', color: 'var(--text-title)' }}>1. Business / Proprietor PAN Card</span>
+                      <span style={{ fontSize: '11px', fontWeight: '700', background: '#EFF6FF', color: '#2563EB', padding: '2px 8px', borderRadius: '12px' }}>Mandatory</span>
+                    </div>
+                    {documents.panFileUrl && (
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#16A34A', fontWeight: '600', background: '#F0FDF4', padding: '3px 10px', borderRadius: '8px', border: '1px solid #BBF7D0' }}>
+                        <CheckCircle2 size={13} /> Attached: {documents.panFileName || uploadedFiles.pan || 'PAN Document'}
+                      </div>
+                    )}
                   </div>
-                  <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                    <input 
-                      type="text" 
-                      placeholder="e.g. ABCDE1234F" 
-                      maxLength={10}
-                      value={documents.pan}
-                      onChange={(e) => setDocuments({ ...documents, pan: e.target.value.toUpperCase() })}
-                      style={{ flex: 1, minWidth: '200px', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', background: 'white', color: 'var(--text-title)', outline: 'none', fontSize: '14px' }}
-                    />
-                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '10px 16px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600', color: '#475569' }}>
-                      <Upload size={14} /> Upload File
-                      <input type="file" accept=".pdf,image/*" onChange={(e) => handleFileUpload('pan', e)} style={{ display: 'none' }} />
-                    </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748B', marginBottom: '4px', textTransform: 'uppercase' }}>Registration / Card Number</label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. ABCDE1234F" 
+                        maxLength={10}
+                        value={documents.pan}
+                        onChange={(e) => setDocuments({ ...documents, pan: e.target.value.toUpperCase() })}
+                        style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', background: 'white', color: 'var(--text-title)', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748B', marginBottom: '4px', textTransform: 'uppercase' }}>Type</label>
+                      <select
+                        value={documents.panType || 'ID Card'}
+                        onChange={(e) => setDocuments({ ...documents, panType: e.target.value })}
+                        style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', background: 'white', color: 'var(--text-title)', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }}
+                      >
+                        <option value="ID Card">ID Card</option>
+                        <option value="Certificate">Certificate</option>
+                        <option value="Registration">Registration</option>
+                        <option value="License">License</option>
+                        <option value="Contract">Contract</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748B', marginBottom: '4px', textTransform: 'uppercase' }}>Expiry Date (Optional)</label>
+                      <input 
+                        type="date"
+                        value={documents.panExpiryDate || ''}
+                        onChange={(e) => setDocuments({ ...documents, panExpiryDate: e.target.value })}
+                        style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', background: 'white', color: 'var(--text-title)', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748B', marginBottom: '4px', textTransform: 'uppercase' }}>Upload Document</label>
+                      <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px 14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '8px', cursor: uploadingDocKey === 'pan' ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: '600', color: '#475569', height: '42px', boxSizing: 'border-box' }}>
+                        {uploadingDocKey === 'pan' ? (
+                          <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Uploading...</>
+                        ) : (
+                          <><Upload size={14} color="#2563EB" /> {documents.panFileUrl ? 'Change File' : 'Upload Document'}</>
+                        )}
+                        <input type="file" accept=".pdf,image/*,.doc,.docx" disabled={uploadingDocKey === 'pan'} onChange={(e) => handleOnboardingFileUpload('pan', e)} style={{ display: 'none' }} />
+                      </label>
+                    </div>
                   </div>
                 </div>
 
                 {/* 2. GSTIN Certificate */}
-                <div style={{ padding: '18px', borderRadius: '12px', border: '1px solid var(--border-color, #E2E8F0)', background: 'var(--bg-color, #F8FAFC)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                    <span style={{ fontWeight: '700', fontSize: '14px', color: 'var(--text-title)' }}>2. GSTIN Certificate (Optional)</span>
-                    {uploadedFiles.gstin && <span style={{ fontSize: '12px', color: '#16A34A', fontWeight: '600' }}>✓ {uploadedFiles.gstin}</span>}
+                <div style={{ padding: '20px', borderRadius: '14px', border: '1px solid var(--border-color, #E2E8F0)', background: 'var(--bg-color, #F8FAFC)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontWeight: '700', fontSize: '15px', color: 'var(--text-title)' }}>2. GSTIN Certificate</span>
+                      <span style={{ fontSize: '11px', fontWeight: '600', background: '#F1F5F9', color: '#64748B', padding: '2px 8px', borderRadius: '12px' }}>Optional</span>
+                    </div>
+                    {documents.gstinFileUrl && (
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#16A34A', fontWeight: '600', background: '#F0FDF4', padding: '3px 10px', borderRadius: '8px', border: '1px solid #BBF7D0' }}>
+                        <CheckCircle2 size={13} /> Attached: {documents.gstinFileName || uploadedFiles.gstin || 'GSTIN Document'}
+                      </div>
+                    )}
                   </div>
-                  <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                    <input 
-                      type="text" 
-                      placeholder="e.g. 29ABCDE1234F1Z5" 
-                      maxLength={15}
-                      value={documents.gstin}
-                      onChange={(e) => setDocuments({ ...documents, gstin: e.target.value.toUpperCase() })}
-                      style={{ flex: 1, minWidth: '200px', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', background: 'white', color: 'var(--text-title)', outline: 'none', fontSize: '14px' }}
-                    />
-                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '10px 16px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600', color: '#475569' }}>
-                      <Upload size={14} /> Upload File
-                      <input type="file" accept=".pdf,image/*" onChange={(e) => handleFileUpload('gstin', e)} style={{ display: 'none' }} />
-                    </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748B', marginBottom: '4px', textTransform: 'uppercase' }}>Registration / GSTIN Number</label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. 29ABCDE1234F1Z5" 
+                        maxLength={15}
+                        value={documents.gstin}
+                        onChange={(e) => setDocuments({ ...documents, gstin: e.target.value.toUpperCase() })}
+                        style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', background: 'white', color: 'var(--text-title)', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748B', marginBottom: '4px', textTransform: 'uppercase' }}>Type</label>
+                      <select
+                        value={documents.gstinType || 'Certificate'}
+                        onChange={(e) => setDocuments({ ...documents, gstinType: e.target.value })}
+                        style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', background: 'white', color: 'var(--text-title)', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }}
+                      >
+                        <option value="Certificate">Certificate</option>
+                        <option value="Registration">Registration</option>
+                        <option value="Tax Document">Tax Document</option>
+                        <option value="License">License</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748B', marginBottom: '4px', textTransform: 'uppercase' }}>Expiry Date (Optional)</label>
+                      <input 
+                        type="date"
+                        value={documents.gstinExpiryDate || ''}
+                        onChange={(e) => setDocuments({ ...documents, gstinExpiryDate: e.target.value })}
+                        style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', background: 'white', color: 'var(--text-title)', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748B', marginBottom: '4px', textTransform: 'uppercase' }}>Upload Document</label>
+                      <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px 14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '8px', cursor: uploadingDocKey === 'gstin' ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: '600', color: '#475569', height: '42px', boxSizing: 'border-box' }}>
+                        {uploadingDocKey === 'gstin' ? (
+                          <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Uploading...</>
+                        ) : (
+                          <><Upload size={14} color="#2563EB" /> {documents.gstinFileUrl ? 'Change File' : 'Upload Document'}</>
+                        )}
+                        <input type="file" accept=".pdf,image/*,.doc,.docx" disabled={uploadingDocKey === 'gstin'} onChange={(e) => handleOnboardingFileUpload('gstin', e)} style={{ display: 'none' }} />
+                      </label>
+                    </div>
                   </div>
                 </div>
 
                 {/* 3. MSME / Udyam */}
-                <div style={{ padding: '18px', borderRadius: '12px', border: '1px solid var(--border-color, #E2E8F0)', background: 'var(--bg-color, #F8FAFC)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                    <span style={{ fontWeight: '700', fontSize: '14px', color: 'var(--text-title)' }}>3. MSME / Udyam Registration (Optional)</span>
-                    {uploadedFiles.msme && <span style={{ fontSize: '12px', color: '#16A34A', fontWeight: '600' }}>✓ {uploadedFiles.msme}</span>}
+                <div style={{ padding: '20px', borderRadius: '14px', border: '1px solid var(--border-color, #E2E8F0)', background: 'var(--bg-color, #F8FAFC)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontWeight: '700', fontSize: '15px', color: 'var(--text-title)' }}>3. MSME / Udyam Registration</span>
+                      <span style={{ fontSize: '11px', fontWeight: '600', background: '#F1F5F9', color: '#64748B', padding: '2px 8px', borderRadius: '12px' }}>Optional</span>
+                    </div>
+                    {documents.msmeFileUrl && (
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#16A34A', fontWeight: '600', background: '#F0FDF4', padding: '3px 10px', borderRadius: '8px', border: '1px solid #BBF7D0' }}>
+                        <CheckCircle2 size={13} /> Attached: {documents.msmeFileName || uploadedFiles.msme || 'MSME Document'}
+                      </div>
+                    )}
                   </div>
-                  <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                    <input 
-                      type="text" 
-                      placeholder="e.g. UDYAM-KR-03-0012345" 
-                      value={documents.msme}
-                      onChange={(e) => setDocuments({ ...documents, msme: e.target.value.toUpperCase() })}
-                      style={{ flex: 1, minWidth: '200px', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', background: 'white', color: 'var(--text-title)', outline: 'none', fontSize: '14px' }}
-                    />
-                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '10px 16px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600', color: '#475569' }}>
-                      <Upload size={14} /> Upload File
-                      <input type="file" accept=".pdf,image/*" onChange={(e) => handleFileUpload('msme', e)} style={{ display: 'none' }} />
-                    </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748B', marginBottom: '4px', textTransform: 'uppercase' }}>Registration Number</label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. UDYAM-KR-03-0012345" 
+                        value={documents.msme}
+                        onChange={(e) => setDocuments({ ...documents, msme: e.target.value.toUpperCase() })}
+                        style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', background: 'white', color: 'var(--text-title)', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748B', marginBottom: '4px', textTransform: 'uppercase' }}>Type</label>
+                      <select
+                        value={documents.msmeType || 'Registration'}
+                        onChange={(e) => setDocuments({ ...documents, msmeType: e.target.value })}
+                        style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', background: 'white', color: 'var(--text-title)', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }}
+                      >
+                        <option value="Registration">Registration</option>
+                        <option value="Certificate">Certificate</option>
+                        <option value="License">License</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748B', marginBottom: '4px', textTransform: 'uppercase' }}>Expiry Date (Optional)</label>
+                      <input 
+                        type="date"
+                        value={documents.msmeExpiryDate || ''}
+                        onChange={(e) => setDocuments({ ...documents, msmeExpiryDate: e.target.value })}
+                        style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', background: 'white', color: 'var(--text-title)', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748B', marginBottom: '4px', textTransform: 'uppercase' }}>Upload Document</label>
+                      <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px 14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '8px', cursor: uploadingDocKey === 'msme' ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: '600', color: '#475569', height: '42px', boxSizing: 'border-box' }}>
+                        {uploadingDocKey === 'msme' ? (
+                          <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Uploading...</>
+                        ) : (
+                          <><Upload size={14} color="#2563EB" /> {documents.msmeFileUrl ? 'Change File' : 'Upload Document'}</>
+                        )}
+                        <input type="file" accept=".pdf,image/*,.doc,.docx" disabled={uploadingDocKey === 'msme'} onChange={(e) => handleOnboardingFileUpload('msme', e)} style={{ display: 'none' }} />
+                      </label>
+                    </div>
                   </div>
                 </div>
 
                 {/* 4. Food License (FSSAI) */}
-                <div style={{ padding: '18px', borderRadius: '12px', border: '1px solid var(--border-color, #E2E8F0)', background: 'var(--bg-color, #F8FAFC)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                    <span style={{ fontWeight: '700', fontSize: '14px', color: 'var(--text-title)' }}>4. Food License (FSSAI) (For Food/Grocery/Restaurant)</span>
-                    {uploadedFiles.fssai && <span style={{ fontSize: '12px', color: '#16A34A', fontWeight: '600' }}>✓ {uploadedFiles.fssai}</span>}
+                <div style={{ padding: '20px', borderRadius: '14px', border: '1px solid var(--border-color, #E2E8F0)', background: 'var(--bg-color, #F8FAFC)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontWeight: '700', fontSize: '15px', color: 'var(--text-title)' }}>4. Food License (FSSAI)</span>
+                      <span style={{ fontSize: '11px', fontWeight: '600', background: '#F1F5F9', color: '#64748B', padding: '2px 8px', borderRadius: '12px' }}>Optional</span>
+                    </div>
+                    {documents.fssaiFileUrl && (
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#16A34A', fontWeight: '600', background: '#F0FDF4', padding: '3px 10px', borderRadius: '8px', border: '1px solid #BBF7D0' }}>
+                        <CheckCircle2 size={13} /> Attached: {documents.fssaiFileName || uploadedFiles.fssai || 'FSSAI Document'}
+                      </div>
+                    )}
                   </div>
-                  <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                    <input 
-                      type="text" 
-                      placeholder="e.g. 10019043000000" 
-                      maxLength={14}
-                      value={documents.fssai}
-                      onChange={(e) => setDocuments({ ...documents, fssai: e.target.value })}
-                      style={{ flex: 1, minWidth: '200px', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', background: 'white', color: 'var(--text-title)', outline: 'none', fontSize: '14px' }}
-                    />
-                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '10px 16px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600', color: '#475569' }}>
-                      <Upload size={14} /> Upload File
-                      <input type="file" accept=".pdf,image/*" onChange={(e) => handleFileUpload('fssai', e)} style={{ display: 'none' }} />
-                    </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748B', marginBottom: '4px', textTransform: 'uppercase' }}>License / Card Number</label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. 10019043000000" 
+                        maxLength={14}
+                        value={documents.fssai}
+                        onChange={(e) => setDocuments({ ...documents, fssai: e.target.value })}
+                        style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', background: 'white', color: 'var(--text-title)', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748B', marginBottom: '4px', textTransform: 'uppercase' }}>Type</label>
+                      <select
+                        value={documents.fssaiType || 'License'}
+                        onChange={(e) => setDocuments({ ...documents, fssaiType: e.target.value })}
+                        style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', background: 'white', color: 'var(--text-title)', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }}
+                      >
+                        <option value="License">License</option>
+                        <option value="Registration">Registration</option>
+                        <option value="Certificate">Certificate</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748B', marginBottom: '4px', textTransform: 'uppercase' }}>Expiry Date (Optional)</label>
+                      <input 
+                        type="date"
+                        value={documents.fssaiExpiryDate || ''}
+                        onChange={(e) => setDocuments({ ...documents, fssaiExpiryDate: e.target.value })}
+                        style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', background: 'white', color: 'var(--text-title)', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748B', marginBottom: '4px', textTransform: 'uppercase' }}>Upload Document</label>
+                      <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px 14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '8px', cursor: uploadingDocKey === 'fssai' ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: '600', color: '#475569', height: '42px', boxSizing: 'border-box' }}>
+                        {uploadingDocKey === 'fssai' ? (
+                          <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Uploading...</>
+                        ) : (
+                          <><Upload size={14} color="#2563EB" /> {documents.fssaiFileUrl ? 'Change File' : 'Upload Document'}</>
+                        )}
+                        <input type="file" accept=".pdf,image/*,.doc,.docx" disabled={uploadingDocKey === 'fssai'} onChange={(e) => handleOnboardingFileUpload('fssai', e)} style={{ display: 'none' }} />
+                      </label>
+                    </div>
                   </div>
                 </div>
 
@@ -1494,20 +2254,20 @@ const Onboarding = () => {
                   <div 
                     key={doc.id} 
                     style={{ 
-                      padding: '18px', 
-                      borderRadius: '12px', 
+                      padding: '20px', 
+                      borderRadius: '14px', 
                       border: '1px solid var(--border-color, #E2E8F0)', 
                       background: 'var(--bg-color, #F8FAFC)' 
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                      <span style={{ fontWeight: '700', fontSize: '14px', color: 'var(--text-title)' }}>
-                        {4 + index + 1}. {doc.name.trim() ? doc.name : `Custom Document #${index + 1}`}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                      <span style={{ fontWeight: '700', fontSize: '15px', color: 'var(--text-title)' }}>
+                        {4 + index + 1}. {doc.name.trim() ? doc.name : `Additional Document #${index + 1}`}
                       </span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        {doc.fileName && (
-                          <span style={{ fontSize: '12px', color: '#16A34A', fontWeight: '600' }}>
-                            ✓ {doc.fileName}
+                        {doc.fileUrl && (
+                          <span style={{ fontSize: '12px', color: '#16A34A', fontWeight: '600', background: '#F0FDF4', padding: '3px 10px', borderRadius: '8px', border: '1px solid #BBF7D0', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <CheckCircle2 size={13} /> {doc.fileName || 'Attached'}
                           </span>
                         )}
                         <button
@@ -1533,25 +2293,65 @@ const Onboarding = () => {
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                      <input 
-                        type="text" 
-                        placeholder="Document Name (e.g. Trade License, Drug License, Fire NOC)" 
-                        value={doc.name}
-                        onChange={(e) => updateCustomDoc(doc.id, 'name', e.target.value)}
-                        style={{ flex: 1, minWidth: '200px', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', background: 'white', color: 'var(--text-title)', outline: 'none', fontSize: '14px' }}
-                      />
-                      <input 
-                        type="text" 
-                        placeholder="Registration / Certificate Number" 
-                        value={doc.number}
-                        onChange={(e) => updateCustomDoc(doc.id, 'number', e.target.value)}
-                        style={{ flex: 1, minWidth: '200px', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', background: 'white', color: 'var(--text-title)', outline: 'none', fontSize: '14px' }}
-                      />
-                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '10px 16px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600', color: '#475569', whiteSpace: 'nowrap' }}>
-                        <Upload size={14} /> Upload File
-                        <input type="file" accept=".pdf,image/*" onChange={(e) => handleCustomFileUpload(doc.id, e)} style={{ display: 'none' }} />
-                      </label>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748B', marginBottom: '4px', textTransform: 'uppercase' }}>Document Title</label>
+                        <input 
+                          type="text" 
+                          placeholder="e.g. Trade License, Fire NOC, Partnership Deed" 
+                          value={doc.name}
+                          onChange={(e) => updateCustomDoc(doc.id, 'name', e.target.value)}
+                          style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', background: 'white', color: 'var(--text-title)', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748B', marginBottom: '4px', textTransform: 'uppercase' }}>Type</label>
+                        <select
+                          value={doc.type || 'Registration'}
+                          onChange={(e) => updateCustomDoc(doc.id, 'type', e.target.value)}
+                          style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', background: 'white', color: 'var(--text-title)', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }}
+                        >
+                          <option value="Contract">Contract</option>
+                          <option value="Invoice">Invoice</option>
+                          <option value="Receipt">Receipt</option>
+                          <option value="Certificate">Certificate</option>
+                          <option value="Registration">Registration</option>
+                          <option value="License">License</option>
+                          <option value="ID Card">ID Card</option>
+                          <option value="Report">Report</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748B', marginBottom: '4px', textTransform: 'uppercase' }}>Registration / Card Number</label>
+                        <input 
+                          type="text" 
+                          placeholder="Registration / Certificate / Card Number" 
+                          value={doc.number}
+                          onChange={(e) => updateCustomDoc(doc.id, 'number', e.target.value)}
+                          style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', background: 'white', color: 'var(--text-title)', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748B', marginBottom: '4px', textTransform: 'uppercase' }}>Expiry Date (Optional)</label>
+                        <input 
+                          type="date" 
+                          value={doc.expiryDate || ''}
+                          onChange={(e) => updateCustomDoc(doc.id, 'expiryDate', e.target.value)}
+                          style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', background: 'white', color: 'var(--text-title)', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }}
+                        />
+                      </div>
+                      <div style={{ gridColumn: '1 / -1' }}>
+                        <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748B', marginBottom: '4px', textTransform: 'uppercase' }}>Upload Document</label>
+                        <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px 14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '8px', cursor: uploadingDocKey === String(doc.id) ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: '600', color: '#475569', height: '42px', boxSizing: 'border-box' }}>
+                          {uploadingDocKey === String(doc.id) ? (
+                            <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Uploading...</>
+                          ) : (
+                            <><Upload size={14} color="#2563EB" /> {doc.fileUrl ? 'Change Document File' : 'Upload Document File'}</>
+                          )}
+                          <input type="file" accept=".pdf,image/*,.doc,.docx" disabled={uploadingDocKey === String(doc.id)} onChange={(e) => handleOnboardingFileUpload(doc.id, e, true)} style={{ display: 'none' }} />
+                        </label>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -1579,7 +2379,7 @@ const Onboarding = () => {
                   onMouseOver={(e) => e.currentTarget.style.background = 'rgba(37,99,235,0.08)'}
                   onMouseOut={(e) => e.currentTarget.style.background = 'rgba(37,99,235,0.03)'}
                 >
-                  <Plus size={18} /> Add New Document (Name, Number & Upload)
+                  <Plus size={18} /> Add New Document (Title, Type, Number & Upload)
                 </button>
               </div>
 
@@ -1726,81 +2526,87 @@ const Onboarding = () => {
               </div>
 
               {/* Order Breakdown / Billing Summary */}
-              <div style={{ 
-                background: '#F8FAFC', 
-                border: '1px solid #E2E8F0', 
-                borderRadius: '14px', 
-                padding: '16px 20px', 
-                marginBottom: '28px' 
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', paddingBottom: '10px', borderBottom: '1px solid #E2E8F0' }}>
-                  <div>
-                    <span style={{ fontSize: '14px', fontWeight: '700', color: '#1E293B' }}>{activePlan.title}</span>
-                    <span style={{ fontSize: '12px', color: '#64748B', marginLeft: '8px' }}>
-                      ({billingCycle === 'Annual' ? 'Annual Subscription • 12 Months' : 'Monthly Subscription • 1 Month'})
-                    </span>
-                  </div>
-                  <div style={{ fontSize: '13px', fontWeight: '600', color: '#2563EB' }}>
-                    {billingCycle === 'Annual' 
-                      ? (activePlan.discountPercent > 0 ? `${activePlan.discountPercent}% Discount Applied` : 'Standard 12-Month Rate') 
-                      : 'Standard Monthly Rate'}
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', color: '#475569' }}>
-                  {billingCycle === 'Annual' ? (
-                    <>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span>Base 12-Month Rate (₹{activePlan.monthlyAmount.toLocaleString()} × 12):</span>
-                        <span style={{ fontWeight: '500' }}>₹{activePlan.fullAnnual.toLocaleString()}</span>
-                      </div>
-                      {activePlan.discountPercent > 0 ? (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#16A34A', fontWeight: '600' }}>
-                          <span>Annual Special Discount ({activePlan.discountPercent}% OFF):</span>
-                          <span>-₹{activePlan.savings.toLocaleString()}</span>
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748B', fontSize: '12px' }}>
-                          <span>Annual Discount:</span>
-                          <span>No discount configured (Full amount payable)</span>
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>Base 1-Month Plan Rate:</span>
-                      <span style={{ fontWeight: '500' }}>₹{activePlan.monthlyAmount.toLocaleString()}</span>
+              {activePlan ? (
+                <div style={{ 
+                  background: '#F8FAFC', 
+                  border: '1px solid #E2E8F0', 
+                  borderRadius: '14px', 
+                  padding: '16px 20px', 
+                  marginBottom: '28px' 
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', paddingBottom: '10px', borderBottom: '1px solid #E2E8F0' }}>
+                    <div>
+                      <span style={{ fontSize: '14px', fontWeight: '700', color: '#1E293B' }}>{activePlan.title}</span>
+                      <span style={{ fontSize: '12px', color: '#64748B', marginLeft: '8px' }}>
+                        ({billingCycle === 'Annual' ? 'Annual Subscription • 12 Months' : 'Monthly Subscription • 1 Month'})
+                      </span>
                     </div>
-                  )}
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '4px', borderTop: '1px dashed #E2E8F0' }}>
-                    <span>Plan Subtotal:</span>
-                    <span style={{ fontWeight: '600', color: '#0F172A' }}>₹{activePlan.amount.toLocaleString()}</span>
+                    <div style={{ fontSize: '13px', fontWeight: '600', color: '#2563EB' }}>
+                      {billingCycle === 'Annual' 
+                        ? (activePlan.discountPercent > 0 ? `${activePlan.discountPercent}% Discount Applied` : 'Standard 12-Month Rate') 
+                        : 'Standard Monthly Rate'}
+                    </div>
                   </div>
 
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Goods & Services Tax (GST 18%):</span>
-                    <span style={{ fontWeight: '500' }}>₹{taxAmount.toLocaleString()}</span>
-                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', color: '#475569' }}>
+                    {billingCycle === 'Annual' ? (
+                      <>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span>Base 12-Month Rate (₹{activePlan.monthlyAmount.toLocaleString()} × 12):</span>
+                          <span style={{ fontWeight: '500' }}>₹{activePlan.fullAnnual.toLocaleString()}</span>
+                        </div>
+                        {activePlan.discountPercent > 0 ? (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#16A34A', fontWeight: '600' }}>
+                            <span>Annual Special Discount ({activePlan.discountPercent}% OFF):</span>
+                            <span>-₹{activePlan.savings.toLocaleString()}</span>
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748B', fontSize: '12px' }}>
+                            <span>Annual Discount:</span>
+                            <span>No discount configured (Full amount payable)</span>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>Base 1-Month Plan Rate:</span>
+                        <span style={{ fontWeight: '500' }}>₹{activePlan.monthlyAmount.toLocaleString()}</span>
+                      </div>
+                    )}
 
-                  <div style={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    fontSize: '16px', 
-                    fontWeight: '800', 
-                    color: '#0F172A', 
-                    borderTop: '2px solid #E2E8F0', 
-                    paddingTop: '10px', 
-                    marginTop: '2px' 
-                  }}>
-                    <span>Total Amount Payable:</span>
-                    <span style={{ color: '#2563EB' }}>₹{grandTotal.toLocaleString()}</span>
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      fontSize: '16px', 
+                      fontWeight: '800', 
+                      color: '#0F172A', 
+                      borderTop: '1px dashed #E2E8F0', 
+                      paddingTop: '10px', 
+                      marginTop: '4px' 
+                    }}>
+                      <span>Total Amount Payable:</span>
+                      <span style={{ color: '#2563EB' }}>₹{grandTotal.toLocaleString()}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div style={{ 
+                  background: '#F8FAFC', 
+                  border: '1px dashed #CBD5E1', 
+                  borderRadius: '14px', 
+                  padding: '24px 20px', 
+                  marginBottom: '28px',
+                  textAlign: 'center',
+                  color: '#64748B',
+                  fontSize: '14px'
+                }}>
+                  Please select one of the subscription tiers above to view the billing summary and payment options.
+                </div>
+              )}
 
               {/* Payment Methods */}
-              <div style={{ borderTop: '1px solid var(--border-color, #E2E8F0)', paddingTop: '24px' }}>
+              {activePlan && (
+                <div style={{ borderTop: '1px solid var(--border-color, #E2E8F0)', paddingTop: '24px' }}>
                 <h4 style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-title)', marginBottom: '16px' }}>Select Payment Method</h4>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', marginBottom: '24px' }}>
@@ -1855,7 +2661,7 @@ const Onboarding = () => {
                 {paymentMethod === 'upi_qr' && (
                   <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '24px', textAlign: 'center', marginBottom: '24px' }}>
                     <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-title)', marginBottom: '4px' }}>
-                      Scan QR to Pay Total: <span style={{ color: '#2563EB', fontSize: '18px' }}>₹{grandTotal.toLocaleString()}</span> (incl. 18% GST)
+                      Scan QR to Pay Total: <span style={{ color: '#2563EB', fontSize: '18px' }}>₹{grandTotal.toLocaleString()}</span>
                     </div>
                     <p style={{ fontSize: '12px', color: '#64748B', marginBottom: '16px' }}>Scan with any UPI app on your phone (Google Pay, PhonePe, Paytm, BHIM, Cred)</p>
 
@@ -2016,7 +2822,7 @@ const Onboarding = () => {
                 {paymentMethod === 'razorpay' && (
                   <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '24px', textAlign: 'center', marginBottom: '24px' }}>
                     <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-title)', marginBottom: '8px' }}>
-                      Total Payable: ₹{grandTotal.toLocaleString()} (incl. 18% GST)
+                      Total Payable: ₹{grandTotal.toLocaleString()}
                     </div>
                     <p style={{ fontSize: '13px', color: '#64748B', marginBottom: '18px' }}>
                       Official Razorpay Gateway supporting Credit/Debit Cards, NetBanking, UPI, and Mobile Wallets.
@@ -2045,6 +2851,7 @@ const Onboarding = () => {
                   </div>
                 )}
               </div>
+              )}
             </div>
           )}
 

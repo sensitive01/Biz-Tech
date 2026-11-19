@@ -1,0 +1,1049 @@
+================================================================================
+                    BIZTECH BACKEND API - FLUTTER DEVELOPER GUIDE
+================================================================================
+Version: 1.0.0
+Base URL (Local Development): http://localhost:5000
+Base URL (Android Emulator):  http://10.0.2.2:5000
+Base URL (iOS Simulator):     http://localhost:5000
+Base URL (Physical Device):   http://<YOUR_COMPUTER_LOCAL_IP>:5000
+Rendor URL : https://biztech-backend.onrender.com
+
+================================================================================
+1. AUTHENTICATION & HEADERS
+================================================================================
+Most protected endpoints require an Authorization header containing the JWT token
+obtained from the login or registration response:
+
+Headers:
+  Content-Type: application/json
+  Authorization: Bearer <JWT_TOKEN>
+
+For multipart file uploads (documents, receipts, payment proofs):
+  Headers:
+    Authorization: Bearer <JWT_TOKEN>  (if endpoint requires auth)
+  Body: multipart/form-data
+
+Note on Login:
+The login endpoint supports logging in with EITHER:
+  1) Email address + Password
+  2) 10-digit Phone number + Password
+
+
+================================================================================
+2. AUTHENTICATION & ONBOARDING ENDPOINTS (/api/auth)
+================================================================================
+
+[POST] /api/auth/register
+Desc: Register a new workspace owner account
+Auth: None
+Content-Type: application/json
+Request Body:
+{
+  "fullName": "John Doe",
+  "email": "owner@example.com",
+  "phone": "9876543210",       // Exactly 10 digits, must be globally unique
+  "password": "SecurePassword123",
+  "businessType": 1            // 1: Sole Operator, 2: Single Branch + Staff, 3: Multi-Branch, 4: Multi-Business
+}
+Response (200 OK):
+{
+  "token": "eyJhbGciOiJIUzI1NiIsIn...",
+  "user": {
+    "id": "67401a...",
+    "userId": "BT-1009",
+    "fullName": "John Doe",
+    "email": "owner@example.com",
+    "phone": "9876543210",
+    "businessType": 1,
+    "modules": ["sales", "expenses", "customers", "documents", "reminders"]
+  }
+}
+
+--------------------------------------------------------------------------------
+
+[POST] /api/auth/login
+Desc: Universal login for Workspace Owners, Businesses, Branches, Employees, and Investors
+Auth: None
+Content-Type: application/json
+Request Body (Email OR Phone):
+{
+  "email": "owner@example.com",  // Can pass email OR 10-digit phone number here
+  "password": "SecurePassword123"
+}
+OR directly:
+{
+  "phone": "9876543210",
+  "password": "SecurePassword123"
+}
+Response (200 OK):
+{
+  "token": "eyJhbGciOiJIUzI1NiIsIn...",
+  "requiresOnboarding": false,
+  "user": {
+    "id": "67401a...",
+    "userId": "BT-1009",
+    "fullName": "John Doe",
+    "email": "owner@example.com",
+    "role": "owner",            // "owner" | "business" | "branch" | "employee" | "investor"
+    "businessType": 1,
+    "businessName": "Acme Corp",
+    "isOnboardingCompleted": true,
+    "subscriptionStatus": "Active",
+    "modules": ["sales", "expenses", "customers", "documents", "reminders", "products_services", "inventory", "purchases"]
+  }
+}
+Note on Pending Approval:
+If user paid via UPI QR and admin hasn't approved yet, login returns 403:
+{
+  "message": "Your payment verification is pending admin approval...",
+  "isPendingApproval": true,
+  "subscriptionStatus": "Pending Approval",
+  "approvalDetails": {
+    "businessName": "Acme Corp",
+    "planName": "Tier 1: Sole Operator",
+    "amount": 1000,
+    "billingCycle": "Monthly",
+    "utrNumber": "432109876543",
+    "proofUrl": "https://res.cloudinary.com/..."
+  }
+}
+
+--------------------------------------------------------------------------------
+
+[POST] /api/auth/check-email
+Desc: Real-time verification if an email is already registered across any account tier
+Auth: None
+Content-Type: application/json
+Request Body:
+{
+  "email": "user@example.com"
+}
+Response (200 OK):
+{
+  "message": "Email is available"
+}
+Response (400 Bad Request if taken):
+{
+  "message": "This email address is already registered to a primary Workspace Owner account."
+}
+
+--------------------------------------------------------------------------------
+
+[POST] /api/auth/check-phone
+Desc: Real-time verification if a 10-digit phone number is already registered across any account tier
+Auth: None
+Content-Type: application/json
+Request Body:
+{
+  "phone": "9876543210"
+}
+Response (200 OK):
+{
+  "message": "Phone number is available",
+  "available": true
+}
+Response (400 Bad Request if taken):
+{
+  "message": "The phone number 9876543210 is already registered to another account.",
+  "taken": true
+}
+
+--------------------------------------------------------------------------------
+
+[POST] /api/auth/check-pan
+Desc: Verify if PAN number is already used in any business
+Auth: None
+Content-Type: application/json
+Request Body:
+{
+  "pan": "ABCDE1234F"
+}
+Response (200 OK):
+{
+  "exists": false,
+  "message": "PAN number is available."
+}
+
+--------------------------------------------------------------------------------
+
+[POST] /api/auth/onboarding
+Desc: Complete onboarding setup (Business Details, Categories, Documents, Payment/Subscription)
+Auth: Bearer Token Required
+Content-Type: application/json
+Request Body:
+{
+  "panNumber": "ABCDE1234F",
+  "ownerName": "John Doe",
+  "gstNumber": "29ABCDE1234F1Z5",   // Optional
+  "businessName": "Acme Technologies",
+  "address": "123 Main St, Bengaluru, Karnataka - 560001",
+  "phone": "9876543210",
+  "offeringType": "product",        // "product" | "service" | "both" | "institution"
+  "category": "Retail and General Trading",
+  "categories": ["Retail and General Trading", "Wholesale and Distribution"],
+  "subCategory": "Supermarket",
+  "documents": {
+    "pan": "ABCDE1234F",
+    "panType": "ID Card",
+    "panExpiryDate": "",
+    "panFileUrl": "https://res.cloudinary.com/.../pan.png",
+    "gstin": "29ABCDE1234F1Z5",
+    "gstinType": "Certificate",
+    "gstinFileUrl": "https://res.cloudinary.com/.../gst.pdf",
+    "customDocuments": [
+      {
+        "name": "Trade License",
+        "type": "License",
+        "number": "TL-999",
+        "expiryDate": "2027-12-31",
+        "fileUrl": "https://res.cloudinary.com/.../trade.pdf"
+      }
+    ]
+  },
+  "modules": ["sales", "expenses", "customers", "documents", "reminders", "products_services", "inventory", "purchases"],
+  "subscription": {
+    "planId": "tier1",
+    "planName": "Tier 1: Sole Operator",
+    "amount": 1000,
+    "billingCycle": "Monthly",      // "Monthly" | "Annual"
+    "paymentMethod": "UPI (Admin QR)", // "UPI (Admin QR)" | "Razorpay"
+    "transactionId": "432109876543"
+  },
+  // If paymentMethod is UPI (Admin QR), include paymentProof:
+  "paymentProof": {
+    "utrNumber": "432109876543",
+    "proofUrl": "https://res.cloudinary.com/.../proof.png",
+    "originalFileName": "screenshot.png"
+  }
+}
+Response (200 OK):
+{
+  "message": "Onboarding completed successfully!",
+  "isPendingApproval": true,        // true if paid via UPI QR, false if Razorpay
+  "user": { ... }
+}
+
+--------------------------------------------------------------------------------
+
+[GET] /api/auth/me
+Desc: Get current logged-in user details, active profile, modules, and role
+Auth: Bearer Token Required
+Response (200 OK):
+{
+  "_id": "67401a...",
+  "userId": "BT-1009",
+  "fullName": "John Doe",
+  "email": "owner@example.com",
+  "phone": "9876543210",
+  "role": "owner",
+  "businessType": 1,
+  "businessName": "Acme Technologies",
+  "isOnboardingCompleted": true,
+  "subscriptionStatus": "Active",
+  "modules": ["sales", "expenses", "customers", "documents", "reminders", "products_services", "inventory", "purchases"]
+}
+
+--------------------------------------------------------------------------------
+
+[PUT] /api/auth/profile
+Desc: Update personal / workspace profile info
+Auth: Bearer Token Required
+Content-Type: application/json
+Request Body:
+{
+  "fullName": "Johnathan Doe",
+  "businessName": "Acme Global",
+  "address": "456 Tech Park, Bengaluru",
+  "industry": "Software & Retail"
+}
+
+--------------------------------------------------------------------------------
+
+[PUT] /api/auth/change-password
+Desc: Change user password
+Auth: Bearer Token Required
+Content-Type: application/json
+Request Body:
+{
+  "currentPassword": "OldPassword123",
+  "newPassword": "NewPassword456"
+}
+
+
+================================================================================
+3. PAYMENT & SUBSCRIPTION GATEWAYS (/api/payment & /api/pricing)
+================================================================================
+
+[GET] /api/payment/config
+Desc: Get platform payment settings (Admin UPI ID for QR code + Razorpay Public Key)
+Auth: None
+Response (200 OK):
+{
+  "success": true,
+  "upiId": "biztech@upi",
+  "razorpayKeyId": "rzp_test_U18JZ6gYj3ozhP",
+  "currency": "INR"
+}
+
+--------------------------------------------------------------------------------
+
+[POST] /api/payment/upload-proof
+Desc: Upload payment screenshot / receipt image or PDF for UPI QR payment (Stored on Cloudinary)
+Auth: None (Public during onboarding)
+Content-Type: multipart/form-data
+Form Fields:
+  proof: <File (Image: JPG, PNG, WEBP or PDF)>
+Response (200 OK):
+{
+  "success": true,
+  "fileUrl": "https://res.cloudinary.com/mb2huqxv/image/upload/v.../proof-123.png",
+  "fileName": "biztech/payment-proofs/proof-123",
+  "originalName": "receipt.png",
+  "size": 154200,
+  "mimetype": "image/png"
+}
+
+--------------------------------------------------------------------------------
+
+[POST] /api/payment/create-order
+Desc: Create a Razorpay Order ID for online payment checkout
+Auth: None
+Content-Type: application/json
+Request Body:
+{
+  "amount": 1000,                  // Amount in INR (automatically converted to paise internally)
+  "currency": "INR",
+  "receipt": "rcpt_1795000000",
+  "notes": {
+    "plan": "Tier 1: Sole Operator",
+    "cycle": "Monthly",
+    "businessName": "Acme Technologies"
+  }
+}
+Response (200 OK):
+{
+  "success": true,
+  "orderId": "order_OxmN123456789",
+  "amount": 100000,                // in paise
+  "currency": "INR",
+  "keyId": "rzp_test_U18JZ6gYj3ozhP"
+}
+
+--------------------------------------------------------------------------------
+
+[POST] /api/payment/verify
+Desc: Verify HMAC-SHA256 signature after Razorpay mobile SDK checkout
+Auth: None
+Content-Type: application/json
+Request Body:
+{
+  "razorpay_order_id": "order_OxmN123456789",
+  "razorpay_payment_id": "pay_OxmN987654321",
+  "razorpay_signature": "e2c3498f7e..."
+}
+Response (200 OK):
+{
+  "success": true,
+  "message": "Razorpay payment successfully verified",
+  "paymentId": "pay_OxmN987654321",
+  "orderId": "order_OxmN123456789"
+}
+
+--------------------------------------------------------------------------------
+
+[GET] /api/pricing
+Desc: Fetch all public subscription pricing plans and tier structures
+Auth: None
+Response (200 OK): Array of Pricing Plan objects:
+[
+  {
+    "_id": "...",
+    "planId": "tier1",
+    "title": "Tier 1: Sole Operator",
+    "customerType": "Type 1: Sole Operator",
+    "price": 1000,
+    "annualDiscountPercent": 30,
+    "features": ["1 Business", "1 Branch", "Single Login", "Sales & Billing", "Expense Management"]
+  },
+  ...
+]
+
+
+================================================================================
+4. DOCUMENTS MANAGEMENT & CLOUDINARY UPLOADS (/api/documents)
+================================================================================
+
+[POST] /api/documents/upload
+Desc: Direct document / image upload endpoint (Uploads directly to Cloudinary folder 'biztech/documents')
+Auth: None / Bearer Token
+Content-Type: multipart/form-data
+Form Fields:
+  file: <File (PDF, PNG, JPG, JPEG, WEBP, DOC, DOCX)>
+Response (200 OK):
+{
+  "success": true,
+  "fileUrl": "https://res.cloudinary.com/mb2huqxv/image/upload/v.../sample-doc.png",
+  "fileName": "sample-doc.png",
+  "originalName": "sample-doc.png",
+  "publicId": "biztech/documents/sample-doc-12345",
+  "size": 71680,
+  "mimetype": "image/png"
+}
+
+--------------------------------------------------------------------------------
+
+[GET] /api/documents
+Desc: Fetch all documents for the authenticated workspace
+Auth: Bearer Token Required
+Response (200 OK):
+[
+  {
+    "_id": "67402a...",
+    "title": "Company PAN Card",
+    "type": "ID Card",            // "Invoice"|"Receipt"|"Contract"|"Report"|"License"|"Registration"|"Certificate"|"ID Card"|"Other"
+    "documentNumber": "ABCDE1234F", // Registration / Certificate / Card Number
+    "fileUrl": "https://res.cloudinary.com/mb2huqxv/image/upload/v.../pan.png",
+    "fileName": "pan_card.png",
+    "expiryDate": "2030-12-31T00:00:00.000Z",
+    "createdAt": "2026-11-18T12:00:00.000Z"
+  }
+]
+
+--------------------------------------------------------------------------------
+
+[POST] /api/documents
+Desc: Add a new document record (with optional file upload to Cloudinary)
+Auth: Bearer Token Required
+Content-Type: multipart/form-data OR application/json
+Fields:
+  title: "FSSAI Food License"
+  type: "License"
+  documentNumber: "10020030040050"
+  expiryDate: "2028-06-30"
+  file: <File> (Optional if fileUrl already provided)
+  fileUrl: "https://res.cloudinary.com/..." (Optional if file uploaded)
+Response (200 OK): Created Document object
+
+--------------------------------------------------------------------------------
+
+[PUT] /api/documents/:id
+Desc: Update an existing document record
+Auth: Bearer Token Required
+Content-Type: multipart/form-data OR application/json
+Fields: title, type, documentNumber, expiryDate, fileUrl, file
+
+--------------------------------------------------------------------------------
+
+[DELETE] /api/documents/:id
+Desc: Delete document and remove file from Cloudinary
+Auth: Bearer Token Required
+Response (200 OK): { "msg": "Deleted" }
+
+
+================================================================================
+5. PRODUCTS & SERVICES (/api/products)
+================================================================================
+
+[GET] /api/products
+Desc: Get all products and services
+Auth: Bearer Token Required
+Response (200 OK):
+[
+  {
+    "_id": "67403b...",
+    "name": "Wireless Bluetooth Headphones",
+    "itemType": "Product",         // "Product" | "Service"
+    "categoryId": { "_id": "...", "name": "Electronics" },
+    "subCategoryId": { "_id": "...", "name": "Audio Accessories" },
+    "price": 2499,
+    "cost": 1500,
+    "stock": 50,
+    "sku": "SKU-AUDIO-001",
+    "description": "Noise cancelling over-ear headphones",
+    "image": "https://res.cloudinary.com/..."
+  }
+]
+
+--------------------------------------------------------------------------------
+
+[POST] /api/products
+Desc: Create new product or service (Syncs into Inventory if itemType == 'Product')
+Auth: Bearer Token Required
+Content-Type: multipart/form-data OR application/json
+Fields:
+  name: "Web Development Package"
+  itemType: "Service"             // "Product" | "Service"
+  categoryId: "<categoryId>"
+  subCategoryId: "<subCategoryId>" // Optional
+  price: 25000
+  cost: 10000
+  stock: 0                        // 0 for services
+  sku: "SRV-WEB-01"
+  description: "Full stack web app development"
+  image: <File> (Optional)
+
+--------------------------------------------------------------------------------
+
+[PUT] /api/products/:id
+Desc: Update an existing product or service
+Auth: Bearer Token Required
+Content-Type: multipart/form-data OR application/json
+
+--------------------------------------------------------------------------------
+
+[DELETE] /api/products/:id
+Desc: Delete product/service
+Auth: Bearer Token Required
+
+
+================================================================================
+6. CATEGORIES & SUBCATEGORIES (/api/categories & /api/subcategories)
+================================================================================
+
+[GET] /api/categories
+Desc: Fetch all categories for tenant
+Auth: Bearer Token Required
+
+[POST] /api/categories
+Desc: Create new category
+Auth: Bearer Token Required
+Body (JSON or Multipart):
+{
+  "name": "Electronics",
+  "itemType": "Product",          // "Product" | "Service"
+  "transactionType": "both",      // "both" | "sales" | "purchases"
+  "description": "Electronic components and accessories"
+}
+
+[PUT] /api/categories/:id
+Desc: Update category
+
+[DELETE] /api/categories/:id
+Desc: Delete category
+
+--------------------------------------------------------------------------------
+
+[GET] /api/subcategories
+Desc: Fetch all subcategories
+Auth: Bearer Token Required
+
+[POST] /api/subcategories
+Desc: Create subcategory
+Body:
+{
+  "name": "Smartphones",
+  "categoryId": "<categoryId>",
+  "itemType": "Product",
+  "transactionType": "both"
+}
+
+[PUT] /api/subcategories/:id
+Desc: Update subcategory
+
+[DELETE] /api/subcategories/:id
+Desc: Delete subcategory
+
+
+================================================================================
+7. INVENTORY MANAGEMENT (/api/inventory)
+================================================================================
+
+[GET] /api/inventory
+Desc: Fetch current inventory stock records
+Auth: Bearer Token Required
+Response (200 OK):
+[
+  {
+    "_id": "...",
+    "productId": { "_id": "...", "name": "Wireless Bluetooth Headphones", "price": 2499 },
+    "sku": "SKU-AUDIO-001",
+    "currentStock": 50,
+    "lowStockThreshold": 10,
+    "reorderQuantity": 25,
+    "unitPrice": 1500,
+    "status": "In Stock"           // "In Stock" | "Low Stock" | "Out of Stock"
+  }
+]
+
+[POST] /api/inventory
+Desc: Add inventory item
+Auth: Bearer Token Required
+Body:
+{
+  "productId": "<productId>",
+  "sku": "SKU-001",
+  "currentStock": 100,
+  "lowStockThreshold": 15,
+  "reorderQuantity": 50,
+  "unitPrice": 500
+}
+
+[PUT] /api/inventory/:id
+Desc: Update inventory stock levels
+
+[DELETE] /api/inventory/:id
+Desc: Delete inventory entry
+
+
+================================================================================
+8. SALES & INVOICING (/api/sales)
+================================================================================
+
+[GET] /api/sales
+Desc: Get list of all sales invoices/orders
+Auth: Bearer Token Required
+Response (200 OK):
+[
+  {
+    "_id": "...",
+    "invoiceNumber": "INV-2026-001",
+    "customer": { "name": "Acme Client", "phone": "9876543210" },
+    "items": [
+      {
+        "productId": "...",
+        "name": "Bluetooth Headphones",
+        "quantity": 2,
+        "price": 2499,
+        "total": 4998
+      }
+    ],
+    "subTotal": 4998,
+    "discount": 0,
+    "grandTotal": 4998,
+    "paymentMethod": "UPI",        // "Cash" | "UPI" | "Card" | "Bank Transfer" | "Credit"
+    "paymentStatus": "Paid",       // "Paid" | "Pending" | "Partially Paid"
+    "date": "2026-11-18T10:00:00.000Z"
+  }
+]
+
+[POST] /api/sales
+Desc: Create sale invoice (Automatically decrements inventory for products)
+Auth: Bearer Token Required
+Content-Type: application/json
+Request Body:
+{
+  "customerName": "Ramesh Kumar",
+  "customerPhone": "9876543210",
+  "items": [
+    {
+      "productId": "<productId>",
+      "name": "Wireless Bluetooth Headphones",
+      "quantity": 1,
+      "price": 2499
+    }
+  ],
+  "discount": 100,
+  "paymentMethod": "UPI",
+  "paymentStatus": "Paid"
+}
+
+[PUT] /api/sales/:id
+Desc: Update sale record
+
+[DELETE] /api/sales/:id
+Desc: Cancel / delete sale record
+
+
+================================================================================
+9. PURCHASES & PROCUREMENT (/api/purchases)
+================================================================================
+
+[GET] /api/purchases
+Desc: Get all purchase orders/records
+Auth: Bearer Token Required
+
+[POST] /api/purchases
+Desc: Create purchase entry (Increments inventory stock)
+Auth: Bearer Token Required
+Body:
+{
+  "poNumber": "PO-1001",
+  "supplierName": "Shenzhen Electronics Co.",
+  "items": [
+    { "productId": "<productId>", "quantity": 50, "unitCost": 1200 }
+  ],
+  "amount": 60000,
+  "date": "2026-11-18",
+  "status": "Received"           // "Pending" | "Ordered" | "Received" | "Cancelled"
+}
+
+[PUT] /api/purchases/:id
+Desc: Update purchase entry
+
+[DELETE] /api/purchases/:id
+Desc: Delete purchase record
+
+
+================================================================================
+10. EXPENSES MANAGEMENT (/api/expenses)
+================================================================================
+
+[GET] /api/expenses
+Desc: Fetch all expenses
+Auth: Bearer Token Required
+
+[POST] /api/expenses
+Desc: Record an expense (with optional receipt upload to Cloudinary)
+Auth: Bearer Token Required
+Content-Type: multipart/form-data OR application/json
+Fields:
+  title: "Office Internet Bill"
+  category: "Utilities"          // "Rent" | "Utilities" | "Salaries" | "Marketing" | "Travel" | "Supplies" | "Other"
+  amount: 1499
+  paymentMethod: "UPI"           // "Cash" | "UPI" | "Bank Transfer" | "Card"
+  date: "2026-11-19"
+  description: "Monthly fiber internet connection"
+  receipt: <File> (Optional)
+
+[PUT] /api/expenses/:id
+Desc: Update expense entry
+
+[DELETE] /api/expenses/:id
+Desc: Delete expense record
+
+
+================================================================================
+11. CUSTOMERS DIRECTORY (/api/customers)
+================================================================================
+
+[GET] /api/customers
+Desc: Get list of customers
+Auth: Bearer Token Required
+
+[POST] /api/customers
+Desc: Add new customer
+Auth: Bearer Token Required
+Body:
+{
+  "name": "Vikram Singh",
+  "companyName": "Singh Enterprises",
+  "customerType": "Retail",      // "Retail" | "Wholesale" | "Corporate"
+  "email": "vikram@example.com",
+  "phone": "9876543210",
+  "address": "45 Market Road, Chennai",
+  "gstin": "33ABCDE1234F1Z2"
+}
+
+[PUT] /api/customers/:id
+Desc: Update customer
+
+[DELETE] /api/customers/:id
+Desc: Delete customer
+
+
+================================================================================
+12. BRANCHES MANAGEMENT (/api/branches)
+================================================================================
+
+[GET] /api/branches
+Desc: List all branches for tenant
+Auth: Bearer Token Required
+
+[POST] /api/branches
+Desc: Add new branch location
+Auth: Bearer Token Required
+Body:
+{
+  "branchId": "BR-001",
+  "name": "Koramangala Store",
+  "location": "5th Block, Koramangala, Bengaluru",
+  "manager": "Suresh Raina",
+  "contactNumber": "9876543210", // Unique 10-digit number
+  "type": "Store",               // "Store" | "Warehouse" | "Office"
+  "email": "koramangala@acme.com",
+  "password": "BranchPassword123" // Optional if login enabled
+}
+
+[PUT] /api/branches/:id
+Desc: Update branch details
+
+[DELETE] /api/branches/:id
+Desc: Remove branch
+
+
+================================================================================
+13. SUB-BUSINESSES MANAGEMENT (/api/businesses)
+================================================================================
+
+[GET] /api/businesses
+Desc: Get all sub-business entities (Type 4 Conglomerate accounts)
+Auth: Bearer Token Required
+
+[POST] /api/businesses
+Desc: Add new sub-business entity
+Auth: Bearer Token Required
+Body:
+{
+  "name": "Acme Logistics",
+  "category": "Automobile and Transport Service",
+  "contactPerson": "Ravi Kumar",
+  "phone": "9876543210",
+  "email": "logistics@acme.com",
+  "password": "BusinessPassword123",
+  "address": "Electronic City, Bengaluru"
+}
+
+[PUT] /api/businesses/:id
+Desc: Update sub-business
+
+[DELETE] /api/businesses/:id
+Desc: Delete sub-business
+
+
+================================================================================
+14. EMPLOYEES & STAFF (/api/employees)
+================================================================================
+
+[GET] /api/employees
+Desc: List all employees/staff
+Auth: Bearer Token Required
+
+[POST] /api/employees
+Desc: Add new employee account
+Auth: Bearer Token Required
+Body:
+{
+  "employeeId": "EMP-001",
+  "name": "Priya Sharma",
+  "email": "priya@acme.com",
+  "phone": "9876543210",         // Unique 10-digit number
+  "position": "Store Manager",
+  "branchId": "<branchId>",      // Optional
+  "salary": 35000,
+  "dateOfJoining": "2026-01-15",
+  "shiftFrom": "09:00",
+  "shiftTo": "18:00",
+  "workType": "Full-Time",       // "Full-Time" | "Part-Time" | "Shift-Based" | "Contract" | "Intern"
+  "password": "StaffPassword123" // Enables employee portal login
+}
+
+[PUT] /api/employees/:id
+Desc: Update employee
+
+[DELETE] /api/employees/:id
+Desc: Delete employee
+
+
+================================================================================
+15. ATTENDANCE TRACKING (/api/attendance)
+================================================================================
+
+[GET] /api/attendance
+Desc: Get attendance records (Filter by date, employeeId)
+Auth: Bearer Token Required
+Query Params: ?date=2026-11-19&employeeId=<id>
+
+[POST] /api/attendance
+Desc: Mark staff attendance
+Auth: Bearer Token Required
+Body:
+{
+  "employeeId": "<employeeId>",
+  "date": "2026-11-19",
+  "status": "Present",           // "Present" | "Absent" | "Half Day" | "Late"
+  "checkIn": "09:05",
+  "checkOut": "18:00"
+}
+
+[PUT] /api/attendance/:id
+Desc: Update attendance record
+
+[DELETE] /api/attendance/:id
+Desc: Delete attendance record
+
+
+================================================================================
+16. LEAVES MANAGEMENT (/api/leaves)
+================================================================================
+
+[GET] /api/leaves
+Desc: List leave requests
+Auth: Bearer Token Required
+
+[POST] /api/leaves
+Desc: Apply for leave
+Auth: Bearer Token Required
+Body:
+{
+  "employeeId": "<employeeId>",
+  "type": "Sick Leave",          // "Sick Leave" | "Casual Leave" | "Annual Leave" | "Unpaid" | "Maternity / Paternity Leave" | "Bereavement Leave" | "Compensatory Off" | "Other"
+  "startDate": "2026-11-20",
+  "endDate": "2026-11-22",
+  "reason": "Viral fever and doctor consultation",
+  "status": "Pending"
+}
+
+[PUT] /api/leaves/:id/status
+Desc: Approve or reject leave request
+Auth: Bearer Token Required
+Body:
+{
+  "status": "Approved"           // "Pending" | "Approved" | "Rejected"
+}
+
+[DELETE] /api/leaves/:id
+Desc: Cancel leave application
+
+
+================================================================================
+17. INVESTORS MANAGEMENT (/api/investors)
+================================================================================
+
+[GET] /api/investors
+Desc: List all investors (Type 3 & 4 accounts)
+Auth: Bearer Token Required
+
+[POST] /api/investors
+Desc: Add investor profile with read-only dashboard login
+Auth: Bearer Token Required
+Body:
+{
+  "investorId": "INV-001",
+  "name": "Rajesh Mehta",
+  "email": "rajesh@venturecap.in",
+  "phone": "9876543210",
+  "investmentAmount": 2500000,
+  "ownershipPercentage": 10,
+  "associatedBranch": "All Branches",
+  "notes": "Angel investor tranche A",
+  "password": "InvestorPassword123"
+}
+
+[PUT] /api/investors/:id
+Desc: Update investor details
+
+[DELETE] /api/investors/:id
+Desc: Delete investor profile
+
+
+================================================================================
+18. REMINDERS & POP-UP ALERTS (/api/reminders)
+================================================================================
+
+[GET] /api/reminders
+Desc: Fetch all statutory, tax, or business reminders
+Auth: Bearer Token Required
+
+[GET] /api/reminders/active-notifications
+Desc: Fetch active urgent notifications that need popup banner display on mobile app
+Auth: Bearer Token Required
+Response (200 OK): Array of active reminders due within notifyBeforeDays
+
+[POST] /api/reminders
+Desc: Create new reminder
+Auth: Bearer Token Required
+Body:
+{
+  "title": "GST Return Filing (GSTR-3B)",
+  "date": "2026-11-20",
+  "description": "File monthly GST return before the 20th",
+  "repeatMonthly": true,
+  "notifyBeforeDays": 3,
+  "status": "Pending"            // "Pending" | "Completed"
+}
+
+[PUT] /api/reminders/:id
+Desc: Update reminder or mark completed
+
+[DELETE] /api/reminders/:id
+Desc: Delete reminder
+
+
+================================================================================
+19. PUBLIC CONTACT INQUIRIES (/api/contact)
+================================================================================
+
+[POST] /api/contact
+Desc: Submit a public contact / support inquiry from mobile app landing/help page
+Auth: None
+Content-Type: application/json
+Body:
+{
+  "name": "Ananya Sharma",
+  "email": "ananya@example.com",
+  "phone": "9876543210",
+  "subject": "App Customization Query",
+  "message": "Interested in white-label deployment for our chain."
+}
+Response (200 OK):
+{
+  "success": true,
+  "message": "Your message has been sent successfully!"
+}
+
+
+================================================================================
+20. FLUTTER INTEGRATION CODE SNIPPET (DART EXAMPLE)
+================================================================================
+
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+class BizTechApi {
+  // Use 10.0.2.2 for Android Emulator, localhost for iOS simulator
+  static const String baseUrl = 'http://10.0.2.2:5000/api';
+
+  // 1. Universal Login (Supports Phone OR Email)
+  static Future<Map<String, dynamic>> login({
+    required String identifier, // Phone number or Email
+    required String password,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/auth/login'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'email': identifier, // The backend checks both email and phone automatically
+        'password': password,
+      }),
+    );
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) {
+      return data; // contains 'token' and 'user'
+    } else {
+      throw Exception(data['message'] ?? 'Login failed');
+    }
+  }
+
+  // 2. Authenticated GET Request
+  static Future<List<dynamic>> getProducts(String token) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/products'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to load products');
+    }
+  }
+
+  // 3. Upload Document to Cloudinary
+  static Future<String> uploadDocument({
+    required String token,
+    required String filePath,
+  }) async {
+    var request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$baseUrl/documents/upload'),
+    );
+    request.headers['Authorization'] = 'Bearer $token';
+    request.files.add(await http.MultipartFile.fromPath('file', filePath));
+
+    var streamedResponse = await request.send();
+    var response = await http.Response.fromStream(streamedResponse);
+    final data = jsonDecode(response.body);
+
+    if (data['success'] == true) {
+      return data['fileUrl']; // Direct Cloudinary CDN URL
+    } else {
+      throw Exception(data['message'] ?? 'Upload failed');
+    }
+  }
+}
+
+================================================================================
+END OF API DOCUMENTATION
+================================================================================

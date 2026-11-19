@@ -169,13 +169,13 @@ const Login = () => {
           <form onSubmit={handleLogin} style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
             
             <div className="input-group" style={{ marginBottom: 0 }}>
-              <label className="input-label">Email Address</label>
+              <label className="input-label">Email or Phone Number</label>
               <div className="input-with-icon">
                 <Mail className="input-icon" size={18} />
                 <input 
-                  type="email" 
+                  type="text" 
                   className="input-field" 
-                  placeholder="Enter your email ID"
+                  placeholder="Enter email or 10-digit phone number"
                   required 
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}

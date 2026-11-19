@@ -12,7 +12,10 @@ const UserSchema = new mongoose.Schema({
   },
   phone: {
     type: String,
-    required: true
+    required: true,
+    unique: true,
+    sparse: true,
+    trim: true
   },
   password: {
     type: String,
@@ -73,7 +76,6 @@ const UserSchema = new mongoose.Schema({
   },
   modules: {
     type: [String],
-    enum: ['products_services', 'inventory', 'purchases', 'sales', 'expenses'],
     default: []
   },
   offeringType: {
@@ -91,6 +93,7 @@ const UserSchema = new mongoose.Schema({
     businessCode: { type: String, trim: true },
     name: String,
     category: { type: String, default: '' },
+    categories: [{ type: String }],
     contactPerson: { type: String, default: '' },
     taxNumber: { type: String, default: '' },
     city: { type: String, default: '' },
@@ -162,6 +165,9 @@ const UserSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  categories: [{
+    type: String
+  }],
   subCategory: {
     type: String,
     default: ''
