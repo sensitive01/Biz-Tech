@@ -67,101 +67,9 @@ const BarcodeSVG = ({ code, width = 160, height = 48, showText = true }) => {
   );
 };
 
-// Initial realistic default bulk quotations
-const DEFAULT_QUOTATIONS = [
-  {
-    _id: 'q1',
-    quoteNo: 'QT-2026-001',
-    customerName: 'Apex Enterprise Hub',
-    phone: '9876543210',
-    email: 'procurement@apexcorp.com',
-    items: '500x Standard Heavy-Duty Storage Crates (Grade A)',
-    quantity: 500,
-    unitPrice: 450,
-    amount: 225000,
-    date: '2026-11-01',
-    validUntil: '2026-11-30',
-    status: 'Approved',
-    discount: 10,
-    notes: 'Bulk tier volume pricing. Free freight delivery included.'
-  },
-  {
-    _id: 'q2',
-    quoteNo: 'QT-2026-002',
-    customerName: 'Zenith Logistics & Trade',
-    phone: '9845123789',
-    email: 'orders@zenithlogistics.in',
-    items: '1,200x Precision Bearings & Sealant Assemblies',
-    quantity: 1200,
-    unitPrice: 180,
-    amount: 216000,
-    date: '2026-11-05',
-    validUntil: '2026-12-05',
-    status: 'Sent',
-    discount: 8,
-    notes: 'Custom quote with standard 30-day payment credit facility.'
-  },
-  {
-    _id: 'q3',
-    quoteNo: 'QT-2026-003',
-    customerName: 'Metro Industrial Infrastructure',
-    phone: '9789012345',
-    email: 'billing@metroinfra.org',
-    items: '80x Structural Steel Fasteners & Gaskets Pack',
-    quantity: 80,
-    unitPrice: 3200,
-    amount: 256000,
-    date: '2026-10-28',
-    validUntil: '2026-11-15',
-    status: 'Converted to Invoice',
-    discount: 5,
-    notes: 'Converted to Invoice on Nov 02, 2026.'
-  }
-];
-
-// Initial realistic barcodes for hybrid Product + Service users
-const DEFAULT_BARCODES = [
-  {
-    _id: 'bc1',
-    code: '8904123456789',
-    name: 'Industrial Silicone Sealant Cartridge',
-    offeringType: 'Product',
-    sku: 'SKU-SL-400',
-    category: 'Consumables & Hardware',
-    price: 450,
-    stock: '120 units'
-  },
-  {
-    _id: 'bc2',
-    code: '8904123456796',
-    name: 'HVAC Annual Preventive Maintenance Service',
-    offeringType: 'Service',
-    sku: 'SKU-SRV-AMC',
-    category: 'Facility Engineering',
-    price: 4500,
-    stock: 'On-Demand Service'
-  },
-  {
-    _id: 'bc3',
-    code: '8904123456802',
-    name: 'Oil Change & Filter Replacement Bundle',
-    offeringType: 'Both',
-    sku: 'SKU-HYB-OCF',
-    category: 'Automotive & Fleet',
-    price: 1850,
-    stock: '45 Combo Kits'
-  },
-  {
-    _id: 'bc4',
-    code: '8904123456819',
-    name: 'Heavy-Duty Safety Helmet (ISI Certified)',
-    offeringType: 'Product',
-    sku: 'SKU-PPE-01',
-    category: 'Safety & Protection',
-    price: 750,
-    stock: '85 units'
-  }
-];
+// Default empty lists for fresh accounts
+const DEFAULT_QUOTATIONS = [];
+const DEFAULT_BARCODES = [];
 
 const Sales = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -193,9 +101,15 @@ const Sales = () => {
   const [quotations, setQuotations] = useState(() => {
     try {
       const saved = localStorage.getItem('tenant_quotations');
-      return saved ? JSON.parse(saved) : DEFAULT_QUOTATIONS;
+      if (!saved) return [];
+      const parsed = JSON.parse(saved);
+      const filtered = Array.isArray(parsed) ? parsed.filter(q => !['q1', 'q2', 'q3'].includes(q._id)) : [];
+      if (filtered.length !== (parsed ? parsed.length : 0)) {
+        localStorage.setItem('tenant_quotations', JSON.stringify(filtered));
+      }
+      return filtered;
     } catch {
-      return DEFAULT_QUOTATIONS;
+      return [];
     }
   });
 
@@ -203,9 +117,15 @@ const Sales = () => {
   const [barcodes, setBarcodes] = useState(() => {
     try {
       const saved = localStorage.getItem('tenant_barcodes');
-      return saved ? JSON.parse(saved) : DEFAULT_BARCODES;
+      if (!saved) return [];
+      const parsed = JSON.parse(saved);
+      const filtered = Array.isArray(parsed) ? parsed.filter(b => !['bc1', 'bc2', 'bc3', 'bc4'].includes(b._id)) : [];
+      if (filtered.length !== (parsed ? parsed.length : 0)) {
+        localStorage.setItem('tenant_barcodes', JSON.stringify(filtered));
+      }
+      return filtered;
     } catch {
-      return DEFAULT_BARCODES;
+      return [];
     }
   });
 
@@ -1345,30 +1265,6 @@ const Sales = () => {
                   style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }}
                 />
               </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Status</label>
-                {type === 'Purchase' ? (
-                  <select
-                    value={formData.status}
-                    onChange={e => setFormData({ ...formData, status: e.target.value })}
-                    style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box', background: 'white' }}
-                  >
-                    <option value="Pending">Pending</option>
-                    <option value="Ordered">Ordered</option>
-                    <option value="Received">Received</option>
-                    <option value="Cancelled">Cancelled</option>
-                  </select>
-                ) : (
-                  <input
-                    placeholder="e.g. Paid, Pending, Overdue"
-                    type="text"
-                    value={formData.status}
-                    onChange={e => setFormData({ ...formData, status: e.target.value })}
-                    required
-                    style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }}
-                  />
-                )}
-              </div>
               <div style={{ display: 'flex', gap: '16px', marginTop: '12px' }}>
                 <button type="button" onClick={() => { setShowModal(false); setEditingItem(null); }} style={{ flex: 1, padding: '14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '10px', color: '#475569', fontWeight: '600', cursor: 'pointer' }}>Cancel</button>
                 <button type="submit" style={{ flex: 1, padding: '14px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', cursor: 'pointer' }}>{editingItem ? 'Update' : 'Save'}</button>
@@ -1497,7 +1393,7 @@ const Sales = () => {
                 </span>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>Issue Date</label>
                   <input
@@ -1515,19 +1411,6 @@ const Sales = () => {
                     onChange={e => setQuoteFormData({ ...quoteFormData, validUntil: e.target.value })}
                     style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }}
                   />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>Status</label>
-                  <select
-                    value={quoteFormData.status}
-                    onChange={e => setQuoteFormData({ ...quoteFormData, status: e.target.value })}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box', background: 'white' }}
-                  >
-                    <option value="Draft">Draft</option>
-                    <option value="Sent">Sent</option>
-                    <option value="Approved">Approved</option>
-                    <option value="Converted to Invoice">Converted to Invoice</option>
-                  </select>
                 </div>
               </div>
 

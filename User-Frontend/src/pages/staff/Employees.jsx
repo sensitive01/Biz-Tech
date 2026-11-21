@@ -366,13 +366,17 @@ const Employees = () => {
         employeeId: (formData.employeeId || '').trim(),
         status: editingEmployee ? (formData.status || 'Active') : 'Active',
         designation: finalDesignation,
-        position: finalPosition
+        position: finalPosition,
+        salary: formData.salary !== '' && formData.salary !== undefined ? Number(formData.salary) || 0 : 0
       };
       if (tenantType === 2 && !payload.branchId && branches.length > 0) {
         payload.branchId = branches[0]._id;
         payload.branchName = branches[0].name;
       }
       delete payload.customDesignation;
+      if (!payload.branchId || (typeof payload.branchId === 'string' && !payload.branchId.trim())) {
+        delete payload.branchId;
+      }
 
       const res = await fetch(url, {
         method,
@@ -618,16 +622,16 @@ const Employees = () => {
             <thead>
               <tr style={{ background: '#F8FAFC' }}>
                 <th style={{ padding: '14px 10px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: '56px', textAlign: 'center', verticalAlign: 'middle' }}>S.No</th>
-                <th onClick={() => requestSort('name')} style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', minWidth: '180px', verticalAlign: 'middle' }}><div style={{ display: 'flex', alignItems: 'center' }}>Name {renderSortIcon('name')}</div></th>
-                <th onClick={() => requestSort('designation')} style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', width: '160px', verticalAlign: 'middle' }}><div style={{ display: 'flex', alignItems: 'center' }}>Designation {renderSortIcon('designation')}</div></th>
+                <th onClick={() => requestSort('name')} style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', width: (tenantType >= 2) ? '20%' : '26%', minWidth: '180px', verticalAlign: 'middle' }}><div style={{ display: 'flex', alignItems: 'center' }}>Name {renderSortIcon('name')}</div></th>
+                <th onClick={() => requestSort('designation')} style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', width: (tenantType >= 2) ? '18%' : '26%', verticalAlign: 'middle' }}><div style={{ display: 'flex', alignItems: 'center' }}>Designation {renderSortIcon('designation')}</div></th>
                 {(tenantType >= 2) && (
-                  <th onClick={() => requestSort('business')} style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', width: '150px', verticalAlign: 'middle' }}><div style={{ display: 'flex', alignItems: 'center' }}>Business {renderSortIcon('business')}</div></th>
+                  <th onClick={() => requestSort('business')} style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', width: '15%', verticalAlign: 'middle' }}><div style={{ display: 'flex', alignItems: 'center' }}>Business {renderSortIcon('business')}</div></th>
                 )}
                 {(tenantType >= 2) && (
-                  <th onClick={() => requestSort('branch')} style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', width: '150px', verticalAlign: 'middle' }}><div style={{ display: 'flex', alignItems: 'center' }}>Branch {renderSortIcon('branch')}</div></th>
+                  <th onClick={() => requestSort('branch')} style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', width: '15%', verticalAlign: 'middle' }}><div style={{ display: 'flex', alignItems: 'center' }}>Branch {renderSortIcon('branch')}</div></th>
                 )}
-                <th onClick={() => requestSort('status')} style={{ padding: '14px 12px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', width: '110px', verticalAlign: 'middle' }}><div style={{ display: 'flex', alignItems: 'center' }}>Status {renderSortIcon('status')}</div></th>
-                <th style={{ padding: '14px 14px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: '160px', verticalAlign: 'middle' }}>Login Access</th>
+                <th onClick={() => requestSort('status')} style={{ padding: '14px 12px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', width: (tenantType >= 2) ? '10%' : '14%', verticalAlign: 'middle' }}><div style={{ display: 'flex', alignItems: 'center' }}>Status {renderSortIcon('status')}</div></th>
+                <th style={{ padding: '14px 14px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: (tenantType >= 2) ? '14%' : '20%', verticalAlign: 'middle' }}>Login Access</th>
                 <th style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: '115px', textAlign: 'center', verticalAlign: 'middle' }}>Action</th>
               </tr>
             </thead>

@@ -5,6 +5,26 @@ import { exportToCSV } from '@/utils/exportToCSV';
 import { formatDate } from '@/utils/formatDate';
 import TablePagination from '@/components/TablePagination';
 
+export const getCurrentTime = () => {
+  const now = new Date();
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+};
+
+export const calculateWorkingHours = (checkIn, checkOut, status) => {
+  if (status === 'Absent') return '0h 0m';
+  if (!checkIn || !checkOut) return '-';
+  const [inH, inM] = checkIn.split(':').map(Number);
+  const [outH, outM] = checkOut.split(':').map(Number);
+  if (isNaN(inH) || isNaN(inM) || isNaN(outH) || isNaN(outM)) return '-';
+  let diff = (outH * 60 + outM) - (inH * 60 + inM);
+  if (diff < 0) diff += 24 * 60;
+  const hrs = Math.floor(diff / 60);
+  const mins = diff % 60;
+  return `${hrs}h ${mins}m`;
+};
+
 const Attendance = () => {
   const [records, setRecords] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -22,11 +42,11 @@ const Attendance = () => {
   const [editingRecord, setEditingRecord] = useState(null);
   const [checkoutData, setCheckoutData] = useState(null);
   const [deleteRecordId, setDeleteRecordId] = useState(null);
-  const [formData, setFormData] = useState({ employeeId: '', date: new Date().toISOString().split('T')[0], status: 'Present', checkIn: '09:00', checkOut: '' });
+  const [formData, setFormData] = useState({ employeeId: '', date: new Date().toISOString().split('T')[0], status: 'Present', checkIn: getCurrentTime(), checkOut: '' });
 
   const handleOpenAdd = () => {
     setEditingRecord(null);
-    setFormData({ employeeId: '', date: new Date().toISOString().split('T')[0], status: 'Present', checkIn: '09:00', checkOut: '' });
+    setFormData({ employeeId: '', date: new Date().toISOString().split('T')[0], status: 'Present', checkIn: getCurrentTime(), checkOut: '' });
     setShowModal(true);
   };
 
@@ -70,13 +90,17 @@ const Attendance = () => {
         : `${import.meta.env.VITE_API_URL}/api/attendance`;
       const method = editingRecord ? 'PUT' : 'POST';
 
+      const computedHours = calculateWorkingHours(formData.checkIn, formData.checkOut, formData.status);
       const res = await fetch(url, {
         method,
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          ...formData,
+          workingHours: computedHours !== '-' ? computedHours : ''
+        })
       });
       if (res.ok) {
         setShowModal(false);
@@ -162,6 +186,17 @@ const Attendance = () => {
       if (sortConfig.key === 'date') {
         aVal = new Date(aVal).getTime();
         bVal = new Date(bVal).getTime();
+      } else if (sortConfig.key === 'workingHours') {
+        const getMins = (item) => {
+          if (!item.checkIn || !item.checkOut) return -1;
+          const [ih, im] = item.checkIn.split(':').map(Number);
+          const [oh, om] = item.checkOut.split(':').map(Number);
+          let d = (oh * 60 + om) - (ih * 60 + im);
+          if (d < 0) d += 24 * 60;
+          return d;
+        };
+        aVal = getMins(a);
+        bVal = getMins(b);
       } else {
         if (typeof aVal === 'string') aVal = aVal.toLowerCase();
         if (typeof bVal === 'string') bVal = bVal.toLowerCase();
@@ -243,36 +278,44 @@ const Attendance = () => {
             <input type="date" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} style={{ padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', outline: 'none', fontSize: '13px', color: '#475569' }} />
           </div>
         )}
-          <button onClick={() => exportToCSV(filteredRecords.map(r => ({ ...r, date: formatDate(r.date) })), 'Attendance')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', cursor: 'pointer' }}><Download size={16} /> Export</button>
+          <button onClick={() => exportToCSV(filteredRecords.map(r => ({
+            Employee: r.employeeId?.name || '',
+            'Employee ID': r.employeeId?.employeeId || '',
+            Date: formatDate(r.date),
+            Status: r.status,
+            'Check In': r.checkIn || '',
+            'Check Out': r.checkOut || '',
+            'Working Hours': r.workingHours || calculateWorkingHours(r.checkIn, r.checkOut, r.status)
+          })), 'Attendance')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', cursor: 'pointer' }}><Download size={16} /> Export</button>
         </div>
       </div>
 
       <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)' }}>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', minWidth: '750px', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <table style={{ width: '100%', minWidth: '850px', borderCollapse: 'collapse', textAlign: 'left' }}>
           <thead>
             <tr style={{ background: '#F8FAFC' }}>
               <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', width: '60px' }}>S.No</th>
-              <th onClick={() => requestSort('date')} style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', alignItems: 'center' }}>Date {renderSortIcon('date')}</div></th>
               <th onClick={() => requestSort('employee')} style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', alignItems: 'center' }}>Employee {renderSortIcon('employee')}</div></th>
+              <th onClick={() => requestSort('date')} style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', alignItems: 'center' }}>Date {renderSortIcon('date')}</div></th>
               <th onClick={() => requestSort('status')} style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', alignItems: 'center' }}>Status {renderSortIcon('status')}</div></th>
               <th onClick={() => requestSort('checkIn')} style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', alignItems: 'center' }}>Check In {renderSortIcon('checkIn')}</div></th>
               <th onClick={() => requestSort('checkOut')} style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', alignItems: 'center' }}>Check Out {renderSortIcon('checkOut')}</div></th>
+              <th onClick={() => requestSort('workingHours')} style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}><div style={{ display: 'flex', alignItems: 'center' }}>Working Hours {renderSortIcon('workingHours')}</div></th>
               <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', textAlign: 'right' }}>Action</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan="7" style={{ padding: '32px', textAlign: 'center', color: '#64748B' }}>Loading...</td></tr>
+              <tr><td colSpan="8" style={{ padding: '32px', textAlign: 'center', color: '#64748B' }}>Loading...</td></tr>
             ) : filteredRecords.length === 0 ? (
-              <tr><td colSpan="7" style={{ padding: '64px 32px', textAlign: 'center', color: '#64748B' }}>No attendance records match your search.</td></tr>
+              <tr><td colSpan="8" style={{ padding: '64px 32px', textAlign: 'center', color: '#64748B' }}>No attendance records match your search.</td></tr>
             ) : paginatedRecords.map((record, index) => (
               <tr key={record._id} style={{ borderBottom: '1px solid #E2E8F0' }}>
                 <td style={{ padding: '16px 24px', fontSize: '15px', color: '#475569', fontWeight: '500' }}>{startIndex + index + 1}</td>
-                <td style={{ padding: '16px 24px', color: '#0F172A', fontWeight: '500', whiteSpace: 'nowrap' }}>{formatDate(record.date)}</td>
                 <td style={{ padding: '16px 24px', color: '#0F172A', fontWeight: '500' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                    <span>{record.employeeId?.name || 'Unknown'}</span>
+                    <span style={{ fontWeight: '600' }}>{record.employeeId?.name || 'Unknown'}</span>
                     {record.employeeId?.employeeId && (
                       <span style={{ background: '#EFF6FF', color: '#1D4ED8', fontSize: '11px', fontWeight: '700', padding: '1px 5px', borderRadius: '4px', border: '1px solid #BFDBFE' }}>
                         {record.employeeId.employeeId}
@@ -290,16 +333,30 @@ const Attendance = () => {
                     </div>
                   )}
                 </td>
+                <td style={{ padding: '16px 24px', color: '#0F172A', fontWeight: '500', whiteSpace: 'nowrap' }}>{formatDate(record.date)}</td>
                 <td style={{ padding: '16px 24px' }}>
                   <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '600', background: record.status === 'Present' ? '#DCFCE7' : record.status === 'Absent' ? '#FEE2E2' : record.status === 'Late' ? '#FFEDD5' : '#FEF9C3', color: record.status === 'Present' ? '#166534' : record.status === 'Absent' ? '#991B1B' : record.status === 'Late' ? '#9A3412' : '#854D0E' }}>
                     {record.status}
                   </span>
                 </td>
-                <td style={{ padding: '16px 24px', color: '#64748B' }}>{record.checkIn || '-'}</td>
-                <td style={{ padding: '16px 24px', color: '#64748B' }}>{record.checkOut || '-'}</td>
+                <td style={{ padding: '16px 24px', color: '#64748B', fontWeight: '500' }}>{record.checkIn || '-'}</td>
+                <td style={{ padding: '16px 24px', color: '#64748B', fontWeight: '500' }}>{record.checkOut || '-'}</td>
+                <td style={{ padding: '16px 24px', color: '#0F172A', fontWeight: '600' }}>
+                  {(() => {
+                    const hrs = record.workingHours || calculateWorkingHours(record.checkIn, record.checkOut, record.status);
+                    return hrs && hrs !== '-' ? (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '3px 8px', borderRadius: '6px', background: '#F1F5F9', color: '#1E293B', fontSize: '13px' }}>
+                        <Clock size={12} color="#2563EB" />
+                        {hrs}
+                      </span>
+                    ) : (
+                      <span style={{ color: '#94A3B8' }}>-</span>
+                    );
+                  })()}
+                </td>
                 <td style={{ padding: '16px 24px', textAlign: 'right' }}>
                   {!record.checkOut && (
-                    <button onClick={() => setCheckoutData({ id: record._id, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: false}) })} title="Check Out" style={{ background: '#EFF6FF', color: '#2563EB', border: 'none', padding: '8px', borderRadius: '6px', cursor: 'pointer', marginRight: '8px' }}><LogOut size={16} /></button>
+                    <button onClick={() => setCheckoutData({ id: record._id, time: getCurrentTime() })} title="Check Out" style={{ background: '#EFF6FF', color: '#2563EB', border: 'none', padding: '8px', borderRadius: '6px', cursor: 'pointer', marginRight: '8px' }}><LogOut size={16} /></button>
                   )}
                   <button onClick={() => handleEdit(record)} title="Edit" style={{ background: '#EFF6FF', color: '#2563EB', border: 'none', padding: '8px', borderRadius: '6px', cursor: 'pointer', marginRight: '8px' }}><Pencil size={16} /></button>
                   <button onClick={() => setDeleteRecordId(record._id)} title="Delete" style={{ background: '#FEE2E2', color: '#EF4444', border: 'none', padding: '8px', borderRadius: '6px', cursor: 'pointer' }}><Trash2 size={16} /></button>
@@ -356,8 +413,25 @@ const Attendance = () => {
               </div>
               <div style={{ display: 'flex', gap: '16px' }}>
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Check In</label>
-                  <input type="time" value={formData.checkIn} onChange={e => setFormData({...formData, checkIn: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <label style={{ fontSize: '14px', fontWeight: '600', margin: 0 }}>Check In</label>
+                    <button type="button" onClick={() => setFormData(f => ({ ...f, checkIn: getCurrentTime() }))} style={{ background: 'none', border: 'none', color: '#2563EB', fontSize: '12px', fontWeight: '600', cursor: 'pointer', padding: 0 }}>Current Time</button>
+                  </div>
+                  <input type="time" value={formData.checkIn} onChange={e => setFormData({...formData, checkIn: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', boxSizing: 'border-box' }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <label style={{ fontSize: '14px', fontWeight: '600', margin: 0 }}>Check Out</label>
+                    <button type="button" onClick={() => setFormData(f => ({ ...f, checkOut: getCurrentTime() }))} style={{ background: 'none', border: 'none', color: '#2563EB', fontSize: '12px', fontWeight: '600', cursor: 'pointer', padding: 0 }}>Current Time</button>
+                  </div>
+                  <input type="time" value={formData.checkOut} onChange={e => setFormData({...formData, checkOut: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', boxSizing: 'border-box' }} />
+                </div>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Working Hours</label>
+                <div style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', background: '#F8FAFC', color: '#0F172A', fontWeight: '600', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px', boxSizing: 'border-box' }}>
+                  <Clock size={16} color="#2563EB" />
+                  <span>{calculateWorkingHours(formData.checkIn, formData.checkOut, formData.status)}</span>
                 </div>
               </div>
               <button type="submit" style={{ width: '100%', padding: '14px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', marginTop: '16px', cursor: 'pointer' }}>{editingRecord ? 'Update Record' : 'Save Record'}</button>
@@ -372,8 +446,11 @@ const Attendance = () => {
           <div style={{ background: 'white', padding: '32px', borderRadius: '20px', width: '100%', maxWidth: '400px' }}>
             <h2 style={{ fontSize: '20px', margin: '0 0 16px 0' }}>Confirm Check Out</h2>
             <form onSubmit={confirmCheckOut}>
-              <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Check Out Time</label>
-              <input type="time" required value={checkoutData.time} onChange={e => setCheckoutData({...checkoutData, time: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', marginBottom: '24px' }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <label style={{ fontSize: '14px', fontWeight: '600', margin: 0 }}>Check Out Time</label>
+                <button type="button" onClick={() => setCheckoutData(d => ({ ...d, time: getCurrentTime() }))} style={{ background: 'none', border: 'none', color: '#2563EB', fontSize: '12px', fontWeight: '600', cursor: 'pointer', padding: 0 }}>Current Time</button>
+              </div>
+              <input type="time" required value={checkoutData.time} onChange={e => setCheckoutData({...checkoutData, time: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', marginBottom: '24px', boxSizing: 'border-box' }} />
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button type="button" onClick={() => setCheckoutData(null)} style={{ flex: 1, padding: '12px', background: '#F1F5F9', border: 'none', borderRadius: '10px', fontWeight: '600', cursor: 'pointer' }}>Cancel</button>
                 <button type="submit" style={{ flex: 1, padding: '12px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', cursor: 'pointer' }}>Confirm</button>

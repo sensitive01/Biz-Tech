@@ -36,10 +36,25 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
+const calcHours = (inTime, outTime, status) => {
+  if (status === 'Absent') return '0h 0m';
+  if (!inTime || !outTime) return '';
+  const [inH, inM] = inTime.split(':').map(Number);
+  const [outH, outM] = outTime.split(':').map(Number);
+  if (isNaN(inH) || isNaN(inM) || isNaN(outH) || isNaN(outM)) return '';
+  let diff = (outH * 60 + outM) - (inH * 60 + inM);
+  if (diff < 0) diff += 24 * 60;
+  const hrs = Math.floor(diff / 60);
+  const mins = diff % 60;
+  return `${hrs}h ${mins}m`;
+};
+
 router.post('/', auth, async (req, res) => {
   try {
+    const computedHours = req.body.workingHours || calcHours(req.body.checkIn, req.body.checkOut, req.body.status);
     const payload = {
       ...req.body,
+      workingHours: computedHours,
       tenantId: req.user.id,
       employeeId: (req.user.role === 'employee' && req.user.employeeId) ? req.user.employeeId : req.body.employeeId
     };
@@ -54,13 +69,13 @@ router.post('/', auth, async (req, res) => {
 
 router.put('/:id/checkout', auth, async (req, res) => {
   try {
-    const record = await Attendance.findOneAndUpdate(
-      { _id: req.params.id, tenantId: req.user.id },
-      { checkOut: req.body.checkOut },
-      { new: true }
-    );
-    if (!record) return res.status(404).json({ error: 'Record not found' });
-    res.json(record);
+    const existing = await Attendance.findOne({ _id: req.params.id, tenantId: req.user.id });
+    if (!existing) return res.status(404).json({ error: 'Record not found' });
+    
+    existing.checkOut = req.body.checkOut;
+    existing.workingHours = calcHours(existing.checkIn, req.body.checkOut, existing.status);
+    const saved = await existing.save();
+    res.json(saved);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -68,9 +83,13 @@ router.put('/:id/checkout', auth, async (req, res) => {
 
 router.put('/:id', auth, async (req, res) => {
   try {
+    const updateData = { ...req.body };
+    if (updateData.checkIn || updateData.checkOut || updateData.status) {
+      updateData.workingHours = updateData.workingHours || calcHours(updateData.checkIn, updateData.checkOut, updateData.status);
+    }
     const record = await Attendance.findOneAndUpdate(
       { _id: req.params.id, tenantId: req.user.id },
-      { ...req.body },
+      updateData,
       { new: true }
     );
     if (!record) return res.status(404).json({ error: 'Record not found' });

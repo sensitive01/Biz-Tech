@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const Employee = require('../models/Employee');
 const Branch = require('../models/Branch');
 const User = require('../models/User');
@@ -126,7 +127,7 @@ router.post('/', auth, async (req, res) => {
       businessName = req.user.businessName;
     }
 
-    if (!branchId) {
+    if (!branchId || !mongoose.Types.ObjectId.isValid(branchId)) {
       const singleBranch = await Branch.findOne({ tenantId: req.user.id });
       if (singleBranch) {
         branchId = singleBranch._id;
@@ -134,6 +135,8 @@ router.post('/', auth, async (req, res) => {
         if (!businessName && singleBranch.businessName) {
           businessName = singleBranch.businessName;
         }
+      } else {
+        branchId = null;
       }
     } else if (!branchName) {
       const branchObj = await Branch.findById(branchId);
@@ -148,13 +151,17 @@ router.post('/', auth, async (req, res) => {
     const employeeData = {
       ...req.body,
       tenantId: req.user.id,
-      branchId,
+      branchId: branchId || null,
       branchName: branchName || req.body.branchName || '',
       businessName,
+      salary: req.body.salary !== undefined && req.body.salary !== '' ? Number(req.body.salary) || 0 : 0,
       modules: Array.isArray(req.body.modules) && req.body.modules.length > 0
         ? Array.from(new Set([...req.body.modules, ...DEFAULT_EMPLOYEE_MODULES]))
         : [...DEFAULT_EMPLOYEE_MODULES, 'products_services', 'inventory', 'purchases', 'sales']
     };
+    if (!employeeData.branchId) {
+      delete employeeData.branchId;
+    }
 
     let cleanEmployeeId = (req.body.employeeId || '').trim();
     if (!cleanEmployeeId) {
@@ -338,11 +345,19 @@ router.put('/:id', auth, async (req, res) => {
       delete updateData.password;
     }
 
-    if (updateData.branchId && !updateData.branchName) {
-      const branchObj = await Branch.findById(updateData.branchId);
-      if (branchObj) {
-        updateData.branchName = branchObj.name;
+    if (updateData.branchId !== undefined) {
+      if (!updateData.branchId || !mongoose.Types.ObjectId.isValid(updateData.branchId)) {
+        updateData.branchId = null;
+      } else if (!updateData.branchName) {
+        const branchObj = await Branch.findById(updateData.branchId);
+        if (branchObj) {
+          updateData.branchName = branchObj.name;
+        }
       }
+    }
+
+    if (updateData.salary !== undefined) {
+      updateData.salary = updateData.salary !== '' ? Number(updateData.salary) || 0 : 0;
     }
 
     const updated = await Employee.findOneAndUpdate(
