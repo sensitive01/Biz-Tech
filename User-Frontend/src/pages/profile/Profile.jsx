@@ -1036,7 +1036,7 @@ const Profile = () => {
           </div>
 
           <button 
-            onClick={() => navigate('/onboarding')}
+            onClick={() => navigate('/onboarding?resume=true')}
             style={{ 
               padding: '10px 20px', 
               background: '#F8FAFC', 

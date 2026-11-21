@@ -120,3 +120,10 @@ dist
 *.njsproj
 *.sln
 *.sw?
+*.txt
+
+# Client specification files
+type1_user_sidebar_and_forms.txt
+type2_user_sidebar_and_forms.txt
+type3_user_sidebar_and_forms.txt
+type4_user_sidebar_and_forms.txt

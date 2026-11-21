@@ -107,15 +107,34 @@ const Onboarding = () => {
     }
   });
 
+  const checkIsAlreadyPaid = (u) => {
+    if (!u) return false;
+    const searchParams = new URLSearchParams(window.location.search);
+    const isResume = searchParams.get('resume') === 'true';
+
+    // 1. If explicitly opened via "Resume Setup Wizard" button from profile/dashboard
+    if (isResume) return true;
+
+    // 2. If the user has already completed onboarding previously
+    if (u.isOnboardingCompleted === true) return true;
+
+    // 3. Or if they already have an active paid subscription plan with a selected planId (not trial/new)
+    const hasActivePaidPlan = Boolean(
+      u.subscription?.planId &&
+      u.subscription.planId.trim() !== '' &&
+      u.subscription?.paymentMethod &&
+      u.subscription.paymentMethod !== 'Trial' &&
+      u.subscription?.validUntil &&
+      new Date(u.subscription.validUntil) > new Date()
+    );
+
+    return hasActivePaidPlan;
+  };
+
   const [isAlreadyPaid, setIsAlreadyPaid] = useState(() => {
     try {
       const u = JSON.parse(localStorage.getItem('user'));
-      return Boolean(
-        u?.isOnboardingCompleted ||
-        u?.subscriptionStatus === 'Active' ||
-        u?.subscription?.paymentStatus === 'Active' ||
-        (u?.subscription?.validUntil && new Date(u.subscription.validUntil) > new Date())
-      );
+      return checkIsAlreadyPaid(u);
     } catch (e) {
       return false;
     }
@@ -379,12 +398,7 @@ const Onboarding = () => {
     if (!u) return;
     setCurrentUser(u);
 
-    const paid = Boolean(
-      u.isOnboardingCompleted ||
-      u.subscriptionStatus === 'Active' ||
-      u.subscription?.paymentStatus === 'Active' ||
-      (u.subscription?.validUntil && new Date(u.subscription.validUntil) > new Date())
-    );
+    const paid = checkIsAlreadyPaid(u);
     setIsAlreadyPaid(paid);
 
     // Business info
@@ -3282,6 +3296,28 @@ const Onboarding = () => {
                     <CheckCircle2 size={16} /> Save & Complete Setup
                   </>
                 )}
+              </button>
+            </div>
+          ) : !isAlreadyPaid && currentStep === 5 ? (
+            <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', marginTop: '24px' }}>
+              <button
+                type="button"
+                onClick={handleBack}
+                style={{
+                  background: 'white',
+                  color: 'var(--text-title, #0F172A)',
+                  border: '1px solid var(--border-color, #E2E8F0)',
+                  padding: '12px 24px',
+                  borderRadius: '12px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <ArrowLeft size={16} /> Back to Documents
               </button>
             </div>
           ) : null}
