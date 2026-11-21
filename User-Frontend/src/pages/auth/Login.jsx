@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, Clock, AlertTriangle, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, Clock, AlertTriangle, CheckCircle2, ShieldAlert, AlertCircle, Sparkles } from 'lucide-react';
 import LanguageSelector from '@/components/LanguageSelector';
 import ThemeToggle from '@/components/ThemeToggle';
+import SubscriptionRenewalModal from '@/components/SubscriptionRenewalModal';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -14,6 +15,8 @@ const Login = () => {
   const [error, setError] = useState('');
   const [pendingApprovalInfo, setPendingApprovalInfo] = useState(null);
   const [rejectionInfo, setRejectionInfo] = useState(null);
+  const [expiredInfo, setExpiredInfo] = useState(null);
+  const [showRenewalModal, setShowRenewalModal] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -63,6 +66,7 @@ const Login = () => {
             approvalDetails: data.approvalDetails
           });
           setRejectionInfo(null);
+          setExpiredInfo(null);
           setError('');
         } else if (data.isRejected) {
           setRejectionInfo({
@@ -70,17 +74,28 @@ const Login = () => {
             rejectionReason: data.rejectionReason
           });
           setPendingApprovalInfo(null);
+          setExpiredInfo(null);
+          setError('');
+        } else if (data.isExpired) {
+          setExpiredInfo({
+            message: data.message,
+            plan: data.expiredPlan
+          });
+          setPendingApprovalInfo(null);
+          setRejectionInfo(null);
           setError('');
         } else {
           setError(data.message || 'Login failed');
           setPendingApprovalInfo(null);
           setRejectionInfo(null);
+          setExpiredInfo(null);
         }
       }
     } catch (err) {
       setError('Server error. Please try again later.');
       setPendingApprovalInfo(null);
       setRejectionInfo(null);
+      setExpiredInfo(null);
     } finally {
       setLoading(false);
     }
@@ -160,7 +175,55 @@ const Login = () => {
             </div>
           )}
 
-          {error && !pendingApprovalInfo && !rejectionInfo && (
+          {/* Expired Subscription Notice */}
+          {expiredInfo && (
+            <div style={{ background: '#FFF1F2', border: '1.5px solid #FDA4AF', borderRadius: '14px', padding: '18px', marginBottom: '18px', width: '100%', textAlign: 'left', boxSizing: 'border-box', boxShadow: '0 4px 14px rgba(225, 29, 72, 0.08)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#E11D48', fontWeight: '800', fontSize: '15px', marginBottom: '8px' }}>
+                <AlertCircle size={20} /> Subscription Plan Expired
+              </div>
+              <p style={{ fontSize: '13px', color: '#9F1239', margin: '0 0 12px 0', lineHeight: '1.5' }}>
+                {expiredInfo.message || 'Your subscription period has ended. Your business records, branches, and store data are safely stored. Please repurchase your plan to reactivate workspace access.'}
+              </p>
+              {expiredInfo.plan && (
+                <div style={{ background: 'white', borderRadius: '10px', padding: '10px 14px', fontSize: '12px', border: '1px solid #FECDD3', display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '14px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#64748B' }}>Previous Plan:</span>
+                    <strong style={{ color: '#0F172A' }}>{expiredInfo.plan.planName} ({expiredInfo.plan.billingCycle})</strong>
+                  </div>
+                  {expiredInfo.plan.expiryFormatted && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#64748B' }}>Expired On:</span>
+                      <strong style={{ color: '#E11D48' }}>{expiredInfo.plan.expiryFormatted}</strong>
+                    </div>
+                  )}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowRenewalModal(true)}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  background: 'linear-gradient(135deg, #E11D48 0%, #BE123C 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '10px',
+                  fontWeight: '700',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 12px rgba(225, 29, 72, 0.25)'
+                }}
+              >
+                <Sparkles size={16} /> Repurchase / Renew Plan
+              </button>
+            </div>
+          )}
+
+          {error && !pendingApprovalInfo && !rejectionInfo && !expiredInfo && (
             <div style={{ color: '#EF4444', fontSize: '14px', marginBottom: '16px', textAlign: 'center', background: '#FEF2F2', padding: '10px', borderRadius: '8px', width: '100%', boxSizing: 'border-box', border: '1px solid #FCA5A5' }}>
               {error}
             </div>
@@ -228,6 +291,18 @@ const Login = () => {
         <span>&bull;</span>
         <a href="#" style={{ color: 'var(--text-muted)' }}>Support</a>
       </div>
+
+      <SubscriptionRenewalModal
+        isOpen={showRenewalModal}
+        onClose={() => setShowRenewalModal(false)}
+        prefillEmailOrPhone={email}
+        prefillPassword={password}
+        currentPlanId={expiredInfo?.plan?.planId || 'tier-1'}
+        onSuccess={() => {
+          setExpiredInfo(null);
+          setShowRenewalModal(false);
+        }}
+      />
     </div>
   );
 };

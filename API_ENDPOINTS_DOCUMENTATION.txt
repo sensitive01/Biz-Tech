@@ -226,7 +226,7 @@ Response (200 OK):
 --------------------------------------------------------------------------------
 
 [GET] /api/auth/me
-Desc: Get current logged-in user details, active profile, modules, and role
+Desc: Get current logged-in user details, active profile, modules, subscription status, and expiry
 Auth: Bearer Token Required
 Response (200 OK):
 {
@@ -239,8 +239,71 @@ Response (200 OK):
   "businessType": 1,
   "businessName": "Acme Technologies",
   "isOnboardingCompleted": true,
-  "subscriptionStatus": "Active",
+  "subscriptionStatus": "Active",   // "Active" | "Pending Approval" | "Expired" | "Rejected"
+  "isExpired": false,
+  "subscription": {
+    "planId": "tier-1",
+    "planName": "Tier 1: Sole Operator",
+    "billingCycle": "Monthly",      // "Monthly" (30 days) | "Annual" (365 days)
+    "amount": 1000,
+    "startDate": "2026-11-19T00:00:00.000Z",
+    "validUntil": "2026-12-19T00:00:00.000Z",
+    "expiryFormatted": "19 Dec 2026"
+  },
   "modules": ["sales", "expenses", "customers", "documents", "reminders", "products_services", "inventory", "purchases"]
+}
+
+--------------------------------------------------------------------------------
+
+[POST] /api/auth/renew-plan
+Desc: Repurchase or renew subscription plan (Monthly: 30 days validity, Annual: 365 days validity)
+Auth: Optional (either Bearer Token if logged in, OR provide emailOrPhone + password in body)
+Content-Type: application/json
+Request Body (UPI QR Option):
+{
+  "emailOrPhone": "owner@example.com",     // Required if not sending Bearer token
+  "password": "AccountPassword123",        // Required if not sending Bearer token
+  "planId": "tier-1",
+  "planName": "Tier 1: Sole Operator",
+  "billingCycle": "Monthly",               // "Monthly" (30 days) | "Annual" (365 days)
+  "amount": 1180,                          // Base + 18% GST
+  "paymentMethod": "UPI (Admin QR)",
+  "transactionId": "432109876543",         // 12-digit UTR
+  "paymentProof": {
+    "utrNumber": "432109876543",
+    "proofUrl": "https://res.cloudinary.com/.../proof.png",
+    "originalFileName": "screenshot.png"
+  }
+}
+Request Body (Razorpay Option):
+{
+  "emailOrPhone": "owner@example.com",
+  "password": "AccountPassword123",
+  "planId": "tier-1",
+  "planName": "Tier 1: Sole Operator",
+  "billingCycle": "Annual",
+  "amount": 9912,
+  "paymentMethod": "Razorpay",
+  "razorpayPayment": {
+    "razorpay_order_id": "order_xxx",
+    "razorpay_payment_id": "pay_xxx",
+    "razorpay_signature": "sig_xxx"
+  }
+}
+Response (200 OK - Razorpay Instant Activation):
+{
+  "success": true,
+  "isReactivated": true,
+  "message": "Plan successfully repurchased! Your workspace is active for 1 Year (365 Days).",
+  "token": "eyJhbGciOiJIUzI1NiIsIn...",
+  "user": { ... }
+}
+Response (200 OK - UPI QR Pending Admin Approval):
+{
+  "success": true,
+  "isPendingApproval": true,
+  "message": "Renewal payment proof submitted successfully! Platform admin will verify and reactivate your workspace.",
+  "approvalId": "67401b..."
 }
 
 --------------------------------------------------------------------------------

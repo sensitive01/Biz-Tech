@@ -39,12 +39,45 @@ const ManageSubscriptions = () => {
     billingCycle: 'Monthly',
     customAmount: 0,
     renewalDate: '',
+    remainingDays: 0,
     employeeLimit: '',
     branchLimit: '',
     businessLimit: ''
   });
   const [savingEdit, setSavingEdit] = useState(false);
   const [impersonatingId, setImpersonatingId] = useState(null);
+
+  // Helper functions for date math and two-way sync
+  const formatDateToYYYYMMDD = (dateVal) => {
+    if (!dateVal) return '';
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return '';
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const calcDaysFromDateStr = (dateStr) => {
+    if (!dateStr) return 0;
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return 0;
+    const target = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const diffMs = target.getTime() - today.getTime();
+    return Math.round(diffMs / (1000 * 60 * 60 * 24));
+  };
+
+  const calcDateStrFromDays = (days) => {
+    const numDays = Number(days) || 0;
+    const now = new Date();
+    const target = new Date(now.getFullYear(), now.getMonth(), now.getDate() + numDays);
+    const year = target.getFullYear();
+    const month = String(target.getMonth() + 1).padStart(2, '0');
+    const day = String(target.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
 
   const fetchSubscriptions = async () => {
     try {
@@ -79,15 +112,78 @@ const ManageSubscriptions = () => {
 
   const handleEditClick = (sub) => {
     setEditingSub(sub);
+    const dateFormatted = sub.renewalDate ? formatDateToYYYYMMDD(sub.renewalDate) : '';
+    const initialDays = dateFormatted 
+      ? calcDaysFromDateStr(dateFormatted) 
+      : (sub.daysUntilRenewal != null ? sub.daysUntilRenewal : 30);
+    const finalRenewalDate = dateFormatted || calcDateStrFromDays(initialDays);
+
     setEditForm({
       status: sub.status || 'Active',
       businessType: sub.type || 1,
       billingCycle: sub.billingCycle || 'Monthly',
       customAmount: sub.amount || 0,
-      renewalDate: sub.renewalDate ? new Date(sub.renewalDate).toISOString().split('T')[0] : '',
+      renewalDate: finalRenewalDate,
+      remainingDays: initialDays,
       employeeLimit: sub.employeeLimit != null ? sub.employeeLimit : '',
       branchLimit: sub.branchLimit != null ? sub.branchLimit : '',
       businessLimit: sub.businessLimit != null ? sub.businessLimit : ''
+    });
+  };
+
+  const handleRemainingDaysChange = (newDaysVal) => {
+    if (newDaysVal === '') {
+      setEditForm(prev => ({
+        ...prev,
+        remainingDays: ''
+      }));
+      return;
+    }
+
+    const numDays = Number(newDaysVal);
+    const newRenewalDate = calcDateStrFromDays(numDays);
+
+    setEditForm(prev => {
+      let updatedStatus = prev.status;
+      if (numDays > 0 && prev.status === 'Expired') {
+        updatedStatus = 'Active';
+      } else if (numDays <= 0 && prev.status === 'Active') {
+        updatedStatus = 'Expired';
+      }
+      return {
+        ...prev,
+        remainingDays: numDays,
+        renewalDate: newRenewalDate,
+        status: updatedStatus
+      };
+    });
+  };
+
+  const handleRenewalDateChange = (newDateStr) => {
+    if (!newDateStr) {
+      setEditForm(prev => ({
+        ...prev,
+        renewalDate: '',
+        remainingDays: 0
+      }));
+      return;
+    }
+
+    const calculatedDays = calcDaysFromDateStr(newDateStr);
+
+    setEditForm(prev => {
+      let updatedStatus = prev.status;
+      if (calculatedDays > 0 && prev.status === 'Expired') {
+        updatedStatus = 'Active';
+      } else if (calculatedDays <= 0 && prev.status === 'Active') {
+        updatedStatus = 'Expired';
+      }
+      return {
+        ...prev,
+        renewalDate: newDateStr,
+        remainingDays: calculatedDays,
+        status: updatedStatus
+      };
     });
   };
 
@@ -110,6 +206,7 @@ const ManageSubscriptions = () => {
           billingCycle: editForm.billingCycle,
           customAmount: editForm.customAmount,
           renewalDate: editForm.renewalDate,
+          remainingDays: editForm.remainingDays === '' ? 0 : Number(editForm.remainingDays),
           employeeLimit: editForm.employeeLimit === '' ? null : Number(editForm.employeeLimit),
           branchLimit: editForm.branchLimit === '' ? null : Number(editForm.branchLimit),
           businessLimit: editForm.businessLimit === '' ? null : Number(editForm.businessLimit)
@@ -554,11 +651,28 @@ const ManageSubscriptions = () => {
 
                     <td style={{ padding: '16px 20px' }}>
                       <div style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A' }}>{formatDate(sub.renewalDate)}</div>
-                      {sub.daysUntilRenewal <= 7 && sub.status === 'Active' && (
-                        <div style={{ fontSize: '11px', color: '#D97706', fontWeight: '600', marginTop: '2px' }}>
-                          Due in {sub.daysUntilRenewal} days
-                        </div>
-                      )}
+                      <div style={{ 
+                        fontSize: '11px', 
+                        fontWeight: '600', 
+                        marginTop: '3px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        color: sub.status === 'Expired' || sub.daysUntilRenewal < 0 
+                          ? '#DC2626' 
+                          : sub.daysUntilRenewal <= 7 
+                            ? '#D97706' 
+                            : '#16A34A'
+                      }}>
+                        <Clock size={11} />
+                        {sub.daysUntilRenewal > 1 
+                          ? `${sub.daysUntilRenewal} days remaining` 
+                          : sub.daysUntilRenewal === 1 
+                            ? '1 day remaining' 
+                            : sub.daysUntilRenewal === 0 
+                              ? 'Expires today' 
+                              : `Expired ${Math.abs(sub.daysUntilRenewal)} days ago`}
+                      </div>
                     </td>
 
                     <td style={{ padding: '16px 20px', textAlign: 'right' }}>
@@ -764,25 +878,42 @@ const ManageSubscriptions = () => {
                 </div>
               </div>
 
+              <div className="input-group" style={{ marginBottom: 0 }}>
+                <label className="input-label" style={{ fontWeight: '600', fontSize: '13px' }}>
+                  {editForm.billingCycle === 'Annual' ? 'Annual Amount (₹)' : 'Monthly Amount (₹)'}
+                </label>
+                <input 
+                  type="number" 
+                  className="input-field"
+                  required
+                  value={editForm.customAmount}
+                  onChange={(e) => setEditForm({ ...editForm, customAmount: Number(e.target.value) })}
+                />
+              </div>
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                 <div className="input-group" style={{ marginBottom: 0 }}>
-                  <label className="input-label" style={{ fontWeight: '600', fontSize: '13px' }}>Monthly Amount (₹)</label>
+                  <label className="input-label" style={{ fontWeight: '600', fontSize: '13px' }}>
+                    Remaining Validity (Days)
+                  </label>
                   <input 
                     type="number" 
                     className="input-field"
-                    required
-                    value={editForm.customAmount}
-                    onChange={(e) => setEditForm({ ...editForm, customAmount: Number(e.target.value) })}
+                    value={editForm.remainingDays}
+                    onChange={(e) => handleRemainingDaysChange(e.target.value)}
+                    placeholder="e.g. 30"
                   />
                 </div>
 
                 <div className="input-group" style={{ marginBottom: 0 }}>
-                  <label className="input-label" style={{ fontWeight: '600', fontSize: '13px' }}>Next Renewal Date</label>
+                  <label className="input-label" style={{ fontWeight: '600', fontSize: '13px' }}>
+                    Next Renewal Date
+                  </label>
                   <input 
                     type="date" 
                     className="input-field"
                     value={editForm.renewalDate}
-                    onChange={(e) => setEditForm({ ...editForm, renewalDate: e.target.value })}
+                    onChange={(e) => handleRenewalDateChange(e.target.value)}
                   />
                 </div>
               </div>

@@ -19,6 +19,7 @@ import {
   Calendar,
   AlertCircle
 } from 'lucide-react';
+import SubscriptionRenewalModal from '@/components/SubscriptionRenewalModal';
 
 const Billing = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -30,6 +31,35 @@ const Billing = () => {
   const [upgradeModalPlan, setUpgradeModalPlan] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [showRenewalModal, setShowRenewalModal] = useState(false);
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const stored = localStorage.getItem('user');
+      return stored ? JSON.parse(stored) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  useEffect(() => {
+    const fetchMe = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const fresh = await res.json();
+          setCurrentUser(fresh);
+          localStorage.setItem('user', JSON.stringify(fresh));
+        }
+      } catch (e) {
+        console.error('Failed to fetch profile in Billing:', e);
+      }
+    };
+    fetchMe();
+  }, []);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -311,7 +341,7 @@ const Billing = () => {
                 alignItems: 'center',
                 gap: '6px',
                 padding: '4px 12px',
-                background: 'rgba(255, 255, 255, 0.2)',
+                background: currentUser?.subscriptionStatus === 'Expired' ? '#EF4444' : 'rgba(255, 255, 255, 0.2)',
                 backdropFilter: 'blur(4px)',
                 borderRadius: '99px',
                 fontSize: '12px',
@@ -319,19 +349,25 @@ const Billing = () => {
                 letterSpacing: '0.5px',
                 marginBottom: '12px'
               }}>
-                <Check size={14} /> ACTIVE SUBSCRIPTION
+                <Check size={14} /> {currentUser?.subscriptionStatus === 'Expired' ? 'SUBSCRIPTION EXPIRED' : 'ACTIVE SUBSCRIPTION'}
               </div>
-              <h2 style={{ fontSize: '30px', fontWeight: '800', margin: '0 0 8px 0', color: 'white' }}>Enterprise Suite</h2>
+              <h2 style={{ fontSize: '30px', fontWeight: '800', margin: '0 0 8px 0', color: 'white' }}>
+                {currentUser?.subscription?.planName || 'Standard Business Suite'}
+              </h2>
               <p style={{ margin: 0, fontSize: '15px', color: '#DBEAFE', lineHeight: '1.6' }}>
-                You are currently on our top-tier business plan. Full access to all business modules, multi-branch operations, and priority support.
+                {currentUser?.subscription?.billingCycle === 'Annual'
+                  ? 'Annual workspace subscription with 365 days of full management and operational access.'
+                  : 'Monthly workspace subscription with 30 days of full management and operational access.'}
               </p>
               
               <div style={{ display: 'flex', gap: '24px', marginTop: '20px', flexWrap: 'wrap', fontSize: '13px', color: '#BFDBFE' }}>
+                {currentUser?.subscription?.validUntil && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Calendar size={15} /> Valid Until: <strong>{new Date(currentUser.subscription.validUntil).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</strong>
+                  </div>
+                )}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Calendar size={15} /> Next Renewal: <strong>Nov 01, 2026</strong>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <CreditCard size={15} /> Card: <strong>Visa ending in 4242</strong>
+                  <CreditCard size={15} /> Billing: <strong>{currentUser?.subscription?.billingCycle || 'Monthly'}</strong>
                 </div>
               </div>
             </div>
@@ -343,13 +379,40 @@ const Billing = () => {
               borderRadius: '12px',
               border: '1px solid rgba(255, 255, 255, 0.2)',
               textAlign: 'center',
-              minWidth: '200px'
+              minWidth: '220px'
             }}>
-              <div style={{ fontSize: '13px', color: '#BFDBFE', textTransform: 'uppercase', fontWeight: '600', marginBottom: '4px' }}>Monthly Cost</div>
-              <div style={{ fontSize: '36px', fontWeight: '800', color: 'white', lineHeight: '1' }}>₹199<span style={{ fontSize: '16px', fontWeight: '500', color: '#93C5FD' }}>/mo</span></div>
-              <span style={{ display: 'inline-block', marginTop: '10px', fontSize: '12px', background: '#22C55E', color: 'white', padding: '3px 10px', borderRadius: '99px', fontWeight: '700' }}>
-                Auto-Renew Active
-              </span>
+              <div style={{ fontSize: '13px', color: '#BFDBFE', textTransform: 'uppercase', fontWeight: '600', marginBottom: '4px' }}>
+                {currentUser?.subscription?.billingCycle === 'Annual' ? 'Annual Cost' : 'Monthly Cost'}
+              </div>
+              <div style={{ fontSize: '36px', fontWeight: '800', color: 'white', lineHeight: '1' }}>
+                ₹{(currentUser?.subscription?.amount || 1000).toLocaleString()}
+                <span style={{ fontSize: '16px', fontWeight: '500', color: '#93C5FD' }}>
+                  /{currentUser?.subscription?.billingCycle === 'Annual' ? 'yr' : 'mo'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowRenewalModal(true)}
+                style={{
+                  marginTop: '16px',
+                  width: '100%',
+                  padding: '10px 16px',
+                  background: 'white',
+                  color: '#2563EB',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: '700',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                }}
+              >
+                <Sparkles size={15} /> Repurchase / Renew Plan
+              </button>
             </div>
           </div>
 
@@ -749,6 +812,20 @@ const Billing = () => {
           </div>
         </div>
       )}
+
+      {/* ======================================================== */}
+      {/* SUBSCRIPTION REPURCHASE / RENEWAL MODAL                  */}
+      {/* ======================================================== */}
+      <SubscriptionRenewalModal
+        isOpen={showRenewalModal}
+        onClose={() => setShowRenewalModal(false)}
+        prefillEmailOrPhone={currentUser?.email || currentUser?.phone || ''}
+        currentPlanId={currentUser?.subscription?.planId || 'tier-1'}
+        onSuccess={(data) => {
+          if (data?.user) setCurrentUser(data.user);
+          setShowRenewalModal(false);
+        }}
+      />
 
     </div>
   );

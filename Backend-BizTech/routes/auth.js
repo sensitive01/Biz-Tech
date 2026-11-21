@@ -11,6 +11,7 @@ const PaymentApproval = require('../models/PaymentApproval');
 const Document = require('../models/Document');
 const { checkEmailInUse } = require('../utils/emailValidator');
 const { checkPhoneInUse } = require('../utils/phoneValidator');
+const { isSubscriptionExpired, calculatePlanExpiry, formatDateString } = require('../utils/subscriptionHelper');
 
 // Helper to generate a unique human-readable tenant ID
 const generateUserId = async () => {
@@ -299,6 +300,28 @@ router.post('/login', async (req, res) => {
         });
       }
 
+      // Check Subscription Expiry Status (Monthly 30 days / Annual 365 days)
+      if (isSubscriptionExpired(user)) {
+        const expiryDateStr = formatDateString(user.subscription?.validUntil || user.subscriptionRenewalDate);
+        return res.status(403).json({
+          message: `Your subscription plan (${user.subscription?.planName || 'Plan'}) expired on ${expiryDateStr}. Please repurchase or renew your plan to continue accessing your workspace.`,
+          isExpired: true,
+          subscriptionStatus: 'Expired',
+          expiredPlan: {
+            planId: user.subscription?.planId || '',
+            planName: user.subscription?.planName || 'Standard Plan',
+            amount: user.subscription?.amount || 0,
+            billingCycle: user.subscription?.billingCycle || user.subscriptionBillingCycle || 'Monthly',
+            validUntil: user.subscription?.validUntil || user.subscriptionRenewalDate,
+            expiryFormatted: expiryDateStr,
+            businessType: user.businessType || 1,
+            businessName: user.businessName || '',
+            email: user.email,
+            phone: user.phone
+          }
+        });
+      }
+
       // Ensure existing user has uniqueId
       if (!user.userId) {
         user.userId = user.get('uniqueId') || await generateUserId();
@@ -330,14 +353,28 @@ router.post('/login', async (req, res) => {
               id: user.id, 
               userId: user.userId,
               fullName: user.fullName, 
+              ownerName: user.ownerName || user.fullName,
               email: user.email, 
+              phone: user.phone,
               role: 'owner',
               businessType: user.businessType, 
               businessName: user.businessName,
+              panNumber: user.panNumber,
+              gstNumber: user.gstNumber,
+              address: user.address,
+              streetAddress: user.streetAddress || user.businesses?.[0]?.streetAddress || '',
+              city: user.city || user.businesses?.[0]?.city || '',
+              state: user.state || user.businesses?.[0]?.state || '',
+              pincode: user.pincode || user.businesses?.[0]?.pincode || '',
               isOnboardingCompleted: isCompleted,
               subscriptionStatus: user.subscriptionStatus,
+              subscription: user.subscription,
               offeringType: user.offeringType,
               businessOfferingType: user.businessOfferingType || user.offeringType,
+              category: user.category,
+              categories: user.categories,
+              subCategory: user.subCategory,
+              documents: user.documents,
               businesses: (user.businesses || []).map(b => {
                 const obj = b.toObject ? b.toObject() : { ...b };
                 delete obj.password;
@@ -382,6 +419,14 @@ router.post('/login', async (req, res) => {
           return res.status(403).json({
             message: 'The workspace subscription payment was rejected by the admin. Please contact the business owner.',
             isRejected: true
+          });
+        }
+        if (isSubscriptionExpired(parentUserWithBiz)) {
+          const expiryDateStr = formatDateString(parentUserWithBiz.subscription?.validUntil || parentUserWithBiz.subscriptionRenewalDate);
+          return res.status(403).json({
+            message: `The workspace subscription expired on ${expiryDateStr}. Please contact the business owner to renew the plan.`,
+            isExpired: true,
+            subscriptionStatus: 'Expired'
           });
         }
 
@@ -463,6 +508,14 @@ router.post('/login', async (req, res) => {
           isRejected: true
         });
       }
+      if (parentUser && isSubscriptionExpired(parentUser)) {
+        const expiryDateStr = formatDateString(parentUser.subscription?.validUntil || parentUser.subscriptionRenewalDate);
+        return res.status(403).json({
+          message: `The workspace subscription expired on ${expiryDateStr}. Please contact the business owner to renew the plan.`,
+          isExpired: true,
+          subscriptionStatus: 'Expired'
+        });
+      }
 
       const matchedBiz = parentUser?.businesses?.find(b => b.name === branch.businessName);
       const bizOfferingType = matchedBiz?.offeringType || 'both';
@@ -540,6 +593,14 @@ router.post('/login', async (req, res) => {
         return res.status(403).json({
           message: 'The workspace subscription payment was rejected by the admin. Please contact the business owner.',
           isRejected: true
+        });
+      }
+      if (parentUser && isSubscriptionExpired(parentUser)) {
+        const expiryDateStr = formatDateString(parentUser.subscription?.validUntil || parentUser.subscriptionRenewalDate);
+        return res.status(403).json({
+          message: `The workspace subscription expired on ${expiryDateStr}. Please contact the business owner to renew the plan.`,
+          isExpired: true,
+          subscriptionStatus: 'Expired'
         });
       }
 
@@ -733,6 +794,20 @@ router.post('/onboarding', async (req, res) => {
       });
     }
 
+    // Validate Mandatory PAN Card File/Image Upload
+    const incomingPanFile = (
+      documents?.panFileUrl || 
+      (typeof documents?.pan === 'object' ? documents.pan.fileUrl : '') || 
+      user.documents?.panFileUrl || 
+      ''
+    ).trim();
+
+    if (!incomingPanFile) {
+      return res.status(400).json({ 
+        message: 'PAN Card document / image upload is mandatory. Please upload your PAN card file.' 
+      });
+    }
+
     // Check if duplicate PAN exists across other businesses/users
     const existingPanUser = await User.findOne({
       _id: { $ne: userId },
@@ -789,9 +864,25 @@ router.post('/onboarding', async (req, res) => {
     if (documents) {
       user.documents = {
         pan: incomingPan,
+        panType: documents.panType || 'ID Card',
+        panExpiryDate: documents.panExpiryDate || null,
+        panFileUrl: incomingPanFile,
+        panFileName: documents.panFileName || '',
         gstin: incomingGst || documents.gstin || user.documents?.gstin || '',
+        gstinType: documents.gstinType || 'Certificate',
+        gstinExpiryDate: documents.gstinExpiryDate || null,
+        gstinFileUrl: documents.gstinFileUrl || '',
+        gstinFileName: documents.gstinFileName || '',
         msme: documents.msme || user.documents?.msme || '',
+        msmeType: documents.msmeType || 'Registration',
+        msmeExpiryDate: documents.msmeExpiryDate || null,
+        msmeFileUrl: documents.msmeFileUrl || '',
+        msmeFileName: documents.msmeFileName || '',
         fssai: documents.fssai || user.documents?.fssai || '',
+        fssaiType: documents.fssaiType || 'License',
+        fssaiExpiryDate: documents.fssaiExpiryDate || null,
+        fssaiFileUrl: documents.fssaiFileUrl || '',
+        fssaiFileName: documents.fssaiFileName || '',
         tradeLicense: documents.tradeLicense || user.documents?.tradeLicense || '',
         customDocuments: Array.isArray(documents.customDocuments) ? documents.customDocuments : (user.documents?.customDocuments || [])
       };
@@ -799,6 +890,7 @@ router.post('/onboarding', async (req, res) => {
     } else {
       if (!user.documents) user.documents = {};
       user.documents.pan = incomingPan;
+      user.documents.panFileUrl = incomingPanFile;
       if (incomingGst) user.documents.gstin = incomingGst;
     }
     let isPendingApproval = false;
@@ -806,68 +898,79 @@ router.post('/onboarding', async (req, res) => {
 
     if (subscription) {
       const isUpiQr = (subscription.paymentMethod || '').includes('UPI') || Boolean(req.body.paymentProof);
-      const subStatus = isUpiQr ? 'Pending Approval' : (subscription.paymentStatus || 'Active');
-      const isAnnual = (subscription.billingCycle || '').toLowerCase() === 'annual';
-      const durationMs = isAnnual ? 365 * 24 * 60 * 60 * 1000 : 30 * 24 * 60 * 60 * 1000;
+      const isExistingActive = (subscription.paymentMethod === 'Existing Plan' || req.body.isSetupUpdate) && 
+                               user.subscriptionStatus === 'Active' && 
+                               user.subscription?.validUntil && 
+                               new Date(user.subscription.validUntil) > new Date();
 
-      user.subscription = {
-        planId: subscription.planId || user.subscription?.planId || '',
-        planName: subscription.planName || user.subscription?.planName || 'Starter Plan',
-        amount: subscription.amount !== undefined ? subscription.amount : (user.subscription?.amount || 0),
-        billingCycle: subscription.billingCycle || user.subscription?.billingCycle || 'Monthly',
-        paymentMethod: subscription.paymentMethod || (isUpiQr ? 'UPI (Admin QR)' : 'Razorpay'),
-        paymentStatus: subStatus,
-        transactionId: subscription.transactionId || `TXN-${Date.now()}`,
-        startDate: subscription.startDate || new Date(),
-        validUntil: subscription.validUntil || new Date(Date.now() + durationMs)
-      };
-      user.subscriptionStatus = subStatus;
+      if (!isExistingActive) {
+        const subStatus = isUpiQr ? 'Pending Approval' : (subscription.paymentStatus || 'Active');
+        const isAnnual = (subscription.billingCycle || '').toLowerCase() === 'annual' || (subscription.billingCycle || '').toLowerCase() === 'yearly';
+        const resolvedCycle = isAnnual ? 'Annual' : 'Monthly';
+        const now = new Date();
+        const validUntil = calculatePlanExpiry(resolvedCycle, now);
 
-      if (isUpiQr) {
-        isPendingApproval = true;
-        const proofData = req.body.paymentProof || {};
-        const utr = (proofData.utrNumber || subscription.transactionId || '').trim();
-        const proofUrl = (proofData.proofUrl || '').trim();
-        const originalFileName = (proofData.originalFileName || '').trim();
-
-        // Create or Update PaymentApproval audit entry
-        const approvalRecord = new PaymentApproval({
-          tenantId: user._id,
-          businessName: singleBusiness?.name || businessName || user.businessName || 'New Workspace',
-          ownerName: incomingOwnerName || user.fullName || '',
-          email: user.email,
-          phone: singleBusiness?.phone || phone || user.businessPhone || user.phone || '',
-          panNumber: incomingPan,
-          businessType: user.businessType || 1,
-          planId: subscription.planId || '',
-          planName: subscription.planName || 'Starter Plan',
-          billingCycle: subscription.billingCycle || 'Monthly',
-          amount: subscription.amount !== undefined ? subscription.amount : 0,
-          paymentMethod: 'UPI (Admin QR)',
-          utrNumber: utr,
-          proofUrl: proofUrl,
-          originalFileName: originalFileName,
-          status: 'Pending',
-          history: [{
-            action: 'Submitted',
-            previousStatus: 'None',
-            newStatus: 'Pending',
-            actor: user.fullName || 'Tenant Owner',
-            note: `Payment proof submitted via UPI QR (UTR: ${utr})`,
-            timestamp: new Date()
-          }]
-        });
-        await approvalRecord.save();
-        createdApprovalId = approvalRecord._id;
-
-        user.paymentProof = {
-          approvalId: approvalRecord._id,
-          utrNumber: utr,
-          proofUrl: proofUrl,
-          originalFileName: originalFileName,
-          status: 'Pending',
-          submittedAt: new Date()
+        user.subscription = {
+          planId: subscription.planId || user.subscription?.planId || '',
+          planName: subscription.planName || user.subscription?.planName || 'Starter Plan',
+          amount: subscription.amount !== undefined ? subscription.amount : (user.subscription?.amount || 0),
+          billingCycle: resolvedCycle,
+          paymentMethod: subscription.paymentMethod || (isUpiQr ? 'UPI (Admin QR)' : 'Razorpay'),
+          paymentStatus: subStatus,
+          transactionId: subscription.transactionId || `TXN-${Date.now()}`,
+          startDate: now,
+          validUntil: validUntil
         };
+        user.subscriptionStatus = subStatus;
+        user.subscriptionRenewalDate = validUntil;
+        user.subscriptionBillingCycle = resolvedCycle;
+
+        if (isUpiQr) {
+          isPendingApproval = true;
+          const proofData = req.body.paymentProof || {};
+          const utr = (proofData.utrNumber || subscription.transactionId || '').trim();
+          const proofUrl = (proofData.proofUrl || '').trim();
+          const originalFileName = (proofData.originalFileName || '').trim();
+
+          // Create or Update PaymentApproval audit entry
+          const approvalRecord = new PaymentApproval({
+            tenantId: user._id,
+            businessName: singleBusiness?.name || businessName || user.businessName || 'New Workspace',
+            ownerName: incomingOwnerName || user.fullName || '',
+            email: user.email,
+            phone: singleBusiness?.phone || phone || user.businessPhone || user.phone || '',
+            panNumber: incomingPan,
+            businessType: user.businessType || 1,
+            planId: subscription.planId || '',
+            planName: subscription.planName || 'Starter Plan',
+            billingCycle: subscription.billingCycle || 'Monthly',
+            amount: subscription.amount !== undefined ? subscription.amount : 0,
+            paymentMethod: 'UPI (Admin QR)',
+            utrNumber: utr,
+            proofUrl: proofUrl,
+            originalFileName: originalFileName,
+            status: 'Pending',
+            history: [{
+              action: 'Submitted',
+              previousStatus: 'None',
+              newStatus: 'Pending',
+              actor: user.fullName || 'Tenant Owner',
+              note: `Payment proof submitted via UPI QR (UTR: ${utr})`,
+              timestamp: new Date()
+            }]
+          });
+          await approvalRecord.save();
+          createdApprovalId = approvalRecord._id;
+
+          user.paymentProof = {
+            approvalId: approvalRecord._id,
+            utrNumber: utr,
+            proofUrl: proofUrl,
+            originalFileName: originalFileName,
+            status: 'Pending',
+            submittedAt: new Date()
+          };
+        }
       }
     }
     if (offeringType) {
@@ -902,11 +1005,19 @@ router.post('/onboarding', async (req, res) => {
       if (singleBusiness.panNumber) user.panNumber = singleBusiness.panNumber;
       if (singleBusiness.ownerName) user.ownerName = singleBusiness.ownerName;
       if (singleBusiness.gstNumber) user.gstNumber = singleBusiness.gstNumber;
+      if (singleBusiness.city || req.body.city) user.city = singleBusiness.city || req.body.city;
+      if (singleBusiness.state || req.body.state) user.state = singleBusiness.state || req.body.state;
+      if (singleBusiness.pincode || req.body.pincode) user.pincode = singleBusiness.pincode || req.body.pincode;
+      if (singleBusiness.streetAddress || req.body.streetAddress) user.streetAddress = singleBusiness.streetAddress || req.body.streetAddress;
 
       if (user.businesses && user.businesses.length > 0) {
         if (singleBusiness.name) user.businesses[0].name = singleBusiness.name;
         if (singleBusiness.phone) user.businesses[0].phone = singleBusiness.phone;
         if (singleBusiness.address) user.businesses[0].address = singleBusiness.address;
+        if (singleBusiness.city || req.body.city) user.businesses[0].city = singleBusiness.city || req.body.city;
+        if (singleBusiness.state || req.body.state) user.businesses[0].state = singleBusiness.state || req.body.state;
+        if (singleBusiness.pincode || req.body.pincode) user.businesses[0].pincode = singleBusiness.pincode || req.body.pincode;
+        if (singleBusiness.streetAddress || req.body.streetAddress) user.businesses[0].streetAddress = singleBusiness.streetAddress || req.body.streetAddress;
         if (singleBusiness.panNumber) user.businesses[0].panNumber = singleBusiness.panNumber;
         if (singleBusiness.ownerName) user.businesses[0].ownerName = singleBusiness.ownerName;
         if (singleBusiness.gstNumber) user.businesses[0].gstNumber = singleBusiness.gstNumber;
@@ -1301,6 +1412,15 @@ router.get('/me', async (req, res) => {
     }
 
     const sanitizedUser = user.toObject();
+    const expired = isSubscriptionExpired(user);
+    sanitizedUser.isExpired = expired;
+    sanitizedUser.subscriptionStatus = user.subscriptionStatus;
+    if (user.subscription) {
+      sanitizedUser.subscription = {
+        ...(sanitizedUser.subscription || {}),
+        expiryFormatted: formatDateString(user.subscription.validUntil || user.subscriptionRenewalDate)
+      };
+    }
     if (sanitizedUser.businesses) {
       sanitizedUser.businesses = sanitizedUser.businesses.map(b => {
         const hasPassword = Boolean(b.password);
@@ -1488,6 +1608,208 @@ router.put('/change-password', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server Error' });
+  }
+});
+
+// @route   POST /api/auth/renew-plan
+// @desc    Repurchase or renew subscription plan (Monthly: 30 days, Annual: 365 days)
+// @access  Public (via email/phone + password) OR Authenticated (via Bearer token)
+router.post('/renew-plan', async (req, res) => {
+  try {
+    let user = null;
+    const authHeader = req.header('Authorization');
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
+
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
+        if (decoded?.user?.id) {
+          user = await User.findById(decoded.user.id);
+        }
+      } catch (e) {
+        // Token might be expired, fall through to credentials
+      }
+    }
+
+    if (!user) {
+      const { emailOrPhone, email, phone, password } = req.body;
+      const rawIdentifier = (emailOrPhone || email || phone || '').trim();
+      if (!rawIdentifier) {
+        return res.status(400).json({ message: 'Please enter your registered email or phone number.' });
+      }
+      if (!password) {
+        return res.status(400).json({ message: 'Please enter your password to authorize plan renewal.' });
+      }
+
+      const cleanInput = rawIdentifier.toLowerCase();
+      const digitsOnly = rawIdentifier.replace(/[^0-9]/g, '');
+      const isPhone = digitsOnly.length === 10;
+
+      const conditions = [{ email: cleanInput }];
+      if (isPhone) conditions.push({ phone: digitsOnly });
+
+      user = await User.findOne({ $or: conditions });
+      if (!user) {
+        return res.status(404).json({ message: 'No registered workspace account found for this email or phone.' });
+      }
+
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) {
+        return res.status(400).json({ message: 'Incorrect password. Please verify your credentials and try again.' });
+      }
+    }
+
+    const {
+      planId,
+      planName,
+      billingCycle,
+      amount,
+      paymentMethod,
+      transactionId,
+      paymentProof,
+      razorpayPayment
+    } = req.body;
+
+    const isAnnual = (billingCycle || '').toLowerCase() === 'annual' || (billingCycle || '').toLowerCase() === 'yearly';
+    const resolvedCycle = isAnnual ? 'Annual' : 'Monthly';
+    const isUpiQr = (paymentMethod || '').includes('UPI') || Boolean(paymentProof);
+    const now = new Date();
+    const validUntil = calculatePlanExpiry(resolvedCycle, now);
+    const resolvedAmount = Number(amount) || (isAnnual ? 8400 : 1000);
+
+    if (isUpiQr) {
+      // 1. UPI QR Flow -> Submit proof for Admin Approval
+      const proofData = paymentProof || {};
+      const utr = (proofData.utrNumber || transactionId || '').trim();
+      const proofUrl = (proofData.proofUrl || '').trim();
+      const originalFileName = (proofData.originalFileName || '').trim();
+
+      if (!utr) {
+        return res.status(400).json({ message: 'Please enter the 12-digit UPI UTR / Transaction Reference Number.' });
+      }
+      if (!proofUrl) {
+        return res.status(400).json({ message: 'Please upload your UPI payment screenshot or receipt proof.' });
+      }
+
+      const approvalRecord = new PaymentApproval({
+        tenantId: user._id,
+        businessName: user.businessName || 'Workspace',
+        ownerName: user.ownerName || user.fullName || 'Tenant Owner',
+        email: user.email,
+        phone: user.businessPhone || user.phone || '',
+        panNumber: user.panNumber || '',
+        businessType: user.businessType || 1,
+        planId: planId || user.subscription?.planId || 'Starter Plan',
+        planName: planName || user.subscription?.planName || 'Starter Plan',
+        billingCycle: resolvedCycle,
+        amount: resolvedAmount,
+        paymentMethod: 'UPI (Admin QR)',
+        utrNumber: utr,
+        proofUrl: proofUrl,
+        originalFileName: originalFileName,
+        status: 'Pending',
+        history: [{
+          action: 'Submitted',
+          previousStatus: user.subscriptionStatus || 'Expired',
+          newStatus: 'Pending',
+          actor: user.fullName || 'Tenant Owner',
+          note: `Plan renewal requested (${resolvedCycle} - ₹${resolvedAmount}) via UPI QR (UTR: ${utr})`,
+          timestamp: now
+        }]
+      });
+      await approvalRecord.save();
+
+      user.subscriptionStatus = 'Pending Approval';
+      user.subscription = {
+        planId: planId || user.subscription?.planId || 'Starter Plan',
+        planName: planName || user.subscription?.planName || 'Starter Plan',
+        amount: resolvedAmount,
+        billingCycle: resolvedCycle,
+        paymentMethod: 'UPI (Admin QR)',
+        paymentStatus: 'Pending Approval',
+        transactionId: utr,
+        startDate: now,
+        validUntil: validUntil
+      };
+      user.paymentProof = {
+        approvalId: approvalRecord._id,
+        utrNumber: utr,
+        proofUrl: proofUrl,
+        originalFileName: originalFileName,
+        status: 'Pending',
+        submittedAt: now
+      };
+      user.subscriptionRenewalDate = validUntil;
+      user.subscriptionBillingCycle = resolvedCycle;
+
+      await user.save();
+
+      return res.json({
+        success: true,
+        isPendingApproval: true,
+        message: 'Renewal payment proof submitted successfully! Platform admin will verify and reactivate your workspace.',
+        approvalId: approvalRecord._id
+      });
+    } else {
+      // 2. Razorpay Flow -> Instant Activation
+      const rzpPaymentId = razorpayPayment?.razorpay_payment_id || transactionId || `RPY-${Date.now()}`;
+
+      user.subscriptionStatus = 'Active';
+      user.isOnboardingCompleted = true;
+      user.subscription = {
+        planId: planId || user.subscription?.planId || 'Starter Plan',
+        planName: planName || user.subscription?.planName || 'Starter Plan',
+        amount: resolvedAmount,
+        billingCycle: resolvedCycle,
+        paymentMethod: 'Razorpay',
+        paymentStatus: 'Active',
+        transactionId: rzpPaymentId,
+        startDate: now,
+        validUntil: validUntil
+      };
+      user.subscriptionRenewalDate = validUntil;
+      user.subscriptionBillingCycle = resolvedCycle;
+
+      await user.save();
+
+      // Issue JWT token
+      const payload = {
+        user: {
+          id: user.id,
+          businessType: user.businessType,
+          role: 'owner'
+        }
+      };
+
+      const loginToken = jwt.sign(
+        payload,
+        process.env.JWT_SECRET || 'fallback_secret',
+        { expiresIn: '1d' }
+      );
+
+      return res.json({
+        success: true,
+        isReactivated: true,
+        message: `Plan successfully repurchased! Your workspace is active for ${resolvedCycle === 'Annual' ? '1 Year (365 Days)' : '30 Days'}.`,
+        token: loginToken,
+        user: {
+          id: user.id,
+          userId: user.userId,
+          fullName: user.fullName,
+          email: user.email,
+          role: 'owner',
+          businessType: user.businessType,
+          businessName: user.businessName,
+          isOnboardingCompleted: true,
+          subscriptionStatus: 'Active',
+          validUntil: validUntil,
+          modules: user.modules
+        }
+      });
+    }
+  } catch (err) {
+    console.error('Renew plan error:', err);
+    res.status(500).json({ success: false, message: err.message || 'Failed to repurchase plan' });
   }
 });
 

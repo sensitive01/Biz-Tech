@@ -3,6 +3,7 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const PaymentApproval = require('../models/PaymentApproval');
 const User = require('../models/User');
+const { calculatePlanExpiry } = require('../utils/subscriptionHelper');
 const Admin = require('../models/Admin');
 
 // Middleware to verify Admin JWT
@@ -141,20 +142,22 @@ router.post('/:id/approve', verifyAdmin, async (req, res) => {
         user.subscriptionStatus = 'Active';
         user.isOnboardingCompleted = true;
 
-        const isAnnual = (approval.billingCycle || '').toLowerCase() === 'annual';
-        const durationMs = isAnnual ? 365 * 24 * 60 * 60 * 1000 : 30 * 24 * 60 * 60 * 1000;
+        const isAnnual = (approval.billingCycle || '').toLowerCase() === 'annual' || (approval.billingCycle || '').toLowerCase() === 'yearly';
         const now = new Date();
+        const validUntil = calculatePlanExpiry(approval.billingCycle, now);
 
         if (!user.subscription) user.subscription = {};
         user.subscription.paymentStatus = 'Active';
         user.subscription.planId = approval.planId || user.subscription.planId;
         user.subscription.planName = approval.planName || user.subscription.planName;
         user.subscription.amount = approval.amount;
-        user.subscription.billingCycle = approval.billingCycle || 'Monthly';
+        user.subscription.billingCycle = isAnnual ? 'Annual' : 'Monthly';
         user.subscription.paymentMethod = approval.paymentMethod || 'UPI (Admin QR)';
         user.subscription.transactionId = approval.utrNumber;
         user.subscription.startDate = now;
-        user.subscription.validUntil = new Date(now.getTime() + durationMs);
+        user.subscription.validUntil = validUntil;
+        user.subscriptionRenewalDate = validUntil;
+        user.subscriptionBillingCycle = isAnnual ? 'Annual' : 'Monthly';
 
         if (!user.paymentProof) user.paymentProof = {};
         user.paymentProof.status = 'Approved';

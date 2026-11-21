@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { IndianRupee, Users, Store, Activity, Calendar, FileText, Settings, ArrowUpRight, ArrowDownRight, CreditCard, Clock, CheckCircle2, MapPin, UserCheck, Phone, Package, Archive, ShoppingCart, TrendingUp, ShieldCheck, Wrench } from 'lucide-react';
+import { IndianRupee, Users, Store, Activity, Calendar, FileText, Settings, ArrowUpRight, ArrowDownRight, CreditCard, Clock, CheckCircle2, MapPin, UserCheck, Phone, Package, Archive, ShoppingCart, TrendingUp, ShieldCheck, Wrench, Sparkles } from 'lucide-react';
+import SubscriptionRenewalModal from '@/components/SubscriptionRenewalModal';
 
 const TenantDashboard = () => {
   const navigate = useNavigate();
@@ -17,6 +18,27 @@ const TenantDashboard = () => {
   const [pricingPlan, setPricingPlan] = useState(null);
   const [singleBranch, setSingleBranch] = useState(null);
   const [employeeCount, setEmployeeCount] = useState(0);
+  const [showRenewalModal, setShowRenewalModal] = useState(false);
+
+  useEffect(() => {
+    const fetchMe = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const freshUser = await res.json();
+          setCurrentUser(freshUser);
+          localStorage.setItem('user', JSON.stringify(freshUser));
+        }
+      } catch (e) {
+        console.error('Failed to refresh user profile:', e);
+      }
+    };
+    fetchMe();
+  }, []);
 
   useEffect(() => {
     const fetchPricing = async () => {
@@ -403,41 +425,79 @@ const TenantDashboard = () => {
           {/* Decorative background circle */}
           <div style={{ position: 'absolute', top: '-50px', right: '-50px', width: '200px', height: '200px', borderRadius: '50%', background: 'rgba(37, 99, 235, 0.2)', filter: 'blur(30px)' }}></div>
           
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px', position: 'relative', zIndex: 1 }}>
-            <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <CreditCard size={20} color="#60A5FA" />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', position: 'relative', zIndex: 1, flexWrap: 'wrap', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <CreditCard size={20} color="#60A5FA" />
+              </div>
+              <div>
+                <h2 style={{ fontSize: '18px', fontWeight: '700', margin: 0 }}>Active Workspace Subscription</h2>
+                <span style={{ fontSize: '12px', color: '#94A3B8' }}>
+                  {currentUser?.subscription?.billingCycle === 'Annual' ? 'Annual Subscription (365 Days Validity)' : 'Monthly Subscription (30 Days Validity)'}
+                </span>
+              </div>
             </div>
-            <h2 style={{ fontSize: '18px', fontWeight: '600', margin: 0 }}>Active Subscription</h2>
+
+            {currentUser?.subscription?.validUntil && (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(37, 99, 235, 0.2)', border: '1px solid rgba(96, 165, 250, 0.3)', padding: '6px 14px', borderRadius: '20px', fontSize: '13px' }}>
+                <Clock size={15} color="#93C5FD" />
+                <span style={{ color: '#E2E8F0' }}>
+                  Valid Until: <strong style={{ color: '#60A5FA' }}>{new Date(currentUser.subscription.validUntil).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</strong>
+                </span>
+              </div>
+            )}
           </div>
 
-          {pricingPlan ? (
-            <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '24px' }}>
-              <div>
-                <p style={{ color: '#94A3B8', fontSize: '14px', marginBottom: '4px' }}>Current Plan</p>
-                <h3 style={{ fontSize: '24px', fontWeight: '700', marginBottom: '8px' }}>{pricingPlan.customerType}</h3>
-                <p style={{ color: '#CBD5E1', fontSize: '14px', maxWidth: '400px', margin: 0 }}>
-                  {pricingPlan.description || 'You are on the standard plan structure with full access to permitted features.'}
-                </p>
+          <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '24px' }}>
+            <div>
+              <p style={{ color: '#94A3B8', fontSize: '14px', marginBottom: '4px' }}>Current Subscribed Plan</p>
+              <h3 style={{ fontSize: '24px', fontWeight: '700', marginBottom: '8px' }}>
+                {currentUser?.subscription?.planName || pricingPlan?.customerType || `Type ${tenantType} Plan`}
+              </h3>
+              <p style={{ color: '#CBD5E1', fontSize: '14px', maxWidth: '420px', margin: 0 }}>
+                {pricingPlan?.description || 'Your workspace is active with full access to permitted business operations and staff management.'}
+              </p>
+            </div>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                <span style={{ fontSize: '42px', fontWeight: '800', letterSpacing: '-1px' }}>
+                  ₹{(currentUser?.subscription?.amount || pricingPlan?.amount || 1000).toLocaleString()}
+                </span>
+                <span style={{ color: '#94A3B8', fontSize: '15px', fontWeight: '500' }}>
+                  /{currentUser?.subscription?.billingCycle === 'Annual' ? 'yr' : 'mo'}
+                </span>
               </div>
               
-              <div style={{ display: 'flex', alignItems: 'center', gap: '32px' }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-                  <span style={{ fontSize: '48px', fontWeight: '800', letterSpacing: '-2px' }}>₹{pricingPlan.amount}</span>
-                  <span style={{ color: '#94A3B8', fontSize: '16px', fontWeight: '500' }}>/ mo</span>
-                </div>
-                <button style={{ padding: '14px 28px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '12px', fontWeight: '600', fontSize: '15px', cursor: 'pointer', transition: 'background 0.2s', whiteSpace: 'nowrap' }} onMouseOver={(e) => e.currentTarget.style.background = '#1D4ED8'} onMouseOut={(e) => e.currentTarget.style.background = '#2563EB'}>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  onClick={() => setShowRenewalModal(true)}
+                  style={{ padding: '12px 22px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '700', fontSize: '14px', cursor: 'pointer', transition: 'background 0.2s', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Sparkles size={16} /> Repurchase / Renew
+                </button>
+                <button
+                  onClick={() => navigate('/tenant/billing')}
+                  style={{ padding: '12px 20px', background: 'rgba(255, 255, 255, 0.1)', color: 'white', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '10px', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}
+                >
                   Manage Billing
                 </button>
               </div>
             </div>
-          ) : (
-            <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', padding: '24px 0' }}>
-              <Activity size={32} color="#60A5FA" style={{ marginBottom: '16px', opacity: 0.5 }} />
-              <p style={{ color: '#94A3B8', fontSize: '14px' }}>Fetching plan details...</p>
-            </div>
-          )}
+          </div>
         </div>
       )}
+
+      <SubscriptionRenewalModal
+        isOpen={showRenewalModal}
+        onClose={() => setShowRenewalModal(false)}
+        prefillEmailOrPhone={currentUser?.email || currentUser?.phone || ''}
+        currentPlanId={currentUser?.subscription?.planId || 'tier-1'}
+        onSuccess={(data) => {
+          if (data?.user) setCurrentUser(data.user);
+          setShowRenewalModal(false);
+        }}
+      />
 
     </div>
   );

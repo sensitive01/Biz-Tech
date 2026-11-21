@@ -538,8 +538,8 @@ router.get('/subscriptions', async (req, res) => {
         totalMrr += Number(amount);
       }
 
-      // Renewal date: if not set, set to 30 days after creation, recurring
-      let renewalDate = user.subscriptionRenewalDate;
+      // Renewal date: prioritize subscriptionRenewalDate or validUntil
+      let renewalDate = user.subscriptionRenewalDate || user.subscription?.validUntil;
       if (!renewalDate) {
         const created = new Date(user.createdAt || Date.now());
         const candidate = new Date(created);
@@ -752,13 +752,53 @@ router.put('/subscriptions/:id', async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    const { status, businessType, billingCycle, customAmount, renewalDate, employeeLimit, branchLimit, businessLimit } = req.body;
+    const { status, businessType, billingCycle, customAmount, renewalDate, remainingDays, employeeLimit, branchLimit, businessLimit } = req.body;
 
-    if (status) user.subscriptionStatus = status;
     if (businessType !== undefined) user.businessType = Number(businessType);
-    if (billingCycle) user.subscriptionBillingCycle = billingCycle;
-    if (customAmount !== undefined) user.subscriptionCustomAmount = Number(customAmount);
-    if (renewalDate) user.subscriptionRenewalDate = new Date(renewalDate);
+    if (billingCycle) {
+      user.subscriptionBillingCycle = billingCycle;
+      if (!user.subscription) user.subscription = {};
+      user.subscription.billingCycle = billingCycle;
+    }
+    if (customAmount !== undefined) {
+      user.subscriptionCustomAmount = Number(customAmount);
+      if (!user.subscription) user.subscription = {};
+      user.subscription.amount = Number(customAmount);
+    }
+
+    // Determine target renewal date from renewalDate or remainingDays
+    let targetRenewalDate = null;
+    if (renewalDate) {
+      targetRenewalDate = new Date(renewalDate);
+    } else if (remainingDays !== undefined && remainingDays !== null && remainingDays !== '') {
+      const now = new Date();
+      targetRenewalDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + Number(remainingDays), 23, 59, 59);
+    }
+
+    if (targetRenewalDate && !isNaN(targetRenewalDate.getTime())) {
+      user.subscriptionRenewalDate = targetRenewalDate;
+      if (!user.subscription) user.subscription = {};
+      user.subscription.validUntil = targetRenewalDate;
+    }
+
+    // Handle status update
+    if (status) {
+      user.subscriptionStatus = status;
+      if (!user.subscription) user.subscription = {};
+      user.subscription.paymentStatus = status;
+    } else if (targetRenewalDate) {
+      const now = new Date();
+      if (targetRenewalDate > now) {
+        user.subscriptionStatus = 'Active';
+        if (!user.subscription) user.subscription = {};
+        user.subscription.paymentStatus = 'Active';
+      } else {
+        user.subscriptionStatus = 'Expired';
+        if (!user.subscription) user.subscription = {};
+        user.subscription.paymentStatus = 'Expired';
+      }
+    }
+
     if (employeeLimit !== undefined) {
       user.employeeLimit = (employeeLimit === '' || employeeLimit === null || Number(employeeLimit) === 0) ? null : Number(employeeLimit);
     }
@@ -771,6 +811,12 @@ router.put('/subscriptions/:id', async (req, res) => {
 
     await user.save();
 
+    const now = new Date();
+    const effectiveRenewalDate = user.subscriptionRenewalDate || user.subscription?.validUntil;
+    const computedDays = effectiveRenewalDate 
+      ? Math.ceil((new Date(effectiveRenewalDate) - now) / (1000 * 60 * 60 * 24)) 
+      : 0;
+
     res.json({
       message: 'Subscription updated successfully',
       user: {
@@ -780,6 +826,8 @@ router.put('/subscriptions/:id', async (req, res) => {
         subscriptionBillingCycle: user.subscriptionBillingCycle,
         subscriptionCustomAmount: user.subscriptionCustomAmount,
         subscriptionRenewalDate: user.subscriptionRenewalDate,
+        validUntil: user.subscription?.validUntil,
+        daysUntilRenewal: computedDays,
         employeeLimit: user.employeeLimit ?? null,
         branchLimit: user.branchLimit ?? null,
         businessLimit: user.businessLimit ?? null

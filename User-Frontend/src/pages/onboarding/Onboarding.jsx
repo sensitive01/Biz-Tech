@@ -83,7 +83,7 @@ const SUB_CATEGORIES = [
   'Others'
 ];
 
-const ONBOARDING_STEPS = [
+const ALL_ONBOARDING_STEPS = [
   { id: 'business', title: 'Register Business', desc: 'Legal entity & address' },
   { id: 'offering', title: 'Products & Services', desc: 'Select revenue model' },
   { id: 'category', title: 'Business Category', desc: 'Operational tier' },
@@ -98,6 +98,32 @@ const Onboarding = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 768);
+
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('user'));
+    } catch (e) {
+      return null;
+    }
+  });
+
+  const [isAlreadyPaid, setIsAlreadyPaid] = useState(() => {
+    try {
+      const u = JSON.parse(localStorage.getItem('user'));
+      return Boolean(
+        u?.isOnboardingCompleted ||
+        u?.subscriptionStatus === 'Active' ||
+        u?.subscription?.paymentStatus === 'Active' ||
+        (u?.subscription?.validUntil && new Date(u.subscription.validUntil) > new Date())
+      );
+    } catch (e) {
+      return false;
+    }
+  });
+
+  const activeSteps = isAlreadyPaid 
+    ? ALL_ONBOARDING_STEPS.filter(s => s.id !== 'plan_payment')
+    : ALL_ONBOARDING_STEPS;
 
   useEffect(() => {
     const handleResize = () => {
@@ -313,6 +339,222 @@ const Onboarding = () => {
     fetchPaymentConfig();
   }, []);
 
+  // Address parser to extract street, city, state, and pincode from combined address string
+  const parseAddressComponents = (fullAddressStr) => {
+    if (!fullAddressStr || typeof fullAddressStr !== 'string') {
+      return { street: '', city: '', state: '', pincode: '' };
+    }
+
+    const str = fullAddressStr.trim();
+    let pincode = '';
+    const pinMatch = str.match(/\b(\d{6})\b/);
+    if (pinMatch) {
+      pincode = pinMatch[1];
+    }
+
+    let cleaned = str.replace(/[-–—]?\s*\b\d{6}\b.*$/, '').trim();
+    if (cleaned.endsWith(',')) cleaned = cleaned.slice(0, -1).trim();
+
+    const parts = cleaned.split(',').map(p => p.trim()).filter(Boolean);
+
+    let state = '';
+    let city = '';
+    let street = '';
+
+    if (parts.length >= 3) {
+      state = parts[parts.length - 1];
+      city = parts[parts.length - 2];
+      street = parts.slice(0, parts.length - 2).join(', ');
+    } else if (parts.length === 2) {
+      city = parts[parts.length - 1];
+      street = parts[0];
+    } else {
+      street = cleaned;
+    }
+
+    return { street, city, state, pincode };
+  };
+
+  const populateFromUserData = (u) => {
+    if (!u) return;
+    setCurrentUser(u);
+
+    const paid = Boolean(
+      u.isOnboardingCompleted ||
+      u.subscriptionStatus === 'Active' ||
+      u.subscription?.paymentStatus === 'Active' ||
+      (u.subscription?.validUntil && new Date(u.subscription.validUntil) > new Date())
+    );
+    setIsAlreadyPaid(paid);
+
+    // Business info
+    const existingPan = (
+      u.documents?.pan ||
+      u.panNumber ||
+      u.singleBusiness?.panNumber ||
+      u.businesses?.[0]?.panNumber ||
+      ''
+    ).trim().toUpperCase();
+
+    const existingGst = (
+      u.documents?.gstin ||
+      u.gstNumber ||
+      u.singleBusiness?.gstNumber ||
+      u.singleBusiness?.taxNumber ||
+      u.businesses?.[0]?.gstNumber ||
+      ''
+    ).trim().toUpperCase();
+
+    const existingOwner = (
+      u.ownerName ||
+      u.fullName ||
+      u.singleBusiness?.ownerName ||
+      u.businesses?.[0]?.ownerName ||
+      ''
+    ).trim();
+
+    const existingBizName = (
+      u.businessName ||
+      u.singleBusiness?.name ||
+      u.businesses?.[0]?.name ||
+      ''
+    ).trim();
+
+    const existingBrand = (
+      u.brandName ||
+      u.singleBusiness?.brandName ||
+      u.businesses?.[0]?.brandName ||
+      ''
+    ).trim();
+
+    const existingReg = (
+      u.regNo ||
+      u.singleBusiness?.regNo ||
+      u.businesses?.[0]?.regNo ||
+      ''
+    ).trim();
+
+    // Address & components parsing
+    const rawAddress = (
+      u.streetAddress ||
+      u.singleBusiness?.streetAddress ||
+      u.businesses?.[0]?.streetAddress ||
+      u.address ||
+      u.singleBusiness?.address ||
+      u.businesses?.[0]?.address ||
+      ''
+    ).trim();
+
+    const rawCity = (u.city || u.singleBusiness?.city || u.businesses?.[0]?.city || '').trim();
+    const rawState = (u.state || u.singleBusiness?.state || u.businesses?.[0]?.state || '').trim();
+    const rawPincode = (u.pincode || u.singleBusiness?.pincode || u.businesses?.[0]?.pincode || '').trim();
+
+    const parsed = parseAddressComponents(rawAddress);
+
+    const finalCity = rawCity || parsed.city;
+    const finalState = rawState || parsed.state;
+    const finalPincode = rawPincode || parsed.pincode;
+    const finalStreet = (rawCity && rawState && rawPincode) ? rawAddress : (parsed.street || rawAddress);
+
+    setBusinessInfo(prev => ({
+      ...prev,
+      name: existingBizName || prev.name,
+      brandName: existingBrand || prev.brandName,
+      ownerName: existingOwner || prev.ownerName,
+      panNumber: existingPan || prev.panNumber,
+      gstNumber: existingGst || prev.gstNumber,
+      regNo: existingReg || prev.regNo,
+      phone: u.phone || prev.phone,
+      email: u.email || prev.email,
+      address: finalStreet || prev.address,
+      city: finalCity || prev.city,
+      state: finalState || prev.state,
+      pincode: finalPincode || prev.pincode
+    }));
+
+    if (existingPan && existingPan.length === 10) {
+      setPanCheckResult({ checked: true, exists: false, message: 'PAN is registered with your account.' });
+    }
+
+    // Documents
+    const docData = u.documents || {};
+    setDocuments(prev => ({
+      ...prev,
+      pan: existingPan || docData.pan || prev.pan,
+      panType: docData.panType || 'ID Card',
+      panExpiryDate: docData.panExpiryDate ? new Date(docData.panExpiryDate).toISOString().split('T')[0] : prev.panExpiryDate,
+      panFileUrl: docData.panFileUrl || prev.panFileUrl,
+      panFileName: docData.panFileName || prev.panFileName,
+
+      gstin: existingGst || docData.gstin || prev.gstin,
+      gstinType: docData.gstinType || 'Certificate',
+      gstinExpiryDate: docData.gstinExpiryDate ? new Date(docData.gstinExpiryDate).toISOString().split('T')[0] : prev.gstinExpiryDate,
+      gstinFileUrl: docData.gstinFileUrl || prev.gstinFileUrl,
+      gstinFileName: docData.gstinFileName || prev.gstinFileName,
+
+      msme: docData.msme || prev.msme,
+      msmeType: docData.msmeType || 'Registration',
+      msmeExpiryDate: docData.msmeExpiryDate ? new Date(docData.msmeExpiryDate).toISOString().split('T')[0] : prev.msmeExpiryDate,
+      msmeFileUrl: docData.msmeFileUrl || prev.msmeFileUrl,
+      msmeFileName: docData.msmeFileName || prev.msmeFileName,
+
+      fssai: docData.fssai || prev.fssai,
+      fssaiType: docData.fssaiType || 'License',
+      fssaiExpiryDate: docData.fssaiExpiryDate ? new Date(docData.fssaiExpiryDate).toISOString().split('T')[0] : prev.fssaiExpiryDate,
+      fssaiFileUrl: docData.fssaiFileUrl || prev.fssaiFileUrl,
+      fssaiFileName: docData.fssaiFileName || prev.fssaiFileName,
+
+      tradeLicense: docData.tradeLicense || prev.tradeLicense
+    }));
+
+    // Uploaded files labels
+    setUploadedFiles(prev => ({
+      ...prev,
+      ...(docData.panFileUrl ? { pan: docData.panFileName || 'PAN Document' } : {}),
+      ...(docData.gstinFileUrl ? { gstin: docData.gstinFileName || 'GSTIN Document' } : {}),
+      ...(docData.msmeFileUrl ? { msme: docData.msmeFileName || 'MSME Document' } : {}),
+      ...(docData.fssaiFileUrl ? { fssai: docData.fssaiFileName || 'FSSAI Document' } : {})
+    }));
+
+    // Custom documents
+    if (Array.isArray(docData.customDocuments) && docData.customDocuments.length > 0) {
+      setCustomDocuments(docData.customDocuments.map((cd, index) => ({
+        id: cd._id || cd.id || Date.now() + index,
+        name: cd.name || '',
+        type: cd.type || 'Registration',
+        number: cd.number || '',
+        expiryDate: cd.expiryDate ? new Date(cd.expiryDate).toISOString().split('T')[0] : '',
+        fileUrl: cd.fileUrl || '',
+        fileName: cd.fileName || ''
+      })));
+    }
+
+    // Offering & Categories
+    const offType = u.offeringType || u.businessOfferingType || '';
+    if (offType) {
+      setOfferingType(offType);
+      const catList = Array.isArray(u.categories) && u.categories.length > 0
+        ? u.categories
+        : (u.category ? u.category.split(',').map(s => s.trim()) : []);
+
+      if (offType === 'product') setSelectedProductCategories(catList);
+      else if (offType === 'service') setSelectedServiceCategories(catList);
+      else if (offType === 'both') setSelectedBothCategories(catList);
+      else if (offType === 'institution') setSelectedInstitutionCategories(catList);
+      else setCategory(u.category || '');
+    }
+
+    if (u.subCategory) {
+      setSubCategory(u.subCategory);
+    }
+
+    // Subscription
+    if (u.subscription) {
+      if (u.subscription.planId) setSelectedPlanId(u.subscription.planId);
+      if (u.subscription.billingCycle) setBillingCycle(u.subscription.billingCycle);
+    }
+  };
+
   // Prefill initial user contact details if logged in
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -322,24 +564,28 @@ const Onboarding = () => {
       return;
     }
 
-    try {
-      if (storedUserStr) {
+    if (storedUserStr) {
+      try {
         const u = JSON.parse(storedUserStr);
-        setBusinessInfo(prev => ({
-          ...prev,
-          name: u.businessName || prev.name,
-          email: u.email || prev.email,
-          phone: u.phone || prev.phone,
-          address: u.address || prev.address
-        }));
-        if (u.isOnboardingCompleted) {
-          if (u.offeringType) setOfferingType(u.offeringType);
-          if (u.category) setCategory(u.category);
-          if (u.subCategory) setSubCategory(u.subCategory);
-        }
+        populateFromUserData(u);
+      } catch (e) {
+        console.error('Error parsing stored user:', e);
       }
-    } catch (e) {
-      console.error('Error parsing stored user:', e);
+    }
+
+    // Fetch fresh user profile from backend to ensure all latest documents and setup info are populated
+    if (token) {
+      fetch(`${import.meta.env.VITE_API_URL}/api/auth/me`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      .then(res => res.ok ? res.json() : null)
+      .then(userData => {
+        if (userData) {
+          localStorage.setItem('user', JSON.stringify(userData));
+          populateFromUserData(userData);
+        }
+      })
+      .catch(err => console.error('Error fetching /api/auth/me in onboarding:', err));
     }
   }, [navigate]);
 
@@ -589,6 +835,21 @@ const Onboarding = () => {
         setError('Please specify your industry segment.');
         return false;
       }
+    } else if (currentStep === 4) {
+      const panNum = (documents.pan || businessInfo.panNumber || '').trim().toUpperCase();
+      if (!panNum) {
+        setError('PAN Card Number is mandatory. Please enter your business or proprietor PAN.');
+        return false;
+      }
+      const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+      if (!panRegex.test(panNum)) {
+        setError('Invalid PAN format. Must be 10 characters (5 capital letters, 4 digits, 1 capital letter, e.g. ABCDE1234F).');
+        return false;
+      }
+      if (!documents.panFileUrl || !documents.panFileUrl.trim()) {
+        setError('PAN Card image or document upload is mandatory. Please upload your PAN card file to proceed.');
+        return false;
+      }
     }
     return true;
   };
@@ -627,9 +888,17 @@ const Onboarding = () => {
       }));
     }
 
-    if (currentStep < ONBOARDING_STEPS.length - 1) {
+    if (currentStep === 4) {
+      const cleanPan = (documents.pan || businessInfo.panNumber || '').trim().toUpperCase();
+      setBusinessInfo(prev => ({ ...prev, panNumber: cleanPan }));
+      setDocuments(prev => ({ ...prev, pan: cleanPan }));
+    }
+
+    if (currentStep < activeSteps.length - 1) {
       setCurrentStep(prev => prev + 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else if (isAlreadyPaid && currentStep === 4) {
+      handleCompleteOnboarding();
     }
   };
 
@@ -645,6 +914,25 @@ const Onboarding = () => {
   const handleCompleteOnboarding = async (paymentOverride = null, txnIdOverride = null, paymentProofPayload = null) => {
     setLoading(true);
     setError('');
+
+    const cleanPanCheck = (businessInfo.panNumber || documents.pan || '').trim().toUpperCase();
+    const cleanPanFileUrlCheck = (documents.panFileUrl || '').trim();
+
+    if (!cleanPanCheck) {
+      setError('PAN Card Number is mandatory. Please enter your PAN number in Step 5.');
+      setCurrentStep(4);
+      setLoading(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    if (!cleanPanFileUrlCheck) {
+      setError('PAN Card document / image upload is mandatory. Please upload your PAN card file in Step 5.');
+      setCurrentStep(4);
+      setLoading(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
 
     const token = localStorage.getItem('token');
     let selectedFinalCategory = category;
@@ -688,6 +976,7 @@ const Onboarding = () => {
     const cleanOwner = (businessInfo.ownerName || '').trim();
 
     const payload = {
+      isSetupUpdate: isAlreadyPaid,
       panNumber: cleanPan,
       ownerName: cleanOwner,
       gstNumber: cleanGst,
@@ -702,11 +991,19 @@ const Onboarding = () => {
         regNo: businessInfo.regNo,
         phone: businessInfo.phone,
         email: businessInfo.email,
+        streetAddress: businessInfo.address,
+        city: businessInfo.city,
+        state: businessInfo.state,
+        pincode: businessInfo.pincode,
         address: `${businessInfo.address}, ${businessInfo.city}, ${businessInfo.state} - ${businessInfo.pincode}`,
         category: selectedFinalCategory,
         categories: selectedCategoriesList
       },
       businessName: businessInfo.name,
+      streetAddress: businessInfo.address,
+      city: businessInfo.city,
+      state: businessInfo.state,
+      pincode: businessInfo.pincode,
       address: `${businessInfo.address}, ${businessInfo.city}, ${businessInfo.state} - ${businessInfo.pincode}`,
       regNo: businessInfo.regNo,
       phone: businessInfo.phone,
@@ -722,7 +1019,15 @@ const Onboarding = () => {
         customDocuments: customDocuments.filter(d => (d.name || '').trim() || (d.number || '').trim() || d.fileUrl || d.fileName)
       },
       modules,
-      subscription: {
+      subscription: isAlreadyPaid ? {
+        planId: currentUser?.subscription?.planId || selectedPlanId || 'starter',
+        planName: currentUser?.subscription?.planName || activePlan?.title || 'Active Plan',
+        amount: currentUser?.subscription?.amount ?? grandTotal,
+        billingCycle: currentUser?.subscription?.billingCycle || billingCycle,
+        paymentMethod: 'Existing Plan',
+        paymentStatus: 'Active',
+        transactionId: currentUser?.subscription?.transactionId || `TXN-UPDATE`
+      } : {
         planId: selectedPlanId,
         planName: activePlan?.title || selectedPlanId || 'Selected Plan',
         amount: grandTotal,
@@ -992,7 +1297,7 @@ const Onboarding = () => {
           {/* Vertical Line */}
           <div style={{ position: 'absolute', left: '15px', top: '16px', bottom: '16px', width: '2px', background: 'var(--border-color)', zIndex: 0 }}></div>
           
-          {ONBOARDING_STEPS.map((step, idx) => {
+          {activeSteps.map((step, idx) => {
             const isCompleted = idx < currentStep;
             const isActive = idx === currentStep;
             const color = isCompleted ? '#10B981' : isActive ? 'var(--primary-blue, #2563EB)' : 'var(--border-color, #E2E8F0)';
@@ -1072,7 +1377,7 @@ const Onboarding = () => {
             <span style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-title)', fontFamily: 'Plus Jakarta Sans', letterSpacing: '-0.5px' }}>BizTech</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '600' }}>Step {currentStep + 1} of {ONBOARDING_STEPS.length}</span>
+            <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '600' }}>Step {currentStep + 1} of {activeSteps.length}</span>
             <ThemeToggle size="small" />
             <button className="sidebar-close-btn" onClick={() => setIsSidebarOpen(true)} title="Open Steps Sidebar">
               <Menu size={22} />
@@ -1998,27 +2303,34 @@ const Onboarding = () => {
                 </div>
                 <h2 style={{ fontSize: '26px', fontWeight: '800', color: 'var(--text-title, #0F172A)', margin: '0 0 6px 0' }}>Business Documentations</h2>
                 <p style={{ fontSize: '14px', color: 'var(--text-secondary, #64748B)', margin: 0 }}>
-                  Enter your official numbers and attach documents. You can also skip and upload later in Settings.
+                  Enter your official numbers and attach documents. PAN Card is mandatory; other documents can be uploaded now or later in Settings.
                 </p>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '24px' }}>
                 {/* 1. PAN Card */}
-                <div style={{ padding: '20px', borderRadius: '14px', border: '1px solid var(--border-color, #E2E8F0)', background: 'var(--bg-color, #F8FAFC)' }}>
+                <div style={{ padding: '20px', borderRadius: '14px', border: !documents.panFileUrl && error ? '1.5px solid #EF4444' : '1px solid var(--border-color, #E2E8F0)', background: 'var(--bg-color, #F8FAFC)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span style={{ fontWeight: '700', fontSize: '15px', color: 'var(--text-title)' }}>1. Business / Proprietor PAN Card</span>
                       <span style={{ fontSize: '11px', fontWeight: '700', background: '#EFF6FF', color: '#2563EB', padding: '2px 8px', borderRadius: '12px' }}>Mandatory</span>
                     </div>
-                    {documents.panFileUrl && (
+                    {documents.panFileUrl ? (
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#16A34A', fontWeight: '600', background: '#F0FDF4', padding: '3px 10px', borderRadius: '8px', border: '1px solid #BBF7D0' }}>
                         <CheckCircle2 size={13} /> Attached: {documents.panFileName || uploadedFiles.pan || 'PAN Document'}
+                        <a href={documents.panFileUrl} target="_blank" rel="noreferrer" style={{ color: '#2563EB', textDecoration: 'underline', marginLeft: '6px', fontSize: '11px', fontWeight: '600' }}>View</a>
                       </div>
+                    ) : (
+                      <span style={{ fontSize: '11px', fontWeight: '700', color: '#DC2626', background: '#FEF2F2', padding: '2px 8px', borderRadius: '12px', border: '1px solid #FECACA' }}>
+                        * File Upload Required
+                      </span>
                     )}
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
                     <div>
-                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748B', marginBottom: '4px', textTransform: 'uppercase' }}>Registration / Card Number</label>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748B', marginBottom: '4px', textTransform: 'uppercase' }}>
+                        Registration / Card Number <span style={{ color: '#EF4444' }}>*</span>
+                      </label>
                       <input 
                         type="text" 
                         placeholder="e.g. ABCDE1234F" 
@@ -2053,12 +2365,31 @@ const Onboarding = () => {
                       />
                     </div>
                     <div>
-                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748B', marginBottom: '4px', textTransform: 'uppercase' }}>Upload Document</label>
-                      <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px 14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '8px', cursor: uploadingDocKey === 'pan' ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: '600', color: '#475569', height: '42px', boxSizing: 'border-box' }}>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748B', marginBottom: '4px', textTransform: 'uppercase' }}>
+                        Upload Document <span style={{ color: '#EF4444' }}>*</span>
+                      </label>
+                      <label style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center', 
+                        gap: '6px', 
+                        padding: '10px 14px', 
+                        background: documents.panFileUrl ? '#F0FDF4' : 'white', 
+                        border: documents.panFileUrl ? '1.5px solid #86EFAC' : (error && !documents.panFileUrl ? '1.5px solid #EF4444' : '1px solid #CBD5E1'), 
+                        borderRadius: '8px', 
+                        cursor: uploadingDocKey === 'pan' ? 'not-allowed' : 'pointer', 
+                        fontSize: '13px', 
+                        fontWeight: '600', 
+                        color: documents.panFileUrl ? '#16A34A' : '#475569', 
+                        height: '42px', 
+                        boxSizing: 'border-box' 
+                      }}>
                         {uploadingDocKey === 'pan' ? (
                           <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Uploading...</>
+                        ) : documents.panFileUrl ? (
+                          <><CheckCircle2 size={14} color="#16A34A" /> Attached (Click to Replace)</>
                         ) : (
-                          <><Upload size={14} color="#2563EB" /> {documents.panFileUrl ? 'Change File' : 'Upload Document'}</>
+                          <><Upload size={14} color="#2563EB" /> Upload Document *</>
                         )}
                         <input type="file" accept=".pdf,image/*,.doc,.docx" disabled={uploadingDocKey === 'pan'} onChange={(e) => handleOnboardingFileUpload('pan', e)} style={{ display: 'none' }} />
                       </label>
@@ -2076,6 +2407,7 @@ const Onboarding = () => {
                     {documents.gstinFileUrl && (
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#16A34A', fontWeight: '600', background: '#F0FDF4', padding: '3px 10px', borderRadius: '8px', border: '1px solid #BBF7D0' }}>
                         <CheckCircle2 size={13} /> Attached: {documents.gstinFileName || uploadedFiles.gstin || 'GSTIN Document'}
+                        <a href={documents.gstinFileUrl} target="_blank" rel="noreferrer" style={{ color: '#2563EB', textDecoration: 'underline', marginLeft: '6px', fontSize: '11px', fontWeight: '600' }}>View</a>
                       </div>
                     )}
                   </div>
@@ -2138,6 +2470,7 @@ const Onboarding = () => {
                     {documents.msmeFileUrl && (
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#16A34A', fontWeight: '600', background: '#F0FDF4', padding: '3px 10px', borderRadius: '8px', border: '1px solid #BBF7D0' }}>
                         <CheckCircle2 size={13} /> Attached: {documents.msmeFileName || uploadedFiles.msme || 'MSME Document'}
+                        <a href={documents.msmeFileUrl} target="_blank" rel="noreferrer" style={{ color: '#2563EB', textDecoration: 'underline', marginLeft: '6px', fontSize: '11px', fontWeight: '600' }}>View</a>
                       </div>
                     )}
                   </div>
@@ -2198,6 +2531,7 @@ const Onboarding = () => {
                     {documents.fssaiFileUrl && (
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#16A34A', fontWeight: '600', background: '#F0FDF4', padding: '3px 10px', borderRadius: '8px', border: '1px solid #BBF7D0' }}>
                         <CheckCircle2 size={13} /> Attached: {documents.fssaiFileName || uploadedFiles.fssai || 'FSSAI Document'}
+                        <a href={documents.fssaiFileUrl} target="_blank" rel="noreferrer" style={{ color: '#2563EB', textDecoration: 'underline', marginLeft: '6px', fontSize: '11px', fontWeight: '600' }}>View</a>
                       </div>
                     )}
                   </div>
@@ -2268,6 +2602,7 @@ const Onboarding = () => {
                         {doc.fileUrl && (
                           <span style={{ fontSize: '12px', color: '#16A34A', fontWeight: '600', background: '#F0FDF4', padding: '3px 10px', borderRadius: '8px', border: '1px solid #BBF7D0', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                             <CheckCircle2 size={13} /> {doc.fileName || 'Attached'}
+                            <a href={doc.fileUrl} target="_blank" rel="noreferrer" style={{ color: '#2563EB', textDecoration: 'underline', marginLeft: '4px', fontSize: '11px', fontWeight: '600' }}>View</a>
                           </span>
                         )}
                         <button
@@ -2390,9 +2725,9 @@ const Onboarding = () => {
           )}
 
           {/* ========================================================================= */}
-          {/* STEP 6: PLAN SELECTION & PAYMENT                                          */}
+          {/* STEP 6: PLAN SELECTION & PAYMENT (Only for new registrations who haven't paid) */}
           {/* ========================================================================= */}
-          {currentStep === 5 && (
+          {!isAlreadyPaid && currentStep === 5 && (
             <div style={{ background: 'var(--card-bg, #FFFFFF)', borderRadius: '20px', border: '1px solid var(--border-color, #E2E8F0)', padding: '36px', boxShadow: '0 4px 16px rgba(0,0,0,0.03)' }}>
               <div style={{ marginBottom: '24px', textAlign: 'center' }}>
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#EFF6FF', color: '#2563EB', padding: '4px 12px', borderRadius: '16px', fontSize: '12px', fontWeight: '700', marginBottom: '8px' }}>
@@ -2856,8 +3191,29 @@ const Onboarding = () => {
           )}
 
           {/* Navigation Bottom Actions */}
-          {currentStep < 5 && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: '24px' }}>
+          {currentStep < (isAlreadyPaid ? 4 : 5) ? (
+            <div style={{ display: 'flex', justifyContent: currentStep > 0 ? 'space-between' : 'flex-end', alignItems: 'center', marginTop: '24px' }}>
+              {currentStep > 0 && (
+                <button
+                  type="button"
+                  onClick={handleBack}
+                  style={{
+                    background: 'white',
+                    color: 'var(--text-title, #0F172A)',
+                    border: '1px solid var(--border-color, #E2E8F0)',
+                    padding: '12px 24px',
+                    borderRadius: '12px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <ArrowLeft size={16} /> Back
+                </button>
+              )}
               <button
                 onClick={handleNext}
                 style={{
@@ -2878,7 +3234,57 @@ const Onboarding = () => {
                 Continue to Next Step <ArrowRight size={16} />
               </button>
             </div>
-          )}
+          ) : isAlreadyPaid && currentStep === 4 ? (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px' }}>
+              <button
+                type="button"
+                onClick={handleBack}
+                style={{
+                  background: 'white',
+                  color: 'var(--text-title, #0F172A)',
+                  border: '1px solid var(--border-color, #E2E8F0)',
+                  padding: '12px 24px',
+                  borderRadius: '12px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <ArrowLeft size={16} /> Back
+              </button>
+              <button
+                onClick={() => handleCompleteOnboarding()}
+                disabled={loading}
+                style={{
+                  background: '#16A34A',
+                  color: 'white',
+                  border: 'none',
+                  padding: '12px 28px',
+                  borderRadius: '12px',
+                  fontSize: '14px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 12px rgba(22,163,74,0.25)'
+                }}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Saving Setup...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 size={16} /> Save & Complete Setup
+                  </>
+                )}
+              </button>
+            </div>
+          ) : null}
           </>
           ) : (
             /* ========================================================================= */

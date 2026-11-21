@@ -46,6 +46,22 @@ const UserSchema = new mongoose.Schema({
     type: String,
     required: false
   },
+  streetAddress: {
+    type: String,
+    default: ''
+  },
+  city: {
+    type: String,
+    default: ''
+  },
+  state: {
+    type: String,
+    default: ''
+  },
+  pincode: {
+    type: String,
+    default: ''
+  },
   regNo: {
     type: String,
     required: false
@@ -97,6 +113,9 @@ const UserSchema = new mongoose.Schema({
     contactPerson: { type: String, default: '' },
     taxNumber: { type: String, default: '' },
     city: { type: String, default: '' },
+    state: { type: String, default: '' },
+    pincode: { type: String, default: '' },
+    streetAddress: { type: String, default: '' },
     phone: String,
     address: String,
     email: { type: String, lowercase: true, trim: true },
@@ -174,14 +193,33 @@ const UserSchema = new mongoose.Schema({
   },
   documents: {
     pan: { type: String, default: '' },
+    panType: { type: String, default: 'ID Card' },
+    panExpiryDate: { type: Date },
+    panFileUrl: { type: String, default: '' },
+    panFileName: { type: String, default: '' },
     gstin: { type: String, default: '' },
+    gstinType: { type: String, default: 'Certificate' },
+    gstinExpiryDate: { type: Date },
+    gstinFileUrl: { type: String, default: '' },
+    gstinFileName: { type: String, default: '' },
     msme: { type: String, default: '' },
+    msmeType: { type: String, default: 'Registration' },
+    msmeExpiryDate: { type: Date },
+    msmeFileUrl: { type: String, default: '' },
+    msmeFileName: { type: String, default: '' },
     fssai: { type: String, default: '' },
+    fssaiType: { type: String, default: 'License' },
+    fssaiExpiryDate: { type: Date },
+    fssaiFileUrl: { type: String, default: '' },
+    fssaiFileName: { type: String, default: '' },
     tradeLicense: { type: String, default: '' },
     customDocuments: [{
       name: { type: String, default: '' },
+      type: { type: String, default: 'Registration' },
       number: { type: String, default: '' },
-      fileName: { type: String, default: '' }
+      fileUrl: { type: String, default: '' },
+      fileName: { type: String, default: '' },
+      expiryDate: { type: Date }
     }]
   },
   subscription: {
