@@ -69,7 +69,882 @@ const BUSINESS_CATEGORIES = [
   { id: 'others', label: 'Others (Specify)', desc: 'Custom business model or specialized industry' }
 ];
 
-// Industry Sub-Categories
+// Dynamic Sub-Categories mapped to Business Categories
+const CATEGORY_SUBCATEGORIES_MAP = {
+  // 1. Product Based Categories
+  'retail and general trading': [
+    'Grocery & Kirana Stores',
+    'General Stores',
+    'Convenience Stores',
+    'Mini Marts',
+    'Supermarkets',
+    'Hypermarkets',
+    'Departmental Stores',
+    'Variety Stores',
+    'Multi-Brand Retail Stores',
+    'Franchise Retail Stores',
+    'Online Product Retail Stores'
+  ],
+  'wholesale and distribution': [
+    'General Wholesale Traders',
+    'FMCG Wholesalers',
+    'Product Distributors',
+    'Stockists & Dealers',
+    'Super Stockists',
+    'B2B Product Suppliers',
+    'Import Businesses',
+    'Export Businesses',
+    'Import & Export Trading Businesses'
+  ],
+  'food and beverage products': [
+    'Packaged Food Stores',
+    'Fruits & Vegetables Stores',
+    'Meat & Fish Stores',
+    'Dairy Products Stores',
+    'Bakery Product Stores',
+    'Sweets & Snacks Stores',
+    'Frozen Food Stores',
+    'Organic Food Stores',
+    'Beverage & Soft Drink Stores',
+    'Bottled Water Stores'
+  ],
+  'clothing, fashion and lifestyle': [
+    'Clothing & Garment Stores',
+    'Textile & Fabric Stores',
+    'Saree Stores',
+    'Footwear Stores',
+    'Jewellery Stores',
+    'Imitation Jewellery Stores',
+    'Watch Stores',
+    'Cosmetics & Beauty Product Stores',
+    'Bags & Luggage Stores',
+    'Fashion Accessories Stores',
+    'Tailoring Material Stores'
+  ],
+  'electronics, electrical and appliances': [
+    'Mobile Phone Stores',
+    'Computer & Laptop Stores',
+    'Consumer Electronics Stores',
+    'Electrical Goods Stores',
+    'Home Appliance Stores',
+    'Television & Audio Equipment Stores',
+    'Lighting & LED Stores',
+    'CCTV & Security Equipment Stores',
+    'Electronic Components Stores',
+    'Solar Equipment Stores'
+  ],
+  'home, furniture and consumer goods': [
+    'Furniture Stores',
+    'Home Decor Stores',
+    'Kitchenware Stores',
+    'Household Goods Stores',
+    'Mattress & Bedding Stores',
+    'Gift & Novelty Stores',
+    'Toys & Games Stores',
+    'Sports Goods Stores',
+    'Stationery & Book Stores',
+    'Musical Instrument Stores',
+    'Pet Product Stores'
+  ],
+  'automobile and spare parts': [
+    'Two-Wheeler Dealers',
+    'Four-Wheeler Dealers',
+    'Commercial Vehicle Dealers',
+    'Electric Vehicle Dealers',
+    'Used Vehicle Dealers',
+    'Automobile Spare Parts Stores',
+    'Tyre & Battery Stores',
+    'Automobile Accessories Stores',
+    'Auto Electrical Parts Stores',
+    'Automobile Lubricants & Oil Stores'
+  ],
+  'manufacturing and production': [
+    'Food Processing Units',
+    'Bakery & Confectionery Manufacturers',
+    'Dairy Product Manufacturers',
+    'Beverage Manufacturers',
+    'Textile & Garment Manufacturers',
+    'Furniture Manufacturers',
+    'Plastic Product Manufacturers',
+    'Paper Product Manufacturers',
+    'Packaging Material Manufacturers',
+    'Chemical Product Manufacturers',
+    'Pharmaceutical Manufacturers',
+    'Electronics Manufacturers',
+    'Metal Product Manufacturers',
+    'Machinery Manufacturers',
+    'Automobile Parts Manufacturers',
+    'Printing & Printed Product Manufacturers',
+    'Building Material Manufacturers'
+  ],
+  'industrial, construction and specialized supplies': [
+    'Building Material Suppliers',
+    'Cement & Steel Suppliers',
+    'Plumbing Material Suppliers',
+    'Construction Electrical Material Suppliers',
+    'Industrial Machinery Suppliers',
+    'Tools & Equipment Suppliers',
+    'Safety Equipment Suppliers',
+    'Medical Equipment Suppliers',
+    'Office Supplies Suppliers',
+    'Packaging Material Suppliers',
+    'Industrial Raw Material Suppliers',
+    'Agricultural Equipment Suppliers',
+    'Paint & Coating Material Suppliers',
+    'Laboratory Equipment Suppliers',
+    'Hotel & Restaurant Equipment Suppliers'
+  ],
+
+  // 2. Product & Service (Both) Categories (Group 3: Product & Service Businesses)
+  'food and hospitality business': [
+    'Restaurants',
+    'Hotels',
+    'Cafes & Coffee Shops',
+    'Bakeries with Food Service',
+    'Sweet Shops with Catering',
+    'Fast Food Outlets',
+    'Juice & Beverage Shops',
+    'Ice Cream Parlours',
+    'Food Trucks',
+    'Cloud Kitchens',
+    'Catering & Food Supply Businesses'
+  ],
+  'food and hospitality businesses': [
+    'Restaurants',
+    'Hotels',
+    'Cafes & Coffee Shops',
+    'Bakeries with Food Service',
+    'Sweet Shops with Catering',
+    'Fast Food Outlets',
+    'Juice & Beverage Shops',
+    'Ice Cream Parlours',
+    'Food Trucks',
+    'Cloud Kitchens',
+    'Catering & Food Supply Businesses'
+  ],
+  'automobile sales and service business': [
+    'Automobile Dealerships with Service Centres',
+    'Two-Wheeler Sales & Service Centres',
+    'Four-Wheeler Sales & Service Centres',
+    'Electric Vehicle Sales & Service Centres',
+    'Used Vehicle Sales & Service Businesses',
+    'Tyre Sales & Fitting Centres',
+    'Battery Sales & Service Centres',
+    'Automobile Accessories & Installation Centres'
+  ],
+  'automobile sales and service businesses': [
+    'Automobile Dealerships with Service Centres',
+    'Two-Wheeler Sales & Service Centres',
+    'Four-Wheeler Sales & Service Centres',
+    'Electric Vehicle Sales & Service Centres',
+    'Used Vehicle Sales & Service Businesses',
+    'Tyre Sales & Fitting Centres',
+    'Battery Sales & Service Centres',
+    'Automobile Accessories & Installation Centres'
+  ],
+  'electronics sales and service business': [
+    'Mobile Sales & Repair Stores',
+    'Computer Sales & Repair Stores',
+    'Laptop Sales & Repair Stores',
+    'Electronics Sales & Repair Stores',
+    'Home Appliance Sales & Repair Stores',
+    'CCTV Sales & Installation Businesses',
+    'Solar Equipment Sales & Installation Businesses',
+    'Electrical Goods Sales & Installation Businesses'
+  ],
+  'electronics sales and service businesses': [
+    'Mobile Sales & Repair Stores',
+    'Computer Sales & Repair Stores',
+    'Laptop Sales & Repair Stores',
+    'Electronics Sales & Repair Stores',
+    'Home Appliance Sales & Repair Stores',
+    'CCTV Sales & Installation Businesses',
+    'Solar Equipment Sales & Installation Businesses',
+    'Electrical Goods Sales & Installation Businesses'
+  ],
+  'beauty, fashion and lifestyle business': [
+    'Beauty Salons with Product Sales',
+    'Cosmetics Stores with Beauty Services',
+    'Bridal Makeup & Product Businesses',
+    'Jewellery Stores with Repair Services',
+    'Optical Stores with Eye Testing',
+    'Tailoring & Fabric Stores',
+    'Boutique Stores with Custom Stitching',
+    'Footwear Stores with Repair Services'
+  ],
+  'beauty, fashion and lifestyle businesses': [
+    'Beauty Salons with Product Sales',
+    'Cosmetics Stores with Beauty Services',
+    'Bridal Makeup & Product Businesses',
+    'Jewellery Stores with Repair Services',
+    'Optical Stores with Eye Testing',
+    'Tailoring & Fabric Stores',
+    'Boutique Stores with Custom Stitching',
+    'Footwear Stores with Repair Services'
+  ],
+  'healthcare retail and service business': [
+    'Medical Stores with Healthcare Services',
+    'Pharmacy & Consultation Centres',
+    'Optical Stores with Eye Testing',
+    'Medical Equipment Sales & Rental Businesses',
+    'Surgical Product Sales & Support Businesses',
+    'Healthcare Product Stores with Related Services'
+  ],
+  'healthcare retail and service businesses': [
+    'Medical Stores with Healthcare Services',
+    'Pharmacy & Consultation Centres',
+    'Optical Stores with Eye Testing',
+    'Medical Equipment Sales & Rental Businesses',
+    'Surgical Product Sales & Support Businesses',
+    'Healthcare Product Stores with Related Services'
+  ],
+  'agriculture and farming business': [
+    'Seed & Fertiliser Stores with Farm Advisory',
+    'Pesticide Stores with Crop Advisory',
+    'Agricultural Equipment Sales & Rental',
+    'Tractor Sales & Service Centres',
+    'Dairy Farming & Milk Product Businesses',
+    'Poultry Farming & Product Businesses',
+    'Nursery & Plant Sales with Landscaping',
+    'Irrigation Equipment Sales & Installation'
+  ],
+  'agriculture and farming businesses': [
+    'Seed & Fertiliser Stores with Farm Advisory',
+    'Pesticide Stores with Crop Advisory',
+    'Agricultural Equipment Sales & Rental',
+    'Tractor Sales & Service Centres',
+    'Dairy Farming & Milk Product Businesses',
+    'Poultry Farming & Product Businesses',
+    'Nursery & Plant Sales with Landscaping',
+    'Irrigation Equipment Sales & Installation'
+  ],
+  'construction and building business': [
+    'Building Material Sales & Installation',
+    'Cement & Steel Sales with Construction Services',
+    'Tiles & Sanitaryware Sales with Fitting',
+    'Furniture Sales with Installation',
+    'Modular Kitchen Sales & Installation',
+    'Paint Sales with Painting Services',
+    'Solar Products Sales & Installation',
+    'Doors & Windows Sales with Installation'
+  ],
+  'construction and building businesses': [
+    'Building Material Sales & Installation',
+    'Cement & Steel Sales with Construction Services',
+    'Tiles & Sanitaryware Sales with Fitting',
+    'Furniture Sales with Installation',
+    'Modular Kitchen Sales & Installation',
+    'Paint Sales with Painting Services',
+    'Solar Products Sales & Installation',
+    'Doors & Windows Sales with Installation'
+  ],
+  'education and training business': [
+    'Bookstores with Learning Services',
+    'Computer Sales with Training Services',
+    'Musical Instrument Sales with Music Classes',
+    'Sports Goods Sales with Coaching',
+    'Art Material Stores with Art Classes',
+    'Educational Product Sales with Training',
+    'Online Learning Product & Service Businesses'
+  ],
+  'education and training businesses': [
+    'Bookstores with Learning Services',
+    'Computer Sales with Training Services',
+    'Musical Instrument Sales with Music Classes',
+    'Sports Goods Sales with Coaching',
+    'Art Material Stores with Art Classes',
+    'Educational Product Sales with Training',
+    'Online Learning Product & Service Businesses'
+  ],
+  'rental, trading and business support': [
+    'Machinery Sales & Rental',
+    'Equipment Sales & Rental',
+    'Furniture Sales & Rental',
+    'Event Equipment Sales & Rental',
+    'Construction Equipment Sales & Rental',
+    'Vehicle Sales & Rental',
+    'Office Equipment Sales & Maintenance',
+    'Packaging Supply & Customisation Businesses'
+  ],
+  'rental, trading and business support businesses': [
+    'Machinery Sales & Rental',
+    'Equipment Sales & Rental',
+    'Furniture Sales & Rental',
+    'Event Equipment Sales & Rental',
+    'Construction Equipment Sales & Rental',
+    'Vehicle Sales & Rental',
+    'Office Equipment Sales & Maintenance',
+    'Packaging Supply & Customisation Businesses'
+  ],
+
+  // 3. Service Based Categories (Group 2: Commercial Services)
+  'professional and business service': [
+    'Business Consultancy',
+    'Management Consultancy',
+    'Financial Consultancy',
+    'Tax Consultancy',
+    'Accounting & Bookkeeping',
+    'Chartered Accountant Services',
+    'Legal Consultancy',
+    'Advocates & Law Firms',
+    'Company Registration Services',
+    'HR Consultancy',
+    'Recruitment & Placement Agencies',
+    'Market Research Agencies'
+  ],
+  'professional and business services': [
+    'Business Consultancy',
+    'Management Consultancy',
+    'Financial Consultancy',
+    'Tax Consultancy',
+    'Accounting & Bookkeeping',
+    'Chartered Accountant Services',
+    'Legal Consultancy',
+    'Advocates & Law Firms',
+    'Company Registration Services',
+    'HR Consultancy',
+    'Recruitment & Placement Agencies',
+    'Market Research Agencies'
+  ],
+  'it and technology service': [
+    'Software Development',
+    'Website Development',
+    'Mobile App Development',
+    'IT Support & Maintenance',
+    'Computer Repair Services',
+    'Networking & Server Support',
+    'Cloud Computing Services',
+    'Cybersecurity Services',
+    'Data Entry Services',
+    'IT Consultancy',
+    'Software Testing Services',
+    'UI/UX Design Agencies'
+  ],
+  'it and technology services': [
+    'Software Development',
+    'Website Development',
+    'Mobile App Development',
+    'IT Support & Maintenance',
+    'Computer Repair Services',
+    'Networking & Server Support',
+    'Cloud Computing Services',
+    'Cybersecurity Services',
+    'Data Entry Services',
+    'IT Consultancy',
+    'Software Testing Services',
+    'UI/UX Design Agencies'
+  ],
+  'creative, design and media service': [
+    'Graphic Design Agencies',
+    'Logo Design Services',
+    'Video Editing Services',
+    'Animation Studios',
+    'Photography Studios',
+    'Videography Services',
+    'Audio Recording Studios',
+    'Content Writing Services',
+    'Copywriting Services',
+    'Printing Design Services',
+    'Interior Design Services'
+  ],
+  'creative, design and media services': [
+    'Graphic Design Agencies',
+    'Logo Design Services',
+    'Video Editing Services',
+    'Animation Studios',
+    'Photography Studios',
+    'Videography Services',
+    'Audio Recording Studios',
+    'Content Writing Services',
+    'Copywriting Services',
+    'Printing Design Services',
+    'Interior Design Services'
+  ],
+  'marketing, advertising and promotion service': [
+    'Digital Marketing Agencies',
+    'Advertising Agencies',
+    'Branding & Marketing Consultancy',
+    'Social Media Management',
+    'SEO Services',
+    'Google Ads Management',
+    'Facebook & Instagram Ads Services',
+    'Influencer Marketing Agencies',
+    'Lead Generation Agencies',
+    'Public Relations Agencies'
+  ],
+  'marketing, advertising and promotion services': [
+    'Digital Marketing Agencies',
+    'Advertising Agencies',
+    'Branding & Marketing Consultancy',
+    'Social Media Management',
+    'SEO Services',
+    'Google Ads Management',
+    'Facebook & Instagram Ads Services',
+    'Influencer Marketing Agencies',
+    'Lead Generation Agencies',
+    'Public Relations Agencies'
+  ],
+  'home and personal service': [
+    'Electrician Services',
+    'Plumbing Services',
+    'Carpentry Services',
+    'Painting Services',
+    'Home Cleaning Services',
+    'Pest Control Services',
+    'Appliance Repair Services',
+    'AC Repair & Maintenance',
+    'Laundry Services',
+    'Dry Cleaning Services',
+    'Beauty Parlours',
+    'Salons & Spa Services',
+    'Makeup Artists',
+    'Home Maintenance Services'
+  ],
+  'home and personal services': [
+    'Electrician Services',
+    'Plumbing Services',
+    'Carpentry Services',
+    'Painting Services',
+    'Home Cleaning Services',
+    'Pest Control Services',
+    'Appliance Repair Services',
+    'AC Repair & Maintenance',
+    'Laundry Services',
+    'Dry Cleaning Services',
+    'Beauty Parlours',
+    'Salons & Spa Services',
+    'Makeup Artists',
+    'Home Maintenance Services'
+  ],
+  'construction, architecture and property service': [
+    'Civil Contractors',
+    'Building Contractors',
+    'Electrical Contractors',
+    'Plumbing Contractors',
+    'Interior Contractors',
+    'Architecture Firms',
+    'Structural Design Consultants',
+    'Surveying Services',
+    'Property Management Services',
+    'Real Estate Consultancy',
+    'Property Valuation Services',
+    'Construction Project Management'
+  ],
+  'construction, architecture and property services': [
+    'Civil Contractors',
+    'Building Contractors',
+    'Electrical Contractors',
+    'Plumbing Contractors',
+    'Interior Contractors',
+    'Architecture Firms',
+    'Structural Design Consultants',
+    'Surveying Services',
+    'Property Management Services',
+    'Real Estate Consultancy',
+    'Property Valuation Services',
+    'Construction Project Management'
+  ],
+  'automobile and transport service': [
+    'Automobile Service Centres',
+    'Vehicle Repair Garages',
+    'Two-Wheeler Repair Centres',
+    'Car Wash & Detailing Centres',
+    'Vehicle Painting Services',
+    'Vehicle Towing Services',
+    'Vehicle Rental Services',
+    'Taxi & Cab Services',
+    'Travel & Tour Operators',
+    'Driving Schools',
+    'Logistics Services',
+    'Transport Contractors',
+    'Courier & Delivery Services'
+  ],
+  'automobile and transport services': [
+    'Automobile Service Centres',
+    'Vehicle Repair Garages',
+    'Two-Wheeler Repair Centres',
+    'Car Wash & Detailing Centres',
+    'Vehicle Painting Services',
+    'Vehicle Towing Services',
+    'Vehicle Rental Services',
+    'Taxi & Cab Services',
+    'Travel & Tour Operators',
+    'Driving Schools',
+    'Logistics Services',
+    'Transport Contractors',
+    'Courier & Delivery Services'
+  ],
+  'events and hospitality service': [
+    'Event Management Companies',
+    'Wedding Planners',
+    'Catering Services',
+    'Decoration Services',
+    'Event Photography Services',
+    'Event Videography Services',
+    'Sound & Lighting Services',
+    'DJ Services',
+    'Tent & Event Setup Services',
+    'Travel Agencies',
+    'Hospitality Consultancy'
+  ],
+  'events and hospitality services': [
+    'Event Management Companies',
+    'Wedding Planners',
+    'Catering Services',
+    'Decoration Services',
+    'Event Photography Services',
+    'Event Videography Services',
+    'Sound & Lighting Services',
+    'DJ Services',
+    'Tent & Event Setup Services',
+    'Travel Agencies',
+    'Hospitality Consultancy'
+  ],
+  'repair, maintenance and technical service': [
+    'Electrical Equipment Repair',
+    'Electronic Equipment Repair',
+    'Computer & Laptop Repair',
+    'Mobile Phone Repair',
+    'Machinery Repair & Maintenance',
+    'Industrial Equipment Maintenance',
+    'Welding Services',
+    'Fabrication Services',
+    'Plumbing Equipment Maintenance',
+    'Solar System Maintenance',
+    'CCTV Installation & Maintenance',
+    'Lift & Elevator Maintenance'
+  ],
+  'repair, maintenance and technical services': [
+    'Electrical Equipment Repair',
+    'Electronic Equipment Repair',
+    'Computer & Laptop Repair',
+    'Mobile Phone Repair',
+    'Machinery Repair & Maintenance',
+    'Industrial Equipment Maintenance',
+    'Welding Services',
+    'Fabrication Services',
+    'Plumbing Equipment Maintenance',
+    'Solar System Maintenance',
+    'CCTV Installation & Maintenance',
+    'Lift & Elevator Maintenance'
+  ],
+
+  // 4. Institution Categories (Group 4: Institutions & Organisations)
+  'education and training institution': [
+    'Play Schools',
+    'Pre-Schools',
+    'Primary Schools',
+    'High Schools',
+    'Colleges',
+    'Universities',
+    'Coaching Institutes',
+    'Competitive Exam Institutes',
+    'Professional Training Institutes',
+    'Skill Development Centres',
+    'Vocational Training Institutes',
+    'Special Education Institutions'
+  ],
+  'education and training institutions': [
+    'Play Schools',
+    'Pre-Schools',
+    'Primary Schools',
+    'High Schools',
+    'Colleges',
+    'Universities',
+    'Coaching Institutes',
+    'Competitive Exam Institutes',
+    'Professional Training Institutes',
+    'Skill Development Centres',
+    'Vocational Training Institutes',
+    'Special Education Institutions'
+  ],
+  'healthcare and medical institution': [
+    'Multi-Speciality Hospitals',
+    'General Hospitals',
+    'Specialty Hospitals',
+    'General Clinics',
+    'Dental Clinics',
+    'Eye Hospitals & Clinics',
+    'Diagnostic Centres',
+    'Medical Laboratories',
+    'Physiotherapy Centres',
+    'Nursing Homes',
+    'Rehabilitation Centres',
+    'Mental Health Institutions'
+  ],
+  'healthcare and medical institutions': [
+    'Multi-Speciality Hospitals',
+    'General Hospitals',
+    'Specialty Hospitals',
+    'General Clinics',
+    'Dental Clinics',
+    'Eye Hospitals & Clinics',
+    'Diagnostic Centres',
+    'Medical Laboratories',
+    'Physiotherapy Centres',
+    'Nursing Homes',
+    'Rehabilitation Centres',
+    'Mental Health Institutions'
+  ],
+  'religious and spiritual institution': [
+    'Temples',
+    'Churches',
+    'Mosques',
+    'Mutts & Ashrams',
+    'Spiritual Centres',
+    'Religious Trusts',
+    'Religious Educational Institutions',
+    'Pilgrimage Organisations'
+  ],
+  'religious and spiritual institutions': [
+    'Temples',
+    'Churches',
+    'Mosques',
+    'Mutts & Ashrams',
+    'Spiritual Centres',
+    'Religious Trusts',
+    'Religious Educational Institutions',
+    'Pilgrimage Organisations'
+  ],
+  'religious and spiritual organisation': [
+    'Temples',
+    'Churches',
+    'Mosques',
+    'Mutts & Ashrams',
+    'Spiritual Centres',
+    'Religious Trusts',
+    'Religious Educational Institutions',
+    'Pilgrimage Organisations'
+  ],
+  'religious and spiritual organisations': [
+    'Temples',
+    'Churches',
+    'Mosques',
+    'Mutts & Ashrams',
+    'Spiritual Centres',
+    'Religious Trusts',
+    'Religious Educational Institutions',
+    'Pilgrimage Organisations'
+  ],
+  'ngos, charitable trust and social organisation': [
+    'Non-Governmental Organisations',
+    'Charitable Trusts',
+    'Foundations',
+    'Old Age Homes',
+    'Orphanages',
+    'Child Welfare Organisations',
+    'Disability Support Organisations',
+    'Women Welfare Organisations',
+    'Community Development Organisations',
+    'Animal Welfare Organisations'
+  ],
+  'ngos, charitable trusts and social organisations': [
+    'Non-Governmental Organisations',
+    'Charitable Trusts',
+    'Foundations',
+    'Old Age Homes',
+    'Orphanages',
+    'Child Welfare Organisations',
+    'Disability Support Organisations',
+    'Women Welfare Organisations',
+    'Community Development Organisations',
+    'Animal Welfare Organisations'
+  ],
+  'ngos charitable trust and social organisation': [
+    'Non-Governmental Organisations',
+    'Charitable Trusts',
+    'Foundations',
+    'Old Age Homes',
+    'Orphanages',
+    'Child Welfare Organisations',
+    'Disability Support Organisations',
+    'Women Welfare Organisations',
+    'Community Development Organisations',
+    'Animal Welfare Organisations'
+  ],
+  'media and broadcasting organisation': [
+    'Television Channels',
+    'Radio Stations',
+    'News Agencies',
+    'Newspaper Organisations',
+    'Magazine Publishers',
+    'Digital Media Houses',
+    'YouTube Channels',
+    'Podcast Networks',
+    'Online News Platforms'
+  ],
+  'media and broadcasting organisations': [
+    'Television Channels',
+    'Radio Stations',
+    'News Agencies',
+    'Newspaper Organisations',
+    'Magazine Publishers',
+    'Digital Media Houses',
+    'YouTube Channels',
+    'Podcast Networks',
+    'Online News Platforms'
+  ],
+  'film, entertainment and production house': [
+    'Film Production Houses',
+    'Television Production Houses',
+    'Music Production Houses',
+    'Animation Production Studios',
+    'Documentary Production Houses',
+    'OTT Content Production Houses',
+    'Theatre Organisations',
+    'Entertainment Companies'
+  ],
+  'film, entertainment and production houses': [
+    'Film Production Houses',
+    'Television Production Houses',
+    'Music Production Houses',
+    'Animation Production Studios',
+    'Documentary Production Houses',
+    'OTT Content Production Houses',
+    'Theatre Organisations',
+    'Entertainment Companies'
+  ],
+  'film entertainment and production house': [
+    'Film Production Houses',
+    'Television Production Houses',
+    'Music Production Houses',
+    'Animation Production Studios',
+    'Documentary Production Houses',
+    'OTT Content Production Houses',
+    'Theatre Organisations',
+    'Entertainment Companies'
+  ],
+  'government and public sector organisation': [
+    'Government Departments',
+    'Municipal Corporations',
+    'Government Offices',
+    'Public Sector Undertakings (PSUs)',
+    'Government Boards',
+    'Government Agencies',
+    'Public Service Institutions',
+    'Local Government Bodies (Panchayat, Taluk, Zilla Parishad)'
+  ],
+  'government and public sector organisations': [
+    'Government Departments',
+    'Municipal Corporations',
+    'Government Offices',
+    'Public Sector Undertakings (PSUs)',
+    'Government Boards',
+    'Government Agencies',
+    'Public Service Institutions',
+    'Local Government Bodies (Panchayat, Taluk, Zilla Parishad)'
+  ],
+  'club, association and membership organisation': [
+    'Sports Clubs',
+    'Social Clubs',
+    'Trade Associations',
+    'Business Associations',
+    'Professional Associations',
+    "Residents' Welfare Associations (RWAs)",
+    'Cultural Associations',
+    'Cooperative Societies',
+    'Community Organisations'
+  ],
+  'clubs, associations and membership organisations': [
+    'Sports Clubs',
+    'Social Clubs',
+    'Trade Associations',
+    'Business Associations',
+    'Professional Associations',
+    "Residents' Welfare Associations (RWAs)",
+    'Cultural Associations',
+    'Cooperative Societies',
+    'Community Organisations'
+  ],
+  'club association and membership organisation': [
+    'Sports Clubs',
+    'Social Clubs',
+    'Trade Associations',
+    'Business Associations',
+    'Professional Associations',
+    "Residents' Welfare Associations (RWAs)",
+    'Cultural Associations',
+    'Cooperative Societies',
+    'Community Organisations'
+  ],
+  'research and development institution': [
+    'Scientific Research Centres',
+    'Industrial Research Centres',
+    'Agricultural Research Institutions',
+    'Medical Research Institutions',
+    'Technology Research Centres',
+    'Innovation & Incubation Centres (Start-up Incubators)',
+    'Environmental Research Organisations',
+    'Educational Research Institutions'
+  ],
+  'research and development institutions': [
+    'Scientific Research Centres',
+    'Industrial Research Centres',
+    'Agricultural Research Institutions',
+    'Medical Research Institutions',
+    'Technology Research Centres',
+    'Innovation & Incubation Centres (Start-up Incubators)',
+    'Environmental Research Organisations',
+    'Educational Research Institutions'
+  ],
+
+  // 5. Default Business Categories
+  'manufacturing': [
+    'Food Processing Units',
+    'Textile & Garment Production',
+    'Plastic & Rubber Products',
+    'Metal & Fabrication Units',
+    'Chemical & Pharmaceutical Plants',
+    'Electronics Assembly Plants'
+  ],
+  'distributor / wholesaler': [
+    'General Wholesale Traders',
+    'FMCG Wholesalers',
+    'Product Distributors',
+    'Stockists & Super Stockists',
+    'B2B Bulk Suppliers'
+  ],
+  'retail storefront': [
+    'Grocery & Kirana Stores',
+    'Supermarkets & Mini Marts',
+    'Departmental Stores',
+    'Consumer Electronics Stores',
+    'Fashion & Apparel Stores'
+  ]
+};
+
+const normalizeCategoryKey = (catName) => {
+  if (!catName) return '';
+  return catName
+    .toLowerCase()
+    .replace(/['’]/g, '')
+    .replace(/\s+&\s+/g, ' and ')
+    .replace(/[^a-z0-9 ]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+const getSubCategoriesForCategory = (catName) => {
+  if (!catName) return [];
+  const targetNorm = normalizeCategoryKey(catName);
+  if (CATEGORY_SUBCATEGORIES_MAP[targetNorm]) {
+    return CATEGORY_SUBCATEGORIES_MAP[targetNorm];
+  }
+  for (const [key, list] of Object.entries(CATEGORY_SUBCATEGORIES_MAP)) {
+    if (normalizeCategoryKey(key) === targetNorm) {
+      return list;
+    }
+  }
+  for (const [key, list] of Object.entries(CATEGORY_SUBCATEGORIES_MAP)) {
+    const keyNorm = normalizeCategoryKey(key);
+    if (keyNorm.includes(targetNorm) || targetNorm.includes(keyNorm)) {
+      return list;
+    }
+  }
+  return [];
+};
+
+// Industry Sub-Categories (Fallback / General)
 const SUB_CATEGORIES = [
   'Automobile & Spare Parts',
   'Grocery & Provisions',
@@ -272,7 +1147,76 @@ const Onboarding = () => {
 
   // 4. Sub-Category State (Unselected by default)
   const [subCategory, setSubCategory] = useState('');
+  const [selectedSubCategories, setSelectedSubCategories] = useState([]);
   const [customSubCategory, setCustomSubCategory] = useState('');
+
+  const getActiveStep3Categories = () => {
+    if (offeringType === 'product') return selectedProductCategories;
+    if (offeringType === 'service') return selectedServiceCategories;
+    if (offeringType === 'both') return selectedBothCategories;
+    if (offeringType === 'institution') return selectedInstitutionCategories;
+    if (category && category !== 'others') {
+      const found = BUSINESS_CATEGORIES.find(c => c.id === category);
+      return [found ? found.label : category];
+    }
+    return [];
+  };
+
+  const activeStep3Cats = getActiveStep3Categories();
+
+  const availableSubCategories = (() => {
+    const grouped = {};
+    const allSet = new Set();
+    activeStep3Cats.forEach(cat => {
+      const subs = getSubCategoriesForCategory(cat);
+      if (subs && subs.length > 0) {
+        grouped[cat] = subs;
+        subs.forEach(s => allSet.add(s));
+      } else {
+        const fallback = SUB_CATEGORIES.filter(s => s !== 'Others');
+        grouped[cat] = fallback;
+        fallback.forEach(s => allSet.add(s));
+      }
+    });
+
+    if (Object.keys(grouped).length === 0) {
+      const fallback = SUB_CATEGORIES.filter(s => s !== 'Others');
+      return {
+        grouped: { 'General': fallback },
+        all: fallback
+      };
+    }
+
+    return {
+      grouped,
+      all: Array.from(allSet)
+    };
+  })();
+
+  const toggleSubCategory = (sub) => {
+    setSelectedSubCategories(prev => {
+      let next;
+      if (prev.includes(sub)) {
+        next = prev.filter(s => s !== sub);
+      } else {
+        next = [...prev, sub];
+      }
+      setSubCategory(next.join(', '));
+      return next;
+    });
+  };
+
+  const handleSelectAllSubCategories = () => {
+    const allSubs = availableSubCategories.all;
+    const allSelected = allSubs.length > 0 && allSubs.every(s => selectedSubCategories.includes(s));
+    if (allSelected) {
+      setSelectedSubCategories([]);
+      setSubCategory('');
+    } else {
+      setSelectedSubCategories([...allSubs]);
+      setSubCategory(allSubs.join(', '));
+    }
+  };
 
   // 5. Documentations State
   const [documents, setDocuments] = useState({
@@ -560,6 +1504,8 @@ const Onboarding = () => {
 
     if (u.subCategory) {
       setSubCategory(u.subCategory);
+      const subs = u.subCategory.split(',').map(s => s.trim()).filter(Boolean);
+      setSelectedSubCategories(subs);
     }
 
     // Subscription
@@ -841,12 +1787,13 @@ const Onboarding = () => {
         }
       }
     } else if (currentStep === 3) {
-      if (!subCategory) {
-        setError('Please select an industry sub-category to continue.');
+      if (!subCategory && selectedSubCategories.length === 0) {
+        setError('Please select at least one industry sub-category to continue.');
         return false;
       }
-      if (subCategory === 'Others' && !customSubCategory.trim()) {
-        setError('Please specify your industry segment.');
+      const hasOthers = selectedSubCategories.some(s => s === 'Others' || s.startsWith('Others')) || subCategory === 'Others';
+      if (hasOthers && !customSubCategory.trim()) {
+        setError('Please specify your custom industry segment.');
         return false;
       }
     } else if (currentStep === 4) {
@@ -972,7 +1919,9 @@ const Onboarding = () => {
       selectedCategoriesList = [selectedFinalCategory];
     }
 
-    const selectedFinalSubCategory = subCategory === 'Others' ? (customSubCategory.trim() || 'General Trade') : subCategory;
+    const selectedFinalSubCategory = selectedSubCategories.length > 0
+      ? selectedSubCategories.map(s => (s === 'Others' || s.startsWith('Others')) ? (customSubCategory.trim() || 'Others') : s).join(', ')
+      : (subCategory === 'Others' ? (customSubCategory.trim() || 'General Trade') : subCategory);
 
     // Determine active operational modules according to offeringType
     const modules = ['sales', 'expenses', 'customers', 'documents', 'reminders'];
@@ -2252,57 +3201,118 @@ const Onboarding = () => {
           {/* ========================================================================= */}
           {currentStep === 3 && (
             <div style={{ background: 'var(--card-bg, #FFFFFF)', borderRadius: '20px', border: '1px solid var(--border-color, #E2E8F0)', padding: '36px', boxShadow: '0 4px 16px rgba(0,0,0,0.03)' }}>
-              <div style={{ marginBottom: '28px' }}>
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#EFF6FF', color: '#2563EB', padding: '4px 12px', borderRadius: '16px', fontSize: '12px', fontWeight: '700', marginBottom: '8px' }}>
-                  <Sparkles size={14} /> Step 4: Industry Specialization
+              <div style={{ marginBottom: '28px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+                <div>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#EFF6FF', color: '#2563EB', padding: '4px 12px', borderRadius: '16px', fontSize: '12px', fontWeight: '700', marginBottom: '8px' }}>
+                    <Sparkles size={14} /> Step 4: Industry Specialization
+                  </div>
+                  <h2 style={{ fontSize: '26px', fontWeight: '800', color: 'var(--text-title, #0F172A)', margin: '0 0 6px 0' }}>Select Industry Sub-Category</h2>
+                  <p style={{ fontSize: '14px', color: 'var(--text-secondary, #64748B)', margin: 0 }}>
+                    {activeStep3Cats.length > 0 
+                      ? `Select the specific sub-categories for your chosen ${activeStep3Cats.length === 1 ? 'category' : 'categories'}.`
+                      : 'This tunes your default tax codes, invoice formats, and measurement units.'}
+                  </p>
                 </div>
-                <h2 style={{ fontSize: '26px', fontWeight: '800', color: 'var(--text-title, #0F172A)', margin: '0 0 6px 0' }}>Select Industry Sub-Category</h2>
-                <p style={{ fontSize: '14px', color: 'var(--text-secondary, #64748B)', margin: 0 }}>This tunes your default tax codes, invoice formats, and measurement units.</p>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: '700', color: '#2563EB', background: '#EFF6FF', padding: '6px 14px', borderRadius: '20px', border: '1px solid #BFDBFE' }}>
+                    {selectedSubCategories.length} Selected
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleSelectAllSubCategories}
+                    style={{
+                      background: 'var(--card-bg, white)',
+                      border: '1px solid var(--border-color, #CBD5E1)',
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      color: '#475569',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s'
+                    }}
+                  >
+                    {availableSubCategories.all.length > 0 && availableSubCategories.all.every(s => selectedSubCategories.includes(s))
+                      ? 'Deselect All'
+                      : 'Select All'}
+                  </button>
+                </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', marginBottom: '20px' }}>
-                {SUB_CATEGORIES.map(sub => {
-                  const isSelected = subCategory === sub;
-                  return (
-                    <div
-                      key={sub}
-                      onClick={() => setSubCategory(sub)}
-                      style={{
-                        border: isSelected ? '2px solid #2563EB' : '1px solid var(--border-color, #E2E8F0)',
-                        background: isSelected ? 'rgba(37,99,235,0.03)' : 'var(--card-bg, white)',
-                        borderRadius: '12px',
-                        padding: '14px 16px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        fontSize: '14px',
-                        fontWeight: isSelected ? '700' : '500',
-                        color: isSelected ? '#2563EB' : 'var(--text-title)',
-                        transition: 'all 0.15s'
-                      }}
-                    >
-                      <span>{sub}</span>
-                      {isSelected && <Check size={16} color="#2563EB" />}
+              {/* Sub-Categories Grouped by Category */}
+              {Object.entries(availableSubCategories.grouped).map(([categoryTitle, subs]) => (
+                <div key={categoryTitle} style={{ marginBottom: '28px' }}>
+                  {/* Category Title Header */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 18px',
+                    background: '#F8FAFC',
+                    borderRadius: '12px',
+                    border: '1px solid #E2E8F0',
+                    marginBottom: '14px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563EB' }}>
+                        <Building2 size={16} />
+                      </div>
+                      <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#0F172A', margin: 0 }}>
+                        {categoryTitle}
+                      </h3>
                     </div>
-                  );
-                })}
-              </div>
+                    <span style={{ fontSize: '12px', fontWeight: '600', color: '#2563EB', background: '#EFF6FF', padding: '3px 10px', borderRadius: '12px', border: '1px solid #BFDBFE' }}>
+                      {subs.length} sub-categories
+                    </span>
+                  </div>
 
-              {subCategory === 'Others' && (
-                <div style={{ marginTop: '16px', padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-title)', marginBottom: '6px' }}>
-                    Specify Your Industry Segment <span style={{ color: '#EF4444' }}>*</span>
-                  </label>
-                  <input 
-                    type="text" 
-                    placeholder="e.g. Printing & Packaging" 
-                    value={customSubCategory}
-                    onChange={(e) => setCustomSubCategory(e.target.value)}
-                    style={{ width: '100%', padding: '11px 14px', borderRadius: '8px', border: '1px solid var(--border-color, #E2E8F0)', background: 'white', color: 'var(--text-title)', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }}
-                  />
+                  {/* Grid of Sub-Categories for this Category */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '10px' }}>
+                    {subs.map(sub => {
+                      const isSelected = selectedSubCategories.includes(sub) || subCategory === sub || (typeof subCategory === 'string' && subCategory.split(',').map(s => s.trim()).includes(sub));
+                      return (
+                        <div
+                          key={sub}
+                          onClick={() => toggleSubCategory(sub)}
+                          style={{
+                            border: isSelected ? '2px solid #2563EB' : '1px solid var(--border-color, #E2E8F0)',
+                            background: isSelected ? '#EFF6FF' : 'var(--card-bg, white)',
+                            borderRadius: '12px',
+                            padding: '12px 14px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            fontSize: '13px',
+                            fontWeight: isSelected ? '700' : '500',
+                            color: isSelected ? '#1D4ED8' : 'var(--text-title)',
+                            transition: 'all 0.15s',
+                            boxShadow: isSelected ? '0 2px 8px rgba(37,99,235,0.08)' : 'none'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div style={{
+                              width: '18px',
+                              height: '18px',
+                              borderRadius: '5px',
+                              border: isSelected ? '2px solid #2563EB' : '2px solid #CBD5E1',
+                              background: isSelected ? '#2563EB' : 'white',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0
+                            }}>
+                              {isSelected && <Check size={12} color="white" strokeWidth={3} />}
+                            </div>
+                            <span>{sub}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              )}
+              ))}
             </div>
           )}
 
