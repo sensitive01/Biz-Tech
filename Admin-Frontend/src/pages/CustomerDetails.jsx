@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  LayoutGrid, Users, Map, Calendar, Clock, Package, Wrench, Archive, TrendingUp, 
-  ShoppingCart, Receipt, Building2, UserCheck, FileText, BellRing, Store, 
-  ArrowLeft, RefreshCw, Loader2, AlertCircle, User, Mail, Phone, MapPin, 
-  Briefcase, IndianRupee, Search, Download, ExternalLink, Layers, Check, 
+import {
+  LayoutGrid, Users, Map, Calendar, Clock, Package, Wrench, Archive, TrendingUp,
+  ShoppingCart, Receipt, Building2, UserCheck, FileText, BellRing, Store,
+  ArrowLeft, ArrowRight, RefreshCw, Loader2, AlertCircle, User, Mail, Phone, MapPin,
+  Briefcase, IndianRupee, Search, Download, ExternalLink, Layers, Check,
   X, Sparkles, Eye, CreditCard, Edit2, Trash2, AlertTriangle, Save, CheckCircle2,
   ArrowUp, ArrowDown, ArrowUpDown, Plus, KeyRound, Lock, EyeOff, Tag,
   Pencil, Building, ShieldCheck, CalendarDays, List, ChevronLeft, ChevronRight, Repeat, Bell, LogOut,
@@ -104,6 +104,7 @@ const CustomerDetails = () => {
     modules: ['sales', 'products_services', 'expenses', 'inventory', 'purchases']
   });
   const [savingModulesConfig, setSavingModulesConfig] = useState(false);
+  const [resumingSetup, setResumingSetup] = useState(false);
 
   // Profile Page inline editing state
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -312,12 +313,11 @@ const CustomerDetails = () => {
   };
 
   const businessType = Number(customer.businessType || 1);
-  const typeLabel = `Type ${businessType}: ${
-    businessType === 1 ? 'Sole Operator' : 
-    businessType === 2 ? 'Single Branch + Staff' : 
-    businessType === 3 ? 'Multi-Branch Enterprise' : 
-    'Multi-Business Conglomerate'
-  }`;
+  const typeLabel = `Type ${businessType}: ${businessType === 1 ? 'Sole Operator' :
+    businessType === 2 ? 'Single Branch + Staff' :
+      businessType === 3 ? 'Multi-Branch Enterprise' :
+        'Multi-Business Conglomerate'
+    }`;
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -358,8 +358,8 @@ const CustomerDetails = () => {
   const getArchetypeInfo = (type) => {
     switch (Number(type)) {
       case 1:
-        return { 
-          label: 'Type 1: Single Login (Owner-Managed)', 
+        return {
+          label: 'Type 1: Single Login (Owner-Managed)',
           desc: '1 Owner • 1 Shop • Owner-managed staff, attendance & leaves',
           icon: Store,
           bg: '#EEF2FF',
@@ -367,8 +367,8 @@ const CustomerDetails = () => {
           border: '#E0E7FF'
         };
       case 2:
-        return { 
-          label: 'Type 2: Multi-Login (Staff Portal)', 
+        return {
+          label: 'Type 2: Multi-Login (Staff Portal)',
           desc: '1 Owner • 1 Shop • Multi-login with staff self-service',
           icon: Users,
           bg: '#ECFDF5',
@@ -376,8 +376,8 @@ const CustomerDetails = () => {
           border: '#D1FAE5'
         };
       case 3:
-        return { 
-          label: 'Type 3: Multi-Branch Enterprise', 
+        return {
+          label: 'Type 3: Multi-Branch Enterprise',
           desc: '1 Owner • Multiple Branches • Full employee management',
           icon: Map,
           bg: '#F5F3FF',
@@ -385,8 +385,8 @@ const CustomerDetails = () => {
           border: '#EDE9FE'
         };
       case 4:
-        return { 
-          label: 'Type 4: Multi-Business Conglomerate', 
+        return {
+          label: 'Type 4: Multi-Business Conglomerate',
           desc: '1 Owner • Multiple Businesses • Multi-Branch management',
           icon: Building2,
           bg: '#FFF7ED',
@@ -394,8 +394,8 @@ const CustomerDetails = () => {
           border: '#FFEDD5'
         };
       default:
-        return { 
-          label: 'Tenant Account', 
+        return {
+          label: 'Tenant Account',
           desc: 'Standard Business Plan',
           icon: Building2,
           bg: '#F1F5F9',
@@ -450,6 +450,11 @@ const CustomerDetails = () => {
     } finally {
       setSavingProfile(false);
     }
+  };
+
+  const handleResumeSetup = () => {
+    if (!customer?._id) return;
+    navigate(`/admin/customers/${customer._id}/onboarding?resume=true`);
   };
 
   // Sorting request handler
@@ -897,11 +902,11 @@ const CustomerDetails = () => {
   const filteredBranches = useMemo(() => {
     const q = searchTerm.toLowerCase();
     const dateFiltered = applyDateFilter(branches, 'createdAt');
-    const filtered = dateFiltered.filter(b => 
-      (b.name && b.name.toLowerCase().includes(q)) || 
-      (b.branchId && b.branchId.toLowerCase().includes(q)) || 
-      (b.branchCode && b.branchCode.toLowerCase().includes(q)) || 
-      (b.location && b.location.toLowerCase().includes(q)) || 
+    const filtered = dateFiltered.filter(b =>
+      (b.name && b.name.toLowerCase().includes(q)) ||
+      (b.branchId && b.branchId.toLowerCase().includes(q)) ||
+      (b.branchCode && b.branchCode.toLowerCase().includes(q)) ||
+      (b.location && b.location.toLowerCase().includes(q)) ||
       (b.manager && b.manager.toLowerCase().includes(q)) ||
       (b.businessName && b.businessName.toLowerCase().includes(q)) ||
       (b.email && b.email.toLowerCase().includes(q)) ||
@@ -913,11 +918,11 @@ const CustomerDetails = () => {
   const filteredEmployees = useMemo(() => {
     const q = searchTerm.toLowerCase();
     const dateFiltered = applyDateFilter(employees, 'dateOfJoining');
-    const filtered = dateFiltered.filter(e => 
-      (e.name && e.name.toLowerCase().includes(q)) || 
-      (e.employeeId && e.employeeId.toLowerCase().includes(q)) || 
-      (e.position && e.position.toLowerCase().includes(q)) || 
-      (e.email && e.email.toLowerCase().includes(q)) || 
+    const filtered = dateFiltered.filter(e =>
+      (e.name && e.name.toLowerCase().includes(q)) ||
+      (e.employeeId && e.employeeId.toLowerCase().includes(q)) ||
+      (e.position && e.position.toLowerCase().includes(q)) ||
+      (e.email && e.email.toLowerCase().includes(q)) ||
       (e.branchName && e.branchName.toLowerCase().includes(q)) ||
       (e.businessName && e.businessName.toLowerCase().includes(q)) ||
       (e.contactNumber && e.contactNumber.includes(q))
@@ -959,8 +964,8 @@ const CustomerDetails = () => {
         if (type === 'service') return false;
       }
       return (
-        (c.name && c.name.toLowerCase().includes(q)) || 
-        (c.itemType && c.itemType.toLowerCase().includes(q)) || 
+        (c.name && c.name.toLowerCase().includes(q)) ||
+        (c.itemType && c.itemType.toLowerCase().includes(q)) ||
         (c.transactionType && c.transactionType.toLowerCase().includes(q)) ||
         (c.description && c.description.toLowerCase().includes(q))
       );
@@ -979,9 +984,9 @@ const CustomerDetails = () => {
         if (type === 'service') return false;
       }
       return (
-        (sc.name && sc.name.toLowerCase().includes(q)) || 
+        (sc.name && sc.name.toLowerCase().includes(q)) ||
         (sc.categoryId?.name && sc.categoryId.name.toLowerCase().includes(q)) ||
-        (sc.itemType && sc.itemType.toLowerCase().includes(q)) || 
+        (sc.itemType && sc.itemType.toLowerCase().includes(q)) ||
         (sc.transactionType && sc.transactionType.toLowerCase().includes(q)) ||
         (sc.description && sc.description.toLowerCase().includes(q))
       );
@@ -1000,8 +1005,8 @@ const CustomerDetails = () => {
         if (type === 'service') return false;
       }
       return (
-        (p.name && p.name.toLowerCase().includes(q)) || 
-        (p.sku && p.sku.toLowerCase().includes(q)) || 
+        (p.name && p.name.toLowerCase().includes(q)) ||
+        (p.sku && p.sku.toLowerCase().includes(q)) ||
         (p.category && p.category.toLowerCase().includes(q)) ||
         (p.categoryId?.name && p.categoryId.name.toLowerCase().includes(q)) ||
         (p.subCategoryId?.name && p.subCategoryId.name.toLowerCase().includes(q)) ||
@@ -1056,11 +1061,11 @@ const CustomerDetails = () => {
   const filteredBusinesses = useMemo(() => {
     const q = searchTerm.toLowerCase();
     const dateFiltered = applyDateFilter(businesses, 'createdAt');
-    const filtered = dateFiltered.filter(b => 
-      (b.name && b.name.toLowerCase().includes(q)) || 
-      (b.businessId && b.businessId.toLowerCase().includes(q)) || 
-      (b.businessCode && b.businessCode.toLowerCase().includes(q)) || 
-      (b.category && b.category.toLowerCase().includes(q)) || 
+    const filtered = dateFiltered.filter(b =>
+      (b.name && b.name.toLowerCase().includes(q)) ||
+      (b.businessId && b.businessId.toLowerCase().includes(q)) ||
+      (b.businessCode && b.businessCode.toLowerCase().includes(q)) ||
+      (b.category && b.category.toLowerCase().includes(q)) ||
       (b.contactPerson && b.contactPerson.toLowerCase().includes(q)) ||
       (b.city && b.city.toLowerCase().includes(q)) ||
       (b.taxNumber && b.taxNumber.toLowerCase().includes(q)) ||
@@ -1074,9 +1079,9 @@ const CustomerDetails = () => {
     const q = searchTerm.toLowerCase();
     const dateFiltered = applyDateFilter(investors, 'investmentDate');
     const filtered = dateFiltered.filter(inv => {
-      const matchesSearch = !q || 
-        (inv.name && inv.name.toLowerCase().includes(q)) || 
-        (inv.investorId && inv.investorId.toLowerCase().includes(q)) || 
+      const matchesSearch = !q ||
+        (inv.name && inv.name.toLowerCase().includes(q)) ||
+        (inv.investorId && inv.investorId.toLowerCase().includes(q)) ||
         (inv.email && inv.email.toLowerCase().includes(q)) ||
         (inv.phone && inv.phone.includes(q)) ||
         (inv.associatedBranch && inv.associatedBranch.toLowerCase().includes(q));
@@ -1492,21 +1497,21 @@ const CustomerDetails = () => {
       let eCount = employees.length + 1;
       while (existingEmpIds.has(`EMP-${String(eCount).padStart(3, '0')}`)) { eCount++; }
       const suggestedEmpId = `EMP-${String(eCount).padStart(3, '0')}`;
-      initialFormData = { 
-        tenantId, 
-        employeeId: suggestedEmpId, 
-        name: '', 
-        email: '', 
-        position: '', 
-        contactNumber: '', 
+      initialFormData = {
+        tenantId,
+        employeeId: suggestedEmpId,
+        name: '',
+        email: '',
+        position: '',
+        contactNumber: '',
         shiftFrom: '09:00',
         shiftTo: '18:00',
         workType: 'Full-Time',
-        salary: '', 
+        salary: '',
         dateOfJoining: new Date().toISOString().split('T')[0],
         address: '',
-        status: 'Active', 
-        ...overrides 
+        status: 'Active',
+        ...overrides
       };
     } else if (type === 'business') {
       const existingBizIds = new Set(businesses.map(b => (b.businessId || b.businessCode || '').trim().toUpperCase()));
@@ -1523,37 +1528,37 @@ const CustomerDetails = () => {
     } else if (type === 'product') {
       const isServ = isServicesSection || overrides.itemType === 'Service';
       const availableCats = categories.filter(c => isServ ? c.itemType?.toLowerCase() === 'service' : c.itemType?.toLowerCase() !== 'service');
-      initialFormData = { 
-        tenantId, 
-        name: '', 
-        ...(isServ ? {} : { sku: '' }), 
-        categoryId: availableCats[0]?._id || '', 
-        subCategoryId: '', 
-        price: '', 
-        ...(isServ ? {} : { stock: '' }), 
+      initialFormData = {
+        tenantId,
+        name: '',
+        ...(isServ ? {} : { sku: '' }),
+        categoryId: availableCats[0]?._id || '',
+        subCategoryId: '',
+        price: '',
+        ...(isServ ? {} : { stock: '' }),
         itemType: isServ ? 'Service' : 'Product',
-        description: '', 
-        ...overrides 
+        description: '',
+        ...overrides
       };
     } else if (type === 'category') {
       const isServ = isServicesSection || overrides.itemType === 'Service';
-      initialFormData = { 
-        tenantId, 
-        name: '', 
-        itemType: isServ ? 'Service' : 'Product', 
-        transactionType: 'both', 
-        description: '', 
-        ...overrides 
+      initialFormData = {
+        tenantId,
+        name: '',
+        itemType: isServ ? 'Service' : 'Product',
+        transactionType: 'both',
+        description: '',
+        ...overrides
       };
     } else if (type === 'subcategory') {
       const isServ = isServicesSection || overrides.itemType === 'Service';
       const availableCats = categories.filter(c => isServ ? c.itemType?.toLowerCase() === 'service' : c.itemType?.toLowerCase() !== 'service');
-      initialFormData = { 
-        tenantId, 
-        name: '', 
-        categoryId: availableCats[0]?._id || '', 
-        itemType: isServ ? 'Service' : 'Product', 
-        transactionType: 'both', 
+      initialFormData = {
+        tenantId,
+        name: '',
+        categoryId: availableCats[0]?._id || '',
+        itemType: isServ ? 'Service' : 'Product',
+        transactionType: 'both',
         description: '',
         ...overrides
       };
@@ -1575,18 +1580,18 @@ const CustomerDetails = () => {
       while (existingInvIds.has(`INV-${String(invCount).padStart(3, '0')}`)) { invCount++; }
       const suggestedInvId = `INV-${String(invCount).padStart(3, '0')}`;
       // In add investor modal, status is omitted per request ("remove acount status from the add invester i need these only in edit section")
-      initialFormData = { 
-        tenantId, 
-        investorId: suggestedInvId, 
-        name: '', 
-        email: '', 
-        password: Math.random().toString(36).slice(-8), 
-        phone: '', 
-        investmentAmount: '', 
-        ownershipPercentage: '', 
-        associatedBranch: 'All Branches', 
-        notes: '', 
-        ...overrides 
+      initialFormData = {
+        tenantId,
+        investorId: suggestedInvId,
+        name: '',
+        email: '',
+        password: Math.random().toString(36).slice(-8),
+        phone: '',
+        investmentAmount: '',
+        ownershipPercentage: '',
+        associatedBranch: 'All Branches',
+        notes: '',
+        ...overrides
       };
     }
     setAddModalData({ type, formData: initialFormData });
@@ -1875,7 +1880,7 @@ const CustomerDetails = () => {
 
   return (
     <div style={{ height: '100vh', width: '100vw', display: 'flex', overflow: 'hidden', background: '#F8FAFC' }}>
-      
+
       {/* Toast Notification */}
       {actionSuccessMsg && (
         <div style={{
@@ -1912,34 +1917,34 @@ const CustomerDetails = () => {
         flexShrink: 0,
         zIndex: 20
       }}>
-        
+
         {/* Sidebar Header: Return Back Button */}
-        <div style={{ 
-          height: '60px', 
+        <div style={{
+          height: '60px',
           boxSizing: 'border-box',
-          padding: '0 16px', 
-          borderBottom: '1px solid #E2E8F0', 
+          padding: '0 16px',
+          borderBottom: '1px solid #E2E8F0',
           background: '#FFFFFF',
           display: 'flex',
           alignItems: 'center',
           flexShrink: 0
         }}>
-          <button 
+          <button
             onClick={() => navigate('/admin/customers')}
-            style={{ 
+            style={{
               width: '100%',
               height: '36px',
-              display: 'inline-flex', 
-              alignItems: 'center', 
+              display: 'inline-flex',
+              alignItems: 'center',
               justifyContent: 'center',
-              gap: '8px', 
-              background: '#F1F5F9', 
-              border: '1px solid #E2E8F0', 
-              borderRadius: '8px', 
-              padding: '0 12px', 
-              color: '#334155', 
-              fontSize: '13px', 
-              fontWeight: '600', 
+              gap: '8px',
+              background: '#F1F5F9',
+              border: '1px solid #E2E8F0',
+              borderRadius: '8px',
+              padding: '0 12px',
+              color: '#334155',
+              fontSize: '13px',
+              fontWeight: '600',
               cursor: 'pointer',
               transition: 'background 0.15s'
             }}
@@ -1959,9 +1964,9 @@ const CustomerDetails = () => {
             return (
               <button
                 key={item.id}
-                onClick={() => { 
-                  setActiveSection(item.id); 
-                  setSearchTerm(''); 
+                onClick={() => {
+                  setActiveSection(item.id);
+                  setSearchTerm('');
                   setCurrentPage(1);
                   setSortConfig({ key: null, direction: 'asc' });
                 }}
@@ -2020,7 +2025,7 @@ const CustomerDetails = () => {
       {/* RIGHT MAIN CONTENT AREA */}
       {/* ============================================================ */}
       <main style={{ flex: 1, height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        
+
         {/* Top Control Bar */}
         <header style={{
           height: '60px',
@@ -2045,7 +2050,34 @@ const CustomerDetails = () => {
           </div>
 
           {/* Right Controls */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+
+            <button
+              onClick={handleResumeSetup}
+              disabled={resumingSetup}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '7px 14px',
+                background: '#EFF6FF',
+                border: '1px solid #BFDBFE',
+                borderRadius: '8px',
+                color: '#2563EB',
+                fontSize: '12px',
+                fontWeight: '600',
+                cursor: resumingSetup ? 'not-allowed' : 'pointer',
+                transition: 'all 0.15s ease',
+                opacity: resumingSetup ? 0.7 : 1
+              }}
+              onMouseOver={(e) => { if (!resumingSetup) e.currentTarget.style.background = '#DBEAFE'; }}
+              onMouseOut={(e) => { if (!resumingSetup) e.currentTarget.style.background = '#EFF6FF'; }}
+              title="Resume onboarding setup wizard for this customer"
+            >
+              {resumingSetup ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Briefcase size={13} />}
+              <span>Resume Setup</span>
+              <ArrowRight size={12} />
+            </button>
 
             <button
               onClick={() => {
@@ -2113,13 +2145,13 @@ const CustomerDetails = () => {
 
         {/* Main Scrollable Canvas */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          
+
           {/* ======================================================== */}
           {/* SECTION 0: WORKSPACE DASHBOARD                           */}
           {/* ======================================================== */}
           {activeSection === 'dashboard' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '1280px', margin: '0 auto', width: '100%' }}>
-              
+
               {/* Dashboard Workspace Header */}
               <div style={{
                 background: 'white',
@@ -2321,8 +2353,8 @@ const CustomerDetails = () => {
 
                 {/* Products */}
                 {customer.offeringType !== 'service' && (
-                  <div 
-                    onClick={() => setActiveSection('products')} 
+                  <div
+                    onClick={() => setActiveSection('products')}
                     style={{ background: 'white', borderRadius: '14px', border: '1px solid #E2E8F0', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', cursor: 'pointer' }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
@@ -2340,8 +2372,8 @@ const CustomerDetails = () => {
 
                 {/* Services */}
                 {customer.offeringType !== 'product' && (
-                  <div 
-                    onClick={() => setActiveSection('services')} 
+                  <div
+                    onClick={() => setActiveSection('services')}
                     style={{ background: 'white', borderRadius: '14px', border: '1px solid #E2E8F0', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', cursor: 'pointer' }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
@@ -2360,7 +2392,7 @@ const CustomerDetails = () => {
 
               {/* Two Column Operations Snapshot */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '20px' }}>
-                
+
                 {/* Recent Billing & Sales Table */}
                 <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px 24px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
@@ -2437,7 +2469,7 @@ const CustomerDetails = () => {
                             </div>
                             <div>
                               <div style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A' }}>{emp.name}</div>
-                              <div style={{ fontSize: '12px', color: '#64748B' }}>{emp.designation || emp.role || 'Staff'} • {emp.employeeId || `EMP-${idx+1}`}</div>
+                              <div style={{ fontSize: '12px', color: '#64748B' }}>{emp.designation || emp.role || 'Staff'} • {emp.employeeId || `EMP-${idx + 1}`}</div>
                             </div>
                           </div>
                           <div>
@@ -2503,7 +2535,7 @@ const CustomerDetails = () => {
           {/* ======================================================== */}
           {activeSection === 'overview' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '1000px', margin: '0 auto', width: '100%' }}>
-              
+
               {/* Profile Page Header */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
                 <div>
@@ -2520,7 +2552,7 @@ const CustomerDetails = () => {
 
                 <div>
                   {!isEditingProfile ? (
-                    <button 
+                    <button
                       onClick={() => setIsEditingProfile(true)}
                       style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 20px', background: '#2563EB', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
                     >
@@ -2528,7 +2560,7 @@ const CustomerDetails = () => {
                     </button>
                   ) : (
                     <div style={{ display: 'flex', gap: '10px' }}>
-                      <button 
+                      <button
                         type="button"
                         onClick={() => {
                           setIsEditingProfile(false);
@@ -2554,7 +2586,7 @@ const CustomerDetails = () => {
                       >
                         Cancel
                       </button>
-                      <button 
+                      <button
                         type="button"
                         onClick={handleSaveCustomerProfile}
                         disabled={savingProfile}
@@ -2569,11 +2601,11 @@ const CustomerDetails = () => {
               </div>
 
               {/* Hero Overview Card */}
-              <div style={{ 
-                background: 'white', 
-                borderRadius: '16px', 
-                padding: '28px 32px', 
-                boxShadow: '0 4px 12px rgba(15, 23, 42, 0.04)', 
+              <div style={{
+                background: 'white',
+                borderRadius: '16px',
+                padding: '28px 32px',
+                boxShadow: '0 4px 12px rgba(15, 23, 42, 0.04)',
                 border: '1px solid #E2E8F0',
                 display: 'flex',
                 alignItems: 'center',
@@ -2582,17 +2614,17 @@ const CustomerDetails = () => {
                 gap: '24px'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                  <div style={{ 
-                    width: '76px', 
-                    height: '76px', 
-                    borderRadius: '20px', 
-                    background: 'linear-gradient(135deg, #2563EB 0%, #4F46E5 100%)', 
-                    color: 'white', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center', 
-                    fontSize: '30px', 
-                    fontWeight: '700', 
+                  <div style={{
+                    width: '76px',
+                    height: '76px',
+                    borderRadius: '20px',
+                    background: 'linear-gradient(135deg, #2563EB 0%, #4F46E5 100%)',
+                    color: 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '30px',
+                    fontWeight: '700',
                     boxShadow: '0 8px 16px -4px rgba(37, 99, 235, 0.3)',
                     flexShrink: 0
                   }}>
@@ -2603,32 +2635,32 @@ const CustomerDetails = () => {
                       <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#0F172A', margin: 0 }}>
                         {customer.businessName || `${customer.fullName}'s Business`}
                       </h2>
-                      <span style={{ 
-                        display: 'inline-flex', 
-                        alignItems: 'center', 
-                        gap: '4px', 
-                        padding: '3px 10px', 
-                        borderRadius: '12px', 
-                        fontSize: '11px', 
-                        fontWeight: '700', 
-                        background: '#F1F5F9', 
-                        color: '#334155', 
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '3px 10px',
+                        borderRadius: '12px',
+                        fontSize: '11px',
+                        fontWeight: '700',
+                        background: '#F1F5F9',
+                        color: '#334155',
                         border: '1px solid #E2E8F0',
                         fontFamily: 'monospace'
                       }}>
                         ID: {customer.userId || customer.id || 'BT-TENANT'}
                       </span>
-                      <span style={{ 
-                        display: 'inline-flex', 
-                        alignItems: 'center', 
-                        gap: '5px', 
-                        padding: '3px 10px', 
-                        borderRadius: '12px', 
-                        fontSize: '11px', 
-                        fontWeight: '600', 
-                        background: customer.subscriptionStatus === 'Active' ? '#ECFDF5' : '#FEF3C7', 
-                        color: customer.subscriptionStatus === 'Active' ? '#059669' : '#D97706', 
-                        border: `1px solid ${customer.subscriptionStatus === 'Active' ? '#D1FAE5' : '#FDE68A'}` 
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        padding: '3px 10px',
+                        borderRadius: '12px',
+                        fontSize: '11px',
+                        fontWeight: '600',
+                        background: customer.subscriptionStatus === 'Active' ? '#ECFDF5' : '#FEF3C7',
+                        color: customer.subscriptionStatus === 'Active' ? '#059669' : '#D97706',
+                        border: `1px solid ${customer.subscriptionStatus === 'Active' ? '#D1FAE5' : '#FDE68A'}`
                       }}>
                         <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: customer.subscriptionStatus === 'Active' ? '#10B981' : '#F59E0B' }}></span>
                         {customer.subscriptionStatus || 'Active'} Tenant
@@ -2642,17 +2674,17 @@ const CustomerDetails = () => {
                         const arch = getArchetypeInfo(businessType);
                         const ArchIcon = arch.icon;
                         return (
-                          <span style={{ 
-                            display: 'inline-flex', 
-                            alignItems: 'center', 
-                            gap: '6px', 
-                            padding: '4px 12px', 
-                            borderRadius: '20px', 
-                            fontSize: '12px', 
-                            fontWeight: '600', 
-                            background: arch.bg, 
-                            color: arch.color, 
-                            border: `1px solid ${arch.border}` 
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '4px 12px',
+                            borderRadius: '20px',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            background: arch.bg,
+                            color: arch.color,
+                            border: `1px solid ${arch.border}`
                           }}>
                             <ArchIcon size={14} /> {arch.label}
                           </span>
@@ -2672,11 +2704,11 @@ const CustomerDetails = () => {
               <form onSubmit={handleSaveCustomerProfile} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
                 {/* Section 1: Personal Information */}
-                <div style={{ 
-                  background: 'white', 
-                  borderRadius: '16px', 
-                  padding: '28px 32px', 
-                  boxShadow: '0 4px 12px rgba(15, 23, 42, 0.04)', 
+                <div style={{
+                  background: 'white',
+                  borderRadius: '16px',
+                  padding: '28px 32px',
+                  boxShadow: '0 4px 12px rgba(15, 23, 42, 0.04)',
                   border: '1px solid #E2E8F0'
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid #F1F5F9' }}>
@@ -2740,12 +2772,12 @@ const CustomerDetails = () => {
                         <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
                           <User size={14} color="#2563EB" /> Full Name <span style={{ color: '#EF4444' }}>*</span>
                         </label>
-                        <input 
-                          type="text" 
-                          value={profileFormData.fullName} 
-                          onChange={e => setProfileFormData({ ...profileFormData, fullName: e.target.value })} 
+                        <input
+                          type="text"
+                          value={profileFormData.fullName}
+                          onChange={e => setProfileFormData({ ...profileFormData, fullName: e.target.value })}
                           placeholder="e.g. Ajay Kumar"
-                          required 
+                          required
                           style={{ width: '100%', height: '42px', padding: '8px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
                         />
                       </div>
@@ -2754,10 +2786,10 @@ const CustomerDetails = () => {
                         <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: '600', color: '#64748B', marginBottom: '6px' }}>
                           <Mail size={14} color="#94A3B8" /> Email Address
                         </label>
-                        <input 
-                          type="email" 
-                          value={customer.email || ''} 
-                          disabled 
+                        <input
+                          type="email"
+                          value={customer.email || ''}
+                          disabled
                           style={{ width: '100%', height: '42px', padding: '8px 12px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '14px', background: '#F8FAFC', color: '#64748B', cursor: 'not-allowed', boxSizing: 'border-box' }}
                         />
                         <span style={{ fontSize: '11px', color: '#94A3B8', marginTop: '2px', display: 'block' }}>Email can be managed in Account Credentials below.</span>
@@ -2767,11 +2799,11 @@ const CustomerDetails = () => {
                         <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
                           <Phone size={14} color="#2563EB" /> Phone Number
                         </label>
-                        <input 
-                          type="tel" 
+                        <input
+                          type="tel"
                           maxLength={10}
-                          value={profileFormData.phone} 
-                          onChange={e => setProfileFormData({ ...profileFormData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })} 
+                          value={profileFormData.phone}
+                          onChange={e => setProfileFormData({ ...profileFormData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
                           placeholder="10-digit phone number"
                           style={{ width: '100%', height: '42px', padding: '8px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
                         />
@@ -2781,11 +2813,11 @@ const CustomerDetails = () => {
                 </div>
 
                 {/* Section 2: Business Information */}
-                <div style={{ 
-                  background: 'white', 
-                  borderRadius: '16px', 
-                  padding: '28px 32px', 
-                  boxShadow: '0 4px 12px rgba(15, 23, 42, 0.04)', 
+                <div style={{
+                  background: 'white',
+                  borderRadius: '16px',
+                  padding: '28px 32px',
+                  boxShadow: '0 4px 12px rgba(15, 23, 42, 0.04)',
                   border: '1px solid #E2E8F0'
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid #F1F5F9' }}>
@@ -2846,10 +2878,10 @@ const CustomerDetails = () => {
                         <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
                           <Building size={14} color="#7C3AED" /> Business Name
                         </label>
-                        <input 
-                          type="text" 
-                          value={profileFormData.businessName} 
-                          onChange={e => setProfileFormData({ ...profileFormData, businessName: e.target.value })} 
+                        <input
+                          type="text"
+                          value={profileFormData.businessName}
+                          onChange={e => setProfileFormData({ ...profileFormData, businessName: e.target.value })}
                           placeholder="e.g. Ajay Enterprises"
                           style={{ width: '100%', height: '42px', padding: '8px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
                         />
@@ -2859,10 +2891,10 @@ const CustomerDetails = () => {
                         <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
                           <FileText size={14} color="#7C3AED" /> Reg / GSTIN No.
                         </label>
-                        <input 
-                          type="text" 
-                          value={profileFormData.regNo} 
-                          onChange={e => setProfileFormData({ ...profileFormData, regNo: e.target.value })} 
+                        <input
+                          type="text"
+                          value={profileFormData.regNo}
+                          onChange={e => setProfileFormData({ ...profileFormData, regNo: e.target.value })}
                           placeholder="e.g. 29ABCDE1234F1Z5"
                           style={{ width: '100%', height: '42px', padding: '8px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
                         />
@@ -2872,10 +2904,10 @@ const CustomerDetails = () => {
                         <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
                           <Briefcase size={14} color="#7C3AED" /> Industry
                         </label>
-                        <input 
-                          type="text" 
-                          value={profileFormData.industry} 
-                          onChange={e => setProfileFormData({ ...profileFormData, industry: e.target.value })} 
+                        <input
+                          type="text"
+                          value={profileFormData.industry}
+                          onChange={e => setProfileFormData({ ...profileFormData, industry: e.target.value })}
                           placeholder="e.g. Retail, Tech, Manufacturing"
                           style={{ width: '100%', height: '42px', padding: '8px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
                         />
@@ -2885,10 +2917,10 @@ const CustomerDetails = () => {
                         <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
                           <MapPin size={14} color="#7C3AED" /> Primary Address
                         </label>
-                        <textarea 
+                        <textarea
                           rows={3}
-                          value={profileFormData.address} 
-                          onChange={e => setProfileFormData({ ...profileFormData, address: e.target.value })} 
+                          value={profileFormData.address}
+                          onChange={e => setProfileFormData({ ...profileFormData, address: e.target.value })}
                           placeholder="Full address, city, state, pincode"
                           style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none', boxSizing: 'border-box', resize: 'vertical' }}
                         />
@@ -2898,11 +2930,11 @@ const CustomerDetails = () => {
                 </div>
 
                 {/* Section 3: Subscription & Billing Plan */}
-                <div style={{ 
-                  background: 'white', 
-                  borderRadius: '16px', 
-                  padding: '28px 32px', 
-                  boxShadow: '0 4px 12px rgba(15, 23, 42, 0.04)', 
+                <div style={{
+                  background: 'white',
+                  borderRadius: '16px',
+                  padding: '28px 32px',
+                  boxShadow: '0 4px 12px rgba(15, 23, 42, 0.04)',
                   border: '1px solid #E2E8F0'
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid #F1F5F9' }}>
@@ -2976,9 +3008,9 @@ const CustomerDetails = () => {
                         <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
                           Subscription Status
                         </label>
-                        <select 
-                          value={profileFormData.subscriptionStatus} 
-                          onChange={e => setProfileFormData({ ...profileFormData, subscriptionStatus: e.target.value })} 
+                        <select
+                          value={profileFormData.subscriptionStatus}
+                          onChange={e => setProfileFormData({ ...profileFormData, subscriptionStatus: e.target.value })}
                           style={{ width: '100%', height: '42px', padding: '8px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none', background: 'white' }}
                         >
                           <option value="Active">Active</option>
@@ -2992,9 +3024,9 @@ const CustomerDetails = () => {
                         <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
                           Billing Cycle
                         </label>
-                        <select 
-                          value={profileFormData.subscriptionBillingCycle} 
-                          onChange={e => setProfileFormData({ ...profileFormData, subscriptionBillingCycle: e.target.value })} 
+                        <select
+                          value={profileFormData.subscriptionBillingCycle}
+                          onChange={e => setProfileFormData({ ...profileFormData, subscriptionBillingCycle: e.target.value })}
                           style={{ width: '100%', height: '42px', padding: '8px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none', background: 'white' }}
                         >
                           <option value="Monthly">Monthly</option>
@@ -3007,10 +3039,10 @@ const CustomerDetails = () => {
                         <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
                           Custom Plan Amount (₹)
                         </label>
-                        <input 
-                          type="number" 
-                          value={profileFormData.subscriptionCustomAmount} 
-                          onChange={e => setProfileFormData({ ...profileFormData, subscriptionCustomAmount: e.target.value })} 
+                        <input
+                          type="number"
+                          value={profileFormData.subscriptionCustomAmount}
+                          onChange={e => setProfileFormData({ ...profileFormData, subscriptionCustomAmount: e.target.value })}
                           placeholder="Leave blank for standard tier rate"
                           style={{ width: '100%', height: '42px', padding: '8px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
                         />
@@ -3020,11 +3052,11 @@ const CustomerDetails = () => {
                         <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
                           Max Employee Limit
                         </label>
-                        <input 
-                          type="number" 
+                        <input
+                          type="number"
                           min="0"
-                          value={profileFormData.employeeLimit} 
-                          onChange={e => setProfileFormData({ ...profileFormData, employeeLimit: e.target.value })} 
+                          value={profileFormData.employeeLimit}
+                          onChange={e => setProfileFormData({ ...profileFormData, employeeLimit: e.target.value })}
                           placeholder="Leave blank for Unlimited"
                           style={{ width: '100%', height: '42px', padding: '8px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
                         />
@@ -3038,11 +3070,11 @@ const CustomerDetails = () => {
                           <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
                             Max Branch Limit (Type 3 & 4)
                           </label>
-                          <input 
-                            type="number" 
+                          <input
+                            type="number"
                             min="0"
-                            value={profileFormData.branchLimit} 
-                            onChange={e => setProfileFormData({ ...profileFormData, branchLimit: e.target.value })} 
+                            value={profileFormData.branchLimit}
+                            onChange={e => setProfileFormData({ ...profileFormData, branchLimit: e.target.value })}
                             placeholder="Leave blank for Unlimited"
                             style={{ width: '100%', height: '42px', padding: '8px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
                           />
@@ -3057,11 +3089,11 @@ const CustomerDetails = () => {
                           <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
                             Max Business Limit (Type 4)
                           </label>
-                          <input 
-                            type="number" 
+                          <input
+                            type="number"
                             min="0"
-                            value={profileFormData.businessLimit} 
-                            onChange={e => setProfileFormData({ ...profileFormData, businessLimit: e.target.value })} 
+                            value={profileFormData.businessLimit}
+                            onChange={e => setProfileFormData({ ...profileFormData, businessLimit: e.target.value })}
                             placeholder="Leave blank for Unlimited"
                             style={{ width: '100%', height: '42px', padding: '8px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
                           />
@@ -3075,11 +3107,11 @@ const CustomerDetails = () => {
                 </div>
 
                 {/* Section 4: Primary Login Access & Security */}
-                <div style={{ 
-                  background: 'white', 
-                  borderRadius: '16px', 
-                  padding: '28px 32px', 
-                  boxShadow: '0 4px 12px rgba(15, 23, 42, 0.04)', 
+                <div style={{
+                  background: 'white',
+                  borderRadius: '16px',
+                  padding: '28px 32px',
+                  boxShadow: '0 4px 12px rgba(15, 23, 42, 0.04)',
                   border: '1px solid #E2E8F0'
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid #F1F5F9', flexWrap: 'wrap', gap: '12px' }}>
@@ -3093,10 +3125,10 @@ const CustomerDetails = () => {
                       </div>
                     </div>
 
-                    <button 
+                    <button
                       type="button"
-                      onClick={() => handleOpenLoginModal('user', customer)} 
-                      style={{ 
+                      onClick={() => handleOpenLoginModal('user', customer)}
+                      style={{
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: '6px',
@@ -3105,9 +3137,9 @@ const CustomerDetails = () => {
                         background: '#EFF6FF',
                         border: '1px solid #BFDBFE',
                         color: '#1D4ED8',
-                        fontSize: '13px', 
-                        fontWeight: '600', 
-                        cursor: 'pointer' 
+                        fontSize: '13px',
+                        fontWeight: '600',
+                        cursor: 'pointer'
                       }}
                     >
                       <KeyRound size={15} /> Manage Login Credentials
@@ -3122,161 +3154,75 @@ const CustomerDetails = () => {
 
                     <div style={{ padding: '16px', borderRadius: '10px', background: '#F8FAFC', border: '1px solid #F1F5F9' }}>
                       <div style={{ fontSize: '12px', fontWeight: '600', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>Password Encryption</div>
-                      <p style={{ margin: 0, fontSize: '14px', fontWeight: '600', color: '#64748B'}}>••••••••</p>
+                      <p style={{ margin: 0, fontSize: '14px', fontWeight: '600', color: '#64748B' }}>••••••••</p>
                     </div>
                   </div>
                 </div>
 
-                {/* Subscribed Modules & Operations Scope */}
-                <div style={{ 
-                  background: 'white', 
-                  borderRadius: '16px', 
-                  padding: '28px 32px', 
-                  boxShadow: '0 4px 12px rgba(15, 23, 42, 0.04)', 
-                  border: '1px solid #E2E8F0',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '20px'
+                {/* Section 5: Business Setup & Architecture Card (Resume Setup Wizard) */}
+                <div style={{
+                  background: 'white',
+                  borderRadius: '16px',
+                  padding: '24px 32px',
+                  boxShadow: '0 4px 12px rgba(15, 23, 42, 0.04)',
+                  border: '1px solid #E2E8F0'
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-                    <div style={{ fontSize: '14px', color: '#2563EB', textTransform: 'uppercase', letterSpacing: '0.6px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Layers size={17} /> Operational Scope & Subscribed Modules
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '20px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                      {(() => {
+                        const arch = getArchetypeInfo(businessType);
+                        const ArchIcon = arch.icon;
+                        return (
+                          <>
+                            <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: arch.bg, color: arch.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <ArchIcon size={22} />
+                            </div>
+                            <div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <h4 style={{ fontSize: '16px', fontWeight: '700', color: '#0F172A', margin: 0 }}>
+                                  {arch.label}
+                                </h4>
+                                <span style={{ fontSize: '12px', color: '#64748B' }}>• Current Tier</span>
+                              </div>
+                              <p style={{ color: '#64748B', margin: '4px 0 0 0', fontSize: '13px' }}>
+                                {arch.desc}
+                              </p>
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
+
                     <button
                       type="button"
-                      disabled={savingModulesConfig}
-                      onClick={handleSaveModulesConfig}
+                      disabled={resumingSetup}
+                      onClick={handleResumeSetup}
                       style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        padding: '8px 16px',
-                        background: '#2563EB',
-                        color: 'white',
-                        border: 'none',
+                        padding: '10px 20px',
+                        background: '#F8FAFC',
+                        color: '#2563EB',
+                        border: '1px solid #E2E8F0',
                         borderRadius: '8px',
-                        fontSize: '13px',
                         fontWeight: '600',
-                        cursor: 'pointer',
-                        opacity: savingModulesConfig ? 0.7 : 1
+                        fontSize: '13px',
+                        cursor: resumingSetup ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        transition: 'all 0.2s',
+                        opacity: resumingSetup ? 0.7 : 1
                       }}
+                      onMouseOver={e => { if (!resumingSetup) { e.currentTarget.style.background = '#EFF6FF'; e.currentTarget.style.borderColor = '#BFDBFE'; } }}
+                      onMouseOut={e => { if (!resumingSetup) { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.borderColor = '#E2E8F0'; } }}
                     >
-                      {savingModulesConfig ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Save size={14} />}
-                      Save Scope & Modules
+                      {resumingSetup ? (
+                        <Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} />
+                      ) : (
+                        <Briefcase size={15} />
+                      )}
+                      <span>{resumingSetup ? 'Opening Onboarding Setup...' : 'Resume Setup Wizard'}</span>
+                      <ArrowRight size={14} />
                     </button>
-                  </div>
-
-                  {/* Offering Type Choice */}
-                  <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>
-                      Business Offering Scope
-                    </label>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
-                      {[
-                        { id: 'product', label: 'Physical Products', icon: Package },
-                        { id: 'service', label: 'Services', icon: Briefcase },
-                        { id: 'both', label: 'Products & Services', icon: Layers }
-                      ].map(item => (
-                        <div
-                          key={item.id}
-                          onClick={() => setModulesConfig(p => ({ ...p, offeringType: item.id }))}
-                          style={{
-                            padding: '12px 14px',
-                            borderRadius: '10px',
-                            border: `2px solid ${modulesConfig.offeringType === item.id ? '#2563EB' : '#E2E8F0'}`,
-                            background: modulesConfig.offeringType === item.id ? '#EFF6FF' : '#F8FAFC',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '10px',
-                            transition: 'all 0.15s ease'
-                          }}
-                        >
-                          <item.icon size={18} color={modulesConfig.offeringType === item.id ? '#2563EB' : '#64748B'} />
-                          <span style={{ fontSize: '13px', fontWeight: '700', color: modulesConfig.offeringType === item.id ? '#1D4ED8' : '#334155' }}>{item.label}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Operational Type Choice */}
-                  <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>
-                      Purchasing & Procurement Operations
-                    </label>
-                    <div style={{ maxWidth: '420px' }}>
-                      <div
-                        onClick={() => setModulesConfig(p => ({ ...p, operationsType: p.operationsType === 'purchases' ? 'billing_only' : 'purchases' }))}
-                        style={{
-                          padding: '14px 16px',
-                          borderRadius: '10px',
-                          border: `2px solid ${modulesConfig.operationsType === 'purchases' ? '#2563EB' : '#E2E8F0'}`,
-                          background: modulesConfig.operationsType === 'purchases' ? '#EFF6FF' : '#F8FAFC',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          gap: '12px'
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <ShoppingCart size={18} color={modulesConfig.operationsType === 'purchases' ? '#2563EB' : '#64748B'} />
-                          <div>
-                            <div style={{ fontSize: '13px', fontWeight: '700', color: modulesConfig.operationsType === 'purchases' ? '#1D4ED8' : '#334155' }}>
-                              Purchases & Procurement Operations
-                            </div>
-                            <div style={{ fontSize: '11px', color: '#64748B' }}>
-                              {modulesConfig.operationsType === 'purchases' ? 'Vendor POs, bills & stock intake enabled' : 'Billing Only (No purchase orders)'}
-                            </div>
-                          </div>
-                        </div>
-                        {modulesConfig.operationsType === 'purchases' && <CheckCircle2 size={18} color="#2563EB" />}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Enabled Modules Chips */}
-                  <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>
-                      Subscribed Modules (Sales & Invoicing is permanently mandatory)
-                    </label>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '8px', background: '#DCFCE7', color: '#166534', fontSize: '13px', fontWeight: '700', border: '1px solid #86EFAC' }}>
-                        <CheckCircle2 size={14} color="#166534" />
-                        Billing & Sales (Mandatory Core)
-                      </span>
-                      {['products_services', 'inventory', 'purchases', 'expenses', 'documents', 'reminders', 'employees', 'attendance', 'leaves'].map(modKey => {
-                        const isIncluded = modulesConfig.modules.includes(modKey);
-                        return (
-                          <button
-                            key={modKey}
-                            type="button"
-                            onClick={() => {
-                              setModulesConfig(p => ({
-                                ...p,
-                                modules: isIncluded ? p.modules.filter(m => m !== modKey) : [...p.modules, modKey]
-                              }));
-                            }}
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                              padding: '6px 12px',
-                              borderRadius: '8px',
-                              background: isIncluded ? '#EFF6FF' : '#F8FAFC',
-                              color: isIncluded ? '#2563EB' : '#64748B',
-                              fontSize: '13px',
-                              fontWeight: '600',
-                              border: isIncluded ? '1px solid #BFDBFE' : '1px solid #CBD5E1',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            {isIncluded && <CheckCircle2 size={14} color="#2563EB" />}
-                            {modKey.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                          </button>
-                        );
-                      })}
-                    </div>
                   </div>
                 </div>
 
@@ -3289,7 +3235,7 @@ const CustomerDetails = () => {
           {/* ======================================================== */}
           {activeSection === 'attendance' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
-              
+
               {/* Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
                 <div>
@@ -3303,8 +3249,8 @@ const CustomerDetails = () => {
                     Monitor staff daily attendance check-ins, check-outs, and presence tracking.
                   </p>
                 </div>
-                <button 
-                  onClick={() => openAddModal('attendance')} 
+                <button
+                  onClick={() => openAddModal('attendance')}
                   style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', background: '#2563EB', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
                 >
                   <Plus size={17} /> Mark Attendance
@@ -3340,8 +3286,8 @@ const CustomerDetails = () => {
               <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ flex: '0 1 360px', minWidth: '260px', position: 'relative' }}>
                   <Search size={18} color="#94A3B8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     placeholder="Search attendance by staff, status..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -3355,8 +3301,8 @@ const CustomerDetails = () => {
                 </div>
 
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <select 
-                    value={filterDays} 
+                  <select
+                    value={filterDays}
                     onChange={(e) => setFilterDays(e.target.value)}
                     style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid #E2E8F0', background: 'white', fontSize: '13px', color: '#334155', fontWeight: '500', outline: 'none', cursor: 'pointer' }}
                   >
@@ -3376,7 +3322,7 @@ const CustomerDetails = () => {
                     </div>
                   )}
 
-                  <button 
+                  <button
                     onClick={() => exportSectionCSV('attendance')}
                     style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 14px', borderRadius: '8px', border: '1px solid #E2E8F0', background: 'white', color: '#475569', fontSize: '13px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s' }}
                     onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'}
@@ -3454,12 +3400,12 @@ const CustomerDetails = () => {
                             <td style={{ padding: '14px 20px', textAlign: 'right' }}>
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
                                 {!item.checkOut && (
-                                  <button 
+                                  <button
                                     onClick={() => setCheckoutModalData({
                                       id: item._id,
                                       employeeName: item.employeeId?.name || item.employeeName || 'Staff Member',
                                       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
-                                    })} 
+                                    })}
                                     style={{ padding: '6px', borderRadius: '6px', background: '#EFF6FF', border: 'none', color: '#2563EB', cursor: 'pointer' }}
                                     title="Check Out Staff"
                                   >
@@ -3494,7 +3440,7 @@ const CustomerDetails = () => {
           {/* ======================================================== */}
           {activeSection === 'leaves' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
-              
+
               {/* Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
                 <div>
@@ -3508,8 +3454,8 @@ const CustomerDetails = () => {
                     Track, review, approve, and manage staff leave requests and off-days.
                   </p>
                 </div>
-                <button 
-                  onClick={() => openAddModal('leave')} 
+                <button
+                  onClick={() => openAddModal('leave')}
                   style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', background: '#2563EB', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
                 >
                   <Plus size={17} /> Add Leave
@@ -3545,8 +3491,8 @@ const CustomerDetails = () => {
               <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ flex: '0 1 360px', minWidth: '260px', position: 'relative' }}>
                   <Search size={18} color="#94A3B8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     placeholder="Search leave requests by staff, type, reason..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -3560,8 +3506,8 @@ const CustomerDetails = () => {
                 </div>
 
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <select 
-                    value={filterDays} 
+                  <select
+                    value={filterDays}
                     onChange={(e) => setFilterDays(e.target.value)}
                     style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid #E2E8F0', background: 'white', fontSize: '13px', color: '#334155', fontWeight: '500', outline: 'none', cursor: 'pointer' }}
                   >
@@ -3581,7 +3527,7 @@ const CustomerDetails = () => {
                     </div>
                   )}
 
-                  <button 
+                  <button
                     onClick={() => exportSectionCSV('leaves')}
                     style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 14px', borderRadius: '8px', border: '1px solid #E2E8F0', background: 'white', color: '#475569', fontSize: '13px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s' }}
                     onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'}
@@ -3671,7 +3617,7 @@ const CustomerDetails = () => {
           {/* ======================================================== */}
           {activeSection === 'reminders' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
-              
+
               {/* Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
                 <div>
@@ -3717,8 +3663,8 @@ const CustomerDetails = () => {
                     </button>
                   </div>
 
-                  <button 
-                    onClick={() => openAddModal('reminder', { date: formatReminderDateKey(reminderSelectedDate) })} 
+                  <button
+                    onClick={() => openAddModal('reminder', { date: formatReminderDateKey(reminderSelectedDate) })}
                     style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', background: '#2563EB', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
                   >
                     <Plus size={17} /> Add Reminder
@@ -3761,10 +3707,10 @@ const CustomerDetails = () => {
               {/* Mode 1: Calendar View */}
               {remindersViewMode === 'calendar' ? (
                 <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 340px', gap: '24px', alignItems: 'start' }}>
-                  
+
                   {/* Calendar Grid Box */}
                   <div style={{ background: 'white', borderRadius: '16px', padding: '24px', border: '1px solid #E2E8F0', boxShadow: '0 4px 12px rgba(15,23,42,0.03)', minWidth: 0, overflow: 'hidden' }}>
-                    
+
                     {/* Month Header & Prev/Next */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -3784,14 +3730,14 @@ const CustomerDetails = () => {
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <button 
+                        <button
                           onClick={handleReminderPrevMonth}
                           style={{ width: '32px', height: '32px', borderRadius: '8px', border: '1px solid #E2E8F0', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
                           title="Previous month"
                         >
                           <ChevronLeft size={18} />
                         </button>
-                        <button 
+                        <button
                           onClick={handleReminderNextMonth}
                           style={{ width: '32px', height: '32px', borderRadius: '8px', border: '1px solid #E2E8F0', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
                           title="Next month"
@@ -3829,15 +3775,15 @@ const CustomerDetails = () => {
                               borderRadius: '10px',
                               padding: '8px',
                               cursor: 'pointer',
-                              border: isSel 
-                                ? '2px solid #2563EB' 
-                                : isCurrent 
-                                  ? '1px solid #93C5FD' 
+                              border: isSel
+                                ? '2px solid #2563EB'
+                                : isCurrent
+                                  ? '1px solid #93C5FD'
                                   : '1px solid #F1F5F9',
-                              background: isSel 
-                                ? '#EFF6FF' 
-                                : slot.isCurrentMonth 
-                                  ? '#FFFFFF' 
+                              background: isSel
+                                ? '#EFF6FF'
+                                : slot.isCurrentMonth
+                                  ? '#FFFFFF'
                                   : '#F8FAFC',
                               opacity: slot.isCurrentMonth ? 1 : 0.5,
                               transition: 'all 0.15s ease',
@@ -3956,7 +3902,7 @@ const CustomerDetails = () => {
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                         {selectedDayReminders.map(item => (
-                          <div 
+                          <div
                             key={item._id}
                             style={{
                               padding: '14px',
@@ -3980,7 +3926,7 @@ const CustomerDetails = () => {
                                     </span>
                                   )}
                                 </div>
-                                <h4 style={{ 
+                                <h4 style={{
                                   fontSize: '15px', fontWeight: '600', color: '#0F172A', margin: '6px 0 0 0',
                                   textDecoration: item.status === 'Completed' ? 'line-through' : 'none',
                                   opacity: item.status === 'Completed' ? 0.6 : 1
@@ -4034,8 +3980,8 @@ const CustomerDetails = () => {
                   <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ flex: '0 1 360px', minWidth: '260px', position: 'relative' }}>
                       <Search size={18} color="#94A3B8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         placeholder="Search reminders by title, note, status..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
@@ -4049,8 +3995,8 @@ const CustomerDetails = () => {
                     </div>
 
                     <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                      <select 
-                        value={filterDays} 
+                      <select
+                        value={filterDays}
                         onChange={(e) => setFilterDays(e.target.value)}
                         style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid #E2E8F0', background: 'white', fontSize: '13px', color: '#334155', fontWeight: '500', outline: 'none', cursor: 'pointer' }}
                       >
@@ -4070,7 +4016,7 @@ const CustomerDetails = () => {
                         </div>
                       )}
 
-                      <button 
+                      <button
                         onClick={() => exportSectionCSV('reminders')}
                         style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 14px', borderRadius: '8px', border: '1px solid #E2E8F0', background: 'white', color: '#475569', fontSize: '13px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s' }}
                         onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'}
@@ -4159,7 +4105,7 @@ const CustomerDetails = () => {
           {/* ======================================================== */}
           {activeSection === 'documents' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
-              
+
               {/* Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
                 <div>
@@ -4173,8 +4119,8 @@ const CustomerDetails = () => {
                     Store, organize, and track business licenses, GST certificates, and regulatory files.
                   </p>
                 </div>
-                <button 
-                  onClick={() => openAddModal('document')} 
+                <button
+                  onClick={() => openAddModal('document')}
                   style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', background: '#2563EB', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
                 >
                   <Plus size={17} /> Add Document
@@ -4210,8 +4156,8 @@ const CustomerDetails = () => {
               <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ flex: '0 1 360px', minWidth: '260px', position: 'relative' }}>
                   <Search size={18} color="#94A3B8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     placeholder="Search documents by title, category..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -4225,8 +4171,8 @@ const CustomerDetails = () => {
                 </div>
 
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <select 
-                    value={filterDays} 
+                  <select
+                    value={filterDays}
                     onChange={(e) => setFilterDays(e.target.value)}
                     style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid #E2E8F0', background: 'white', fontSize: '13px', color: '#334155', fontWeight: '500', outline: 'none', cursor: 'pointer' }}
                   >
@@ -4246,7 +4192,7 @@ const CustomerDetails = () => {
                     </div>
                   )}
 
-                  <button 
+                  <button
                     onClick={() => exportSectionCSV('documents')}
                     style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 14px', borderRadius: '8px', border: '1px solid #E2E8F0', background: 'white', color: '#475569', fontSize: '13px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s' }}
                     onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'}
@@ -4334,7 +4280,7 @@ const CustomerDetails = () => {
           {/* ======================================================== */}
           {activeSection === 'purchases' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
-              
+
               {/* Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
                 <div>
@@ -4348,8 +4294,8 @@ const CustomerDetails = () => {
                     Track vendor purchase orders, inventory restocking, and procurement balances.
                   </p>
                 </div>
-                <button 
-                  onClick={() => openAddModal('purchase')} 
+                <button
+                  onClick={() => openAddModal('purchase')}
                   style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', background: '#2563EB', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
                 >
                   <Plus size={17} /> Add Purchase
@@ -4385,8 +4331,8 @@ const CustomerDetails = () => {
               <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ flex: '0 1 360px', minWidth: '260px', position: 'relative' }}>
                   <Search size={18} color="#94A3B8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     placeholder="Search purchases by PO, supplier, status..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -4400,8 +4346,8 @@ const CustomerDetails = () => {
                 </div>
 
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <select 
-                    value={filterDays} 
+                  <select
+                    value={filterDays}
                     onChange={(e) => setFilterDays(e.target.value)}
                     style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid #E2E8F0', background: 'white', fontSize: '13px', color: '#334155', fontWeight: '500', outline: 'none', cursor: 'pointer' }}
                   >
@@ -4421,7 +4367,7 @@ const CustomerDetails = () => {
                     </div>
                   )}
 
-                  <button 
+                  <button
                     onClick={() => exportSectionCSV('purchases')}
                     style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 14px', borderRadius: '8px', border: '1px solid #E2E8F0', background: 'white', color: '#475569', fontSize: '13px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s' }}
                     onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'}
@@ -4464,7 +4410,7 @@ const CustomerDetails = () => {
                         paginatedPurchases.map((item, idx) => (
                           <tr key={item._id || idx} style={{ borderBottom: '1px solid #F1F5F9', transition: 'background 0.15s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
                             <td style={{ padding: '14px 20px', fontSize: '13px', color: '#64748B', fontWeight: '500' }}>{startIndex + idx + 1}</td>
-                            <td style={{ padding: '14px 20px', fontWeight: '600', color: '#2563EB', fontFamily: 'monospace' }}>{item.poNumber || `PO-${idx+1}`}</td>
+                            <td style={{ padding: '14px 20px', fontWeight: '600', color: '#2563EB', fontFamily: 'monospace' }}>{item.poNumber || `PO-${idx + 1}`}</td>
                             <td style={{ padding: '14px 20px', fontWeight: '600', color: '#0F172A', fontSize: '13px' }}>{item.supplierName || 'General Supplier'}</td>
                             <td style={{ padding: '14px 20px', color: '#64748B', fontSize: '13px' }}>{formatDate(item.date)}</td>
                             <td style={{ padding: '14px 20px', fontWeight: '700', color: '#0F172A', fontSize: '13px' }}>{formatCurrency(item.amount)}</td>
@@ -4503,7 +4449,7 @@ const CustomerDetails = () => {
           {/* ======================================================== */}
           {(activeSection === 'products' || activeSection === 'services') && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
-              
+
               {/* Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
                 <div>
@@ -4514,13 +4460,13 @@ const CustomerDetails = () => {
                     {isServicesSection ? 'Services Catalog' : 'Products Catalog'}
                   </h1>
                   <p style={{ color: '#64748B', fontSize: '14px', margin: 0 }}>
-                    {isServicesSection 
-                      ? 'Manage categories, sub categories, and your services catalog.' 
+                    {isServicesSection
+                      ? 'Manage categories, sub categories, and your services catalog.'
                       : 'Manage categories, sub categories, and your product inventory.'}
                   </p>
                 </div>
-                <button 
-                  onClick={() => openAddModal(productTab === 'categories' ? 'category' : productTab === 'subcategories' ? 'subcategory' : 'product')} 
+                <button
+                  onClick={() => openAddModal(productTab === 'categories' ? 'category' : productTab === 'subcategories' ? 'subcategory' : 'product')}
                   style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', background: '#2563EB', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
                 >
                   <Plus size={17} /> Add New {productTab === 'categories' ? 'Category' : productTab === 'subcategories' ? 'Sub Category' : (isServicesSection ? 'Service' : 'Product')}
@@ -4529,16 +4475,16 @@ const CustomerDetails = () => {
 
               {/* Stat Cards: 3 Matching User Side */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '18px' }}>
-                <div 
+                <div
                   onClick={() => { setProductTab('categories'); setCurrentPage(1); }}
-                  style={{ 
-                    background: 'white', 
-                    borderRadius: '16px', 
-                    border: productTab === 'categories' ? '2px solid #2563EB' : '1px solid #E2E8F0', 
-                    padding: '18px 20px', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '16px', 
+                  style={{
+                    background: 'white',
+                    borderRadius: '16px',
+                    border: productTab === 'categories' ? '2px solid #2563EB' : '1px solid #E2E8F0',
+                    padding: '18px 20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '16px',
                     cursor: 'pointer',
                     boxShadow: productTab === 'categories' ? '0 4px 12px rgba(37,99,235,0.12)' : '0 2px 4px rgba(0,0,0,0.02)',
                     transition: 'all 0.15s'
@@ -4553,16 +4499,16 @@ const CustomerDetails = () => {
                   </div>
                 </div>
 
-                <div 
+                <div
                   onClick={() => { setProductTab('subcategories'); setCurrentPage(1); }}
-                  style={{ 
-                    background: 'white', 
-                    borderRadius: '16px', 
-                    border: productTab === 'subcategories' ? '2px solid #2563EB' : '1px solid #E2E8F0', 
-                    padding: '18px 20px', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '16px', 
+                  style={{
+                    background: 'white',
+                    borderRadius: '16px',
+                    border: productTab === 'subcategories' ? '2px solid #2563EB' : '1px solid #E2E8F0',
+                    padding: '18px 20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '16px',
                     cursor: 'pointer',
                     boxShadow: productTab === 'subcategories' ? '0 4px 12px rgba(37,99,235,0.12)' : '0 2px 4px rgba(0,0,0,0.02)',
                     transition: 'all 0.15s'
@@ -4577,16 +4523,16 @@ const CustomerDetails = () => {
                   </div>
                 </div>
 
-                <div 
+                <div
                   onClick={() => { setProductTab('products'); setCurrentPage(1); }}
-                  style={{ 
-                    background: 'white', 
-                    borderRadius: '16px', 
-                    border: productTab === 'products' ? '2px solid #2563EB' : '1px solid #E2E8F0', 
-                    padding: '18px 20px', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '16px', 
+                  style={{
+                    background: 'white',
+                    borderRadius: '16px',
+                    border: productTab === 'products' ? '2px solid #2563EB' : '1px solid #E2E8F0',
+                    padding: '18px 20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '16px',
                     cursor: 'pointer',
                     boxShadow: productTab === 'products' ? '0 4px 12px rgba(37,99,235,0.12)' : '0 2px 4px rgba(0,0,0,0.02)',
                     transition: 'all 0.15s'
@@ -4606,59 +4552,59 @@ const CustomerDetails = () => {
 
               {/* Table Card Container */}
               <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
-                
+
                 {/* Top Controls: 3 Subheading Tabs + Search + Filter + Export */}
                 <div style={{ padding: '20px 24px', borderBottom: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  
+
                   {/* The 3 Subheadings Tabs (Matching User Side 1:1) */}
                   <div style={{ display: 'inline-flex', gap: '6px', background: '#F1F5F9', padding: '4px', borderRadius: '10px', width: 'fit-content' }}>
-                    <button 
+                    <button
                       onClick={() => { setProductTab('categories'); setCurrentPage(1); }}
-                      style={{ 
-                        padding: '8px 18px', 
-                        borderRadius: '8px', 
-                        fontSize: '13px', 
-                        fontWeight: '600', 
-                        background: productTab === 'categories' ? 'white' : 'transparent', 
-                        color: productTab === 'categories' ? '#0F172A' : '#64748B', 
-                        border: 'none', 
-                        boxShadow: productTab === 'categories' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', 
-                        cursor: 'pointer', 
-                        transition: 'all 0.15s' 
+                      style={{
+                        padding: '8px 18px',
+                        borderRadius: '8px',
+                        fontSize: '13px',
+                        fontWeight: '600',
+                        background: productTab === 'categories' ? 'white' : 'transparent',
+                        color: productTab === 'categories' ? '#0F172A' : '#64748B',
+                        border: 'none',
+                        boxShadow: productTab === 'categories' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s'
                       }}
                     >
                       Categories
                     </button>
-                    <button 
+                    <button
                       onClick={() => { setProductTab('subcategories'); setCurrentPage(1); }}
-                      style={{ 
-                        padding: '8px 18px', 
-                        borderRadius: '8px', 
-                        fontSize: '13px', 
-                        fontWeight: '600', 
-                        background: productTab === 'subcategories' ? 'white' : 'transparent', 
-                        color: productTab === 'subcategories' ? '#0F172A' : '#64748B', 
-                        border: 'none', 
-                        boxShadow: productTab === 'subcategories' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', 
-                        cursor: 'pointer', 
-                        transition: 'all 0.15s' 
+                      style={{
+                        padding: '8px 18px',
+                        borderRadius: '8px',
+                        fontSize: '13px',
+                        fontWeight: '600',
+                        background: productTab === 'subcategories' ? 'white' : 'transparent',
+                        color: productTab === 'subcategories' ? '#0F172A' : '#64748B',
+                        border: 'none',
+                        boxShadow: productTab === 'subcategories' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s'
                       }}
                     >
                       Sub Categories
                     </button>
-                    <button 
+                    <button
                       onClick={() => { setProductTab('products'); setCurrentPage(1); }}
-                      style={{ 
-                        padding: '8px 18px', 
-                        borderRadius: '8px', 
-                        fontSize: '13px', 
-                        fontWeight: '600', 
-                        background: productTab === 'products' ? 'white' : 'transparent', 
-                        color: productTab === 'products' ? '#0F172A' : '#64748B', 
-                        border: 'none', 
-                        boxShadow: productTab === 'products' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', 
-                        cursor: 'pointer', 
-                        transition: 'all 0.15s' 
+                      style={{
+                        padding: '8px 18px',
+                        borderRadius: '8px',
+                        fontSize: '13px',
+                        fontWeight: '600',
+                        background: productTab === 'products' ? 'white' : 'transparent',
+                        color: productTab === 'products' ? '#0F172A' : '#64748B',
+                        border: 'none',
+                        boxShadow: productTab === 'products' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s'
                       }}
                     >
                       {isServicesSection ? 'Services' : 'Products'}
@@ -4669,8 +4615,8 @@ const CustomerDetails = () => {
                   <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ flex: '0 1 360px', minWidth: '260px', position: 'relative' }}>
                       <Search size={18} color="#94A3B8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         placeholder={productTab === 'categories' ? "Search categories by name, type, description..." : productTab === 'subcategories' ? "Search subcategories by name, parent category..." : (isServicesSection ? "Search services by name, category..." : "Search products by name, SKU, category...")}
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
@@ -4684,8 +4630,8 @@ const CustomerDetails = () => {
                     </div>
 
                     <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                      <select 
-                        value={filterDays} 
+                      <select
+                        value={filterDays}
                         onChange={(e) => setFilterDays(e.target.value)}
                         style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid #E2E8F0', background: 'white', fontSize: '13px', color: '#334155', fontWeight: '500', outline: 'none', cursor: 'pointer' }}
                       >
@@ -4705,7 +4651,7 @@ const CustomerDetails = () => {
                         </div>
                       )}
 
-                      <button 
+                      <button
                         onClick={() => exportSectionCSV(isServicesSection ? 'services' : 'products')}
                         style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 14px', borderRadius: '8px', border: '1px solid #E2E8F0', background: 'white', color: '#475569', fontSize: '13px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s' }}
                         onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'}
@@ -4943,7 +4889,7 @@ const CustomerDetails = () => {
           {/* ======================================================== */}
           {activeSection === 'inventory' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
-              
+
               {/* Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
                 <div>
@@ -4957,8 +4903,8 @@ const CustomerDetails = () => {
                     Real-time stock valuation, unit tracking, threshold warnings, and reorder levels.
                   </p>
                 </div>
-                <button 
-                  onClick={() => openAddModal('inventory')} 
+                <button
+                  onClick={() => openAddModal('inventory')}
                   style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', background: '#2563EB', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
                 >
                   <Plus size={17} /> Add Item
@@ -4994,8 +4940,8 @@ const CustomerDetails = () => {
               <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ flex: '0 1 360px', minWidth: '260px', position: 'relative' }}>
                   <Search size={18} color="#94A3B8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     placeholder="Search inventory by item, SKU, category..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -5009,8 +4955,8 @@ const CustomerDetails = () => {
                 </div>
 
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <select 
-                    value={filterDays} 
+                  <select
+                    value={filterDays}
                     onChange={(e) => setFilterDays(e.target.value)}
                     style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid #E2E8F0', background: 'white', fontSize: '13px', color: '#334155', fontWeight: '500', outline: 'none', cursor: 'pointer' }}
                   >
@@ -5030,7 +4976,7 @@ const CustomerDetails = () => {
                     </div>
                   )}
 
-                  <button 
+                  <button
                     onClick={() => exportSectionCSV('inventory')}
                     style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 14px', borderRadius: '8px', border: '1px solid #E2E8F0', background: 'white', color: '#475569', fontSize: '13px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s' }}
                     onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'}
@@ -5108,7 +5054,7 @@ const CustomerDetails = () => {
           {/* ======================================================== */}
           {activeSection === 'customers' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
-              
+
               {/* Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
                 <div>
@@ -5122,8 +5068,8 @@ const CustomerDetails = () => {
                     Directory of client customers, retail patrons, wholesale buyers, and business contacts.
                   </p>
                 </div>
-                <button 
-                  onClick={() => openAddModal('customer')} 
+                <button
+                  onClick={() => openAddModal('customer')}
                   style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', background: '#2563EB', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
                 >
                   <Plus size={17} /> Add Customer
@@ -5159,8 +5105,8 @@ const CustomerDetails = () => {
               <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ flex: '0 1 360px', minWidth: '260px', position: 'relative' }}>
                   <Search size={18} color="#94A3B8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     placeholder="Search customers by name, company, email, phone..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -5174,8 +5120,8 @@ const CustomerDetails = () => {
                 </div>
 
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <select 
-                    value={filterDays} 
+                  <select
+                    value={filterDays}
                     onChange={(e) => setFilterDays(e.target.value)}
                     style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid #E2E8F0', background: 'white', fontSize: '13px', color: '#334155', fontWeight: '500', outline: 'none', cursor: 'pointer' }}
                   >
@@ -5195,7 +5141,7 @@ const CustomerDetails = () => {
                     </div>
                   )}
 
-                  <button 
+                  <button
                     onClick={() => exportSectionCSV('customers')}
                     style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 14px', borderRadius: '8px', border: '1px solid #E2E8F0', background: 'white', color: '#475569', fontSize: '13px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s' }}
                     onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'}
@@ -5272,7 +5218,7 @@ const CustomerDetails = () => {
           {/* ======================================================== */}
           {activeSection === 'expenses' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
-              
+
               {/* Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
                 <div>
@@ -5286,8 +5232,8 @@ const CustomerDetails = () => {
                     Track operational expenditures, receipts, vendor invoices, and category breakdowns.
                   </p>
                 </div>
-                <button 
-                  onClick={() => openAddModal('expense')} 
+                <button
+                  onClick={() => openAddModal('expense')}
                   style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', background: '#2563EB', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
                 >
                   <Plus size={17} /> Add Expense
@@ -5323,8 +5269,8 @@ const CustomerDetails = () => {
               <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ flex: '0 1 360px', minWidth: '260px', position: 'relative' }}>
                   <Search size={18} color="#94A3B8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     placeholder="Search expenses by title, category, note..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -5424,8 +5370,8 @@ const CustomerDetails = () => {
                             </td>
                             <td style={{ padding: '14px 14px', textAlign: 'center', verticalAlign: 'middle' }}>
                               {exp.proofUrl ? (
-                                <button 
-                                  onClick={() => setPreviewReceiptUrl(exp.proofUrl)} 
+                                <button
+                                  onClick={() => setPreviewReceiptUrl(exp.proofUrl)}
                                   style={{ padding: '4px 10px', background: '#EFF6FF', color: '#2563EB', border: '1px solid #BFDBFE', borderRadius: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}
                                 >
                                   View Receipt
@@ -5464,7 +5410,7 @@ const CustomerDetails = () => {
           {/* ======================================================== */}
           {activeSection === 'sales' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              
+
               {/* Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
                 <div>
@@ -5479,16 +5425,16 @@ const CustomerDetails = () => {
                   </p>
                 </div>
                 {salesSubTab === 'invoices' && (
-                  <button 
-                    onClick={() => openAddModal('sale')} 
+                  <button
+                    onClick={() => openAddModal('sale')}
                     style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', background: '#2563EB', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
                   >
                     <Plus size={17} /> Add Sale Invoice
                   </button>
                 )}
                 {salesSubTab === 'quotations' && (
-                  <button 
-                    onClick={() => setShowAddQuotationModal(true)} 
+                  <button
+                    onClick={() => setShowAddQuotationModal(true)}
                     style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', background: '#D97706', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(217,119,6,0.2)' }}
                   >
                     <Plus size={17} /> Create Quotation
@@ -5562,167 +5508,167 @@ const CustomerDetails = () => {
               {salesSubTab === 'invoices' && (
                 <>
 
-              {/* Stat Cards */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '18px' }}>
-                <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '18px 20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-                  <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#DCFCE7', color: '#15803D', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><TrendingUp size={22} /></div>
-                  <div>
-                    <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Total Revenue</p>
-                    <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{formatCurrency(financials.totalSales)}</h3>
-                  </div>
-                </div>
-                <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '18px 20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-                  <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Receipt size={22} /></div>
-                  <div>
-                    <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Invoices Issued</p>
-                    <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{sales.length}</h3>
-                  </div>
-                </div>
-                <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '18px 20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-                  <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#F5F3FF', color: '#8B5CF6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CheckCircle2 size={22} /></div>
-                  <div>
-                    <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Paid Orders</p>
-                    <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{sales.filter(s => s.status === 'Paid').length}</h3>
-                  </div>
-                </div>
-              </div>
-
-              {/* Search, Filter, Export Bar */}
-              <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ flex: '0 1 360px', minWidth: '260px', position: 'relative' }}>
-                  <Search size={18} color="#94A3B8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
-                  <input 
-                    type="text" 
-                    placeholder="Search sales by invoice #, customer, status..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    style={{ width: '100%', padding: '10px 16px 10px 44px', borderRadius: '10px', border: '1px solid #CBD5E1', outline: 'none', fontSize: '14px', boxSizing: 'border-box', background: 'white' }}
-                  />
-                  {searchTerm && (
-                    <button onClick={() => setSearchTerm('')} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer' }}>
-                      <X size={15} />
-                    </button>
-                  )}
-                </div>
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <select value={filterDays} onChange={(e) => setFilterDays(e.target.value)} style={{ padding: '9px 14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '8px', color: '#334155', fontWeight: '500', fontSize: '13.5px', outline: 'none', cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-                    <option value="all">Filter: All Time</option>
-                    <option value="7">Last 7 Days</option>
-                    <option value="30">Last 30 Days</option>
-                    <option value="custom">Custom Range</option>
-                  </select>
-                  {filterDays === 'custom' && (
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <input type="date" value={customStartDate} onChange={(e) => setCustomStartDate(e.target.value)} style={{ padding: '8px 10px', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '13px', color: '#334155', background: 'white' }} />
-                      <span style={{ fontSize: '13px', color: '#64748B' }}>to</span>
-                      <input type="date" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} style={{ padding: '8px 10px', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '13px', color: '#334155', background: 'white' }} />
+                  {/* Stat Cards */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '18px' }}>
+                    <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '18px 20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                      <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#DCFCE7', color: '#15803D', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><TrendingUp size={22} /></div>
+                      <div>
+                        <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Total Revenue</p>
+                        <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{formatCurrency(financials.totalSales)}</h3>
+                      </div>
                     </div>
-                  )}
-                  <button onClick={() => exportSectionCSV('sales')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 15px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '8px', color: '#334155', fontWeight: '600', fontSize: '13.5px', cursor: 'pointer' }}>
-                    <Download size={16} /> Export
-                  </button>
-                </div>
-              </div>
+                    <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '18px 20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                      <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Receipt size={22} /></div>
+                      <div>
+                        <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Invoices Issued</p>
+                        <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{sales.length}</h3>
+                      </div>
+                    </div>
+                    <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '18px 20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                      <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#F5F3FF', color: '#8B5CF6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CheckCircle2 size={22} /></div>
+                      <div>
+                        <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Paid Orders</p>
+                        <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{sales.filter(s => s.status === 'Paid').length}</h3>
+                      </div>
+                    </div>
+                  </div>
 
-              {/* Table */}
-              <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', minWidth: '850px', borderCollapse: 'collapse', textAlign: 'left' }}>
-                    <thead>
-                      <tr style={{ background: '#F8FAFC' }}>
-                        <th style={{ padding: '14px 10px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: '56px', textAlign: 'center', verticalAlign: 'middle' }}>
-                          S.No
-                        </th>
-                        <th onClick={() => requestSort('invoiceNo')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', verticalAlign: 'middle' }}>
-                          <div style={{ display: 'flex', alignItems: 'center' }}>Invoice # {renderSortIcon('invoiceNo')}</div>
-                        </th>
-                        <th onClick={() => requestSort('customerName')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '14px 14px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', verticalAlign: 'middle' }}>
-                          <div style={{ display: 'flex', alignItems: 'center' }}>Customer {renderSortIcon('customerName')}</div>
-                        </th>
-                        <th onClick={() => requestSort('date')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '14px 14px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', verticalAlign: 'middle' }}>
-                          <div style={{ display: 'flex', alignItems: 'center' }}>Date {renderSortIcon('date')}</div>
-                        </th>
-                        <th onClick={() => requestSort('amount')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '14px 14px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', verticalAlign: 'middle' }}>
-                          <div style={{ display: 'flex', alignItems: 'center' }}>Amount {renderSortIcon('amount')}</div>
-                        </th>
-                        <th onClick={() => requestSort('status')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '14px 14px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'center', verticalAlign: 'middle' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Status {renderSortIcon('status')}</div>
-                        </th>
-                        <th style={{ padding: '14px 14px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'center', verticalAlign: 'middle', width: '120px' }}>
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredSales.length === 0 ? (
-                        <tr>
-                          <td colSpan="7" style={{ padding: '64px 32px', textAlign: 'center' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                              <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
-                                <TrendingUp size={32} color="#3B82F6" />
-                              </div>
-                              <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#0F172A', marginBottom: '8px' }}>No sales records found</h3>
-                              <p style={{ color: '#64748B', maxWidth: '400px', margin: '0 auto', lineHeight: '1.5', fontSize: '14px' }}>
-                                No sales or billing transactions recorded yet.
-                              </p>
-                            </div>
-                          </td>
-                        </tr>
-                      ) : (
-                        paginatedSales.map((sale, index) => (
-                          <tr key={sale._id || index} style={{ borderBottom: '1px solid #E2E8F0', transition: 'background 0.15s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
-                            <td style={{ padding: '14px 10px', fontSize: '13px', color: '#64748B', fontWeight: '600', textAlign: 'center', verticalAlign: 'middle' }}>
-                              {startIndex + index + 1}
-                            </td>
-                            <td style={{ padding: '14px 16px', verticalAlign: 'middle', fontWeight: '700', color: '#2563EB', fontFamily: 'monospace' }}>
-                              {sale.invoiceNo || `INV-${sale._id ? sale._id.substring(sale._id.length - 6).toUpperCase() : index + 1}`}
-                            </td>
-                            <td style={{ padding: '14px 14px', verticalAlign: 'middle', color: '#0F172A', fontWeight: '600', fontSize: '13.5px' }}>
-                              {sale.customerName || 'Direct Customer'}
-                            </td>
-                            <td style={{ padding: '14px 14px', verticalAlign: 'middle', color: '#64748B', fontSize: '13px' }}>
-                              {formatDate(sale.date)}
-                            </td>
-                            <td style={{ padding: '14px 14px', verticalAlign: 'middle', fontWeight: '700', color: '#059669', fontSize: '14px' }}>
-                              {formatCurrency(sale.amount)}
-                            </td>
-                            <td style={{ padding: '14px 14px', textAlign: 'center', verticalAlign: 'middle' }}>
-                              <span style={{ 
-                                display: 'inline-block',
-                                fontSize: '11.5px', 
-                                padding: '3px 10px', 
-                                borderRadius: '12px', 
-                                background: sale.status === 'Paid' ? '#DCFCE7' : sale.status === 'Pending' ? '#FEF3C7' : '#FEE2E2', 
-                                color: sale.status === 'Paid' ? '#15803D' : sale.status === 'Pending' ? '#B45309' : '#B91C1C', 
-                                fontWeight: '700' 
-                              }}>
-                                {sale.status || 'Paid'}
-                              </span>
-                            </td>
-                            <td style={{ padding: '14px 14px', textAlign: 'center', verticalAlign: 'middle' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                                <button onClick={() => setViewModalData({ type: 'sale', data: sale })} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '6px', background: '#EFF6FF', border: '1px solid #DBEAFE', color: '#2563EB', cursor: 'pointer' }} title="View Sale"><Eye size={15} /></button>
-                                <button onClick={() => openEditModal('sale', sale)} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '6px', background: '#F1F5F9', border: '1px solid #E2E8F0', color: '#475569', cursor: 'pointer' }} title="Edit Sale"><Edit2 size={15} /></button>
-                                <button onClick={() => setDeleteConfirm({ type: 'sale', id: sale._id, name: sale.invoiceNo || 'Sale' })} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '6px', background: '#FEE2E2', border: '1px solid #FCA5A5', color: '#EF4444', cursor: 'pointer' }} title="Delete Sale"><Trash2 size={15} /></button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))
+                  {/* Search, Filter, Export Bar */}
+                  <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ flex: '0 1 360px', minWidth: '260px', position: 'relative' }}>
+                      <Search size={18} color="#94A3B8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
+                      <input
+                        type="text"
+                        placeholder="Search sales by invoice #, customer, status..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        style={{ width: '100%', padding: '10px 16px 10px 44px', borderRadius: '10px', border: '1px solid #CBD5E1', outline: 'none', fontSize: '14px', boxSizing: 'border-box', background: 'white' }}
+                      />
+                      {searchTerm && (
+                        <button onClick={() => setSearchTerm('')} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer' }}>
+                          <X size={15} />
+                        </button>
                       )}
-                    </tbody>
-                  </table>
-                </div>
-                <TablePagination
-                  currentPage={currentPage}
-                  setCurrentPage={setCurrentPage}
-                  totalItems={filteredSales.length}
-                  itemsPerPage={itemsPerPage}
-                  setItemsPerPage={setItemsPerPage}
-                  itemName="sales & invoices"
-                />
-              </div>
-            </>
-          )}
+                    </div>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <select value={filterDays} onChange={(e) => setFilterDays(e.target.value)} style={{ padding: '9px 14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '8px', color: '#334155', fontWeight: '500', fontSize: '13.5px', outline: 'none', cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                        <option value="all">Filter: All Time</option>
+                        <option value="7">Last 7 Days</option>
+                        <option value="30">Last 30 Days</option>
+                        <option value="custom">Custom Range</option>
+                      </select>
+                      {filterDays === 'custom' && (
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <input type="date" value={customStartDate} onChange={(e) => setCustomStartDate(e.target.value)} style={{ padding: '8px 10px', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '13px', color: '#334155', background: 'white' }} />
+                          <span style={{ fontSize: '13px', color: '#64748B' }}>to</span>
+                          <input type="date" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} style={{ padding: '8px 10px', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '13px', color: '#334155', background: 'white' }} />
+                        </div>
+                      )}
+                      <button onClick={() => exportSectionCSV('sales')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 15px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '8px', color: '#334155', fontWeight: '600', fontSize: '13.5px', cursor: 'pointer' }}>
+                        <Download size={16} /> Export
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Table */}
+                  <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', minWidth: '850px', borderCollapse: 'collapse', textAlign: 'left' }}>
+                        <thead>
+                          <tr style={{ background: '#F8FAFC' }}>
+                            <th style={{ padding: '14px 10px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: '56px', textAlign: 'center', verticalAlign: 'middle' }}>
+                              S.No
+                            </th>
+                            <th onClick={() => requestSort('invoiceNo')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', verticalAlign: 'middle' }}>
+                              <div style={{ display: 'flex', alignItems: 'center' }}>Invoice # {renderSortIcon('invoiceNo')}</div>
+                            </th>
+                            <th onClick={() => requestSort('customerName')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '14px 14px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', verticalAlign: 'middle' }}>
+                              <div style={{ display: 'flex', alignItems: 'center' }}>Customer {renderSortIcon('customerName')}</div>
+                            </th>
+                            <th onClick={() => requestSort('date')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '14px 14px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', verticalAlign: 'middle' }}>
+                              <div style={{ display: 'flex', alignItems: 'center' }}>Date {renderSortIcon('date')}</div>
+                            </th>
+                            <th onClick={() => requestSort('amount')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '14px 14px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', verticalAlign: 'middle' }}>
+                              <div style={{ display: 'flex', alignItems: 'center' }}>Amount {renderSortIcon('amount')}</div>
+                            </th>
+                            <th onClick={() => requestSort('status')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '14px 14px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'center', verticalAlign: 'middle' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Status {renderSortIcon('status')}</div>
+                            </th>
+                            <th style={{ padding: '14px 14px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'center', verticalAlign: 'middle', width: '120px' }}>
+                              Actions
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredSales.length === 0 ? (
+                            <tr>
+                              <td colSpan="7" style={{ padding: '64px 32px', textAlign: 'center' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                  <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+                                    <TrendingUp size={32} color="#3B82F6" />
+                                  </div>
+                                  <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#0F172A', marginBottom: '8px' }}>No sales records found</h3>
+                                  <p style={{ color: '#64748B', maxWidth: '400px', margin: '0 auto', lineHeight: '1.5', fontSize: '14px' }}>
+                                    No sales or billing transactions recorded yet.
+                                  </p>
+                                </div>
+                              </td>
+                            </tr>
+                          ) : (
+                            paginatedSales.map((sale, index) => (
+                              <tr key={sale._id || index} style={{ borderBottom: '1px solid #E2E8F0', transition: 'background 0.15s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
+                                <td style={{ padding: '14px 10px', fontSize: '13px', color: '#64748B', fontWeight: '600', textAlign: 'center', verticalAlign: 'middle' }}>
+                                  {startIndex + index + 1}
+                                </td>
+                                <td style={{ padding: '14px 16px', verticalAlign: 'middle', fontWeight: '700', color: '#2563EB', fontFamily: 'monospace' }}>
+                                  {sale.invoiceNo || `INV-${sale._id ? sale._id.substring(sale._id.length - 6).toUpperCase() : index + 1}`}
+                                </td>
+                                <td style={{ padding: '14px 14px', verticalAlign: 'middle', color: '#0F172A', fontWeight: '600', fontSize: '13.5px' }}>
+                                  {sale.customerName || 'Direct Customer'}
+                                </td>
+                                <td style={{ padding: '14px 14px', verticalAlign: 'middle', color: '#64748B', fontSize: '13px' }}>
+                                  {formatDate(sale.date)}
+                                </td>
+                                <td style={{ padding: '14px 14px', verticalAlign: 'middle', fontWeight: '700', color: '#059669', fontSize: '14px' }}>
+                                  {formatCurrency(sale.amount)}
+                                </td>
+                                <td style={{ padding: '14px 14px', textAlign: 'center', verticalAlign: 'middle' }}>
+                                  <span style={{
+                                    display: 'inline-block',
+                                    fontSize: '11.5px',
+                                    padding: '3px 10px',
+                                    borderRadius: '12px',
+                                    background: sale.status === 'Paid' ? '#DCFCE7' : sale.status === 'Pending' ? '#FEF3C7' : '#FEE2E2',
+                                    color: sale.status === 'Paid' ? '#15803D' : sale.status === 'Pending' ? '#B45309' : '#B91C1C',
+                                    fontWeight: '700'
+                                  }}>
+                                    {sale.status || 'Paid'}
+                                  </span>
+                                </td>
+                                <td style={{ padding: '14px 14px', textAlign: 'center', verticalAlign: 'middle' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                                    <button onClick={() => setViewModalData({ type: 'sale', data: sale })} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '6px', background: '#EFF6FF', border: '1px solid #DBEAFE', color: '#2563EB', cursor: 'pointer' }} title="View Sale"><Eye size={15} /></button>
+                                    <button onClick={() => openEditModal('sale', sale)} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '6px', background: '#F1F5F9', border: '1px solid #E2E8F0', color: '#475569', cursor: 'pointer' }} title="Edit Sale"><Edit2 size={15} /></button>
+                                    <button onClick={() => setDeleteConfirm({ type: 'sale', id: sale._id, name: sale.invoiceNo || 'Sale' })} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '6px', background: '#FEE2E2', border: '1px solid #FCA5A5', color: '#EF4444', cursor: 'pointer' }} title="Delete Sale"><Trash2 size={15} /></button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                    <TablePagination
+                      currentPage={currentPage}
+                      setCurrentPage={setCurrentPage}
+                      totalItems={filteredSales.length}
+                      itemsPerPage={itemsPerPage}
+                      setItemsPerPage={setItemsPerPage}
+                      itemName="sales & invoices"
+                    />
+                  </div>
+                </>
+              )}
 
               {/* SUB-TAB 2: QUOTATIONS (BULK ORDERS) */}
               {salesSubTab === 'quotations' && (
@@ -5818,9 +5764,9 @@ const CustomerDetails = () => {
                         <div style={{ display: 'flex', justifyContent: 'center', background: '#F8FAFC', padding: '14px', borderRadius: '8px', border: '1px solid #F1F5F9' }}>
                           <BarcodeSVG code={b.code} width={180} height={52} />
                         </div>
-                        <button 
-                          type="button" 
-                          onClick={() => setPrintBarcodeModal(b)} 
+                        <button
+                          type="button"
+                          onClick={() => setPrintBarcodeModal(b)}
                           style={{ padding: '9px', background: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '13px', fontWeight: '600', color: '#334155', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                         >
                           <Printer size={15} /> Print Thermal Sticker
@@ -5839,7 +5785,7 @@ const CustomerDetails = () => {
           {/* ======================================================== */}
           {activeSection === 'branches' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
-              
+
               {/* Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
                 <div>
@@ -5853,8 +5799,8 @@ const CustomerDetails = () => {
                     Manage multiple business locations, managers, contact details, and dedicated branch access.
                   </p>
                 </div>
-                <button 
-                  onClick={() => openAddModal('branch')} 
+                <button
+                  onClick={() => openAddModal('branch')}
                   style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', background: '#2563EB', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
                 >
                   <Plus size={17} /> Add New Branch
@@ -5890,8 +5836,8 @@ const CustomerDetails = () => {
               <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ flex: '0 1 360px', minWidth: '260px', position: 'relative' }}>
                   <Search size={18} color="#94A3B8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     placeholder="Search branches by name, location, manager..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -6120,7 +6066,7 @@ const CustomerDetails = () => {
           {/* ======================================================== */}
           {activeSection === 'employees' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
-              
+
               {/* Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
                 <div>
@@ -6134,8 +6080,8 @@ const CustomerDetails = () => {
                     Manage team roster, designations, salaries, branch assignments, and staff login credentials.
                   </p>
                 </div>
-                <button 
-                  onClick={() => openAddModal('employee')} 
+                <button
+                  onClick={() => openAddModal('employee')}
                   style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', background: '#2563EB', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
                 >
                   <Plus size={17} /> Add New Employee
@@ -6171,8 +6117,8 @@ const CustomerDetails = () => {
               <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ flex: '0 1 360px', minWidth: '260px', position: 'relative' }}>
                   <Search size={18} color="#94A3B8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     placeholder="Search employees by name, role, email, phone..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -6289,14 +6235,14 @@ const CustomerDetails = () => {
                               {emp.salary ? formatCurrency(emp.salary) : '—'}
                             </td>
                             <td style={{ padding: '14px 14px', textAlign: 'center', verticalAlign: 'middle' }}>
-                              <span style={{ 
+                              <span style={{
                                 display: 'inline-block',
-                                fontSize: '11.5px', 
-                                padding: '3px 10px', 
-                                borderRadius: '12px', 
-                                background: emp.status === 'Active' ? '#DCFCE7' : '#FEE2E2', 
-                                color: emp.status === 'Active' ? '#15803D' : '#B91C1C', 
-                                fontWeight: '700' 
+                                fontSize: '11.5px',
+                                padding: '3px 10px',
+                                borderRadius: '12px',
+                                background: emp.status === 'Active' ? '#DCFCE7' : '#FEE2E2',
+                                color: emp.status === 'Active' ? '#15803D' : '#B91C1C',
+                                fontWeight: '700'
                               }}>
                                 {emp.status || 'Active'}
                               </span>
@@ -6387,7 +6333,7 @@ const CustomerDetails = () => {
           {/* ======================================================== */}
           {activeSection === 'businesses' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
-              
+
               {/* Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
                 <div>
@@ -6401,8 +6347,8 @@ const CustomerDetails = () => {
                     Manage conglomerate businesses, branches, categories, key contacts, and dedicated access.
                   </p>
                 </div>
-                <button 
-                  onClick={() => openAddModal('business')} 
+                <button
+                  onClick={() => openAddModal('business')}
                   style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', background: '#2563EB', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
                 >
                   <Plus size={17} /> Add New Business
@@ -6438,8 +6384,8 @@ const CustomerDetails = () => {
               <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ flex: '0 1 360px', minWidth: '260px', position: 'relative' }}>
                   <Search size={18} color="#94A3B8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     placeholder="Search by name, category, contact, city..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -6483,9 +6429,6 @@ const CustomerDetails = () => {
                         <th onClick={() => requestSort('name')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', minWidth: '180px', verticalAlign: 'middle' }}>
                           <div style={{ display: 'flex', alignItems: 'center' }}>Business Name {renderSortIcon('name')}</div>
                         </th>
-                        <th onClick={() => requestSort('category')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '14px 12px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: '135px', verticalAlign: 'middle' }}>
-                          <div style={{ display: 'flex', alignItems: 'center' }}>Category {renderSortIcon('category')}</div>
-                        </th>
                         <th style={{ padding: '14px 12px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: '160px', verticalAlign: 'middle' }}>
                           Model & Operations
                         </th>
@@ -6509,7 +6452,7 @@ const CustomerDetails = () => {
                     <tbody>
                       {filteredBusinesses.length === 0 ? (
                         <tr>
-                          <td colSpan="9" style={{ padding: '64px 32px', textAlign: 'center' }}>
+                          <td colSpan="8" style={{ padding: '64px 32px', textAlign: 'center' }}>
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                               <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
                                 <Building2 size={32} color="#3B82F6" />
@@ -6543,52 +6486,31 @@ const CustomerDetails = () => {
                               </div>
                             </td>
                             <td style={{ padding: '14px 12px', verticalAlign: 'middle' }}>
-                              {b.category ? (
-                                <span style={{ 
-                                  display: 'inline-flex', 
-                                  alignItems: 'center', 
-                                  gap: '5px', 
-                                  fontSize: '12px', 
-                                  fontWeight: '600', 
-                                  padding: '4px 9px', 
-                                  borderRadius: '8px', 
-                                  background: '#F1F5F9', 
-                                  color: '#334155',
-                                  border: '1px solid #E2E8F0'
-                                }}>
-                                  <Tag size={12} color="#64748B" />
-                                  {b.category}
-                                </span>
-                              ) : (
-                                <span style={{ color: '#94A3B8', fontSize: '13px' }}>—</span>
-                              )}
-                            </td>
-                            <td style={{ padding: '14px 12px', verticalAlign: 'middle' }}>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                <span style={{ 
-                                  display: 'inline-flex', 
-                                  alignItems: 'center', 
-                                  gap: '4px', 
-                                  fontSize: '11px', 
-                                  fontWeight: '600', 
-                                  padding: '2px 8px', 
-                                  borderRadius: '6px', 
-                                  background: b.offeringType === 'service' ? '#F3E8FF' : b.offeringType === 'product' ? '#EFF6FF' : '#F0FDF4', 
+                                <span style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  fontSize: '11px',
+                                  fontWeight: '600',
+                                  padding: '2px 8px',
+                                  borderRadius: '6px',
+                                  background: b.offeringType === 'service' ? '#F3E8FF' : b.offeringType === 'product' ? '#EFF6FF' : '#F0FDF4',
                                   color: b.offeringType === 'service' ? '#7E22CE' : b.offeringType === 'product' ? '#1D4ED8' : '#15803D',
                                   width: 'fit-content',
                                   border: `1px solid ${b.offeringType === 'service' ? '#E9D5FF' : b.offeringType === 'product' ? '#BFDBFE' : '#BBF7D0'}`
                                 }}>
                                   {b.offeringType === 'service' ? '🛠️ Services' : b.offeringType === 'product' ? '📦 Products' : '🔄 Product & Service'}
                                 </span>
-                                <span style={{ 
-                                  display: 'inline-flex', 
-                                  alignItems: 'center', 
-                                  gap: '4px', 
-                                  fontSize: '11px', 
-                                  fontWeight: '600', 
-                                  padding: '2px 8px', 
-                                  borderRadius: '6px', 
-                                  background: b.operationsType === 'sales' ? '#EFF6FF' : b.operationsType === 'purchases' ? '#FEF3C7' : '#F8FAFC', 
+                                <span style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  fontSize: '11px',
+                                  fontWeight: '600',
+                                  padding: '2px 8px',
+                                  borderRadius: '6px',
+                                  background: b.operationsType === 'sales' ? '#EFF6FF' : b.operationsType === 'purchases' ? '#FEF3C7' : '#F8FAFC',
                                   color: b.operationsType === 'sales' ? '#1D4ED8' : b.operationsType === 'purchases' ? '#B45309' : '#475569',
                                   width: 'fit-content',
                                   border: `1px solid ${b.operationsType === 'sales' ? '#BFDBFE' : b.operationsType === 'purchases' ? '#FDE68A' : '#E2E8F0'}`
@@ -6723,7 +6645,7 @@ const CustomerDetails = () => {
           {/* ============================================================ */}
           {activeSection === 'investors' && (
             <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              
+
               {/* Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -7119,19 +7041,19 @@ const CustomerDetails = () => {
               <div style={{ padding: '24px', maxHeight: '70vh', overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
                 {Object.entries(editModalData.formData).map(([fieldKey, val]) => {
                   const isEmployeeFieldInEmployee = editModalData.type === 'employee' && fieldKey === 'employeeId';
-                  const label = isEmployeeFieldInEmployee 
-                    ? 'Employee ID' 
-                    : fieldKey === 'employeeId' 
-                    ? 'Employee' 
-                    : fieldKey === 'branchId' 
-                    ? 'Branch ID' 
-                    : fieldKey === 'businessId' 
-                    ? 'Business ID' 
-                    : (fieldKey === 'documentNumber' && editModalData.type === 'document')
-                    ? 'Registration / Certificate / Card Number'
-                    : (fieldKey === 'fileUrl' && editModalData.type === 'document')
-                    ? 'Upload Document'
-                    : fieldKey.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                  const label = isEmployeeFieldInEmployee
+                    ? 'Employee ID'
+                    : fieldKey === 'employeeId'
+                      ? 'Employee'
+                      : fieldKey === 'branchId'
+                        ? 'Branch ID'
+                        : fieldKey === 'businessId'
+                          ? 'Business ID'
+                          : (fieldKey === 'documentNumber' && editModalData.type === 'document')
+                            ? 'Registration / Certificate / Card Number'
+                            : (fieldKey === 'fileUrl' && editModalData.type === 'document')
+                              ? 'Upload Document'
+                              : fieldKey.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
                   const isSelect = !isEmployeeFieldInEmployee && ['subscriptionStatus', 'subscriptionBillingCycle', 'status', 'isLoginEnabled', 'offeringType', 'operationsType', 'type', 'itemType', 'transactionType', 'categoryId', 'subCategoryId', 'employeeId', 'workType'].includes(fieldKey) && !fieldKey.toLowerCase().includes('phone');
 
                   return (
@@ -7407,19 +7329,19 @@ const CustomerDetails = () => {
                   .filter(([k]) => !['tenantId'].includes(k) && !(addModalData.type === 'attendance' && k === 'checkOut'))
                   .map(([fieldKey, fieldValue]) => {
                     const isEmployeeFieldInEmployee = addModalData.type === 'employee' && fieldKey === 'employeeId';
-                    const label = isEmployeeFieldInEmployee 
-                      ? 'Employee ID' 
-                      : fieldKey === 'employeeId' 
-                      ? 'Employee' 
-                      : fieldKey === 'branchId' 
-                      ? 'Branch ID' 
-                      : fieldKey === 'businessId' 
-                      ? 'Business ID' 
-                      : (fieldKey === 'documentNumber' && addModalData.type === 'document')
-                      ? 'Registration / Certificate / Card Number'
-                      : (fieldKey === 'fileUrl' && addModalData.type === 'document')
-                      ? 'Upload Document'
-                      : fieldKey.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
+                    const label = isEmployeeFieldInEmployee
+                      ? 'Employee ID'
+                      : fieldKey === 'employeeId'
+                        ? 'Employee'
+                        : fieldKey === 'branchId'
+                          ? 'Branch ID'
+                          : fieldKey === 'businessId'
+                            ? 'Business ID'
+                            : (fieldKey === 'documentNumber' && addModalData.type === 'document')
+                              ? 'Registration / Certificate / Card Number'
+                              : (fieldKey === 'fileUrl' && addModalData.type === 'document')
+                                ? 'Upload Document'
+                                : fieldKey.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
                     const isBoolean = typeof fieldValue === 'boolean';
                     const isDate = fieldKey.toLowerCase().includes('date');
                     const isNumber = typeof fieldValue === 'number' || ['amount', 'price', 'salary', 'stock', 'quantity', 'notifyBeforeDays'].includes(fieldKey);
@@ -7494,7 +7416,7 @@ const CustomerDetails = () => {
                             {fieldKey === 'status' && addModalData.type === 'attendance' && (<><option value="Present">Present</option><option value="Absent">Absent</option><option value="Half Day">Half Day</option><option value="Late">Late</option></>)}
                             {fieldKey === 'status' && addModalData.type === 'leave' && (<><option value="Pending">Pending</option><option value="Approved">Approved</option><option value="Rejected">Rejected</option></>)}
                             {fieldKey === 'status' && addModalData.type === 'reminder' && (<><option value="Pending">Pending</option><option value="Completed">Completed</option></>)}
-                            {fieldKey === 'status' && !['attendance','leave','reminder'].includes(addModalData.type) && (<><option value="Active">Active</option><option value="Inactive">Inactive</option><option value="Paid">Paid</option><option value="Pending">Pending</option><option value="Cancelled">Cancelled</option></>)}
+                            {fieldKey === 'status' && !['attendance', 'leave', 'reminder'].includes(addModalData.type) && (<><option value="Active">Active</option><option value="Inactive">Inactive</option><option value="Paid">Paid</option><option value="Pending">Pending</option><option value="Cancelled">Cancelled</option></>)}
                             {fieldKey === 'type' && addModalData.type === 'leave' && (<><option value="Sick Leave">Sick Leave</option><option value="Casual Leave">Casual Leave</option><option value="Annual Leave">Annual Leave</option><option value="Unpaid">Unpaid</option><option value="Maternity / Paternity Leave">Maternity / Paternity Leave</option><option value="Bereavement Leave">Bereavement Leave</option><option value="Compensatory Off">Compensatory Off</option><option value="Other">Other</option></>)}
                             {fieldKey === 'type' && addModalData.type === 'document' && (
                               <>
@@ -7605,7 +7527,7 @@ const CustomerDetails = () => {
             <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '700', color: '#0F172A' }}>
               Delete {deleteConfirm.type === 'user' ? 'Customer Account' : (deleteConfirm.type === 'product' && deleteConfirm.isService) ? 'Service' : deleteConfirm.type.charAt(0).toUpperCase() + deleteConfirm.type.slice(1)}?
             </h3>
-            
+
             <p style={{ margin: '0 0 24px 0', fontSize: '14px', color: '#64748B', lineHeight: '1.5' }}>
               Are you sure you want to permanently delete <strong>{deleteConfirm.name || 'this item'}</strong>? This action cannot be undone.
             </p>

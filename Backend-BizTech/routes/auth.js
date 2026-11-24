@@ -9,6 +9,9 @@ const Investor = require('../models/Investor');
 const Pricing = require('../models/Pricing');
 const PaymentApproval = require('../models/PaymentApproval');
 const Document = require('../models/Document');
+const Category = require('../models/Category');
+const SubCategory = require('../models/SubCategory');
+const { seedCatalogueFromUser } = require('../utils/catalogueSeeder');
 const { checkEmailInUse } = require('../utils/emailValidator');
 const { checkPhoneInUse } = require('../utils/phoneValidator');
 const { isSubscriptionExpired, calculatePlanExpiry, formatDateString } = require('../utils/subscriptionHelper');
@@ -184,6 +187,10 @@ router.post('/register', async (req, res) => {
 
     // Create new user with unique ID
     const userId = await generateUserId();
+    const targetIndustry = req.body.category || industry || '';
+    const targetCategories = req.body.categories || (req.body.category ? [req.body.category] : (industry ? [industry] : []));
+    const targetSubCategory = req.body.subCategory || '';
+
     user = new User({
       fullName,
       email,
@@ -192,7 +199,10 @@ router.post('/register', async (req, res) => {
       userId,
       businessType: targetTypeNum,
       businessName,
-      industry,
+      industry: targetIndustry,
+      category: targetIndustry,
+      categories: targetCategories,
+      subCategory: targetSubCategory,
       address,
       offeringType: resolvedOffering,
       businessOfferingType: resolvedOffering,
@@ -209,6 +219,13 @@ router.post('/register', async (req, res) => {
     user.password = await bcrypt.hash(password, salt);
 
     await user.save();
+
+    // Auto-seed catalogue categories and subcategories
+    try {
+      await seedCatalogueFromUser(user._id, req.body.catalogueData);
+    } catch (seedErr) {
+      console.error('Error auto-seeding catalogue during register:', seedErr);
+    }
 
     // Create JWT payload
     const payload = {
@@ -1225,6 +1242,13 @@ router.post('/onboarding', async (req, res) => {
       } catch (docErr) {
         console.error('Error syncing onboarding documents to Document collection:', docErr);
       }
+    }
+
+    // 5. Sync Categories & Sub-Categories to Category and SubCategory collections
+    try {
+      await seedCatalogueFromUser(userId, req.body.catalogueData);
+    } catch (catSyncErr) {
+      console.error('Error syncing onboarding catalogue to Category/SubCategory collections:', catSyncErr);
     }
 
     const updatedUser = await User.findById(userId).select('-password');

@@ -43,8 +43,8 @@ const uploadProof = multer({
 
 // Initialize Razorpay instance
 const getRazorpayInstance = () => {
-  const key_id = process.env.RAZORPAY_KEY_ID || 'rzp_test_U18JZ6gYj3ozhP';
-  const key_secret = process.env.RAZORPAY_KEY_SECRET || 'P1KzOd1Z25YXadyjTUdJMWPi';
+  const key_id = process.env.RAZORPAY_KEY_ID || 'rzp_test_U2JoYZ0nibt5sL';
+  const key_secret = process.env.RAZORPAY_KEY_SECRET || 'lVMdPV8NkpRzg2v9BoDqf4JK';
   return new Razorpay({ key_id, key_secret });
 };
 
@@ -59,7 +59,7 @@ router.get('/config', async (req, res) => {
       upiId = admin.upiId;
     }
 
-    const razorpayKeyId = process.env.RAZORPAY_KEY_ID || 'rzp_test_U18JZ6gYj3ozhP';
+    const razorpayKeyId = process.env.RAZORPAY_KEY_ID || 'rzp_test_U2JoYZ0nibt5sL';
 
     res.json({
       success: true,
@@ -73,7 +73,7 @@ router.get('/config', async (req, res) => {
       success: false,
       message: 'Failed to retrieve payment configuration',
       upiId: 'biztech@upi',
-      razorpayKeyId: process.env.RAZORPAY_KEY_ID || 'rzp_test_U18JZ6gYj3ozhP'
+      razorpayKeyId: process.env.RAZORPAY_KEY_ID || 'rzp_test_U2JoYZ0nibt5sL'
     });
   }
 });
@@ -106,7 +106,7 @@ router.post('/create-order', async (req, res) => {
       orderId: order.id,
       amount: order.amount,
       currency: order.currency,
-      keyId: process.env.RAZORPAY_KEY_ID || 'rzp_test_U18JZ6gYj3ozhP',
+      keyId: process.env.RAZORPAY_KEY_ID || 'rzp_test_U2JoYZ0nibt5sL',
       order
     });
   } catch (err) {
@@ -129,7 +129,7 @@ router.post('/verify', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Incomplete payment signature credentials' });
     }
 
-    const keySecret = process.env.RAZORPAY_KEY_SECRET || 'P1KzOd1Z25YXadyjTUdJMWPi';
+    const keySecret = process.env.RAZORPAY_KEY_SECRET || 'lVMdPV8NkpRzg2v9BoDqf4JK';
     const body = `${razorpay_order_id}|${razorpay_payment_id}`;
 
     const expectedSignature = crypto

@@ -36,6 +36,13 @@ const Impersonate = () => {
         localStorage.removeItem('isEmbedded');
       }
 
+      const adminReturnUrl = searchParams.get('adminReturnUrl');
+      if (adminReturnUrl) {
+        localStorage.setItem('adminReturnUrl', adminReturnUrl);
+      }
+
+      const redirect = searchParams.get('redirect') || '/tenant/dashboard';
+
       // Notify any listeners
       window.dispatchEvent(new Event('userProfileUpdated'));
 
@@ -50,13 +57,13 @@ const Impersonate = () => {
             localStorage.setItem('tenantType', String(userData.businessType || 1));
             localStorage.setItem('modules', JSON.stringify(userData.modules || []));
             window.dispatchEvent(new Event('userProfileUpdated'));
-            navigate('/tenant/dashboard', { replace: true });
+            navigate(redirect, { replace: true });
           })
           .catch(() => {
-            navigate('/tenant/dashboard', { replace: true });
+            navigate(redirect, { replace: true });
           });
       } else {
-        navigate('/tenant/dashboard', { replace: true });
+        navigate(redirect, { replace: true });
       }
     } catch (err) {
       console.error(err);

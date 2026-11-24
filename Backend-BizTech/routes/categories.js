@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Category = require('../models/Category');
+const { seedCatalogueFromUser } = require('../utils/catalogueSeeder');
 const jwt = require('jsonwebtoken');
 const { upload } = require('../config/cloudinary');
 
@@ -18,8 +19,27 @@ const auth = (req, res, next) => {
 
 router.get('/', auth, async (req, res) => {
   try {
-    const items = await Category.find({ tenantId: req.user.id }).sort({ createdAt: -1 });
+    let items = await Category.find({ tenantId: req.user.id }).sort({ createdAt: -1 });
+
+    // If tenant has no categories yet, auto-seed from their onboarding profile
+    if (items.length === 0) {
+      await seedCatalogueFromUser(req.user.id);
+      items = await Category.find({ tenantId: req.user.id }).sort({ createdAt: -1 });
+    }
+
     res.json(items);
+  } catch (err) {
+    res.status(500).json({ message: 'Server Error' });
+  }
+});
+
+// @route   POST /api/categories/sync-profile
+// @desc    Manually re-sync categories and subcategories from onboarding profile
+router.post('/sync-profile', auth, async (req, res) => {
+  try {
+    const seeded = await seedCatalogueFromUser(req.user.id);
+    const items = await Category.find({ tenantId: req.user.id }).sort({ createdAt: -1 });
+    res.json({ success: true, seeded, categories: items });
   } catch (err) {
     res.status(500).json({ message: 'Server Error' });
   }

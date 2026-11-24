@@ -18,8 +18,23 @@ const SubCategory = require('../models/SubCategory');
 const Attendance = require('../models/Attendance');
 const Leave = require('../models/Leave');
 const Reminder = require('../models/Reminder');
+const { seedCatalogueFromUser } = require('../utils/catalogueSeeder');
 const Document = require('../models/Document');
 const Investor = require('../models/Investor');
+const { checkEmailInUse } = require('../utils/emailValidator');
+const { checkPhoneInUse } = require('../utils/phoneValidator');
+
+const generateUserId = async () => {
+  const count = await User.countDocuments();
+  let candidate = `BT-${1000 + count + 1}`;
+  let exists = await User.findOne({ userId: candidate });
+  while (exists) {
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    candidate = `BT-${randomSuffix}`;
+    exists = await User.findOne({ userId: candidate });
+  }
+  return candidate;
+};
 
 // Helper to find or seed the default superadmin
 const getAdminFromRequest = async (req) => {
@@ -297,6 +312,295 @@ router.delete('/users/:id', async (req, res) => {
   }
 });
 
+// @route   POST /api/admin/create-customer
+// @desc    Admin creates and fully onboards a customer across all 7 steps (no payment gateway needed)
+router.post('/create-customer', async (req, res) => {
+  try {
+    const {
+      fullName,
+      email,
+      phone,
+      password,
+      businessName,
+      brandName,
+      ownerName,
+      businessEmail,
+      businessPhone,
+      panNumber,
+      gstNumber,
+      streetAddress,
+      city,
+      state,
+      pincode,
+      address,
+      offeringType,
+      businessOfferingType,
+      operationsType,
+      businessOperationsType,
+      modules,
+      category,
+      categories,
+      subCategory,
+      catalogueData,
+      documents,
+      businessType,
+      subscription
+    } = req.body;
+
+    // 1. Validation
+    if (!fullName || !email || !phone || !password || !businessName || !panNumber) {
+      return res.status(400).json({ 
+        message: 'Please provide all mandatory fields: Full Name, Email, Phone, Password, Business Name, and PAN Card Number.' 
+      });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const emailCheck = await checkEmailInUse(cleanEmail);
+    if (emailCheck.taken) {
+      return res.status(400).json({ message: emailCheck.message || 'Email is already registered across an existing account.' });
+    }
+
+    const cleanPhone = phone.trim().replace(/[^0-9]/g, '');
+    if (cleanPhone.length !== 10) {
+      return res.status(400).json({ message: 'Phone number must be exactly 10 digits.' });
+    }
+    const phoneCheck = await checkPhoneInUse(cleanPhone);
+    if (phoneCheck.taken) {
+      return res.status(400).json({ message: phoneCheck.message || 'Phone number is already registered across an existing account.' });
+    }
+
+    const cleanPan = panNumber.trim().toUpperCase();
+    const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+    if (!panRegex.test(cleanPan)) {
+      return res.status(400).json({ message: 'Invalid PAN card format (Must be 5 capital letters, 4 digits, 1 capital letter, e.g. ABCDE1234F).' });
+    }
+
+    const existingPanUser = await User.findOne({
+      $or: [
+        { panNumber: cleanPan },
+        { 'documents.pan': cleanPan },
+        { 'businesses.panNumber': cleanPan }
+      ]
+    });
+    if (existingPanUser) {
+      return res.status(400).json({ message: `PAN Card Number (${cleanPan}) is already registered with another business. Please use a unique PAN.` });
+    }
+
+    // 2. Hash Password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // 3. User ID & Limits
+    const targetTypeNum = Number(businessType) || 1;
+    let initialEmployeeLimit = null;
+    let initialBranchLimit = null;
+    let initialBusinessLimit = null;
+    const planDoc = await Pricing.findOne({ customerType: { $regex: new RegExp('Type ' + targetTypeNum, 'i') } });
+    if (planDoc) {
+      if (planDoc.employeeLimit !== undefined && planDoc.employeeLimit !== null) initialEmployeeLimit = planDoc.employeeLimit;
+      if (planDoc.branchLimit !== undefined && planDoc.branchLimit !== null) initialBranchLimit = planDoc.branchLimit;
+      if (planDoc.businessLimit !== undefined && planDoc.businessLimit !== null) initialBusinessLimit = planDoc.businessLimit;
+    }
+    if (initialEmployeeLimit === null && (targetTypeNum === 1 || targetTypeNum === 2 || targetTypeNum === 3)) {
+      initialEmployeeLimit = 10;
+    }
+    if (initialBranchLimit === null && targetTypeNum === 3) {
+      initialBranchLimit = 5;
+    }
+    if (targetTypeNum === 4) {
+      if (initialBranchLimit === null) initialBranchLimit = 10;
+      if (initialBusinessLimit === null) initialBusinessLimit = 3;
+    }
+
+    const newUserId = await generateUserId();
+    const resolvedOffering = offeringType || businessOfferingType || 'product';
+    const resolvedOperations = operationsType || businessOperationsType || 'purchases';
+
+    const fullAddress = address || [streetAddress, city, state, pincode].filter(Boolean).join(', ');
+
+    // 4. Default & Chosen Modules
+    const chosenModules = (modules && Array.isArray(modules) && modules.length > 0)
+      ? Array.from(new Set([...modules, 'sales']))
+      : ['sales', 'products_services', 'expenses', 'documents', 'reminders', 'customers', ...(resolvedOffering !== 'service' ? ['inventory'] : []), ...(resolvedOperations !== 'billing_only' ? ['purchases'] : [])];
+
+    // 5. Subscription Setup (Active immediately, no payment needed from admin side)
+    const validUntil = new Date();
+    if (subscription?.billingCycle === 'Annual') {
+      validUntil.setFullYear(validUntil.getFullYear() + 1);
+    } else {
+      validUntil.setMonth(validUntil.getMonth() + 1);
+    }
+
+    const userObj = new User({
+      fullName,
+      email: cleanEmail,
+      phone: cleanPhone,
+      password: hashedPassword,
+      userId: newUserId,
+      businessType: targetTypeNum,
+      isOnboardingCompleted: true,
+      subscriptionStatus: 'Active',
+      businessName: businessName.trim(),
+      ownerName: (ownerName || fullName).trim(),
+      panNumber: cleanPan,
+      gstNumber: (gstNumber || '').trim().toUpperCase(),
+      businessPhone: businessPhone || cleanPhone,
+      streetAddress: streetAddress || '',
+      city: city || '',
+      state: state || '',
+      pincode: pincode || '',
+      address: fullAddress,
+      offeringType: resolvedOffering,
+      businessOfferingType: resolvedOffering,
+      category: category || (categories && categories[0]) || '',
+      categories: categories || (category ? [category] : []),
+      subCategory: subCategory || '',
+      modules: chosenModules,
+      employeeLimit: initialEmployeeLimit,
+      branchLimit: initialBranchLimit,
+      businessLimit: initialBusinessLimit,
+      subscriptionBillingCycle: subscription?.billingCycle || 'Monthly',
+      subscriptionRenewalDate: validUntil,
+      documents: {
+        pan: cleanPan,
+        panType: 'ID Card',
+        panFileUrl: documents?.panFileUrl || '',
+        panFileName: documents?.panFileName || '',
+        gstin: (gstNumber || '').trim().toUpperCase(),
+        gstinType: 'Certificate',
+        gstinFileUrl: documents?.gstinFileUrl || '',
+        gstinFileName: documents?.gstinFileName || '',
+        msme: documents?.msme || '',
+        msmeType: 'Registration',
+        msmeFileUrl: documents?.msmeFileUrl || '',
+        msmeFileName: documents?.msmeFileName || '',
+        customDocuments: documents?.customDocuments || []
+      },
+      subscription: {
+        planId: subscription?.planId || `type_${targetTypeNum}`,
+        planName: subscription?.planName || `Type ${targetTypeNum} Plan`,
+        amount: subscription?.amount || 0,
+        billingCycle: subscription?.billingCycle || 'Monthly',
+        paymentMethod: 'Admin Direct',
+        paymentStatus: 'Active',
+        transactionId: `ADMIN-ACT-${Date.now()}`,
+        startDate: new Date(),
+        validUntil: validUntil
+      }
+    });
+
+    // 6. If businessType is 4 or multi-business, add primary business record
+    if (targetTypeNum >= 3) {
+      const bizId = generateNextBusinessId([]);
+      userObj.businesses = [{
+        businessId: bizId,
+        businessCode: bizId,
+        name: businessName,
+        category: category || (categories && categories[0]) || '',
+        categories: categories || (category ? [category] : []),
+        contactPerson: fullName,
+        email: businessEmail || cleanEmail,
+        phone: businessPhone || cleanPhone,
+        address: fullAddress,
+        streetAddress: streetAddress || '',
+        city: city || '',
+        state: state || '',
+        pincode: pincode || '',
+        panNumber: cleanPan,
+        gstNumber: (gstNumber || '').trim().toUpperCase(),
+        ownerName: (ownerName || fullName).trim(),
+        offeringType: resolvedOffering,
+        operationsType: resolvedOperations === 'billing_only' ? 'sales' : 'both',
+        isLoginEnabled: true
+      }];
+    }
+
+    const savedUser = await userObj.save();
+
+    // 7. Seed Default Primary Branch
+    try {
+      const branchId = await generateNextBranchId(savedUser._id);
+      await Branch.create({
+        tenantId: savedUser._id,
+        branchId,
+        branchCode: branchId,
+        name: 'Main Branch / HQ',
+        location: fullAddress || city || 'Headquarters',
+        type: 'Store',
+        manager: fullName,
+        contactNumber: cleanPhone,
+        businessName: businessName
+      });
+    } catch (brErr) {
+      console.error('Error creating default branch for admin new customer:', brErr);
+    }
+
+    // 8. Sync Documents to Document Collection
+    try {
+      const docsToSync = [];
+      if (cleanPan) {
+        docsToSync.push({
+          title: 'Business PAN Card',
+          type: 'PAN Card',
+          documentNumber: cleanPan,
+          fileUrl: documents?.panFileUrl || '',
+          fileName: documents?.panFileName || ''
+        });
+      }
+      if (gstNumber) {
+        docsToSync.push({
+          title: 'GST Registration Certificate',
+          type: 'GST Certificate',
+          documentNumber: gstNumber.trim().toUpperCase(),
+          fileUrl: documents?.gstinFileUrl || '',
+          fileName: documents?.gstinFileName || ''
+        });
+      }
+      if (documents?.customDocuments && Array.isArray(documents.customDocuments)) {
+        for (const cd of documents.customDocuments) {
+          if (!cd.name && !cd.number) continue;
+          docsToSync.push({
+            title: cd.name || 'Business Verification Document',
+            type: cd.type || 'Registration',
+            documentNumber: cd.number || '',
+            fileUrl: cd.fileUrl || '',
+            fileName: cd.fileName || ''
+          });
+        }
+      }
+
+      for (const item of docsToSync) {
+        await Document.create({
+          tenantId: savedUser._id,
+          title: item.title,
+          type: item.type,
+          documentNumber: item.documentNumber,
+          fileUrl: item.fileUrl,
+          fileName: item.fileName
+        });
+      }
+    } catch (docErr) {
+      console.error('Error syncing documents to Document collection:', docErr);
+    }
+
+    // 9. Auto-seed Catalogue
+    try {
+      await seedCatalogueFromUser(savedUser._id, catalogueData);
+    } catch (catErr) {
+      console.error('Error auto-seeding catalogue for admin new customer:', catErr);
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Customer registered, fully onboarded, and activated successfully!',
+      user: savedUser
+    });
+  } catch (err) {
+    console.error('Admin create customer error:', err);
+    res.status(500).json({ message: err.message || 'Server error while creating customer' });
+  }
+});
+
 // @route   GET /api/admin/users/:id/details
 // @desc    Get complete customer data (profile, branches, staff, businesses, expenses, sales, inventory, customers)
 router.get('/users/:id/details', async (req, res) => {
@@ -343,6 +647,20 @@ router.get('/users/:id/details', async (req, res) => {
       SubCategory.find({ tenantId: matchTenant }).populate('categoryId', 'name itemType transactionType').sort({ createdAt: -1 }),
       Investor.find({ tenantId: matchTenant }).select('-password').sort({ createdAt: -1 })
     ]);
+
+    let finalCategories = categories || [];
+    let finalSubcategories = subcategories || [];
+
+    // If customer has no categories yet, auto-seed from their onboarding profile
+    if (finalCategories.length === 0 && (user.categories?.length > 0 || user.category)) {
+      try {
+        await seedCatalogueFromUser(user._id);
+        finalCategories = await Category.find({ tenantId: matchTenant }).sort({ createdAt: -1 });
+        finalSubcategories = await SubCategory.find({ tenantId: matchTenant }).populate('categoryId', 'name itemType transactionType').sort({ createdAt: -1 });
+      } catch (seedErr) {
+        console.error('Error auto-seeding categories in admin customer details:', seedErr);
+      }
+    }
 
     const totalSalesAmount = sales.reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
     const totalExpensesAmount = expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
@@ -406,8 +724,8 @@ router.get('/users/:id/details', async (req, res) => {
       leaves: leaves || [],
       reminders: reminders || [],
       documents: documents || [],
-      categories: categories || [],
-      subcategories: subcategories || [],
+      categories: finalCategories || [],
+      subcategories: finalSubcategories || [],
       investors: investors || [],
       financials: {
         totalSales: totalSalesAmount,
@@ -430,8 +748,8 @@ router.get('/users/:id/details', async (req, res) => {
         leaves: leaves ? leaves.length : 0,
         reminders: reminders ? reminders.length : 0,
         documents: documents ? documents.length : 0,
-        categories: categories ? categories.length : 0,
-        subcategories: subcategories ? subcategories.length : 0,
+        categories: finalCategories ? finalCategories.length : 0,
+        subcategories: finalSubcategories ? finalSubcategories.length : 0,
         investors: investors ? investors.length : 0
       },
       impersonationToken: token

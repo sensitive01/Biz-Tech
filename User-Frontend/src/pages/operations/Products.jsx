@@ -510,6 +510,40 @@ const Products = ({ offeringMode }) => {
                       <p style={{ margin: 0, fontSize: '15px', fontWeight: '600', color: '#334155' }}>
                         {activeTab === 'categories' ? `No ${offeringType === 'service' ? 'service' : 'product'} categories available` : activeTab === 'subcategories' ? `No ${offeringType === 'service' ? 'service' : 'product'} subcategories available` : `No ${offeringType === 'service' ? 'services' : 'products'} found`}
                       </p>
+                      {(storedUser?.category || storedUser?.categories?.length > 0) && activeTab !== 'products' && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            setLoading(true);
+                            try {
+                              const token = localStorage.getItem('token');
+                              await fetch(`${import.meta.env.VITE_API_URL}/api/categories/sync-profile`, {
+                                method: 'POST',
+                                headers: { 'Authorization': `Bearer ${token}` }
+                              });
+                              await fetchData();
+                            } catch (e) {
+                              console.error(e);
+                            } finally {
+                              setLoading(false);
+                            }
+                          }}
+                          style={{
+                            marginTop: '10px',
+                            background: '#EFF6FF',
+                            color: '#2563EB',
+                            border: '1px solid #BFDBFE',
+                            padding: '7px 16px',
+                            borderRadius: '8px',
+                            fontSize: '13px',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s'
+                          }}
+                        >
+                          ⚡ Auto-Import from Onboarding Business Profile
+                        </button>
+                      )}
                       {/* <span style={{ fontSize: '13px', color: '#94A3B8' }}>
                         Click "+ Add New {activeTab === 'categories' ? 'Category' : activeTab === 'subcategories' ? 'Sub Category' : 'Product/Service'}" above to create one.
                       </span> */}

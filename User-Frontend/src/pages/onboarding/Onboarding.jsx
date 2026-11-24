@@ -1260,7 +1260,7 @@ const Onboarding = () => {
   const [upiVerified, setUpiVerified] = useState(false);
   const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
   const [adminUpiId, setAdminUpiId] = useState('biztech@upi');
-  const [razorpayKeyId, setRazorpayKeyId] = useState('rzp_test_U18JZ6gYj3ozhP');
+  const [razorpayKeyId, setRazorpayKeyId] = useState('rzp_test_U2JoYZ0nibt5sL');
   const [upiCopied, setUpiCopied] = useState(false);
   const [utrNumber, setUtrNumber] = useState('');
   const [proofFile, setProofFile] = useState(null);
@@ -1673,12 +1673,34 @@ const Onboarding = () => {
     ));
   };
 
+  // Helper to format PAN input (5 letters, 4 numbers, 1 letter - exactly 10 characters)
+  const formatPanNumber = (input) => {
+    if (!input) return '';
+    const raw = input.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    let result = '';
+    for (let i = 0; i < raw.length && result.length < 10; i++) {
+      const ch = raw[i];
+      const len = result.length;
+      if (len < 5) {
+        if (/[A-Z]/.test(ch)) result += ch;
+      } else if (len < 9) {
+        if (/[0-9]/.test(ch)) result += ch;
+      } else if (len === 9) {
+        if (/[A-Z]/.test(ch)) result += ch;
+      }
+    }
+    return result;
+  };
+
   // PAN Check Handler
   const checkPanAvailability = async (pan) => {
-    if (!pan || pan.length !== 10) return;
+    if (!pan || pan.length !== 10) {
+      setPanCheckResult(null);
+      return;
+    }
     const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
     if (!panRegex.test(pan)) {
-      setPanCheckResult({ checked: true, exists: true, message: 'Invalid format (Must be 5 capital letters, 4 digits, 1 capital letter, e.g. ABCDE1234F)' });
+      setPanCheckResult({ checked: true, exists: false, invalidFormat: true, message: 'Invalid PAN format. Must be 5 letters, 4 numbers, 1 letter (e.g. ABCDE1234F)' });
       return;
     }
 
@@ -1690,9 +1712,9 @@ const Onboarding = () => {
       });
       const data = await res.json();
       if (!res.ok || data.exists) {
-        setPanCheckResult({ checked: true, exists: true, message: data.message || `The PAN card number ${pan} is already registered.` });
+        setPanCheckResult({ checked: true, exists: true, invalidFormat: false, message: data.message || `The PAN card number ${pan} is already registered.` });
       } else {
-        setPanCheckResult({ checked: true, exists: false, message: 'PAN is available and unique.' });
+        setPanCheckResult({ checked: true, exists: false, invalidFormat: false, message: 'PAN is available and unique.' });
       }
     } catch (err) {
       console.error('PAN check error:', err);
@@ -1938,11 +1960,36 @@ const Onboarding = () => {
     const cleanGst = (businessInfo.gstNumber || '').trim().toUpperCase();
     const cleanOwner = (businessInfo.ownerName || '').trim();
 
+    // Prepare structured catalogueData for seeding categories & subcategories into Products/Services
+    const chosenCategories = selectedCategoriesList && selectedCategoriesList.length > 0 
+      ? selectedCategoriesList 
+      : (selectedFinalCategory ? [selectedFinalCategory] : []);
+
+    const catalogueData = [];
+    chosenCategories.forEach(catTitle => {
+      const mappedSubs = (availableSubCategories.grouped && availableSubCategories.grouped[catTitle]) 
+        || getSubCategoriesForCategory(catTitle) 
+        || [];
+
+      const userSelectedSubs = mappedSubs.filter(sub => 
+        selectedSubCategories.includes(sub) || 
+        subCategory === sub ||
+        (typeof subCategory === 'string' && subCategory.split(',').map(s => s.trim()).includes(sub))
+      );
+
+      catalogueData.push({
+        categoryName: catTitle,
+        subCategories: userSelectedSubs,
+        itemType: (offeringType === 'service') ? 'Service' : 'Product'
+      });
+    });
+
     const payload = {
       isSetupUpdate: isAlreadyPaid,
       panNumber: cleanPan,
       ownerName: cleanOwner,
       gstNumber: cleanGst,
+      catalogueData,
       singleBusiness: {
         name: businessInfo.name,
         brandName: businessInfo.brandName,
@@ -2165,7 +2212,7 @@ const Onboarding = () => {
 
       // 3. Configure and trigger Razorpay Checkout modal
       const options = {
-        key: orderData.keyId || razorpayKeyId || 'rzp_test_U18JZ6gYj3ozhP',
+        key: orderData.keyId || razorpayKeyId || 'rzp_test_U2JoYZ0nibt5sL',
         amount: orderData.amount,
         currency: orderData.currency || 'INR',
         name: 'BizTech Platform',
@@ -2239,7 +2286,19 @@ const Onboarding = () => {
 
       {/* Left Sidebar Progress */}
       <div className={`onboarding-sidebar ${isSidebarOpen ? 'open' : ''}`}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' }}>
+        
+        {/* Sidebar Header: height 64px, perfectly aligned with main header */}
+        <div className="onboarding-sidebar-header" style={{
+          height: '64px',
+          minHeight: '64px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 24px',
+          borderBottom: '1px solid var(--border-color)',
+          background: 'var(--card-bg)',
+          boxSizing: 'border-box'
+        }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }} onClick={() => navigate('/')}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '8px', overflow: 'hidden' }}>
               <img src="/logo.jpg" alt="BizTech Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -2254,85 +2313,98 @@ const Onboarding = () => {
           </div>
         </div>
 
-        <h3 style={{ fontSize: '13px', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-muted)', marginBottom: '24px', fontWeight: '700' }}>Setup Progress</h3>
-        
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', position: 'relative' }}>
-          {/* Vertical Line */}
-          <div style={{ position: 'absolute', left: '15px', top: '16px', bottom: '16px', width: '2px', background: 'var(--border-color)', zIndex: 0 }}></div>
+        {/* Sidebar Scrollable Body */}
+        <div className="onboarding-sidebar-content" style={{ flex: 1, overflowY: 'auto', padding: '32px 24px', boxSizing: 'border-box' }}>
+          <h3 style={{ fontSize: '13px', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-muted)', marginBottom: '24px', fontWeight: '700' }}>Setup Progress</h3>
           
-          {activeSteps.map((step, idx) => {
-            const isCompleted = idx < currentStep;
-            const isActive = idx === currentStep;
-            const color = isCompleted ? '#10B981' : isActive ? 'var(--primary-blue, #2563EB)' : 'var(--border-color, #E2E8F0)';
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', position: 'relative' }}>
+            {/* Vertical Line */}
+            <div style={{ position: 'absolute', left: '15px', top: '16px', bottom: '16px', width: '2px', background: 'var(--border-color)', zIndex: 0 }}></div>
             
-            return (
-              <div 
-                key={step.id} 
-                style={{ 
-                  display: 'flex', 
-                  gap: '14px', 
-                  zIndex: 1, 
-                  cursor: 'pointer',
-                  padding: '10px 12px',
-                  borderRadius: '10px',
-                  background: isActive ? 'rgba(37, 99, 235, 0.08)' : 'transparent',
-                  border: isActive ? '1px solid rgba(37, 99, 235, 0.2)' : '1px solid transparent',
-                  transition: 'all 0.2s',
-                  alignItems: 'center'
-                }}
-                onClick={async () => {
-                  if (currentStep === 0 && idx > 0) {
-                    if (!validateCurrentStep()) return;
-                    const cleanPan = (businessInfo.panNumber || '').trim().toUpperCase();
-                    try {
-                      const token = localStorage.getItem('token');
-                      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/check-pan?pan=${encodeURIComponent(cleanPan)}`, {
-                        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-                      });
-                      const data = await res.json();
-                      if (!res.ok || data.exists) {
-                        setError(data.message || `This PAN Card Number (${cleanPan}) is already registered with another business.`);
-                        setPanCheckResult({ checked: true, exists: true, message: data.message });
-                        return;
-                      }
-                      setPanCheckResult({ checked: true, exists: false, message: 'PAN is available and unique.' });
-                    } catch (e) {}
-                    setDocuments(prev => ({ ...prev, pan: cleanPan }));
-                  }
-                  setError('');
-                  setCurrentStep(idx);
-                  if (window.innerWidth <= 768) setIsSidebarOpen(false);
-                }}
-                title={`Jump to Step ${idx + 1}: ${step.title}`}
-              >
-                <div style={{ 
-                  width: '32px', height: '32px', borderRadius: '50%', 
-                  background: isCompleted ? '#10B981' : isActive ? 'var(--primary-blue, #2563EB)' : 'var(--card-bg, #FFFFFF)', 
-                  border: `2px solid ${color}`,
-                  color: isCompleted || isActive ? 'white' : 'var(--text-muted, #94A3B8)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                  transition: 'all 0.3s',
-                  fontWeight: '700',
-                  fontSize: '13px',
-                  boxShadow: isActive ? '0 0 0 4px rgba(37, 99, 235, 0.15)' : 'none'
-                }}>
-                  {isCompleted ? <CheckCircle2 size={16} /> : idx + 1}
+            {activeSteps.map((step, idx) => {
+              const isCompleted = idx < currentStep;
+              const isActive = idx === currentStep;
+              const color = isCompleted ? '#10B981' : isActive ? 'var(--primary-blue, #2563EB)' : 'var(--border-color, #E2E8F0)';
+              
+              return (
+                <div 
+                  key={step.id} 
+                  style={{ 
+                    display: 'flex', 
+                    gap: '14px', 
+                    zIndex: 1, 
+                    cursor: 'pointer',
+                    padding: '10px 12px',
+                    borderRadius: '10px',
+                    background: isActive ? 'rgba(37, 99, 235, 0.08)' : 'transparent',
+                    border: isActive ? '1px solid rgba(37, 99, 235, 0.2)' : '1px solid transparent',
+                    transition: 'all 0.2s',
+                    alignItems: 'center'
+                  }}
+                  onClick={async () => {
+                    if (currentStep === 0 && idx > 0) {
+                      if (!validateCurrentStep()) return;
+                      const cleanPan = (businessInfo.panNumber || '').trim().toUpperCase();
+                      try {
+                        const token = localStorage.getItem('token');
+                        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/check-pan?pan=${encodeURIComponent(cleanPan)}`, {
+                          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+                        });
+                        const data = await res.json();
+                        if (!res.ok || data.exists) {
+                          setError(data.message || `This PAN Card Number (${cleanPan}) is already registered with another business.`);
+                          setPanCheckResult({ checked: true, exists: true, message: data.message });
+                          return;
+                        }
+                        setPanCheckResult({ checked: true, exists: false, message: 'PAN is available and unique.' });
+                      } catch (e) {}
+                      setDocuments(prev => ({ ...prev, pan: cleanPan }));
+                    }
+                    setError('');
+                    setCurrentStep(idx);
+                    if (window.innerWidth <= 768) setIsSidebarOpen(false);
+                  }}
+                  title={`Jump to Step ${idx + 1}: ${step.title}`}
+                >
+                  <div style={{ 
+                    width: '32px', height: '32px', borderRadius: '50%', 
+                    background: isCompleted ? '#10B981' : isActive ? 'var(--primary-blue, #2563EB)' : 'var(--card-bg, #FFFFFF)', 
+                    border: `2px solid ${color}`,
+                    color: isCompleted || isActive ? 'white' : 'var(--text-muted, #94A3B8)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                    transition: 'all 0.3s',
+                    fontWeight: '700',
+                    fontSize: '13px',
+                    boxShadow: isActive ? '0 0 0 4px rgba(37, 99, 235, 0.15)' : 'none'
+                  }}>
+                    {isCompleted ? <CheckCircle2 size={16} /> : idx + 1}
+                  </div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <h4 style={{ margin: '0 0 2px 0', fontSize: '14px', color: isActive ? 'var(--primary-blue, #2563EB)' : (isCompleted ? 'var(--text-title)' : 'var(--text-muted)'), fontWeight: isActive ? '700' : '600', transition: 'color 0.2s' }}>{step.title}</h4>
+                    <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary, #64748B)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{step.desc}</p>
+                  </div>
                 </div>
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <h4 style={{ margin: '0 0 2px 0', fontSize: '14px', color: isActive ? 'var(--primary-blue, #2563EB)' : (isCompleted ? 'var(--text-title)' : 'var(--text-muted)'), fontWeight: isActive ? '700' : '600', transition: 'color 0.2s' }}>{step.title}</h4>
-                  <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary, #64748B)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{step.desc}</p>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
 
       {/* Main Content Area */}
-      <div className="onboarding-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <div className="onboarding-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, height: '100vh' }}>
         
-        {/* Header for mobile or when sidebar collapsed */}
-        <div className={`onboarding-header ${isSidebarOpen ? 'hide-on-desktop' : ''}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid var(--border-color)', background: 'var(--card-bg)' }}>
+        {/* Main Content Header: height 64px, perfectly aligned with sidebar header */}
+        <div className={`onboarding-header ${isSidebarOpen ? 'hide-on-desktop' : ''}`} style={{
+          height: '64px',
+          minHeight: '64px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '0 24px',
+          borderBottom: '1px solid var(--border-color)',
+          background: 'var(--card-bg)',
+          boxSizing: 'border-box'
+        }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }} onClick={() => navigate('/')}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '8px', overflow: 'hidden' }}>
               <img src="/logo.jpg" alt="BizTech Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -2342,7 +2414,7 @@ const Onboarding = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '600' }}>Step {currentStep + 1} of {activeSteps.length}</span>
             <ThemeToggle size="small" />
-            <button className="sidebar-close-btn" onClick={() => setIsSidebarOpen(true)} title="Open Steps Sidebar">
+            <button className="sidebar-close-btn" onClick={() => setIsSidebarOpen(true)} title="Open Steps Sidebar" style={{ display: isSidebarOpen ? 'none' : 'flex' }}>
               <Menu size={22} />
             </button>
           </div>
@@ -2455,14 +2527,19 @@ const Onboarding = () => {
                         <Loader2 size={12} className="animate-spin" /> Verifying...
                       </span>
                     )}
-                    {!panChecking && panCheckResult?.checked && !panCheckResult.exists && (
-                      <span style={{ fontSize: '11px', color: '#16A34A', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                        <Check size={12} /> Unique PAN
+                    {!panChecking && panCheckResult?.checked && panCheckResult.invalidFormat && (
+                      <span style={{ fontSize: '11px', color: '#EF4444', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                        <AlertCircle size={12} /> Invalid Format
                       </span>
                     )}
-                    {!panChecking && panCheckResult?.checked && panCheckResult.exists && (
+                    {!panChecking && panCheckResult?.checked && !panCheckResult.invalidFormat && panCheckResult.exists && (
                       <span style={{ fontSize: '11px', color: '#EF4444', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '3px' }}>
                         <AlertCircle size={12} /> Already Registered
+                      </span>
+                    )}
+                    {!panChecking && panCheckResult?.checked && !panCheckResult.invalidFormat && !panCheckResult.exists && (
+                      <span style={{ fontSize: '11px', color: '#16A34A', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                        <Check size={12} /> Unique PAN
                       </span>
                     )}
                   </div>
@@ -2472,11 +2549,12 @@ const Onboarding = () => {
                     maxLength={10}
                     value={businessInfo.panNumber}
                     onChange={(e) => {
-                      const clean = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
+                      const clean = formatPanNumber(e.target.value);
                       setBusinessInfo(prev => ({ ...prev, panNumber: clean }));
                       setDocuments(prev => ({ ...prev, pan: clean }));
-                      setPanCheckResult(null);
-                      if (clean.length === 10) {
+                      if (clean.length < 10) {
+                        setPanCheckResult(null);
+                      } else if (clean.length === 10) {
                         checkPanAvailability(clean);
                       }
                     }}
@@ -2489,7 +2567,7 @@ const Onboarding = () => {
                       width: '100%', 
                       padding: '12px 14px', 
                       borderRadius: '10px', 
-                      border: panCheckResult?.exists ? '1.5px solid #EF4444' : (panCheckResult?.checked ? '1.5px solid #10B981' : '1px solid var(--border-color, #E2E8F0)'), 
+                      border: (panCheckResult?.exists || panCheckResult?.invalidFormat) ? '1.5px solid #EF4444' : (panCheckResult?.checked ? '1.5px solid #10B981' : '1px solid var(--border-color, #E2E8F0)'), 
                       background: 'var(--bg-color, white)', 
                       color: 'var(--text-title)', 
                       outline: 'none', 
@@ -2500,8 +2578,8 @@ const Onboarding = () => {
                       letterSpacing: '1px'
                     }}
                   />
-                  <span style={{ fontSize: '11px', color: panCheckResult?.exists ? '#EF4444' : '#64748B', display: 'block', marginTop: '4px' }}>
-                    {panCheckResult?.exists ? panCheckResult.message : '10-character alphanumeric PAN (capital letters & numbers). Mandatory & unique.'}
+                  <span style={{ fontSize: '11px', color: (panCheckResult?.exists || panCheckResult?.invalidFormat) ? '#EF4444' : '#64748B', display: 'block', marginTop: '4px' }}>
+                    {panCheckResult?.message || 'Must be 5 letters, 4 digits, 1 letter (e.g. ABCDE1234F). Exactly 10 characters.'}
                   </span>
                 </div>
 

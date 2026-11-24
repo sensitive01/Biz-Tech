@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const SubCategory = require('../models/SubCategory');
+const { seedCatalogueFromUser } = require('../utils/catalogueSeeder');
 const jwt = require('jsonwebtoken');
 
 const auth = (req, res, next) => {
@@ -17,9 +18,18 @@ const auth = (req, res, next) => {
 
 router.get('/', auth, async (req, res) => {
   try {
-    const items = await SubCategory.find({ tenantId: req.user.id })
+    let items = await SubCategory.find({ tenantId: req.user.id })
       .populate('categoryId', 'name itemType transactionType')
       .sort({ createdAt: -1 });
+
+    // If tenant has no subcategories yet, auto-seed from their onboarding profile
+    if (items.length === 0) {
+      await seedCatalogueFromUser(req.user.id);
+      items = await SubCategory.find({ tenantId: req.user.id })
+        .populate('categoryId', 'name itemType transactionType')
+        .sort({ createdAt: -1 });
+    }
+
     res.json(items);
   } catch (err) {
     res.status(500).json({ message: 'Server Error' });

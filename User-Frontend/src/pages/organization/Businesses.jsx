@@ -500,9 +500,6 @@ const Businesses = () => {
                 <th onClick={() => requestSort('name')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '14px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', minWidth: '180px', verticalAlign: 'middle' }}>
                   <div style={{ display: 'flex', alignItems: 'center' }}>Business Name {renderSortIcon('name')}</div>
                 </th>
-                <th onClick={() => requestSort('category')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '14px 12px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: '115px', verticalAlign: 'middle' }}>
-                  <div style={{ display: 'flex', alignItems: 'center' }}>Category {renderSortIcon('category')}</div>
-                </th>
                 <th style={{ padding: '14px 12px', fontSize: '12px', fontWeight: '700', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', letterSpacing: '0.5px', width: '145px', verticalAlign: 'middle' }}>
                   Model & Operations
                 </th>
@@ -528,11 +525,11 @@ const Businesses = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="9" style={{ padding: '32px', textAlign: 'center', color: '#64748B' }}>Loading businesses...</td>
+                  <td colSpan={isInvestor ? 7 : 8} style={{ padding: '32px', textAlign: 'center', color: '#64748B' }}>Loading businesses...</td>
                 </tr>
               ) : filteredBusinesses.length === 0 ? (
                 <tr>
-                  <td colSpan="9" style={{ padding: '64px 32px', textAlign: 'center' }}>
+                  <td colSpan={isInvestor ? 7 : 8} style={{ padding: '64px 32px', textAlign: 'center' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                       <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
                         <Building2 size={32} color="#3B82F6" />
@@ -564,33 +561,8 @@ const Businesses = () => {
                               </span>
                             )}
                           </div>
-                          <span style={{ fontSize: '11px', color: '#64748B', fontWeight: '500' }}>
-                            {b.category || 'Business Entity'}
-                          </span>
                         </div>
                       </div>
-                    </td>
-                    
-                    <td style={{ padding: '14px 12px', verticalAlign: 'middle' }}>
-                      {b.category ? (
-                        <span style={{ 
-                          display: 'inline-flex', 
-                          alignItems: 'center', 
-                          gap: '5px', 
-                          fontSize: '12px', 
-                          fontWeight: '600', 
-                          padding: '3px 8px', 
-                          borderRadius: '8px', 
-                          background: '#F1F5F9', 
-                          color: '#334155',
-                          border: '1px solid #E2E8F0'
-                        }}>
-                          <Tag size={11} color="#64748B" />
-                          {b.category}
-                        </span>
-                      ) : (
-                        <span style={{ color: '#94A3B8', fontSize: '13px' }}>—</span>
-                      )}
                     </td>
 
                     <td style={{ padding: '14px 12px', verticalAlign: 'middle' }}>

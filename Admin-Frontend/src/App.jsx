@@ -6,6 +6,7 @@ import CustomerDirectory from './pages/CustomerDirectory';
 import AddCustomer from './pages/AddCustomer';
 // Customer details and management view
 import CustomerDetails from './pages/CustomerDetails';
+import Onboarding from './pages/Onboarding';
 import Dashboard from './pages/Dashboard';
 import Settings from './pages/Settings';
 import PricingManage from './pages/PricingManage';
@@ -26,6 +27,9 @@ function App() {
         
         {/* Standalone customer details view (no admin sidebar or header) */}
         <Route path="/admin/customers/:id" element={<CustomerDetails />} />
+        
+        {/* Standalone customer onboarding wizard view (configured within admin portal on port 5173) */}
+        <Route path="/admin/customers/:id/onboarding" element={<Onboarding />} />
         
         <Route path="/admin" element={<AdminLayout />}>
           <Route path="dashboard" element={<Dashboard />} />

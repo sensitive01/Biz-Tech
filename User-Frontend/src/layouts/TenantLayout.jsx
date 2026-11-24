@@ -161,6 +161,7 @@ const TenantLayout = () => {
   const isEmbedded = localStorage.getItem('isEmbedded') === 'true' || isInsideIframe;
 
   const handleExitImpersonation = () => {
+    const adminReturnUrl = localStorage.getItem('adminReturnUrl');
     localStorage.removeItem('token');
     localStorage.removeItem('tenantType');
     localStorage.removeItem('user');
@@ -172,7 +173,11 @@ const TenantLayout = () => {
     Object.keys(localStorage).forEach(key => {
       if (key.startsWith('onb_')) localStorage.removeItem(key);
     });
-    window.location.replace('/login');
+    if (adminReturnUrl) {
+      window.location.href = adminReturnUrl;
+    } else {
+      window.location.replace('/login');
+    }
   };
 
   const handleLogout = () => {
