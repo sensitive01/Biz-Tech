@@ -376,6 +376,7 @@ const PaymentApprovals = () => {
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
               <thead>
                 <tr style={{ background: '#F8FAFC', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '12px' }}>
+                  <th style={{ padding: '14px 20px' }}>S.no</th>
                   <th style={{ padding: '14px 20px' }}>Business / Legal Identity</th>
                   <th style={{ padding: '14px 16px' }}>Owner & Contact</th>
                   <th style={{ padding: '14px 16px' }}>Plan & Fee</th>
@@ -386,7 +387,7 @@ const PaymentApprovals = () => {
                 </tr>
               </thead>
               <tbody>
-                {approvals.map((item) => {
+                {approvals.map((item, idx) => {
                   const proofSrc = getFullProofUrl(item.proofUrl);
                   const isPending = item.status === 'Pending';
                   const isApproved = item.status === 'Approved';
@@ -402,6 +403,7 @@ const PaymentApprovals = () => {
                       onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'}
                       onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
                     >
+                      <td style={{ padding: '16px 20px', color: 'var(--text-secondary)', fontWeight: '500' }}>{idx + 1}</td>
                       {/* 1. Business Legal Identity */}
                       <td style={{ padding: '16px 20px' }}>
                         <div style={{ fontWeight: '700', color: 'var(--text-title)', fontSize: '14px' }}>

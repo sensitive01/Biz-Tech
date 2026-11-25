@@ -1,6 +1,11 @@
 const User = require('../models/User');
 const Category = require('../models/Category');
 const SubCategory = require('../models/SubCategory');
+const {
+  getSubCategoriesForCategory,
+  isSubcategoryBelongingToCategory,
+  normalizeCategoryKey
+} = require('../constants/businessCategories');
 
 /**
  * Automatically seeds Categories and Sub-Categories for a tenant based on their Onboarding wizard choices.
@@ -13,14 +18,23 @@ const seedCatalogueFromUser = async (userId, catalogueData = null) => {
     const user = await User.findById(userId);
     if (!user) return false;
 
-    const resolvedOffering = user.businessOfferingType || user.offeringType || 'product';
-    const defaultItemType = resolvedOffering === 'service' ? 'Service' : 'Product';
+    const rawOffering = user.businessOfferingType || user.offeringType || 'product';
+    const resolvedOffering = String(rawOffering).toLowerCase();
+    const defaultItemType = resolvedOffering === 'both' ? 'Both' : (resolvedOffering === 'service' ? 'Service' : 'Product');
+
+    // If catalogueData passed, persist it on user model for future re-syncs
+    if (Array.isArray(catalogueData) && catalogueData.length > 0) {
+      user.catalogueData = catalogueData;
+      await user.save();
+    } else if ((!catalogueData || catalogueData.length === 0) && Array.isArray(user.catalogueData) && user.catalogueData.length > 0) {
+      catalogueData = user.catalogueData;
+    }
 
     if (Array.isArray(catalogueData) && catalogueData.length > 0) {
       for (const item of catalogueData) {
         if (!item.categoryName || !item.categoryName.trim()) continue;
         const catName = item.categoryName.trim();
-        const itemType = item.itemType || defaultItemType;
+        const itemType = resolvedOffering === 'both' ? 'Both' : (item.itemType || defaultItemType);
 
         const catDoc = await Category.findOneAndUpdate(
           { tenantId: userId, name: catName },
@@ -53,6 +67,21 @@ const seedCatalogueFromUser = async (userId, catalogueData = null) => {
           }
         }
       }
+
+      if (resolvedOffering === 'both') {
+        await Category.updateMany(
+          { tenantId: userId, itemType: { $ne: 'Service' } },
+          { $set: { itemType: 'Both' } }
+        );
+        await SubCategory.updateMany(
+          { tenantId: userId, itemType: { $ne: 'Service' } },
+          { $set: { itemType: 'Both' } }
+        );
+      }
+
+      // Cleanup any corrupted cross-assigned subcategories
+      await cleanRogueSubcategories(userId);
+
       return true;
     }
 
@@ -81,11 +110,23 @@ const seedCatalogueFromUser = async (userId, catalogueData = null) => {
 
         if (subList.length > 0) {
           for (const subName of subList) {
+            if (!subName || !subName.trim()) continue;
+            const cleanSub = subName.trim();
+
+            // Strict category-to-subcategory mapping check
+            if (catList.length > 1) {
+              const belongs = isSubcategoryBelongingToCategory(cleanSub, cleanCat);
+              if (!belongs) {
+                // If it belongs to another known category in catList, do NOT attach it to this category
+                continue;
+              }
+            }
+
             await SubCategory.findOneAndUpdate(
-              { tenantId: userId, name: subName, categoryId: catDoc._id },
+              { tenantId: userId, name: cleanSub, categoryId: catDoc._id },
               {
                 tenantId: userId,
-                name: subName,
+                name: cleanSub,
                 categoryId: catDoc._id,
                 itemType: defaultItemType,
                 transactionType: 'Sales',
@@ -96,6 +137,21 @@ const seedCatalogueFromUser = async (userId, catalogueData = null) => {
           }
         }
       }
+
+      if (resolvedOffering === 'both') {
+        await Category.updateMany(
+          { tenantId: userId, itemType: { $ne: 'Service' } },
+          { $set: { itemType: 'Both' } }
+        );
+        await SubCategory.updateMany(
+          { tenantId: userId, itemType: { $ne: 'Service' } },
+          { $set: { itemType: 'Both' } }
+        );
+      }
+
+      // Cleanup any corrupted cross-assigned subcategories
+      await cleanRogueSubcategories(userId);
+
       return true;
     }
 
@@ -106,4 +162,33 @@ const seedCatalogueFromUser = async (userId, catalogueData = null) => {
   }
 };
 
-module.exports = { seedCatalogueFromUser };
+/**
+ * Removes subcategories assigned to the wrong parent category when multiple categories exist for a tenant.
+ * @param {string} tenantId 
+ */
+const cleanRogueSubcategories = async (tenantId) => {
+  try {
+    const categories = await Category.find({ tenantId });
+    if (categories.length <= 1) return;
+
+    const subcategories = await SubCategory.find({ tenantId }).populate('categoryId');
+    for (const sub of subcategories) {
+      if (!sub.categoryId || !sub.categoryId.name) continue;
+      const parentCatName = sub.categoryId.name;
+      const belongs = isSubcategoryBelongingToCategory(sub.name, parentCatName);
+      
+      // If it doesn't belong to its assigned category, check if it belongs to another category belonging to this tenant
+      if (!belongs) {
+        const matchingCat = categories.find(c => isSubcategoryBelongingToCategory(sub.name, c.name));
+        if (matchingCat && String(matchingCat._id) !== String(sub.categoryId._id)) {
+          // This subcategory was erroneously attached to the wrong category! Delete this mismatched record.
+          await SubCategory.findByIdAndDelete(sub._id);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error cleaning rogue subcategories:', err);
+  }
+};
+
+module.exports = { seedCatalogueFromUser, cleanRogueSubcategories };

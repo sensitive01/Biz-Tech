@@ -39,22 +39,28 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
     const newItem = new Product({ ...data, tenantId: req.user.id });
     const saved = await newItem.save();
 
-    // Automatically sync Product items into Inventory
-    if (saved.itemType === 'Product') {
+    // Automatically sync Product items into Inventory (anything not Service)
+    const isService = String(saved.itemType || '').toLowerCase() === 'service';
+    if (!isService) {
       let categoryName = '';
       if (saved.categoryId) {
         const cat = await Category.findById(saved.categoryId);
         if (cat) categoryName = cat.name;
       }
-      await Inventory.create({
-        tenantId: req.user.id,
-        itemName: saved.name,
-        sku: saved.sku || '',
-        category: categoryName,
-        quantity: Number(saved.stock) || 0,
-        price: Number(saved.price) || 0,
-        productId: saved._id
-      });
+      await Inventory.findOneAndUpdate(
+        { productId: saved._id, tenantId: req.user.id },
+        {
+          $set: {
+            itemName: saved.name,
+            sku: saved.sku || '',
+            category: categoryName,
+            quantity: Number(saved.stock) || 0,
+            price: Number(saved.price) || 0,
+            productId: saved._id
+          }
+        },
+        { upsert: true, new: true }
+      );
     }
 
     res.json(saved);
@@ -75,7 +81,8 @@ router.put('/:id', auth, upload.single('image'), async (req, res) => {
       { new: true }
     );
 
-    if (updated && updated.itemType === 'Product') {
+    const isService = String(updated?.itemType || '').toLowerCase() === 'service';
+    if (updated && !isService) {
       let categoryName = '';
       if (updated.categoryId) {
         const cat = await Category.findById(updated.categoryId);
@@ -94,7 +101,7 @@ router.put('/:id', auth, upload.single('image'), async (req, res) => {
         },
         { upsert: true }
       );
-    } else if (updated && updated.itemType === 'Service') {
+    } else if (updated && isService) {
       await Inventory.deleteMany({ productId: updated._id, tenantId: req.user.id });
     }
 

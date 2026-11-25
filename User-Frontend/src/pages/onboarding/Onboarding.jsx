@@ -1980,7 +1980,7 @@ const Onboarding = () => {
       catalogueData.push({
         categoryName: catTitle,
         subCategories: userSelectedSubs,
-        itemType: (offeringType === 'service') ? 'Service' : 'Product'
+        itemType: (offeringType === 'both') ? 'Both' : ((offeringType === 'service') ? 'Service' : 'Product')
       });
     });
 

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Category = require('../models/Category');
+const User = require('../models/User');
 const { seedCatalogueFromUser } = require('../utils/catalogueSeeder');
 const jwt = require('jsonwebtoken');
 const { upload } = require('../config/cloudinary');
@@ -19,6 +20,15 @@ const auth = (req, res, next) => {
 
 router.get('/', auth, async (req, res) => {
   try {
+    const user = await User.findById(req.user.id);
+    const rawOffering = user?.businessOfferingType || user?.offeringType || '';
+    if (String(rawOffering).toLowerCase() === 'both') {
+      await Category.updateMany(
+        { tenantId: req.user.id, itemType: { $in: ['Product', null] } },
+        { $set: { itemType: 'Both' } }
+      );
+    }
+
     let items = await Category.find({ tenantId: req.user.id }).sort({ createdAt: -1 });
 
     // If tenant has no categories yet, auto-seed from their onboarding profile

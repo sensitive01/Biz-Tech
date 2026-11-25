@@ -7,6 +7,11 @@ const InventorySchema = new mongoose.Schema({
   category: { type: String },
   quantity: { type: Number },
   price: { type: Number },
+  costPrice: { type: Number },
+  supplier: { type: String },
+  batchNumber: { type: String },
+  location: { type: String },
+  notes: { type: String },
   productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
   createdAt: { type: Date, default: Date.now }
 });

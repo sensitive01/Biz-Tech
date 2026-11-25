@@ -1559,6 +1559,9 @@ router.put('/inventory/:id', async (req, res) => {
       { new: true }
     );
     if (!updated) return res.status(404).json({ message: 'Inventory item not found' });
+    if (updated.productId && req.body.quantity !== undefined) {
+      await Product.findByIdAndUpdate(updated.productId, { stock: Number(req.body.quantity) || 0 });
+    }
     res.json(updated);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -1569,6 +1572,9 @@ router.delete('/inventory/:id', async (req, res) => {
   try {
     const deleted = await Inventory.findByIdAndDelete(req.params.id);
     if (!deleted) return res.status(404).json({ message: 'Inventory item not found' });
+    if (deleted.productId) {
+      await Product.findByIdAndUpdate(deleted.productId, { stock: 0 });
+    }
     res.json({ message: 'Inventory item deleted successfully' });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -1890,8 +1896,89 @@ router.post('/inventory', async (req, res) => {
   try {
     const data = { ...req.body };
     if (!data.itemName && data.name) data.itemName = data.name;
-    const inv = new Inventory(data);
+
+    const { tenantId, productId, itemName, sku, category, quantity, price, mode, quantityToAdd, supplier, costPrice, notes } = data;
+
+    let targetProduct = null;
+    if (productId) {
+      targetProduct = await Product.findOne({ _id: productId, tenantId });
+    }
+
+    let existingInv = null;
+    if (productId) {
+      existingInv = await Inventory.findOne({ productId, tenantId });
+    } else if (itemName) {
+      existingInv = await Inventory.findOne({
+        tenantId,
+        itemName: { $regex: new RegExp(`^${itemName.trim()}$`, 'i') }
+      });
+    }
+
+    let finalQty = Number(quantity) || 0;
+    if (mode === 'add' && quantityToAdd !== undefined) {
+      const baseQty = existingInv ? (Number(existingInv.quantity) || 0) : (targetProduct ? (Number(targetProduct.stock) || 0) : 0);
+      finalQty = baseQty + (Number(quantityToAdd) || 0);
+    }
+
+    if (existingInv) {
+      existingInv.quantity = finalQty;
+      if (price !== undefined && price !== '') existingInv.price = Number(price);
+      if (costPrice !== undefined && costPrice !== '') existingInv.costPrice = Number(costPrice);
+      if (supplier !== undefined) existingInv.supplier = supplier;
+      if (notes !== undefined) existingInv.notes = notes;
+      if (sku) existingInv.sku = sku;
+      if (category) existingInv.category = category;
+      if (itemName) existingInv.itemName = itemName;
+      if (productId) existingInv.productId = productId;
+      await existingInv.save();
+
+      const prodId = productId || existingInv.productId;
+      if (prodId) {
+        await Product.findOneAndUpdate(
+          { _id: prodId, tenantId },
+          {
+            $set: {
+              stock: finalQty,
+              ...(price !== undefined && price !== '' ? { price: Number(price) } : {})
+            }
+          }
+        );
+      }
+
+      return res.json(existingInv);
+    }
+
+    const finalItemName = itemName || targetProduct?.name || data.name || 'Item';
+    const finalSku = sku || targetProduct?.sku || '';
+    const finalPrice = price !== undefined && price !== '' ? Number(price) : (targetProduct?.price || 0);
+
+    const inv = new Inventory({
+      tenantId,
+      productId: productId || undefined,
+      itemName: finalItemName,
+      sku: finalSku,
+      category: category || targetProduct?.category || 'General',
+      quantity: finalQty,
+      price: finalPrice,
+      costPrice: costPrice !== undefined && costPrice !== '' ? Number(costPrice) : 0,
+      supplier: supplier || '',
+      notes: notes || ''
+    });
+
     const saved = await inv.save();
+
+    if (productId) {
+      await Product.findOneAndUpdate(
+        { _id: productId, tenantId },
+        {
+          $set: {
+            stock: finalQty,
+            ...(price !== undefined && price !== '' ? { price: Number(price) } : {})
+          }
+        }
+      );
+    }
+
     res.status(201).json(saved);
   } catch (err) {
     res.status(400).json({ message: err.message });

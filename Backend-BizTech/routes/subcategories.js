@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const SubCategory = require('../models/SubCategory');
+const User = require('../models/User');
 const { seedCatalogueFromUser } = require('../utils/catalogueSeeder');
 const jwt = require('jsonwebtoken');
 
@@ -18,6 +19,15 @@ const auth = (req, res, next) => {
 
 router.get('/', auth, async (req, res) => {
   try {
+    const user = await User.findById(req.user.id);
+    const rawOffering = user?.businessOfferingType || user?.offeringType || '';
+    if (String(rawOffering).toLowerCase() === 'both') {
+      await SubCategory.updateMany(
+        { tenantId: req.user.id, itemType: { $in: ['Product', null] } },
+        { $set: { itemType: 'Both' } }
+      );
+    }
+
     let items = await SubCategory.find({ tenantId: req.user.id })
       .populate('categoryId', 'name itemType transactionType')
       .sort({ createdAt: -1 });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   LayoutGrid, Users, Map, Calendar, Clock, Package, Wrench, Archive, TrendingUp,
@@ -7,11 +7,12 @@ import {
   Briefcase, IndianRupee, Search, Download, ExternalLink, Layers, Check,
   X, Sparkles, Eye, CreditCard, Edit2, Trash2, AlertTriangle, Save, CheckCircle2,
   ArrowUp, ArrowDown, ArrowUpDown, Plus, KeyRound, Lock, EyeOff, Tag,
-  Pencil, Building, ShieldCheck, CalendarDays, List, ChevronLeft, ChevronRight, Repeat, Bell, LogOut,
+  Pencil, Building, ShieldCheck, CalendarDays, List, ChevronLeft, ChevronRight, ChevronDown, Repeat, Bell, LogOut,
   Barcode, Printer, PieChart, DollarSign, XCircle, Upload, Paperclip
 } from 'lucide-react';
 import TablePagination from '../components/TablePagination';
 import { exportToCSV } from '../utils/exportToCSV';
+import { getSubCategoriesForCategory, normalizeCategoryKey } from '../constants/businessCategories';
 
 // SVG Barcode graphic component
 const BarcodeSVG = ({ code, width = 160, height = 48, showText = true }) => {
@@ -96,6 +97,29 @@ const CustomerDetails = () => {
   // Investor Management Filters
   const [investorFilterStatus, setInvestorFilterStatus] = useState('all');
   const [investorFilterBranch, setInvestorFilterBranch] = useState('all');
+
+  // Top Header Branch & Business Filters
+  const [showBranchDropdown, setShowBranchDropdown] = useState(false);
+  const [showBusinessDropdown, setShowBusinessDropdown] = useState(false);
+  const [selectedBranchFilterId, setSelectedBranchFilterId] = useState('all');
+  const [selectedBranchFilterName, setSelectedBranchFilterName] = useState('All Branches');
+  const [selectedBusinessFilterId, setSelectedBusinessFilterId] = useState('all');
+  const [selectedBusinessFilterName, setSelectedBusinessFilterName] = useState('All Businesses');
+  const branchDropdownRef = useRef(null);
+  const businessDropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (branchDropdownRef.current && !branchDropdownRef.current.contains(event.target)) {
+        setShowBranchDropdown(false);
+      }
+      if (businessDropdownRef.current && !businessDropdownRef.current.contains(event.target)) {
+        setShowBusinessDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Modules & Operations Configuration State
   const [modulesConfig, setModulesConfig] = useState({
@@ -262,6 +286,21 @@ const CustomerDetails = () => {
   const categories = details?.categories || [];
   const subcategories = details?.subcategories || [];
   const investors = details?.investors || [];
+
+  const displayBranches = useMemo(() => {
+    if (selectedBusinessFilterId === 'all') return branches;
+    const currentBiz = businesses.find(b => b._id === selectedBusinessFilterId);
+    if (!currentBiz) return branches;
+    return branches.filter(br => br.businessId === selectedBusinessFilterId || br.businessName === currentBiz.name);
+  }, [branches, businesses, selectedBusinessFilterId]);
+
+  const activeBranchLabel = selectedBranchFilterId === 'all'
+    ? 'All Branches'
+    : (branches.find(b => b._id === selectedBranchFilterId)?.name || selectedBranchFilterName || 'All Branches');
+
+  const activeBusinessLabel = selectedBusinessFilterId === 'all'
+    ? 'All Businesses'
+    : (businesses.find(b => b._id === selectedBusinessFilterId)?.name || selectedBusinessFilterName || 'All Businesses');
 
 
   const financials = details?.financials || {
@@ -952,13 +991,17 @@ const CustomerDetails = () => {
   }, [inventory, searchTerm, sortConfig, filterDays, customStartDate, customEndDate]);
 
   const isServicesSection = activeSection === 'services';
+  const customerOffering = String(customer.businessOfferingType || customer.offeringType || '').toLowerCase();
+  const isBothCustomerOffering = customerOffering === 'both';
 
   const filteredCategories = useMemo(() => {
     const q = searchTerm.toLowerCase();
     const dateFiltered = applyDateFilter(categories, 'createdAt');
     const filtered = dateFiltered.filter(c => {
       const type = c.itemType?.toLowerCase();
-      if (isServicesSection) {
+      if (type === 'both' || isBothCustomerOffering) {
+        // Shown in both services and products
+      } else if (isServicesSection) {
         if (type !== 'service') return false;
       } else if (activeSection === 'products') {
         if (type === 'service') return false;
@@ -971,14 +1014,16 @@ const CustomerDetails = () => {
       );
     });
     return sortList(filtered);
-  }, [categories, searchTerm, sortConfig, filterDays, customStartDate, customEndDate, activeSection, isServicesSection]);
+  }, [categories, searchTerm, sortConfig, filterDays, customStartDate, customEndDate, activeSection, isServicesSection, isBothCustomerOffering]);
 
   const filteredSubcategories = useMemo(() => {
     const q = searchTerm.toLowerCase();
     const dateFiltered = applyDateFilter(subcategories, 'createdAt');
     const filtered = dateFiltered.filter(sc => {
       const type = (sc.itemType || sc.categoryId?.itemType)?.toLowerCase();
-      if (isServicesSection) {
+      if (type === 'both' || isBothCustomerOffering) {
+        // Shown in both services and products
+      } else if (isServicesSection) {
         if (type !== 'service') return false;
       } else if (activeSection === 'products') {
         if (type === 'service') return false;
@@ -992,7 +1037,7 @@ const CustomerDetails = () => {
       );
     });
     return sortList(filtered);
-  }, [subcategories, searchTerm, sortConfig, filterDays, customStartDate, customEndDate, activeSection, isServicesSection]);
+  }, [subcategories, searchTerm, sortConfig, filterDays, customStartDate, customEndDate, activeSection, isServicesSection, isBothCustomerOffering]);
 
   const filteredProducts = useMemo(() => {
     const q = searchTerm.toLowerCase();
@@ -1524,7 +1569,24 @@ const CustomerDetails = () => {
     } else if (type === 'sale') {
       initialFormData = { tenantId, invoiceNo: '', customerName: '', amount: '', date: new Date().toISOString().split('T')[0], status: 'Paid', ...overrides };
     } else if (type === 'inventory') {
-      initialFormData = { tenantId, itemName: '', sku: '', category: '', quantity: '', price: '', ...overrides };
+      const targetProd = overrides.productId ? products.find(p => String(p._id) === String(overrides.productId)) : null;
+      const existingInv = targetProd ? inventory.find(i => String(i.productId?._id || i.productId) === String(targetProd._id)) : null;
+      const initialStock = existingInv ? Number(existingInv.quantity) || 0 : (targetProd ? Number(targetProd.stock) || 0 : 0);
+
+      initialFormData = {
+        tenantId,
+        productId: targetProd?._id || overrides.productId || '',
+        itemName: targetProd?.name || overrides.itemName || '',
+        sku: targetProd?.sku || overrides.sku || '',
+        category: targetProd?.categoryId?.name || targetProd?.category || overrides.category || 'General',
+        quantityToAdd: '',
+        currentStock: initialStock,
+        costPrice: existingInv?.costPrice || overrides.costPrice || '',
+        supplier: existingInv?.supplier || overrides.supplier || '',
+        notes: existingInv?.notes || overrides.notes || '',
+        price: targetProd?.price || 0,
+        ...overrides
+      };
     } else if (type === 'product') {
       const isServ = isServicesSection || overrides.itemType === 'Service';
       const availableCats = categories.filter(c => isServ ? c.itemType?.toLowerCase() === 'service' : c.itemType?.toLowerCase() !== 'service');
@@ -1611,6 +1673,13 @@ const CustomerDetails = () => {
         sanitizedData[k] = sanitizedData[k] === '' || sanitizedData[k] === null || isNaN(Number(sanitizedData[k])) ? 0 : Number(sanitizedData[k]);
       }
     });
+
+    if (type === 'inventory') {
+      const finalQty = Number(formData.currentStock || 0) + Number(formData.quantityToAdd || 0);
+      sanitizedData.quantity = finalQty;
+      sanitizedData.quantityToAdd = formData.quantityToAdd;
+      sanitizedData.mode = 'add';
+    }
 
     let endpoint = '';
     if (type === 'branch') endpoint = `${apiUrl}/api/admin/branches`;
@@ -2038,15 +2107,443 @@ const CustomerDetails = () => {
           flexShrink: 0,
           gap: '16px'
         }}>
-          {/* Left: Section Title & Breadcrumb */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '15px', fontWeight: '700', color: '#0F172A' }}>
-              {customer.businessName || `${customer.fullName}'s Business`}
-            </span>
-            <span style={{ color: '#CBD5E1' }}>/</span>
-            <span style={{ fontSize: '14px', fontWeight: '600', color: '#2563EB', textTransform: 'capitalize' }}>
-              {sidebarItems.find(s => s.id === activeSection)?.label || (activeSection === 'overview' ? 'Customer Profile' : activeSection)}
-            </span>
+          {/* Left: Section Title & Breadcrumb + Branch/Business Switchers */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '15px', fontWeight: '700', color: '#0F172A' }}>
+                {customer.businessName || `${customer.fullName}'s Business`}
+              </span>
+              <span style={{ color: '#CBD5E1' }}>/</span>
+              <span style={{ fontSize: '14px', fontWeight: '600', color: '#2563EB', textTransform: 'capitalize' }}>
+                {sidebarItems.find(s => s.id === activeSection)?.label || (activeSection === 'overview' ? 'Customer Profile' : activeSection)}
+              </span>
+            </div>
+
+            {/* Business Dropdown (for multi-business Type 4 or if businesses exist) */}
+            {(businessType === 4 || businesses.length > 0) && (
+              <div ref={businessDropdownRef} style={{ position: 'relative' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowBusinessDropdown(!showBusinessDropdown);
+                    setShowBranchDropdown(false);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '9px',
+                    padding: '6px 14px',
+                    borderRadius: '24px',
+                    background: showBusinessDropdown ? '#F5F3FF' : '#F8FAFC',
+                    border: showBusinessDropdown ? '1.5px solid #7C3AED' : '1px solid #CBD5E1',
+                    cursor: 'pointer',
+                    boxShadow: showBusinessDropdown ? '0 0 0 3px rgba(124,58,237,0.1)' : '0 1px 2px rgba(0,0,0,0.03)',
+                    transition: 'all 0.15s ease'
+                  }}
+                  onMouseOver={(e) => {
+                    if (!showBusinessDropdown) {
+                      e.currentTarget.style.background = '#F5F3FF';
+                      e.currentTarget.style.borderColor = '#C4B5FD';
+                    }
+                  }}
+                  onMouseOut={(e) => {
+                    if (!showBusinessDropdown) {
+                      e.currentTarget.style.background = '#F8FAFC';
+                      e.currentTarget.style.borderColor = '#CBD5E1';
+                    }
+                  }}
+                >
+                  <div style={{
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '50%',
+                    background: '#EDE9FE',
+                    color: '#7C3AED',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}>
+                    <Building2 size={13} />
+                  </div>
+                  <span style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {activeBusinessLabel}
+                  </span>
+                  <ChevronDown size={14} color="#64748B" style={{ transform: showBusinessDropdown ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
+                </button>
+
+                {showBusinessDropdown && (
+                  <div style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 8px)',
+                    left: 0,
+                    width: '280px',
+                    background: 'white',
+                    borderRadius: '14px',
+                    border: '1px solid #E2E8F0',
+                    boxShadow: '0 16px 36px -4px rgba(15, 23, 42, 0.16), 0 4px 12px rgba(15, 23, 42, 0.05)',
+                    zIndex: 1100,
+                    overflow: 'hidden'
+                  }}>
+                    <div style={{ padding: '6px' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedBusinessFilterId('all');
+                          setSelectedBusinessFilterName('All Businesses');
+                          setShowBusinessDropdown(false);
+                        }}
+                        style={{
+                          width: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '9px 12px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          background: selectedBusinessFilterId === 'all' ? '#F5F3FF' : 'transparent',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          transition: 'background 0.15s ease'
+                        }}
+                        onMouseOver={(e) => {
+                          if (selectedBusinessFilterId !== 'all') e.currentTarget.style.background = '#F8FAFC';
+                        }}
+                        onMouseOut={(e) => {
+                          if (selectedBusinessFilterId !== 'all') e.currentTarget.style.background = 'transparent';
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div style={{
+                            width: '28px',
+                            height: '28px',
+                            borderRadius: '6px',
+                            background: selectedBusinessFilterId === 'all' ? '#EDE9FE' : '#F1F5F9',
+                            color: selectedBusinessFilterId === 'all' ? '#7C3AED' : '#64748B',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0
+                          }}>
+                            <Layers size={15} />
+                          </div>
+                          <span style={{ fontSize: '13px', fontWeight: '600', color: selectedBusinessFilterId === 'all' ? '#6D28D9' : '#0F172A' }}>
+                            All Businesses
+                          </span>
+                        </div>
+                        {selectedBusinessFilterId === 'all' && (
+                          <Check size={16} color="#7C3AED" style={{ flexShrink: 0 }} />
+                        )}
+                      </button>
+
+                      <div style={{ height: '1px', background: '#F1F5F9', margin: '4px 8px' }} />
+
+                      <div style={{ maxHeight: '220px', overflowY: 'auto' }}>
+                        {businesses.map((biz) => {
+                          const isSelected = selectedBusinessFilterId === biz._id;
+                          return (
+                            <button
+                              key={biz._id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedBusinessFilterId(biz._id);
+                                setSelectedBusinessFilterName(biz.name);
+                                setShowBusinessDropdown(false);
+                              }}
+                              style={{
+                                width: '100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                padding: '9px 12px',
+                                borderRadius: '8px',
+                                border: 'none',
+                                background: isSelected ? '#F5F3FF' : 'transparent',
+                                cursor: 'pointer',
+                                textAlign: 'left',
+                                transition: 'background 0.15s ease'
+                              }}
+                              onMouseOver={(e) => {
+                                if (!isSelected) e.currentTarget.style.background = '#F8FAFC';
+                              }}
+                              onMouseOut={(e) => {
+                                if (!isSelected) e.currentTarget.style.background = 'transparent';
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                                <div style={{
+                                  width: '28px',
+                                  height: '28px',
+                                  borderRadius: '6px',
+                                  background: isSelected ? '#EDE9FE' : '#F8FAFC',
+                                  color: isSelected ? '#7C3AED' : '#475569',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  flexShrink: 0
+                                }}>
+                                  <Building2 size={15} />
+                                </div>
+                                <span style={{ fontSize: '13px', fontWeight: '600', color: isSelected ? '#6D28D9' : '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {biz.name}
+                                </span>
+                              </div>
+                              {isSelected && (
+                                <Check size={16} color="#7C3AED" style={{ flexShrink: 0, marginLeft: '8px' }} />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div style={{
+                      padding: '10px 14px',
+                      background: '#F8FAFC',
+                      borderTop: '1px solid #E2E8F0',
+                      display: 'flex',
+                      alignItems: 'center'
+                    }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowBusinessDropdown(false);
+                          setActiveSection('businesses');
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#7C3AED',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: 0
+                        }}
+                      >
+                        <Plus size={13} />
+                        <span>Manage or Add Businesses</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Branch Dropdown (for multi-branch Type 3+ or if branches exist) */}
+            {(businessType >= 3 || branches.length > 0) && (
+              <div ref={branchDropdownRef} style={{ position: 'relative' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowBranchDropdown(!showBranchDropdown);
+                    setShowBusinessDropdown(false);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '9px',
+                    padding: '6px 14px',
+                    borderRadius: '24px',
+                    background: showBranchDropdown ? '#EFF6FF' : '#F8FAFC',
+                    border: showBranchDropdown ? '1.5px solid #2563EB' : '1px solid #CBD5E1',
+                    cursor: 'pointer',
+                    boxShadow: showBranchDropdown ? '0 0 0 3px rgba(37,99,235,0.1)' : '0 1px 2px rgba(0,0,0,0.03)',
+                    transition: 'all 0.15s ease'
+                  }}
+                  onMouseOver={(e) => {
+                    if (!showBranchDropdown) {
+                      e.currentTarget.style.background = '#EFF6FF';
+                      e.currentTarget.style.borderColor = '#93C5FD';
+                    }
+                  }}
+                  onMouseOut={(e) => {
+                    if (!showBranchDropdown) {
+                      e.currentTarget.style.background = '#F8FAFC';
+                      e.currentTarget.style.borderColor = '#CBD5E1';
+                    }
+                  }}
+                >
+                  <div style={{
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '50%',
+                    background: '#DBEAFE',
+                    color: '#2563EB',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}>
+                    <Store size={13} />
+                  </div>
+                  <span style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {activeBranchLabel}
+                  </span>
+                  <ChevronDown size={14} color="#64748B" style={{ transform: showBranchDropdown ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
+                </button>
+
+                {showBranchDropdown && (
+                  <div style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 8px)',
+                    left: 0,
+                    width: '280px',
+                    background: 'white',
+                    borderRadius: '14px',
+                    border: '1px solid #E2E8F0',
+                    boxShadow: '0 16px 36px -4px rgba(15, 23, 42, 0.16), 0 4px 12px rgba(15, 23, 42, 0.05)',
+                    zIndex: 1100,
+                    overflow: 'hidden'
+                  }}>
+                    <div style={{ padding: '6px' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedBranchFilterId('all');
+                          setSelectedBranchFilterName('All Branches');
+                          setShowBranchDropdown(false);
+                        }}
+                        style={{
+                          width: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '9px 12px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          background: selectedBranchFilterId === 'all' ? '#EFF6FF' : 'transparent',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          transition: 'background 0.15s ease'
+                        }}
+                        onMouseOver={(e) => {
+                          if (selectedBranchFilterId !== 'all') e.currentTarget.style.background = '#F8FAFC';
+                        }}
+                        onMouseOut={(e) => {
+                          if (selectedBranchFilterId !== 'all') e.currentTarget.style.background = 'transparent';
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div style={{
+                            width: '28px',
+                            height: '28px',
+                            borderRadius: '6px',
+                            background: selectedBranchFilterId === 'all' ? '#DBEAFE' : '#F1F5F9',
+                            color: selectedBranchFilterId === 'all' ? '#1D4ED8' : '#64748B',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0
+                          }}>
+                            <Layers size={15} />
+                          </div>
+                          <span style={{ fontSize: '13px', fontWeight: '600', color: selectedBranchFilterId === 'all' ? '#1D4ED8' : '#0F172A' }}>
+                            All Branches
+                          </span>
+                        </div>
+                        {selectedBranchFilterId === 'all' && (
+                          <Check size={16} color="#2563EB" style={{ flexShrink: 0 }} />
+                        )}
+                      </button>
+
+                      <div style={{ height: '1px', background: '#F1F5F9', margin: '4px 8px' }} />
+
+                      <div style={{ maxHeight: '220px', overflowY: 'auto' }}>
+                        {displayBranches.map((branch) => {
+                          const isSelected = selectedBranchFilterId === branch._id;
+                          return (
+                            <button
+                              key={branch._id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedBranchFilterId(branch._id);
+                                setSelectedBranchFilterName(branch.name);
+                                setShowBranchDropdown(false);
+                              }}
+                              style={{
+                                width: '100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                padding: '9px 12px',
+                                borderRadius: '8px',
+                                border: 'none',
+                                background: isSelected ? '#EFF6FF' : 'transparent',
+                                cursor: 'pointer',
+                                textAlign: 'left',
+                                transition: 'background 0.15s ease'
+                              }}
+                              onMouseOver={(e) => {
+                                if (!isSelected) e.currentTarget.style.background = '#F8FAFC';
+                              }}
+                              onMouseOut={(e) => {
+                                if (!isSelected) e.currentTarget.style.background = 'transparent';
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                                <div style={{
+                                  width: '28px',
+                                  height: '28px',
+                                  borderRadius: '6px',
+                                  background: isSelected ? '#DBEAFE' : '#F8FAFC',
+                                  color: isSelected ? '#1D4ED8' : '#475569',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  flexShrink: 0
+                                }}>
+                                  <Store size={15} />
+                                </div>
+                                <span style={{ fontSize: '13px', fontWeight: '600', color: isSelected ? '#1D4ED8' : '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {branch.name}
+                                </span>
+                              </div>
+                              {isSelected && (
+                                <Check size={16} color="#2563EB" style={{ flexShrink: 0, marginLeft: '8px' }} />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div style={{
+                      padding: '10px 14px',
+                      background: '#F8FAFC',
+                      borderTop: '1px solid #E2E8F0',
+                      display: 'flex',
+                      alignItems: 'center'
+                    }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowBranchDropdown(false);
+                          setActiveSection('branches');
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#2563EB',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: 0
+                        }}
+                      >
+                        <Plus size={13} />
+                        <span>Manage or Add Branches</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Right Controls */}
@@ -4494,7 +4991,11 @@ const CustomerDetails = () => {
                   <div>
                     <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Categories</p>
                     <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>
-                      {categories.filter(c => isServicesSection ? c.itemType?.toLowerCase() === 'service' : c.itemType?.toLowerCase() !== 'service').length}
+                      {categories.filter(c => {
+                        const type = c.itemType?.toLowerCase();
+                        if (type === 'both' || isBothCustomerOffering) return true;
+                        return isServicesSection ? type === 'service' : type !== 'service';
+                      }).length}
                     </h3>
                   </div>
                 </div>
@@ -4518,7 +5019,11 @@ const CustomerDetails = () => {
                   <div>
                     <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Sub Categories</p>
                     <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>
-                      {subcategories.filter(sc => isServicesSection ? (sc.itemType || sc.categoryId?.itemType)?.toLowerCase() === 'service' : (sc.itemType || sc.categoryId?.itemType)?.toLowerCase() !== 'service').length}
+                      {subcategories.filter(sc => {
+                        const type = (sc.itemType || sc.categoryId?.itemType)?.toLowerCase();
+                        if (type === 'both' || isBothCustomerOffering) return true;
+                        return isServicesSection ? type === 'service' : type !== 'service';
+                      }).length}
                     </h3>
                   </div>
                 </div>
@@ -4857,6 +5362,27 @@ const CustomerDetails = () => {
                               <td style={{ padding: '14px 20px', fontWeight: '700', color: '#2563EB', fontSize: '13px' }}>{formatCurrency(item.price)}</td>
                               <td style={{ padding: '14px 20px', textAlign: 'right' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
+                                  {!isServicesSection && (item.itemType || item.categoryId?.itemType)?.toLowerCase() !== 'service' && (
+                                    <button
+                                      type="button"
+                                      onClick={() => openAddModal('inventory', { productId: item._id, itemName: item.name, sku: item.sku, category: item.categoryId?.name || item.category, currentStock: item.stock || 0 })}
+                                      title="Add Stock"
+                                      style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        width: '28px',
+                                        height: '28px',
+                                        background: '#F0FDF4',
+                                        color: '#16A34A',
+                                        border: '1px solid #BBF7D0',
+                                        borderRadius: '6px',
+                                        cursor: 'pointer'
+                                      }}
+                                    >
+                                      <Plus size={15} />
+                                    </button>
+                                  )}
                                   <button onClick={() => setViewModalData({ type: isServicesSection ? 'service' : 'product', data: item })} style={{ padding: '6px', borderRadius: '6px', background: '#F1F5F9', border: 'none', color: '#475569', cursor: 'pointer' }}><Eye size={15} /></button>
                                   <button onClick={() => openEditModal('product', item)} style={{ padding: '6px', borderRadius: '6px', background: '#EFF6FF', border: 'none', color: '#2563EB', cursor: 'pointer' }}><Edit2 size={15} /></button>
                                   <button onClick={() => setDeleteConfirm({ type: 'product', id: item._id, name: item.name, isService: isServicesSection })} style={{ padding: '6px', borderRadius: '6px', background: '#FEE2E2', border: 'none', color: '#EF4444', cursor: 'pointer' }}><Trash2 size={15} /></button>
@@ -4907,7 +5433,7 @@ const CustomerDetails = () => {
                   onClick={() => openAddModal('inventory')}
                   style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', background: '#2563EB', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
                 >
-                  <Plus size={17} /> Add Item
+                  <Plus size={17} /> Add Stock
                 </button>
               </div>
 
@@ -5026,6 +5552,38 @@ const CustomerDetails = () => {
                             <td style={{ padding: '14px 20px', fontWeight: '700', color: '#2563EB', fontSize: '13px' }}>{formatCurrency(item.price)}</td>
                             <td style={{ padding: '14px 20px', textAlign: 'right' }}>
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const prodId = item.productId?._id || item.productId;
+                                    const prod = products.find(p => String(p._id) === String(prodId));
+                                    openAddModal('inventory', {
+                                      productId: prodId || (prod ? prod._id : ''),
+                                      itemName: item.itemName || (prod ? prod.name : ''),
+                                      sku: item.sku || (prod ? prod.sku : ''),
+                                      category: item.category || (prod ? prod.categoryId?.name : ''),
+                                      currentStock: Number(item.quantity ?? item.stock ?? 0),
+                                      costPrice: item.costPrice || '',
+                                      supplier: item.supplier || '',
+                                      notes: item.notes || ''
+                                    });
+                                  }}
+                                  title="Add Stock"
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    width: '28px',
+                                    height: '28px',
+                                    background: '#EFF6FF',
+                                    color: '#2563EB',
+                                    border: '1px solid #BFDBFE',
+                                    borderRadius: '6px',
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  <Plus size={15} />
+                                </button>
                                 <button onClick={() => setViewModalData({ type: 'inventory', data: item })} style={{ padding: '6px', borderRadius: '6px', background: '#F1F5F9', border: 'none', color: '#475569', cursor: 'pointer' }}><Eye size={15} /></button>
                                 <button onClick={() => openEditModal('inventory', item)} style={{ padding: '6px', borderRadius: '6px', background: '#EFF6FF', border: 'none', color: '#2563EB', cursor: 'pointer' }}><Edit2 size={15} /></button>
                                 <button onClick={() => setDeleteConfirm({ type: 'inventory', id: item._id, name: item.itemName || item.name })} style={{ padding: '6px', borderRadius: '6px', background: '#FEE2E2', border: 'none', color: '#EF4444', cursor: 'pointer' }}><Trash2 size={15} /></button>
@@ -5931,13 +6489,6 @@ const CustomerDetails = () => {
                                 </div>
                                 <div>
                                   <span style={{ fontSize: '14px', fontWeight: '700', color: '#0F172A', display: 'block', lineHeight: '1.3' }}>{branch.name}</span>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
-                                    <span>{branch.type || 'Branch'}</span>
-                                    <span>&bull;</span>
-                                    <span style={{ fontFamily: 'monospace', fontWeight: '600', color: '#2563EB', background: '#EFF6FF', padding: '1px 6px', borderRadius: '4px', border: '1px solid #DBEAFE' }}>
-                                      {branch.branchId || branch.branchCode || (branch.name ? `BR-${branch.name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase()}` : 'BR-0000')}
-                                    </span>
-                                  </div>
                                 </div>
                               </div>
                             </td>
@@ -6477,11 +7028,6 @@ const CustomerDetails = () => {
                                 </div>
                                 <div>
                                   <span style={{ fontSize: '14px', fontWeight: '700', color: '#0F172A', display: 'block', lineHeight: '1.3' }}>{b.name}</span>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
-                                    <span style={{ fontFamily: 'monospace', fontWeight: '600', color: '#2563EB', background: '#EFF6FF', padding: '1px 6px', borderRadius: '4px', border: '1px solid #DBEAFE' }}>
-                                      {b.businessId || b.businessCode || (b.name ? `BIZ-${b.name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase()}` : 'BIZ-0000')}
-                                    </span>
-                                  </div>
                                 </div>
                               </div>
                             </td>
@@ -6771,7 +7317,7 @@ const CustomerDetails = () => {
                     onChange={(e) => setInvestorFilterBranch(e.target.value)}
                     style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', background: 'white', color: '#334155', fontSize: '13px', fontWeight: '500', outline: 'none', cursor: 'pointer' }}
                   >
-                    <option value="all">Allocation: All Branches</option>
+                    <option value="all">All Branches</option>
                     {branches.map(br => (
                       <option key={br._id || br.name} value={br.name}>{br.name}</option>
                     ))}
@@ -7100,7 +7646,18 @@ const CustomerDetails = () => {
                             <>
                               <option value="">Select Sub Category (Optional)</option>
                               {subcategories
-                                .filter(sc => !editModalData.formData.categoryId || (sc.categoryId?._id || sc.categoryId) === editModalData.formData.categoryId)
+                                .filter(sc => {
+                                  if (!editModalData.formData.categoryId) return false;
+                                  const matchesId = (sc.categoryId?._id || sc.categoryId) === editModalData.formData.categoryId;
+                                  if (!matchesId) return false;
+                                  const parentCat = (details?.categories || []).find(c => c._id === editModalData.formData.categoryId);
+                                  const catName = parentCat?.name || sc.categoryId?.name || '';
+                                  const allowed = getSubCategoriesForCategory(catName);
+                                  if (allowed.length > 0) {
+                                    return allowed.some(a => normalizeCategoryKey(a) === normalizeCategoryKey(sc.name));
+                                  }
+                                  return true;
+                                })
                                 .map(sc => (
                                   <option key={sc._id} value={sc._id}>{sc.name} ({sc.categoryId?.name || 'General'})</option>
                                 ))}
@@ -7317,14 +7874,180 @@ const CustomerDetails = () => {
             <div style={{ padding: '20px 24px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '700', color: '#0F172A' }}>
-                  {addModalData.type === 'attendance' ? 'Mark Attendance' : (addModalData.type === 'product' && (addModalData.formData?.itemType === 'Service' || isServicesSection)) ? 'Add Service' : `Add ${addModalData.type.charAt(0).toUpperCase() + addModalData.type.slice(1)}`}
+                  {addModalData.type === 'inventory' ? 'Add Stock to Product' : addModalData.type === 'attendance' ? 'Mark Attendance' : (addModalData.type === 'product' && (addModalData.formData?.itemType === 'Service' || isServicesSection)) ? 'Add Service' : `Add ${addModalData.type.charAt(0).toUpperCase() + addModalData.type.slice(1)}`}
                 </h3>
-                <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#64748B' }}>Fill in the details below</p>
+                <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#64748B' }}>
+                  {addModalData.type === 'inventory' ? 'Select a product and enter the units to add to inventory.' : 'Fill in the details below'}
+                </p>
               </div>
               <button onClick={() => setAddModalData(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748B', padding: '4px' }}><X size={20} /></button>
             </div>
             <form onSubmit={handleAddSubmit} style={{ flex: 1, overflowY: 'auto' }}>
-              <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {addModalData.type === 'inventory' ? (
+                <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {/* Product Selection Dropdown */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#1E293B', marginBottom: '8px' }}>
+                      Select Product to Stock *
+                    </label>
+                    <select
+                      value={addModalData.formData.productId || ''}
+                      onChange={(e) => {
+                        const selectedId = e.target.value;
+                        if (!selectedId) {
+                          setAddModalData(prev => ({
+                            ...prev,
+                            formData: {
+                              ...prev.formData,
+                              productId: '',
+                              itemName: '',
+                              sku: '',
+                              category: '',
+                              currentStock: 0
+                            }
+                          }));
+                          return;
+                        }
+                        const prod = products.find(p => String(p._id) === String(selectedId));
+                        if (prod) {
+                          const existingInv = inventory.find(i => String(i.productId?._id || i.productId) === String(prod._id));
+                          const currStock = existingInv ? Number(existingInv.quantity) || 0 : (Number(prod.stock) || 0);
+                          setAddModalData(prev => ({
+                            ...prev,
+                            formData: {
+                              ...prev.formData,
+                              productId: prod._id,
+                              itemName: prod.name,
+                              sku: prod.sku || '',
+                              category: prod.categoryId?.name || prod.category || 'General',
+                              costPrice: prev.formData.costPrice || existingInv?.costPrice || '',
+                              supplier: prev.formData.supplier || existingInv?.supplier || '',
+                              notes: prev.formData.notes || existingInv?.notes || '',
+                              currentStock: currStock,
+                              price: prod.price || 0
+                            }
+                          }));
+                        }
+                      }}
+                      required
+                      style={{
+                        width: '100%',
+                        padding: '11px 14px',
+                        borderRadius: '10px',
+                        border: '1.5px solid #2563EB',
+                        fontSize: '14px',
+                        color: '#0F172A',
+                        background: 'white',
+                        fontWeight: '600',
+                        boxSizing: 'border-box',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <option value="">-- Choose a product from catalogue --</option>
+                      {products.filter(p => (p.itemType || p.categoryId?.itemType)?.toLowerCase() !== 'service').map(p => {
+                        const stockVal = p.stock !== undefined && p.stock !== null ? p.stock : 0;
+                        const isZero = stockVal <= 0;
+                        return (
+                          <option key={p._id} value={p._id}>
+                            {p.name} {p.sku ? `(${p.sku})` : ''} — Current Stock: {stockVal} {isZero ? '⚠️ [Out of Stock]' : 'units'}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+
+                  {/* Quantity to Add (Units) */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <label style={{ fontSize: '13px', fontWeight: '700', color: '#1E293B' }}>
+                        Quantity to Add (Units) *
+                      </label>
+                      {addModalData.formData.productId && (
+                        <span style={{ fontSize: '12px', fontWeight: '600', color: '#2563EB', background: '#EFF6FF', padding: '2px 8px', borderRadius: '6px' }}>
+                          Current Stock: {addModalData.formData.currentStock || 0} units
+                        </span>
+                      )}
+                    </div>
+                    <input
+                      placeholder="Enter units to add (e.g. 10)"
+                      type="number"
+                      min="1"
+                      value={addModalData.formData.quantityToAdd ?? ''}
+                      onChange={(e) => setAddModalData(prev => ({ ...prev, formData: { ...prev.formData, quantityToAdd: e.target.value } }))}
+                      required
+                      style={{
+                        width: '100%',
+                        padding: '11px 14px',
+                        borderRadius: '10px',
+                        border: '1px solid #CBD5E1',
+                        fontSize: '14px',
+                        color: '#0F172A',
+                        boxSizing: 'border-box',
+                        backgroundColor: 'white'
+                      }}
+                    />
+                    {addModalData.formData.productId && addModalData.formData.quantityToAdd && Number(addModalData.formData.quantityToAdd) > 0 && (
+                      <div style={{
+                        marginTop: '8px',
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        background: '#F0FDF4',
+                        border: '1px solid #BBF7D0',
+                        fontSize: '13px',
+                        color: '#15803D',
+                        fontWeight: '600'
+                      }}>
+                        📦 New Total Stock: <strong>{Number(addModalData.formData.currentStock || 0) + Number(addModalData.formData.quantityToAdd)} units</strong> ({addModalData.formData.currentStock || 0} + {addModalData.formData.quantityToAdd})
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Cost Price & Supplier */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>
+                        Cost Price / Unit (₹)
+                      </label>
+                      <input
+                        placeholder="e.g. 750"
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={addModalData.formData.costPrice || ''}
+                        onChange={(e) => setAddModalData(prev => ({ ...prev, formData: { ...prev.formData, costPrice: e.target.value } }))}
+                        style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>
+                        Supplier / Vendor
+                      </label>
+                      <input
+                        placeholder="e.g. ABC Wholesalers"
+                        type="text"
+                        value={addModalData.formData.supplier || ''}
+                        onChange={(e) => setAddModalData(prev => ({ ...prev, formData: { ...prev.formData, supplier: e.target.value } }))}
+                        style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Notes / Remarks */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>
+                      Notes / Remarks
+                    </label>
+                    <textarea
+                      placeholder="e.g. Received new stock delivery in good condition..."
+                      rows={2}
+                      value={addModalData.formData.notes || ''}
+                      onChange={(e) => setAddModalData(prev => ({ ...prev, formData: { ...prev.formData, notes: e.target.value } }))}
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', boxSizing: 'border-box', resize: 'vertical' }}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 {Object.entries(addModalData.formData)
                   .filter(([k]) => !['tenantId'].includes(k) && !(addModalData.type === 'attendance' && k === 'checkOut'))
                   .map(([fieldKey, fieldValue]) => {
@@ -7394,7 +8117,18 @@ const CustomerDetails = () => {
                               <>
                                 <option value="">Select Sub Category (Optional)...</option>
                                 {subcategories
-                                  .filter(sc => !addModalData.formData.categoryId || (sc.categoryId?._id || sc.categoryId) === addModalData.formData.categoryId)
+                                  .filter(sc => {
+                                    if (!addModalData.formData.categoryId) return false;
+                                    const matchesId = (sc.categoryId?._id || sc.categoryId) === addModalData.formData.categoryId;
+                                    if (!matchesId) return false;
+                                    const parentCat = (details?.categories || []).find(c => c._id === addModalData.formData.categoryId);
+                                    const catName = parentCat?.name || sc.categoryId?.name || '';
+                                    const allowed = getSubCategoriesForCategory(catName);
+                                    if (allowed.length > 0) {
+                                      return allowed.some(a => normalizeCategoryKey(a) === normalizeCategoryKey(sc.name));
+                                    }
+                                    return true;
+                                  })
                                   .map(sc => (
                                     <option key={sc._id} value={sc._id}>{sc.name}</option>
                                   ))}
@@ -7499,15 +8233,40 @@ const CustomerDetails = () => {
                       </div>
                     );
                   })}
-              </div>
+                </div>
+              )}
               <div style={{ padding: '16px 24px', borderTop: '1px solid #E2E8F0', display: 'flex', justifyContent: 'flex-end', gap: '10px', background: '#F8FAFC', flexShrink: 0 }}>
                 <button type="button" onClick={() => setAddModalData(null)} style={{ padding: '8px 16px', background: '#E2E8F0', borderRadius: '8px', fontSize: '13px', fontWeight: '600', color: '#475569', border: 'none', cursor: 'pointer' }}>
                   Cancel
                 </button>
-                <button type="submit" disabled={savingAction} className="btn-primary" style={{ fontSize: '13px', padding: '8px 18px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                  {savingAction ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Plus size={14} />}
-                  {addModalData.type === 'attendance' ? 'Mark Attendance' : (addModalData.type === 'product' && (addModalData.formData?.itemType === 'Service' || isServicesSection)) ? 'Add Service' : `Add ${addModalData.type.charAt(0).toUpperCase() + addModalData.type.slice(1)}`}
-                </button>
+                {addModalData.type === 'inventory' ? (
+                  <button
+                    type="submit"
+                    disabled={savingAction || !addModalData.formData.productId || !addModalData.formData.quantityToAdd || Number(addModalData.formData.quantityToAdd) <= 0}
+                    className="btn-primary"
+                    style={{
+                      fontSize: '13px',
+                      padding: '8px 18px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      background: (!addModalData.formData.productId || !addModalData.formData.quantityToAdd || Number(addModalData.formData.quantityToAdd) <= 0) ? '#94A3B8' : '#2563EB',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: 'white',
+                      fontWeight: '600',
+                      cursor: (!addModalData.formData.productId || !addModalData.formData.quantityToAdd || Number(addModalData.formData.quantityToAdd) <= 0) ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    {savingAction ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Plus size={14} />}
+                    Add Stock
+                  </button>
+                ) : (
+                  <button type="submit" disabled={savingAction} className="btn-primary" style={{ fontSize: '13px', padding: '8px 18px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    {savingAction ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Plus size={14} />}
+                    {addModalData.type === 'attendance' ? 'Mark Attendance' : (addModalData.type === 'product' && (addModalData.formData?.itemType === 'Service' || isServicesSection)) ? 'Add Service' : `Add ${addModalData.type.charAt(0).toUpperCase() + addModalData.type.slice(1)}`}
+                  </button>
+                )}
               </div>
             </form>
           </div>

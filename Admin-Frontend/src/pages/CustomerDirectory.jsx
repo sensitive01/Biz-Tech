@@ -2,7 +2,7 @@ import { exportToCSV } from '../utils/exportToCSV';
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, Store, Users, Map, ChevronLeft, ChevronRight, Filter, ChevronDown, Download, ArrowUp, ArrowDown, ArrowUpDown, X, User, Mail, Phone, MapPin, Briefcase, Calendar, Eye, Trash2, AlertTriangle, Building2, LogIn, ExternalLink, Loader2 } from 'lucide-react';
+import { Search, Plus, Store, Users, Map, ChevronLeft, ChevronRight, Filter, ChevronDown, Download, ArrowUp, ArrowDown, ArrowUpDown, X, User, Mail, Phone, MapPin, Briefcase, Calendar, Eye, Trash2, AlertTriangle, Building2, LogIn, ExternalLink, Loader2, UserCheck, Layers, Sparkles } from 'lucide-react';
 
 const extractCityOrArea = (address) => {
   if (!address || typeof address !== 'string' || address === 'Not specified') return '';
@@ -92,9 +92,6 @@ const CustomerDirectory = () => {
             : (Number(user.businessCount ?? user.businessesCount) || 1);
 
           // Location display:
-          // Type 1 & 2: 1 Shop
-          // Type 3: How many branches they have (e.g. 3 Branches)
-          // Type 4: How many businesses they have (e.g. X Businesses)
           let locationDisplay = '1 Shop';
           if (bType === 1 || bType === 2) {
             locationDisplay = '1 Shop';
@@ -117,12 +114,18 @@ const CustomerDirectory = () => {
             fullAddress: user.address && user.address.trim() ? user.address.trim() : 'Not specified',
             city: extractCityOrArea(user.address),
             branchCount: brCount,
+            branchesCount: brCount,
             businessCount: bizCount,
+            businessesCount: bizCount,
+            employeeCount: Number(user.employeeCount ?? user.employeesCount) || 0,
+            employeesCount: Number(user.employeeCount ?? user.employeesCount) || 0,
+            offeringType: user.businessOfferingType || user.offeringType || 'product',
             joinedAt: user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A',
+            createdAt: user.createdAt,
             locations: locationDisplay,
             staff: bType === 1 ? 'Owner Only' : 'Staff Enrolled',
             staffDesc: bType === 1 ? '0 Staff' : 'Uses Roster',
-            status: 'Active',
+            status: user.status || user.subscriptionStatus || 'Active',
             modules: user.modules || []
           };
         });
@@ -174,10 +177,10 @@ const CustomerDirectory = () => {
       );
 
       let matchesFilter = true;
-      if (selectedFilter.startsWith('Type 1')) matchesFilter = customer.type === 1;
-      else if (selectedFilter.startsWith('Type 2')) matchesFilter = customer.type === 2;
-      else if (selectedFilter.startsWith('Type 3')) matchesFilter = customer.type === 3;
-      else if (selectedFilter.startsWith('Type 4')) matchesFilter = customer.type === 4;
+      if (selectedFilter.startsWith('Type 1') || selectedFilter === 'Solo Operator') matchesFilter = customer.type === 1;
+      else if (selectedFilter.startsWith('Type 2') || selectedFilter === 'Single Branch') matchesFilter = customer.type === 2;
+      else if (selectedFilter.startsWith('Type 3') || selectedFilter === 'Multiple Branch') matchesFilter = customer.type === 3;
+      else if (selectedFilter.startsWith('Type 4') || selectedFilter === 'Multiple Business') matchesFilter = customer.type === 4;
 
       return matchesSearch && matchesFilter;
     });
@@ -242,33 +245,142 @@ const CustomerDirectory = () => {
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '8px' }}>
-        <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Users size={24} /></div>
-          <div>
-            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Total Clients</p>
-            <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{customersData.length}</h3>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', marginBottom: '8px' }}>
+        {/* Card 1: Total Client */}
+        <div 
+          onClick={() => { setSelectedFilter('All Clients'); setCurrentPage(1); }}
+          style={{ 
+            background: 'white', 
+            borderRadius: '16px', 
+            border: selectedFilter === 'All Clients' ? '2px solid #2563EB' : '1px solid #E2E8F0', 
+            padding: '18px 16px', 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '14px', 
+            boxShadow: selectedFilter === 'All Clients' ? '0 4px 12px rgba(37,99,235,0.12)' : '0 2px 4px rgba(0,0,0,0.02)',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease'
+          }}
+          title="Click to view all clients"
+        >
+          <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Users size={22} />
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600', whiteSpace: 'nowrap' }}>Total Client</p>
+            <h3 style={{ margin: 0, fontSize: '22px', color: '#0F172A', fontWeight: '700' }}>{customersData.length}</h3>
           </div>
         </div>
-        <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#F5F3FF', color: '#8B5CF6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Building2 size={24} /></div>
-          <div>
-            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Total Businesses</p>
-            <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{customersData.reduce((acc, c) => acc + (c.businessesCount || 1), 0)}</h3>
+
+        {/* Card 2: Solo Operator */}
+        <div 
+          onClick={() => { setSelectedFilter(selectedFilter.startsWith('Type 1') ? 'All Clients' : 'Type 1: Sole Operator'); setCurrentPage(1); }}
+          style={{ 
+            background: 'white', 
+            borderRadius: '16px', 
+            border: (selectedFilter.startsWith('Type 1') || selectedFilter === 'Solo Operator') ? '2px solid #8B5CF6' : '1px solid #E2E8F0', 
+            padding: '18px 16px', 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '14px', 
+            boxShadow: (selectedFilter.startsWith('Type 1') || selectedFilter === 'Solo Operator') ? '0 4px 12px rgba(139,92,246,0.12)' : '0 2px 4px rgba(0,0,0,0.02)',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease'
+          }}
+          title="Click to filter by Solo Operator (Type 1)"
+        >
+          <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: '#F5F3FF', color: '#8B5CF6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <UserCheck size={22} />
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600', whiteSpace: 'nowrap' }}>Solo Operator</p>
+            <h3 style={{ margin: 0, fontSize: '22px', color: '#0F172A', fontWeight: '700' }}>
+              {customersData.filter(c => c.type === 1).length}
+            </h3>
           </div>
         </div>
-        <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#F0FDF4', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Store size={24} /></div>
-          <div>
-            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Total Branches</p>
-            <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{customersData.reduce((acc, c) => acc + (c.branchesCount || 1), 0)}</h3>
+
+        {/* Card 3: Single Branch */}
+        <div 
+          onClick={() => { setSelectedFilter(selectedFilter.startsWith('Type 2') ? 'All Clients' : 'Type 2: Single Branch + Staff'); setCurrentPage(1); }}
+          style={{ 
+            background: 'white', 
+            borderRadius: '16px', 
+            border: (selectedFilter.startsWith('Type 2') || selectedFilter === 'Single Branch') ? '2px solid #16A34A' : '1px solid #E2E8F0', 
+            padding: '18px 16px', 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '14px', 
+            boxShadow: (selectedFilter.startsWith('Type 2') || selectedFilter === 'Single Branch') ? '0 4px 12px rgba(22,163,74,0.12)' : '0 2px 4px rgba(0,0,0,0.02)',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease'
+          }}
+          title="Click to filter by Single Branch (Type 2)"
+        >
+          <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: '#F0FDF4', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Store size={22} />
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600', whiteSpace: 'nowrap' }}>Single Branch</p>
+            <h3 style={{ margin: 0, fontSize: '22px', color: '#0F172A', fontWeight: '700' }}>
+              {customersData.filter(c => c.type === 2).length}
+            </h3>
           </div>
         </div>
-        <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#FFFBEB', color: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Briefcase size={24} /></div>
-          <div>
-            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Total Staff</p>
-            <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '700' }}>{customersData.reduce((acc, c) => acc + (c.employeesCount || 0), 0)}</h3>
+
+        {/* Card 4: Multiple Branch */}
+        <div 
+          onClick={() => { setSelectedFilter(selectedFilter.startsWith('Type 3') ? 'All Clients' : 'Type 3: Multi-Branch Enterprise'); setCurrentPage(1); }}
+          style={{ 
+            background: 'white', 
+            borderRadius: '16px', 
+            border: (selectedFilter.startsWith('Type 3') || selectedFilter === 'Multiple Branch') ? '2px solid #D97706' : '1px solid #E2E8F0', 
+            padding: '18px 16px', 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '14px', 
+            boxShadow: (selectedFilter.startsWith('Type 3') || selectedFilter === 'Multiple Branch') ? '0 4px 12px rgba(217,119,6,0.12)' : '0 2px 4px rgba(0,0,0,0.02)',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease'
+          }}
+          title="Click to filter by Multiple Branch (Type 3)"
+        >
+          <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: '#FFFBEB', color: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <MapPin size={22} />
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600', whiteSpace: 'nowrap' }}>Multiple Branch</p>
+            <h3 style={{ margin: 0, fontSize: '22px', color: '#0F172A', fontWeight: '700' }}>
+              {customersData.filter(c => c.type === 3).length}
+            </h3>
+          </div>
+        </div>
+
+        {/* Card 5: Multiple Business */}
+        <div 
+          onClick={() => { setSelectedFilter(selectedFilter.startsWith('Type 4') ? 'All Clients' : 'Type 4: Multi-Business Conglomerate'); setCurrentPage(1); }}
+          style={{ 
+            background: 'white', 
+            borderRadius: '16px', 
+            border: (selectedFilter.startsWith('Type 4') || selectedFilter === 'Multiple Business') ? '2px solid #4F46E5' : '1px solid #E2E8F0', 
+            padding: '18px 16px', 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '14px', 
+            boxShadow: (selectedFilter.startsWith('Type 4') || selectedFilter === 'Multiple Business') ? '0 4px 12px rgba(79,70,229,0.12)' : '0 2px 4px rgba(0,0,0,0.02)',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease'
+          }}
+          title="Click to filter by Multiple Business (Type 4)"
+        >
+          <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: '#EEF2FF', color: '#4F46E5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Building2 size={22} />
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600', whiteSpace: 'nowrap' }}>Multiple Business</p>
+            <h3 style={{ margin: 0, fontSize: '22px', color: '#0F172A', fontWeight: '700' }}>
+              {customersData.filter(c => c.type === 4).length}
+            </h3>
           </div>
         </div>
       </div>
@@ -309,7 +421,13 @@ const CustomerDirectory = () => {
             </button>
             {showFilterDropdown && (
               <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '8px', background: 'white', border: '1px solid var(--border-color)', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', width: '280px', zIndex: 10, overflow: 'hidden' }}>
-                {['All Clients', 'Type 1: Sole Operator', 'Type 2: Single Branch + Staff', 'Type 3: Multi-Branch Enterprise', 'Type 4: Multi-Business Conglomerate'].map((filter, idx) => (
+                {[
+                  'All Clients', 
+                  'Type 1: Sole Operator', 
+                  'Type 2: Single Branch + Staff', 
+                  'Type 3: Multi-Branch Enterprise', 
+                  'Type 4: Multi-Business Conglomerate'
+                ].map((filter, idx, arr) => (
                   <button 
                     key={filter}
                     onClick={() => { setSelectedFilter(filter); setShowFilterDropdown(false); setCurrentPage(1); }}
@@ -317,7 +435,7 @@ const CustomerDirectory = () => {
                       display: 'block', width: '100%', textAlign: 'left', padding: '10px 16px', fontSize: '13px', 
                       color: filter === selectedFilter ? 'var(--primary-blue)' : 'var(--text-title)', 
                       background: filter === selectedFilter ? '#EFF4FF' : 'transparent', 
-                      borderBottom: idx === 4 ? 'none' : '1px solid var(--border-color)', 
+                      borderBottom: idx === arr.length - 1 ? 'none' : '1px solid var(--border-color)', 
                       fontWeight: '500', cursor: 'pointer' 
                     }}
                     onMouseOver={(e) => { if(filter !== selectedFilter) e.currentTarget.style.background = '#F8FAFC' }}

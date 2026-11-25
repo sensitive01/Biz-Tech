@@ -191,6 +191,10 @@ const UserSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  catalogueData: {
+    type: Array,
+    default: []
+  },
   documents: {
     pan: { type: String, default: '' },
     panType: { type: String, default: 'ID Card' },

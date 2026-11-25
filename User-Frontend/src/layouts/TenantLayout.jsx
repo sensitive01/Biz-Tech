@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation, Navigate } from 'react-router-dom';
-import { LayoutGrid, Users, Map, Calendar, LogOut, Bell, ChevronDown, Clock, Package, Archive, TrendingUp, ShoppingCart, Receipt, Building2, UserCheck, FileText, BellRing, Store, Lock, Briefcase, Eye, Wrench } from 'lucide-react';
+import { LayoutGrid, Users, Map, Calendar, LogOut, Bell, ChevronDown, Clock, Package, Archive, TrendingUp, ShoppingCart, Receipt, Building2, UserCheck, FileText, BellRing, Store, Lock, Briefcase, Eye, Wrench, Check, Layers, Plus } from 'lucide-react';
 import LanguageSelector from '../components/LanguageSelector';
 import ThemeToggle from '../components/ThemeToggle';
 
@@ -17,6 +17,19 @@ const TenantLayout = () => {
   const [showAlertMenu, setShowAlertMenu] = useState(false);
   const tenantType = Number(localStorage.getItem('tenantType')) || 1;
   const [currentBranch, setCurrentBranch] = useState(null);
+  const [branchesList, setBranchesList] = useState([]);
+  const [showBranchDropdown, setShowBranchDropdown] = useState(false);
+  const branchDropdownRef = useRef(null);
+  const [selectedBranchFilterId, setSelectedBranchFilterId] = useState(() => {
+    return localStorage.getItem('selectedBranchFilterId') || 'all';
+  });
+
+  const [businessesList, setBusinessesList] = useState([]);
+  const [showBusinessDropdown, setShowBusinessDropdown] = useState(false);
+  const businessDropdownRef = useRef(null);
+  const [selectedBusinessFilterId, setSelectedBusinessFilterId] = useState(() => {
+    return localStorage.getItem('selectedBusinessFilterId') || 'all';
+  });
   const [modules, setModules] = useState([]);
   const [currentUser, setCurrentUser] = useState(() => {
     try {
@@ -120,8 +133,7 @@ const TenantLayout = () => {
   }, []);
 
   useEffect(() => {
-    const fetchSingleBranch = async () => {
-      if (tenantType !== 2) return;
+    const fetchBranches = async () => {
       try {
         const token = localStorage.getItem('token');
         if (!token) return;
@@ -130,20 +142,83 @@ const TenantLayout = () => {
         });
         if (res.ok) {
           const data = await res.json();
-          if (Array.isArray(data) && data.length > 0) {
-            setCurrentBranch(data[0]);
+          if (Array.isArray(data)) {
+            setBranchesList(data);
+            if (data.length > 0) {
+              setCurrentBranch(data[0]);
+            }
           }
         }
       } catch (e) {
-        console.error('Error fetching single branch in layout:', e);
+        console.error('Error fetching branches in layout:', e);
       }
     };
 
-    fetchSingleBranch();
-    const handleBranchUpdate = () => fetchSingleBranch();
+    fetchBranches();
+    const handleBranchUpdate = () => fetchBranches();
     window.addEventListener('branchDataUpdated', handleBranchUpdate);
     return () => window.removeEventListener('branchDataUpdated', handleBranchUpdate);
   }, [tenantType]);
+
+  useEffect(() => {
+    const fetchBusinesses = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/businesses`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            setBusinessesList(data);
+          }
+        }
+      } catch (e) {
+        console.error('Error fetching businesses in layout:', e);
+      }
+    };
+
+    fetchBusinesses();
+    const handleBusinessUpdate = () => fetchBusinesses();
+    window.addEventListener('businessDataUpdated', handleBusinessUpdate);
+    return () => window.removeEventListener('businessDataUpdated', handleBusinessUpdate);
+  }, [tenantType]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (branchDropdownRef.current && !branchDropdownRef.current.contains(event.target)) {
+        setShowBranchDropdown(false);
+      }
+      if (businessDropdownRef.current && !businessDropdownRef.current.contains(event.target)) {
+        setShowBusinessDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSelectBranch = (branchId, branchName) => {
+    setSelectedBranchFilterId(branchId);
+    localStorage.setItem('selectedBranchFilterId', branchId);
+    localStorage.setItem('selectedBranchFilterName', branchName);
+    setShowBranchDropdown(false);
+    window.dispatchEvent(new CustomEvent('branchFilterChanged', { detail: { branchId, branchName } }));
+  };
+
+  const handleSelectBusiness = (businessId, businessName) => {
+    setSelectedBusinessFilterId(businessId);
+    localStorage.setItem('selectedBusinessFilterId', businessId);
+    localStorage.setItem('selectedBusinessFilterName', businessName);
+    setShowBusinessDropdown(false);
+    window.dispatchEvent(new CustomEvent('businessFilterChanged', { detail: { businessId, businessName } }));
+
+    // Reset branch selection to 'all' so branches align cleanly with the newly active business
+    setSelectedBranchFilterId('all');
+    localStorage.setItem('selectedBranchFilterId', 'all');
+    localStorage.setItem('selectedBranchFilterName', 'All Branches');
+    window.dispatchEvent(new CustomEvent('branchFilterChanged', { detail: { branchId: 'all', branchName: 'All Branches' } }));
+  };
 
   // Handle Back-Forward Cache (bfcache) and token loss on browser back arrow
   useEffect(() => {
@@ -170,6 +245,10 @@ const TenantLayout = () => {
     localStorage.removeItem('adminReturnUrl');
     localStorage.removeItem('isEmbedded');
     localStorage.removeItem('activeBusiness');
+    localStorage.removeItem('selectedBusinessFilterId');
+    localStorage.removeItem('selectedBusinessFilterName');
+    localStorage.removeItem('selectedBranchFilterId');
+    localStorage.removeItem('selectedBranchFilterName');
     Object.keys(localStorage).forEach(key => {
       if (key.startsWith('onb_')) localStorage.removeItem(key);
     });
@@ -190,6 +269,10 @@ const TenantLayout = () => {
     localStorage.removeItem('adminReturnUrl');
     localStorage.removeItem('isEmbedded');
     localStorage.removeItem('activeBusiness');
+    localStorage.removeItem('selectedBusinessFilterId');
+    localStorage.removeItem('selectedBusinessFilterName');
+    localStorage.removeItem('selectedBranchFilterId');
+    localStorage.removeItem('selectedBranchFilterName');
     Object.keys(localStorage).forEach(key => {
       if (key.startsWith('onb_')) localStorage.removeItem(key);
     });
@@ -209,11 +292,11 @@ const TenantLayout = () => {
 
     // Investor role restriction (View-only for business operations; restricted from HR & Billing management)
     if (currentUser?.role === 'investor') {
-      if (path.includes('/tenant/employees') || 
-          path.includes('/tenant/attendance') || 
-          path.includes('/tenant/leaves') || 
-          path.includes('/tenant/reminders') || 
-          path.includes('/tenant/billing')) {
+      if (path.includes('/tenant/employees') ||
+        path.includes('/tenant/attendance') ||
+        path.includes('/tenant/leaves') ||
+        path.includes('/tenant/reminders') ||
+        path.includes('/tenant/billing')) {
         return true;
       }
       return false;
@@ -222,11 +305,11 @@ const TenantLayout = () => {
     if (currentUser?.role !== 'employee') return false;
 
     // Admin-only management routes
-    if (path.includes('/tenant/businesses') || 
-        path.includes('/tenant/branches') || 
-        path.includes('/tenant/employees') || 
-        path.includes('/tenant/billing') ||
-        path.includes('/tenant/investors')) {
+    if (path.includes('/tenant/businesses') ||
+      path.includes('/tenant/branches') ||
+      path.includes('/tenant/employees') ||
+      path.includes('/tenant/billing') ||
+      path.includes('/tenant/investors')) {
       return true;
     }
 
@@ -247,6 +330,465 @@ const TenantLayout = () => {
     return false;
   };
 
+  const resolvedTenantType = Number(currentUser?.businessType || currentUser?.type || localStorage.getItem('tenantType')) || tenantType;
+  const isType3User = resolvedTenantType === 3 || tenantType === 3 || currentUser?.businessType === 3 || currentUser?.businessType === '3';
+  const isType4User = resolvedTenantType === 4 || tenantType === 4 || currentUser?.businessType === 4 || currentUser?.businessType === '4';
+
+  // Businesses list preparation for Type 4
+  const hasRealBusinesses = businessesList && businessesList.length > 0;
+  const sampleBusinesses = [
+    { _id: 'sample-biz-1', name: 'Apex Retail Group', category: 'Retail & Supermarkets', city: 'Bangalore' },
+    { _id: 'sample-biz-2', name: 'Nexus Logistics & Supply', category: 'Wholesale & Logistics', city: 'Mumbai' },
+    { _id: 'sample-biz-3', name: 'Zenith Tech Solutions', category: 'IT & Support Services', city: 'Hyderabad' }
+  ];
+  const displayBusinesses = hasRealBusinesses ? businessesList : sampleBusinesses;
+
+  const activeBusinessObj = selectedBusinessFilterId === 'all'
+    ? null
+    : displayBusinesses.find(b => b._id === selectedBusinessFilterId);
+  const activeBusinessLabel = selectedBusinessFilterId === 'all'
+    ? 'All Businesses'
+    : (activeBusinessObj?.name || localStorage.getItem('selectedBusinessFilterName') || 'All Businesses');
+
+  // Branches list preparation (scoped by business in Type 4 if a business is selected)
+  const hasRealBranches = branchesList && branchesList.length > 0;
+  const sampleBranches = [
+    { _id: 'sample-1', name: 'Main Branch (HQ)', location: 'Indiranagar, Bangalore', isHeadquarters: true, businessName: 'Apex Retail Group' },
+    { _id: 'sample-2', name: 'North Branch', location: 'Malleshwaram, Bangalore', businessName: 'Apex Retail Group' },
+    { _id: 'sample-3', name: 'South Branch', location: 'Koramangala, Bangalore', businessName: 'Nexus Logistics & Supply' }
+  ];
+
+  const scopedBranches = isType4User && selectedBusinessFilterId !== 'all'
+    ? (hasRealBranches
+      ? branchesList.filter(b => !b.businessName || b.businessName.toLowerCase() === activeBusinessLabel.toLowerCase())
+      : sampleBranches.filter(b => !b.businessName || b.businessName === activeBusinessLabel))
+    : (hasRealBranches ? branchesList : sampleBranches);
+
+  const displayBranches = scopedBranches.length > 0
+    ? scopedBranches
+    : (hasRealBranches ? branchesList : sampleBranches);
+
+  const activeBranchObj = selectedBranchFilterId === 'all'
+    ? null
+    : displayBranches.find(b => b._id === selectedBranchFilterId);
+  const activeBranchLabel = selectedBranchFilterId === 'all'
+    ? 'All Branches'
+    : (activeBranchObj?.name || localStorage.getItem('selectedBranchFilterName') || 'All Branches');
+
+  const renderBusinessFilterDropdown = () => (
+    <div ref={businessDropdownRef} style={{ position: 'relative' }}>
+      <button
+        type="button"
+        onClick={() => {
+          setShowBusinessDropdown(!showBusinessDropdown);
+          setShowBranchDropdown(false);
+        }}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '9px',
+          padding: '6px 14px',
+          borderRadius: '24px',
+          background: showBusinessDropdown ? '#F5F3FF' : '#F8FAFC',
+          border: showBusinessDropdown ? '1.5px solid #7C3AED' : '1px solid #CBD5E1',
+          cursor: 'pointer',
+          boxShadow: showBusinessDropdown ? '0 0 0 3px rgba(124,58,237,0.1)' : '0 1px 2px rgba(0,0,0,0.03)',
+          transition: 'all 0.15s ease'
+        }}
+        title="Filter active business view"
+        onMouseOver={(e) => {
+          if (!showBusinessDropdown) {
+            e.currentTarget.style.background = '#F1F5F9';
+            e.currentTarget.style.borderColor = '#94A3B8';
+          }
+        }}
+        onMouseOut={(e) => {
+          if (!showBusinessDropdown) {
+            e.currentTarget.style.background = '#F8FAFC';
+            e.currentTarget.style.borderColor = '#CBD5E1';
+          }
+        }}
+      >
+        <div style={{
+          width: '24px',
+          height: '24px',
+          borderRadius: '7px',
+          background: '#F5F3FF',
+          color: '#7C3AED',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0
+        }}>
+          <Building2 size={14} />
+        </div>
+
+        <span style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {activeBusinessLabel}
+        </span>
+
+        <ChevronDown size={14} color="#64748B" style={{ transform: showBusinessDropdown ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
+      </button>
+
+      {showBusinessDropdown && (
+        <div style={{
+          position: 'absolute',
+          top: 'calc(100% + 8px)',
+          left: 0,
+          width: '280px',
+          background: 'white',
+          borderRadius: '14px',
+          border: '1px solid #E2E8F0',
+          boxShadow: '0 16px 36px -4px rgba(15, 23, 42, 0.16), 0 4px 12px rgba(15, 23, 42, 0.05)',
+          zIndex: 1100,
+          overflow: 'hidden'
+        }}>
+          <div style={{ padding: '6px' }}>
+            <button
+              type="button"
+              onClick={() => handleSelectBusiness('all', 'All Businesses')}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '9px 12px',
+                borderRadius: '8px',
+                border: 'none',
+                background: selectedBusinessFilterId === 'all' ? '#F5F3FF' : 'transparent',
+                cursor: 'pointer',
+                textAlign: 'left',
+                transition: 'background 0.15s ease'
+              }}
+              onMouseOver={(e) => {
+                if (selectedBusinessFilterId !== 'all') e.currentTarget.style.background = '#F8FAFC';
+              }}
+              onMouseOut={(e) => {
+                if (selectedBusinessFilterId !== 'all') e.currentTarget.style.background = 'transparent';
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '6px',
+                  background: selectedBusinessFilterId === 'all' ? '#EDE9FE' : '#F1F5F9',
+                  color: selectedBusinessFilterId === 'all' ? '#7C3AED' : '#64748B',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}>
+                  <Layers size={15} />
+                </div>
+                <span style={{ fontSize: '13px', fontWeight: '600', color: selectedBusinessFilterId === 'all' ? '#6D28D9' : '#0F172A' }}>
+                  All Businesses
+                </span>
+              </div>
+              {selectedBusinessFilterId === 'all' && (
+                <Check size={16} color="#7C3AED" style={{ flexShrink: 0 }} />
+              )}
+            </button>
+
+            <div style={{ height: '1px', background: '#F1F5F9', margin: '4px 8px' }} />
+
+            <div style={{ maxHeight: '220px', overflowY: 'auto' }}>
+              {displayBusinesses.map((biz) => {
+                const isSelected = selectedBusinessFilterId === biz._id;
+                return (
+                  <button
+                    key={biz._id}
+                    type="button"
+                    onClick={() => handleSelectBusiness(biz._id, biz.name)}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '9px 12px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: isSelected ? '#F5F3FF' : 'transparent',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'background 0.15s ease'
+                    }}
+                    onMouseOver={(e) => {
+                      if (!isSelected) e.currentTarget.style.background = '#F8FAFC';
+                    }}
+                    onMouseOut={(e) => {
+                      if (!isSelected) e.currentTarget.style.background = 'transparent';
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                      <div style={{
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '6px',
+                        background: isSelected ? '#EDE9FE' : '#F8FAFC',
+                        color: isSelected ? '#7C3AED' : '#475569',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0
+                      }}>
+                        <Building2 size={15} />
+                      </div>
+                      <span style={{ fontSize: '13px', fontWeight: '600', color: isSelected ? '#6D28D9' : '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {biz.name}
+                      </span>
+                    </div>
+                    {isSelected && (
+                      <Check size={16} color="#7C3AED" style={{ flexShrink: 0, marginLeft: '8px' }} />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div style={{
+            padding: '10px 14px',
+            background: '#F8FAFC',
+            borderTop: '1px solid #E2E8F0',
+            display: 'flex',
+            alignItems: 'center'
+          }}>
+            <button
+              type="button"
+              onClick={() => {
+                setShowBusinessDropdown(false);
+                navigate('/tenant/businesses');
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#7C3AED',
+                fontSize: '12px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: 0
+              }}
+            >
+              <Plus size={13} />
+              <span>Manage or Add Businesses</span>
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderBranchFilterDropdown = () => (
+    <div ref={branchDropdownRef} style={{ position: 'relative' }}>
+      <button
+        type="button"
+        onClick={() => {
+          setShowBranchDropdown(!showBranchDropdown);
+          setShowBusinessDropdown(false);
+        }}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '9px',
+          padding: '6px 14px',
+          borderRadius: '24px',
+          background: showBranchDropdown ? '#EFF6FF' : '#F8FAFC',
+          border: showBranchDropdown ? '1.5px solid #2563EB' : '1px solid #CBD5E1',
+          cursor: 'pointer',
+          boxShadow: showBranchDropdown ? '0 0 0 3px rgba(37,99,235,0.1)' : '0 1px 2px rgba(0,0,0,0.03)',
+          transition: 'all 0.15s ease'
+        }}
+        title="Filter active branch view"
+        onMouseOver={(e) => {
+          if (!showBranchDropdown) {
+            e.currentTarget.style.background = '#F1F5F9';
+            e.currentTarget.style.borderColor = '#94A3B8';
+          }
+        }}
+        onMouseOut={(e) => {
+          if (!showBranchDropdown) {
+            e.currentTarget.style.background = '#F8FAFC';
+            e.currentTarget.style.borderColor = '#CBD5E1';
+          }
+        }}
+      >
+        <div style={{
+          width: '24px',
+          height: '24px',
+          borderRadius: '7px',
+          background: '#EFF6FF',
+          color: '#2563EB',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0
+        }}>
+          <Store size={14} />
+        </div>
+
+        <span style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {activeBranchLabel}
+        </span>
+
+        <ChevronDown size={14} color="#64748B" style={{ transform: showBranchDropdown ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
+      </button>
+
+      {showBranchDropdown && (
+        <div style={{
+          position: 'absolute',
+          top: 'calc(100% + 8px)',
+          left: 0,
+          width: '280px',
+          background: 'white',
+          borderRadius: '14px',
+          border: '1px solid #E2E8F0',
+          boxShadow: '0 16px 36px -4px rgba(15, 23, 42, 0.16), 0 4px 12px rgba(15, 23, 42, 0.05)',
+          zIndex: 1100,
+          overflow: 'hidden'
+        }}>
+          <div style={{ padding: '6px' }}>
+            <button
+              type="button"
+              onClick={() => handleSelectBranch('all', 'All Branches')}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '9px 12px',
+                borderRadius: '8px',
+                border: 'none',
+                background: selectedBranchFilterId === 'all' ? '#EFF6FF' : 'transparent',
+                cursor: 'pointer',
+                textAlign: 'left',
+                transition: 'background 0.15s ease'
+              }}
+              onMouseOver={(e) => {
+                if (selectedBranchFilterId !== 'all') e.currentTarget.style.background = '#F8FAFC';
+              }}
+              onMouseOut={(e) => {
+                if (selectedBranchFilterId !== 'all') e.currentTarget.style.background = 'transparent';
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '6px',
+                  background: selectedBranchFilterId === 'all' ? '#DBEAFE' : '#F1F5F9',
+                  color: selectedBranchFilterId === 'all' ? '#1D4ED8' : '#64748B',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}>
+                  <Layers size={15} />
+                </div>
+                <span style={{ fontSize: '13px', fontWeight: '600', color: selectedBranchFilterId === 'all' ? '#1D4ED8' : '#0F172A' }}>
+                  All Branches
+                </span>
+              </div>
+              {selectedBranchFilterId === 'all' && (
+                <Check size={16} color="#2563EB" style={{ flexShrink: 0 }} />
+              )}
+            </button>
+
+            <div style={{ height: '1px', background: '#F1F5F9', margin: '4px 8px' }} />
+
+            <div style={{ maxHeight: '220px', overflowY: 'auto' }}>
+              {displayBranches.map((branch) => {
+                const isSelected = selectedBranchFilterId === branch._id;
+                return (
+                  <button
+                    key={branch._id}
+                    type="button"
+                    onClick={() => handleSelectBranch(branch._id, branch.name)}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '9px 12px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: isSelected ? '#EFF6FF' : 'transparent',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'background 0.15s ease'
+                    }}
+                    onMouseOver={(e) => {
+                      if (!isSelected) e.currentTarget.style.background = '#F8FAFC';
+                    }}
+                    onMouseOut={(e) => {
+                      if (!isSelected) e.currentTarget.style.background = 'transparent';
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                      <div style={{
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '6px',
+                        background: isSelected ? '#DBEAFE' : '#F8FAFC',
+                        color: isSelected ? '#1D4ED8' : '#475569',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0
+                      }}>
+                        <Store size={15} />
+                      </div>
+                      <span style={{ fontSize: '13px', fontWeight: '600', color: isSelected ? '#1D4ED8' : '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {branch.name}
+                      </span>
+                    </div>
+                    {isSelected && (
+                      <Check size={16} color="#2563EB" style={{ flexShrink: 0, marginLeft: '8px' }} />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div style={{
+            padding: '10px 14px',
+            background: '#F8FAFC',
+            borderTop: '1px solid #E2E8F0',
+            display: 'flex',
+            alignItems: 'center'
+          }}>
+            <button
+              type="button"
+              onClick={() => {
+                setShowBranchDropdown(false);
+                navigate('/tenant/branches');
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#2563EB',
+                fontSize: '12px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: 0
+              }}
+            >
+              <Plus size={13} />
+              <span>Manage or Add Branches</span>
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className={`admin-layout ${currentUser?.role === 'investor' ? 'role-investor' : ''}`} style={{ display: 'flex', flexDirection: 'column' }}>
       {/* Admin Impersonation Top Banner */}
@@ -264,15 +806,15 @@ const TenantLayout = () => {
           fontSize: '13px'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-            <span style={{ 
-              background: '#2563EB', 
-              color: 'white', 
-              padding: '3px 10px', 
-              borderRadius: '20px', 
-              fontSize: '11px', 
-              fontWeight: '700', 
+            <span style={{
+              background: '#2563EB',
+              color: 'white',
+              padding: '3px 10px',
+              borderRadius: '20px',
+              fontSize: '11px',
+              fontWeight: '700',
               letterSpacing: '0.6px',
-              textTransform: 'uppercase' 
+              textTransform: 'uppercase'
             }}>
               Admin Impersonation Mode
             </span>
@@ -280,7 +822,7 @@ const TenantLayout = () => {
               Managing User: <strong style={{ color: '#60A5FA' }}>{currentUser?.businessName || currentUser?.name || 'Customer'}</strong> ({currentUser?.email || 'Active Client'})
             </span>
           </div>
-          <button 
+          <button
             onClick={handleExitImpersonation}
             style={{
               background: '#EF4444',
@@ -377,8 +919,16 @@ const TenantLayout = () => {
                 <span style={{ color: '#64748B', fontSize: '12px', fontWeight: '400' }}>• {currentUser?.branchLocation}</span>
               )}
             </div>
+          ) : isType4User ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'nowrap' }}>
+              {renderBusinessFilterDropdown()}
+              <div style={{ width: '1px', height: '22px', background: '#E2E8F0', flexShrink: 0 }} />
+              {renderBranchFilterDropdown()}
+            </div>
+          ) : isType3User ? (
+            renderBranchFilterDropdown()
           ) : tenantType === 2 && currentBranch ? (
-            <div 
+            <div
               style={{
                 display: 'flex',
                 alignItems: 'center',

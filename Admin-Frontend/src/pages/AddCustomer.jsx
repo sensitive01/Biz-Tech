@@ -512,7 +512,7 @@ const AddCustomer = () => {
 
   // Build catalogueData payload from step 4 & 5
   const buildCatalogueData = () => {
-    const itemType = offeringType === 'service' ? 'Service' : 'Product';
+    const itemType = offeringType === 'both' ? 'Both' : (offeringType === 'service' ? 'Service' : 'Product');
     return selectedCategories.map(catName => ({
       categoryName: catName,
       subCategories: selectedSubCategoriesMap[catName] || [],
@@ -788,7 +788,7 @@ const AddCustomer = () => {
                   name="customer_full_name"
                   autoComplete="off"
                   className="input-field"
-                  placeholder="e.g. Sarah Jenkins"
+                  placeholder="Enter Your Full Name"
                   value={fullName}
                   onChange={e => setFullName(e.target.value)}
                 />
@@ -803,7 +803,7 @@ const AddCustomer = () => {
                   name="customer_login_email"
                   autoComplete="off"
                   className="input-field"
-                  placeholder="sarah@bluestarbakery.com"
+                  placeholder="Enter Your Email Address"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                 />

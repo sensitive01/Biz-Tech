@@ -2,8 +2,9 @@ import { exportToCSV } from '@/utils/exportToCSV';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import { ArrowUp, ArrowDown, Plus, Search, Package, Tag, Trash2, Pencil, X, AlertTriangle, ArrowUpDown, Download, Barcode, Wrench } from 'lucide-react';
+import { ArrowUp, ArrowDown, Plus, Search, Package, Tag, Trash2, Pencil, X, AlertTriangle, ArrowUpDown, Download, Wrench } from 'lucide-react';
 import TablePagination from '@/components/TablePagination';
+import { getSubCategoriesForCategory, normalizeCategoryKey } from '../../constants/businessCategories';
 
 const getImageUrl = (image) => {
   if (!image) return '';
@@ -73,8 +74,20 @@ const Products = ({ offeringMode }) => {
   }, [offeringMode, location.pathname, searchParams, storedUser]);
 
   const operationsType = storedUser?.businessOperationsType || 'both';
-  const defaultItemType = offeringType === 'service' ? 'Service' : 'Product';
+  const isBothOffering = String(storedUser?.businessOfferingType || storedUser?.offeringType || '').toLowerCase() === 'both';
+  const defaultItemType = isBothOffering ? 'Both' : (offeringType === 'service' ? 'Service' : 'Product');
   const defaultTransactionType = operationsType === 'purchases' ? 'Purchase' : 'Sales';
+
+  const matchesOffering = (itemTypeVal, targetOffering, isCategoryOrSub = false) => {
+    const type = String(itemTypeVal || '').toLowerCase();
+    if (type === 'both' || (isCategoryOrSub && isBothOffering)) {
+      return true;
+    }
+    if (targetOffering === 'service') {
+      return type === 'service';
+    }
+    return type !== 'service';
+  };
 
   const [catForm, setCatForm] = useState({ name: '', description: '', image: null, existingImage: null, itemType: defaultItemType, transactionType: defaultTransactionType });
   const [subCatForm, setSubCatForm] = useState({ name: '', categoryId: '', itemType: defaultItemType, transactionType: defaultTransactionType, description: '' });
@@ -88,36 +101,43 @@ const Products = ({ offeringMode }) => {
 
   // Categories belonging to current offering type
   const availableCategories = useMemo(() => {
-    return categories.filter(c => {
-      const type = c.itemType;
-      return offeringType === 'service' ? type === 'Service' : type !== 'Service';
-    });
-  }, [categories, offeringType]);
+    return categories.filter(c => matchesOffering(c.itemType, offeringType, true));
+  }, [categories, offeringType, isBothOffering]);
 
   // Subcategories belonging to chosen category
   const availableSubCategories = useMemo(() => {
     if (!prodForm.categoryId) return [];
-    return subcategories.filter(sc => (sc.categoryId?._id || sc.categoryId) === prodForm.categoryId);
-  }, [subcategories, prodForm.categoryId]);
+    const selectedCat = categories.find(c => c._id === prodForm.categoryId);
+    const catName = selectedCat?.name || '';
+    const allowedSubNames = getSubCategoriesForCategory(catName);
+
+    return subcategories.filter(sc => {
+      const scCatId = sc.categoryId?._id || sc.categoryId;
+      const matchesId = scCatId && String(scCatId) === String(prodForm.categoryId);
+      if (!matchesId) return false;
+
+      // If category has defined mapped subcategories, strictly enforce that sc.name belongs to this category!
+      if (allowedSubNames.length > 0) {
+        const normScName = normalizeCategoryKey(sc.name);
+        const belongs = allowedSubNames.some(a => normalizeCategoryKey(a) === normScName);
+        if (!belongs) return false;
+      }
+      return true;
+    });
+  }, [subcategories, prodForm.categoryId, categories]);
 
   // Dynamic counts for top cards
   const filteredCategoriesCount = useMemo(() => {
-    return categories.filter(c => offeringType === 'service' ? c.itemType === 'Service' : c.itemType !== 'Service').length;
-  }, [categories, offeringType]);
+    return categories.filter(c => matchesOffering(c.itemType, offeringType, true)).length;
+  }, [categories, offeringType, isBothOffering]);
 
   const filteredSubcategoriesCount = useMemo(() => {
-    return subcategories.filter(sc => {
-      const type = sc.itemType || sc.categoryId?.itemType;
-      return offeringType === 'service' ? type === 'Service' : type !== 'Service';
-    }).length;
-  }, [subcategories, offeringType]);
+    return subcategories.filter(sc => matchesOffering(sc.itemType || sc.categoryId?.itemType, offeringType, true)).length;
+  }, [subcategories, offeringType, isBothOffering]);
 
   const filteredProductsCount = useMemo(() => {
-    return products.filter(p => {
-      const type = p.itemType || p.categoryId?.itemType;
-      return offeringType === 'service' ? type === 'Service' : type !== 'Service';
-    }).length;
-  }, [products, offeringType]);
+    return products.filter(p => matchesOffering(p.itemType || p.categoryId?.itemType, offeringType, false)).length;
+  }, [products, offeringType, isBothOffering]);
 
   const handleOpenAdd = () => {
     setEditingItem(null);
@@ -218,12 +238,12 @@ const Products = ({ offeringMode }) => {
           bodyData.append(key, catForm[key]);
         }
       });
-      bodyData.set('itemType', editingItem?.itemType || targetItemType);
+      bodyData.set('itemType', catForm.itemType || editingItem?.itemType || targetItemType);
     } else if (activeTab === 'subcategories') {
       endpoint = editingItem ? `/api/subcategories/${editingItem._id}` : '/api/subcategories';
       bodyData = JSON.stringify({
         ...subCatForm,
-        itemType: editingItem?.itemType || targetItemType
+        itemType: subCatForm.itemType || editingItem?.itemType || targetItemType
       });
       headers['Content-Type'] = 'application/json';
     } else {
@@ -235,8 +255,10 @@ const Products = ({ offeringMode }) => {
           bodyData.append(key, prodForm[key]);
         }
       });
-      bodyData.set('itemType', editingItem?.itemType || targetItemType);
+      bodyData.set('itemType', prodForm.itemType || editingItem?.itemType || targetItemType);
       if (targetItemType === 'Service') {
+        bodyData.set('stock', '0');
+      } else if (!prodForm.stock || String(prodForm.stock).trim() === '') {
         bodyData.set('stock', '0');
       }
     }
@@ -304,17 +326,14 @@ const Products = ({ offeringMode }) => {
       })
       .filter(item => {
         const itemType = item.itemType || item.categoryId?.itemType;
-        if (offeringType === 'service') {
-          if (itemType !== 'Service') return false;
-        } else {
-          if (itemType === 'Service') return false;
-        }
+        const isCatOrSub = activeTab === 'categories' || activeTab === 'subcategories';
+        if (!matchesOffering(itemType, offeringType, isCatOrSub)) return false;
+
+        const txType = (item.transactionType || item.categoryId?.transactionType || '').toLowerCase();
         if (operationsType === 'sales') {
-          const txType = item.transactionType || item.categoryId?.transactionType;
-          if (txType && txType !== 'Sales') return false;
+          if (txType && txType !== 'sales' && txType !== 'both') return false;
         } else if (operationsType === 'purchases') {
-          const txType = item.transactionType || item.categoryId?.transactionType;
-          if (txType && txType !== 'Purchase') return false;
+          if (txType && txType !== 'purchase' && txType !== 'both') return false;
         }
         return true;
       })
@@ -414,14 +433,6 @@ const Products = ({ offeringMode }) => {
             <button onClick={() => setActiveTab('subcategories')} style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '14px', fontWeight: '600', background: activeTab === 'subcategories' ? 'white' : 'transparent', color: activeTab === 'subcategories' ? '#0F172A' : '#64748B', border: 'none', boxShadow: activeTab === 'subcategories' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: 'all 0.2s' }}>Sub Categories</button>
             <button onClick={() => setActiveTab('products')} style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '14px', fontWeight: '600', background: activeTab === 'products' ? 'white' : 'transparent', color: activeTab === 'products' ? '#0F172A' : '#64748B', border: 'none', boxShadow: activeTab === 'products' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: 'all 0.2s' }}>
               {offeringType === 'service' ? 'Services' : 'Products'}
-            </button>
-            <button 
-              type="button"
-              onClick={() => navigate('/tenant/sales?tab=barcode')} 
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '6px', fontSize: '13px', fontWeight: '700', background: '#EDE9FE', color: '#6D28D9', border: '1px solid #DDD6FE', cursor: 'pointer', transition: 'all 0.2s' }}
-              title="Manage Barcodes for Products and Services"
-            >
-              <Barcode size={15} /> Barcode Manager
             </button>
           </div>
           
@@ -615,12 +626,53 @@ const Products = ({ offeringMode }) => {
                           </span>
                         </td>
                         <td style={{ padding: '16px 24px', color: '#475569', fontWeight: '500' }}>₹{item.price || 0}</td>
-                        <td style={{ padding: '16px 24px', color: '#475569' }}>{item.itemType === 'Service' ? '-' : (item.stock || 0)}</td>
+                        <td style={{ padding: '16px 24px' }}>
+                          {item.itemType === 'Service' ? (
+                            <span style={{ color: '#94A3B8' }}>-</span>
+                          ) : (
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '3px 10px',
+                              borderRadius: '12px',
+                              fontSize: '12px',
+                              fontWeight: '700',
+                              background: Number(item.stock || 0) <= 0 ? '#FEF2F2' : Number(item.stock || 0) <= 5 ? '#FFFBEB' : '#ECFDF5',
+                              color: Number(item.stock || 0) <= 0 ? '#DC2626' : Number(item.stock || 0) <= 5 ? '#D97706' : '#16A34A',
+                              border: `1px solid ${Number(item.stock || 0) <= 0 ? '#FECACA' : Number(item.stock || 0) <= 5 ? '#FDE68A' : '#A7F3D0'}`
+                            }}>
+                              {Number(item.stock || 0) <= 0 ? '0 (Out of stock)' : `${item.stock} units`}
+                            </span>
+                          )}
+                        </td>
                       </>
                     )}
 
                     <td style={{ padding: '16px 24px', textAlign: 'right' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                        {activeTab === 'products' && item.itemType !== 'Service' && (
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/tenant/inventory?restock=${item._id}`)}
+                            title="Add Stock"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: '32px',
+                              height: '32px',
+                              background: '#F0FDF4',
+                              color: '#16A34A',
+                              border: '1px solid #BBF7D0',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            <Plus size={16} />
+                          </button>
+                        )}
                         <button
                           onClick={() => {
                             if (activeTab === 'categories') handleEditCategory(item);
@@ -702,30 +754,34 @@ const Products = ({ offeringMode }) => {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                     <div>
                       <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Item Type</label>
-                      <input
-                        type="text"
-                        readOnly
-                        value={offeringType === 'service' ? 'Service' : 'Product'}
-                        style={{
-                          width: '100%',
-                          padding: '12px',
-                          borderRadius: '10px',
-                          border: '1px solid #CBD5E1',
-                          backgroundColor: '#F8FAFC',
-                          color: '#334155',
-                          cursor: 'default',
-                          outline: 'none',
-                          fontWeight: '600'
-                        }}
-                      />
+                      <select
+                        value={catForm.itemType || (offeringType === 'service' ? 'Service' : 'Product')}
+                        onChange={e => setCatForm({ ...catForm, itemType: e.target.value })}
+                        style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', background: 'white' }}
+                      >
+                        <option value="Both">Both (Product & Service)</option>
+                        <option value="Product">Product</option>
+                        <option value="Service">Service</option>
+                      </select>
                     </div>
                     <div>
                       <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Transaction Type</label>
-                      <select value={catForm.transactionType} onChange={e => setCatForm({...catForm, transactionType: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }}>
-                        {operationsType !== 'purchases' && <option value="Sales">Sales</option>}
-                        {operationsType !== 'sales' && <option value="Purchase">Purchase</option>}
+                      <select value={catForm.transactionType} onChange={e => setCatForm({...catForm, transactionType: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', background: 'white' }}>
+                        <option value="Sales">Sales</option>
+                        <option value="Purchase">Purchase</option>
+                        <option value="Both">Both (Sales & Purchase)</option>
                       </select>
                     </div>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Description</label>
+                    <textarea
+                      placeholder="Enter category description..."
+                      rows={3}
+                      value={catForm.description}
+                      onChange={e => setCatForm({...catForm, description: e.target.value})}
+                      style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none', boxSizing: 'border-box', resize: 'vertical' }}
+                    />
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Category Image</label>
@@ -759,7 +815,7 @@ const Products = ({ offeringMode }) => {
                         setSubCatForm({
                           ...subCatForm,
                           categoryId: catId,
-                          itemType: matched?.itemType || (offeringType === 'service' ? 'Service' : 'Product'),
+                          itemType: matched?.itemType || subCatForm.itemType || (offeringType === 'service' ? 'Service' : 'Product'),
                           transactionType: matched?.transactionType || subCatForm.transactionType || 'Sales'
                         });
                       }}
@@ -774,47 +830,42 @@ const Products = ({ offeringMode }) => {
                       {availableCategories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
                     </select>
                   </div>
-                  {subCatForm.categoryId && (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Item Type</label>
-                        <input
-                          type="text"
-                          readOnly
-                          value={subCatForm.itemType || (offeringType === 'service' ? 'Service' : 'Product')}
-                          style={{
-                            width: '100%',
-                            padding: '12px',
-                            borderRadius: '10px',
-                            border: '1px solid #CBD5E1',
-                            backgroundColor: '#F8FAFC',
-                            color: '#334155',
-                            cursor: 'default',
-                            outline: 'none',
-                            fontWeight: '600'
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Transaction Type</label>
-                        <input
-                          type="text"
-                          readOnly
-                          value={subCatForm.transactionType || ''}
-                          style={{
-                            width: '100%',
-                            padding: '12px',
-                            borderRadius: '10px',
-                            border: '1px solid #CBD5E1',
-                            backgroundColor: '#F8FAFC',
-                            color: '#334155',
-                            cursor: 'default',
-                            outline: 'none'
-                          }}
-                        />
-                      </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Item Type</label>
+                      <select
+                        value={subCatForm.itemType || (offeringType === 'service' ? 'Service' : 'Product')}
+                        onChange={e => setSubCatForm({ ...subCatForm, itemType: e.target.value })}
+                        style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', background: 'white' }}
+                      >
+                        <option value="Both">Both (Product & Service)</option>
+                        <option value="Product">Product</option>
+                        <option value="Service">Service</option>
+                      </select>
                     </div>
-                  )}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Transaction Type</label>
+                      <select
+                        value={subCatForm.transactionType || 'Sales'}
+                        onChange={e => setSubCatForm({ ...subCatForm, transactionType: e.target.value })}
+                        style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', background: 'white' }}
+                      >
+                        <option value="Sales">Sales</option>
+                        <option value="Purchase">Purchase</option>
+                        <option value="Both">Both (Sales & Purchase)</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Description</label>
+                    <textarea
+                      placeholder="Enter sub category description..."
+                      rows={3}
+                      value={subCatForm.description}
+                      onChange={e => setSubCatForm({...subCatForm, description: e.target.value})}
+                      style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none', boxSizing: 'border-box', resize: 'vertical' }}
+                    />
+                  </div>
                 </>
               )}
 
@@ -896,14 +947,35 @@ const Products = ({ offeringMode }) => {
                   <div style={{ display: 'grid', gridTemplateColumns: offeringType === 'product' ? '1fr 1fr' : '1fr', gap: '16px' }}>
                     {offeringType === 'product' && (
                       <div>
-                        <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Stock Quantity</label>
-                        <input placeholder="Enter the stock quantity" type="number" value={prodForm.stock} onChange={e => setProdForm({...prodForm, stock: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                          <label style={{ fontSize: '14px', fontWeight: '600', color: '#1E293B' }}>Initial Stock Quantity</label>
+                          <span style={{ fontSize: '12px', color: '#64748B' }}>(Optional)</span>
+                        </div>
+                        <input 
+                          placeholder="e.g. 10" 
+                          type="number" 
+                          min="0"
+                          value={prodForm.stock} 
+                          onChange={e => setProdForm({...prodForm, stock: e.target.value})} 
+                          style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} 
+                        />
                       </div>
                     )}
                     <div>
                       <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Price (₹)</label>
                       <input placeholder="Enter the price amount" type="number" value={prodForm.price} onChange={e => setProdForm({...prodForm, price: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
                     </div>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Description</label>
+                    <textarea
+                      placeholder="Enter product description..."
+                      rows={3}
+                      value={prodForm.description}
+                      onChange={e => setProdForm({...prodForm, description: e.target.value})}
+                      style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none', boxSizing: 'border-box', resize: 'vertical' }}
+                    />
                   </div>
 
                   <div>
