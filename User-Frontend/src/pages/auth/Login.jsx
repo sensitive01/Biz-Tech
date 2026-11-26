@@ -53,8 +53,20 @@ const Login = () => {
           localStorage.removeItem('activeBusiness');
         }
 
-        // Check if onboarding is completed
-        if (data.requiresOnboarding || data.user?.isOnboardingCompleted === false) {
+        // Route based on account tier
+        if (data.user?.accountType === 'free_business') {
+          if (data.user?.isOnboardingCompleted) {
+            navigate('/business/profile', { replace: true });
+          } else {
+            navigate('/business/setup', { replace: true });
+          }
+        } else if (data.user?.accountType === 'free_career') {
+          if (data.user?.isOnboardingCompleted) {
+            navigate('/career/profile', { replace: true });
+          } else {
+            navigate('/career/setup', { replace: true });
+          }
+        } else if (data.requiresOnboarding || data.user?.isOnboardingCompleted === false) {
           navigate('/onboarding', { replace: true });
         } else {
           navigate('/tenant/dashboard', { replace: true });

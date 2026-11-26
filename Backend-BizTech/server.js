@@ -70,6 +70,7 @@ const categoriesRoutes = require('./routes/categories');
 const subcategoriesRoutes = require('./routes/subcategories');
 const productsRoutes = require('./routes/products');
 const investorsRoutes = require('./routes/investors');
+const directoryRoutes = require('./routes/directory');
 const contactRoutes = require('./routes/contact');
 const paymentRoutes = require('./routes/payment');
 const adminPaymentApprovalsRoutes = require('./routes/adminPaymentApprovals');
@@ -97,6 +98,7 @@ app.use('/api/categories', categoriesRoutes);
 app.use('/api/subcategories', subcategoriesRoutes);
 app.use('/api/products', productsRoutes);
 app.use('/api/investors', investorsRoutes);
+app.use('/api/directory', directoryRoutes);
 
 // Base route
 app.get('/', (req, res) => {

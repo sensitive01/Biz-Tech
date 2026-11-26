@@ -90,9 +90,9 @@ const Products = ({ offeringMode }) => {
     return type !== 'service';
   };
 
-  const [catForm, setCatForm] = useState({ name: '', description: '', image: null, existingImage: null, itemType: defaultItemType, transactionType: defaultTransactionType });
-  const [subCatForm, setSubCatForm] = useState({ name: '', categoryId: '', itemType: defaultItemType, transactionType: defaultTransactionType, description: '' });
-  const [prodForm, setProdForm] = useState({ name: '', sku: '', categoryId: '', subCategoryId: '', costPrice: '', price: '', stock: '', measurementType: 'Piece', unit: 'pcs', secondaryUnit: '', conversionFactor: '', image: null, existingImage: null, itemType: defaultItemType, description: '' });
+  const [catForm, setCatForm] = useState({ categoryId: '', name: '', description: '', image: null, existingImage: null, itemType: defaultItemType, transactionType: defaultTransactionType });
+  const [subCatForm, setSubCatForm] = useState({ subCategoryId: '', name: '', categoryId: '', itemType: defaultItemType, transactionType: defaultTransactionType, description: '' });
+  const [prodForm, setProdForm] = useState({ name: '', sku: '', serviceId: '', categoryId: '', subCategoryId: '', costPrice: '', price: '', stock: '', measurementType: 'Piece', unit: 'pcs', secondaryUnit: '', conversionFactor: '', image: null, existingImage: null, itemType: defaultItemType, description: '' });
 
   // Reset pagination & search when switching between Products and Services
   useEffect(() => {
@@ -144,12 +144,13 @@ const Products = ({ offeringMode }) => {
     setEditingItem(null);
     setShowConversion(false);
     const fixedItemType = offeringType === 'service' ? 'Service' : 'Product';
-    setCatForm({ name: '', description: '', image: null, existingImage: null, itemType: fixedItemType, transactionType: defaultTransactionType });
-    setSubCatForm({ name: '', categoryId: '', itemType: fixedItemType, transactionType: defaultTransactionType, description: '' });
+    setCatForm({ categoryId: '', name: '', description: '', image: null, existingImage: null, itemType: fixedItemType, transactionType: defaultTransactionType });
+    setSubCatForm({ subCategoryId: '', name: '', categoryId: '', itemType: fixedItemType, transactionType: defaultTransactionType, description: '' });
     setProdForm({
       name: '',
       sku: '',
-      categoryId: '',
+      serviceId: '',
+      categoryId: availableCategories[0]?._id || '',
       subCategoryId: '',
       costPrice: '',
       price: '',
@@ -169,6 +170,7 @@ const Products = ({ offeringMode }) => {
   const handleEditCategory = (item) => {
     setEditingItem(item);
     setCatForm({
+      categoryId: item.categoryId || '',
       name: item.name || '',
       description: item.description || '',
       image: null,
@@ -182,6 +184,7 @@ const Products = ({ offeringMode }) => {
   const handleEditSubCategory = (item) => {
     setEditingItem(item);
     setSubCatForm({
+      subCategoryId: item.subCategoryId || '',
       name: item.name || '',
       categoryId: item.categoryId?._id || item.categoryId || '',
       itemType: item.itemType || item.categoryId?.itemType || (offeringType === 'service' ? 'Service' : 'Product'),
@@ -206,6 +209,7 @@ const Products = ({ offeringMode }) => {
     setProdForm({
       name: item.name || '',
       sku: item.sku || '',
+      serviceId: item.serviceId || (derivedType === 'Service' ? item.sku : '') || (derivedType === 'Service' && item._id ? `SRV-${item._id.slice(-4).toUpperCase()}` : ''),
       categoryId: catId,
       subCategoryId: item.subCategoryId?._id || item.subCategoryId || '',
       costPrice: item.costPrice !== undefined ? item.costPrice : '',
@@ -291,6 +295,9 @@ const Products = ({ offeringMode }) => {
       bodyData.set('itemType', prodForm.itemType || editingItem?.itemType || targetItemType);
       if (targetItemType === 'Service') {
         bodyData.set('stock', '0');
+        if (prodForm.serviceId && !prodForm.sku) {
+          bodyData.set('sku', prodForm.serviceId);
+        }
       } else if (!prodForm.stock || String(prodForm.stock).trim() === '') {
         bodyData.set('stock', '0');
       }
@@ -306,9 +313,9 @@ const Products = ({ offeringMode }) => {
         setShowModal(false);
         setEditingItem(null);
         setShowConversion(false);
-        setCatForm({ name: '', description: '', image: null, existingImage: null, itemType: targetItemType, transactionType: defaultTransactionType });
-        setSubCatForm({ name: '', categoryId: '', itemType: targetItemType, transactionType: defaultTransactionType, description: '' });
-        setProdForm({ name: '', sku: '', categoryId: '', subCategoryId: '', costPrice: '', price: '', stock: '', measurementType: 'Piece', unit: 'pcs', secondaryUnit: '', conversionFactor: '', image: null, existingImage: null, itemType: targetItemType, description: '' });
+        setCatForm({ categoryId: '', name: '', description: '', image: null, existingImage: null, itemType: targetItemType, transactionType: defaultTransactionType });
+        setSubCatForm({ subCategoryId: '', name: '', categoryId: '', itemType: targetItemType, transactionType: defaultTransactionType, description: '' });
+        setProdForm({ name: '', sku: '', serviceId: '', categoryId: '', subCategoryId: '', costPrice: '', price: '', stock: '', measurementType: 'Piece', unit: 'pcs', secondaryUnit: '', conversionFactor: '', image: null, existingImage: null, itemType: targetItemType, description: '' });
         fetchData();
       } else {
         alert('Failed to save');
@@ -505,41 +512,37 @@ const Products = ({ offeringMode }) => {
               </th>
                 {activeTab === 'categories' && (
                   <>
-                    <th onClick={() => requestSort('itemType')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',  padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
-                <div style={{ display: 'flex', alignItems: 'center' }}>Item Type {renderSortIcon('itemType')}</div>
-              </th>
-                    <th onClick={() => requestSort('transactionType')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',  padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
-                <div style={{ display: 'flex', alignItems: 'center' }}>Transaction Type {renderSortIcon('transactionType')}</div>
-              </th>
+                    <th onClick={() => requestSort('categoryId')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
+                      <div style={{ display: 'flex', alignItems: 'center' }}>Category ID {renderSortIcon('categoryId')}</div>
+                    </th>
                     <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>Description</th>
                   </>
                 )}
                 {activeTab === 'subcategories' && (
                   <>
+                    <th onClick={() => requestSort('subCategoryId')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
+                      <div style={{ display: 'flex', alignItems: 'center' }}>Sub Category ID {renderSortIcon('subCategoryId')}</div>
+                    </th>
                     <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>Parent Category</th>
-                    <th onClick={() => requestSort('itemType')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
-                      <div style={{ display: 'flex', alignItems: 'center' }}>Item Type {renderSortIcon('itemType')}</div>
-                    </th>
-                    <th onClick={() => requestSort('transactionType')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
-                      <div style={{ display: 'flex', alignItems: 'center' }}>Transaction Type {renderSortIcon('transactionType')}</div>
-                    </th>
                     <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>Description</th>
                   </>
                 )}
                 {activeTab === 'products' && (
                   <>
-                    <th onClick={() => requestSort('category')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',  padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
-                <div style={{ display: 'flex', alignItems: 'center' }}>Category {renderSortIcon('category')}</div>
-              </th>
-                    <th onClick={() => requestSort('type')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',  padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
-                <div style={{ display: 'flex', alignItems: 'center' }}>Type {renderSortIcon('type')}</div>
-              </th>
-                    <th onClick={() => requestSort('price')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',  padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
-                <div style={{ display: 'flex', alignItems: 'center' }}>Buy / Sell Price {renderSortIcon('price')}</div>
-              </th>
-                    <th onClick={() => requestSort('stock')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',  padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
-                <div style={{ display: 'flex', alignItems: 'center' }}>Stock & Unit {renderSortIcon('stock')}</div>
-              </th>
+                    <th onClick={() => requestSort(offeringType === 'service' ? 'serviceId' : 'sku')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
+                      <div style={{ display: 'flex', alignItems: 'center' }}>{offeringType === 'service' ? 'Service ID' : 'SKU'} {renderSortIcon(offeringType === 'service' ? 'serviceId' : 'sku')}</div>
+                    </th>
+                    <th onClick={() => requestSort('category')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
+                      <div style={{ display: 'flex', alignItems: 'center' }}>Category {renderSortIcon('category')}</div>
+                    </th>
+                    <th onClick={() => requestSort('price')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
+                      <div style={{ display: 'flex', alignItems: 'center' }}>{offeringType === 'service' ? 'Service Price' : 'Buy / Sell Price'} {renderSortIcon('price')}</div>
+                    </th>
+                    {offeringType !== 'service' && (
+                      <th onClick={() => requestSort('stock')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
+                        <div style={{ display: 'flex', alignItems: 'center' }}>Stock & Unit {renderSortIcon('stock')}</div>
+                      </th>
+                    )}
                   </>
                 )}
                 <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', textAlign: 'center' }}>Actions</th>
@@ -633,71 +636,75 @@ const Products = ({ offeringMode }) => {
                     
                     {activeTab === 'categories' && (
                       <>
-                        <td style={{ padding: '16px 24px', color: '#475569' }}>{item.itemType}</td>
-                        <td style={{ padding: '16px 24px', color: '#475569' }}>{item.transactionType}</td>
+                        <td style={{ padding: '16px 24px', color: '#475569', fontFamily: 'monospace', fontSize: '13px', fontWeight: '600' }}>
+                          {item.categoryId || (item._id ? `CAT-${item._id.slice(-4).toUpperCase()}` : '-')}
+                        </td>
                         <td style={{ padding: '16px 24px', color: '#475569' }}>{item.description || '-'}</td>
                       </>
                     )}
 
                     {activeTab === 'subcategories' && (
                       <>
+                        <td style={{ padding: '16px 24px', color: '#475569', fontFamily: 'monospace', fontSize: '13px', fontWeight: '600' }}>
+                          {item.subCategoryId || (item._id ? `SUB-${item._id.slice(-4).toUpperCase()}` : '-')}
+                        </td>
                         <td style={{ padding: '16px 24px', color: '#475569' }}>{item.categoryId?.name || '-'}</td>
-                        <td style={{ padding: '16px 24px', color: '#475569' }}>{item.itemType || item.categoryId?.itemType || '-'}</td>
-                        <td style={{ padding: '16px 24px', color: '#475569' }}>{item.transactionType || item.categoryId?.transactionType || '-'}</td>
                         <td style={{ padding: '16px 24px', color: '#475569' }}>{item.description || '-'}</td>
                       </>
                     )}
 
                     {activeTab === 'products' && (
                       <>
+                        <td style={{ padding: '16px 24px', color: '#475569', fontFamily: 'monospace', fontSize: '13px', fontWeight: '600' }}>
+                          {offeringType === 'service'
+                            ? (item.serviceId || item.sku || (item._id ? `SRV-${item._id.slice(-4).toUpperCase()}` : '-'))
+                            : (item.sku || '-')}
+                        </td>
                         <td style={{ padding: '16px 24px', color: '#475569' }}>
                           {item.categoryId?.name || '-'}
                           {item.subCategoryId && <span style={{ fontSize: '12px', color: '#94A3B8', display: 'block' }}>{item.subCategoryId.name}</span>}
                         </td>
                         <td style={{ padding: '16px 24px', color: '#475569' }}>
-                          <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: '600', background: item.itemType === 'Product' ? '#EFF6FF' : '#F0FDF4', color: item.itemType === 'Product' ? '#2563EB' : '#16A34A' }}>
-                            {item.itemType}
-                          </span>
-                        </td>
-                        <td style={{ padding: '16px 24px', color: '#475569' }}>
                           <div style={{ fontSize: '14px', fontWeight: '700', color: '#0F172A' }}>
                             ₹{Number(item.price || 0).toLocaleString('en-IN')}
-                            <span style={{ fontSize: '11px', color: '#64748B', fontWeight: '500', marginLeft: '4px' }}>/ {item.unit || 'unit'}</span>
+                            {offeringType !== 'service' && <span style={{ fontSize: '11px', color: '#64748B', fontWeight: '500', marginLeft: '4px' }}>/ {item.unit || 'unit'}</span>}
                           </div>
-                          {item.costPrice !== undefined && Number(item.costPrice) > 0 && (
+                          {offeringType !== 'service' && item.costPrice !== undefined && Number(item.costPrice) > 0 && (
                             <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
                               Buy: <span style={{ fontWeight: '600', color: '#334155' }}>₹{Number(item.costPrice).toLocaleString('en-IN')}</span>
                             </div>
                           )}
                         </td>
-                        <td style={{ padding: '16px 24px' }}>
-                          {item.itemType === 'Service' ? (
-                            <span style={{ color: '#94A3B8' }}>-</span>
-                          ) : (
-                            <div>
-                              <span style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                padding: '3px 10px',
-                                borderRadius: '12px',
-                                fontSize: '12px',
-                                fontWeight: '700',
-                                background: Number(item.stock || 0) <= 0 ? '#FEF2F2' : Number(item.stock || 0) <= 5 ? '#FFFBEB' : '#ECFDF5',
-                                color: Number(item.stock || 0) <= 0 ? '#DC2626' : Number(item.stock || 0) <= 5 ? '#D97706' : '#16A34A',
-                                border: `1px solid ${Number(item.stock || 0) <= 0 ? '#FECACA' : Number(item.stock || 0) <= 5 ? '#FDE68A' : '#A7F3D0'}`
-                              }}>
-                                {Number(item.stock || 0) <= 0 ? '0 (Out of stock)' : `${item.stock} ${item.unit || 'units'}`}
-                              </span>
-                              {item.measurementType && (
-                                <span style={{ display: 'block', fontSize: '11px', color: '#64748B', marginTop: '3px' }}>
-                                  {item.measurementType}
-                                  {item.secondaryUnit && item.conversionFactor ? ` • 1 ${item.secondaryUnit} = ${item.conversionFactor} ${item.unit || 'pcs'}` : ''}
+                        {offeringType !== 'service' && (
+                          <td style={{ padding: '16px 24px' }}>
+                            {item.itemType === 'Service' ? (
+                              <span style={{ color: '#94A3B8' }}>-</span>
+                            ) : (
+                              <div>
+                                <span style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  padding: '3px 10px',
+                                  borderRadius: '12px',
+                                  fontSize: '12px',
+                                  fontWeight: '700',
+                                  background: Number(item.stock || 0) <= 0 ? '#FEF2F2' : Number(item.stock || 0) <= 5 ? '#FFFBEB' : '#ECFDF5',
+                                  color: Number(item.stock || 0) <= 0 ? '#DC2626' : Number(item.stock || 0) <= 5 ? '#D97706' : '#16A34A',
+                                  border: `1px solid ${Number(item.stock || 0) <= 0 ? '#FECACA' : Number(item.stock || 0) <= 5 ? '#FDE68A' : '#A7F3D0'}`
+                                }}>
+                                  {Number(item.stock || 0) <= 0 ? '0 (Out of stock)' : `${item.stock} ${item.unit || 'units'}`}
                                 </span>
-                              )}
-                            </div>
-                          )}
-                        </td>
+                                {item.measurementType && (
+                                  <span style={{ display: 'block', fontSize: '11px', color: '#64748B', marginTop: '3px' }}>
+                                    {item.measurementType}
+                                    {item.secondaryUnit && item.conversionFactor ? ` • 1 ${item.secondaryUnit} = ${item.conversionFactor} ${item.unit || 'pcs'}` : ''}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                        )}
                       </>
                     )}
 
@@ -799,30 +806,14 @@ const Products = ({ offeringMode }) => {
               
               {activeTab === 'categories' && (
                 <>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Category Name</label>
-                    <input placeholder="Enter category name" type="text" value={catForm.name} onChange={e => setCatForm({...catForm, name: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
-                  </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                     <div>
-                      <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Item Type</label>
-                      <select
-                        value={catForm.itemType || (offeringType === 'service' ? 'Service' : 'Product')}
-                        onChange={e => setCatForm({ ...catForm, itemType: e.target.value })}
-                        style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', background: 'white' }}
-                      >
-                        <option value="Both">Both (Product & Service)</option>
-                        <option value="Product">Product</option>
-                        <option value="Service">Service</option>
-                      </select>
+                      <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Category Name *</label>
+                      <input placeholder="e.g. Grocery & Essentials" type="text" value={catForm.name} onChange={e => setCatForm({...catForm, name: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', boxSizing: 'border-box' }} />
                     </div>
                     <div>
-                      <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Transaction Type</label>
-                      <select value={catForm.transactionType} onChange={e => setCatForm({...catForm, transactionType: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', background: 'white' }}>
-                        <option value="Sales">Sales</option>
-                        <option value="Purchase">Purchase</option>
-                        <option value="Both">Both (Sales & Purchase)</option>
-                      </select>
+                      <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Category ID</label>
+                      <input placeholder="e.g. CAT-01" type="text" value={catForm.categoryId || ''} onChange={e => setCatForm({...catForm, categoryId: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', fontFamily: 'monospace', boxSizing: 'border-box' }} />
                     </div>
                   </div>
                   <div>
@@ -853,12 +844,18 @@ const Products = ({ offeringMode }) => {
 
               {activeTab === 'subcategories' && (
                 <>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Sub Category Name</label>
-                    <input placeholder="Enter the subcategory name" type="text" value={subCatForm.name} onChange={e => setSubCatForm({...subCatForm, name: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Sub Category Name *</label>
+                      <input placeholder="e.g. Edible Oils" type="text" value={subCatForm.name} onChange={e => setSubCatForm({...subCatForm, name: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', boxSizing: 'border-box' }} />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Sub Category ID</label>
+                      <input placeholder="e.g. SUB-01" type="text" value={subCatForm.subCategoryId || ''} onChange={e => setSubCatForm({...subCatForm, subCategoryId: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', fontFamily: 'monospace', boxSizing: 'border-box' }} />
+                    </div>
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Parent Category</label>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Parent Category *</label>
                     <select
                       value={subCatForm.categoryId}
                       onChange={e => {
@@ -882,32 +879,6 @@ const Products = ({ offeringMode }) => {
                       {availableCategories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
                     </select>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Item Type</label>
-                      <select
-                        value={subCatForm.itemType || (offeringType === 'service' ? 'Service' : 'Product')}
-                        onChange={e => setSubCatForm({ ...subCatForm, itemType: e.target.value })}
-                        style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', background: 'white' }}
-                      >
-                        <option value="Both">Both (Product & Service)</option>
-                        <option value="Product">Product</option>
-                        <option value="Service">Service</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Transaction Type</label>
-                      <select
-                        value={subCatForm.transactionType || 'Sales'}
-                        onChange={e => setSubCatForm({ ...subCatForm, transactionType: e.target.value })}
-                        style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', background: 'white' }}
-                      >
-                        <option value="Sales">Sales</option>
-                        <option value="Purchase">Purchase</option>
-                        <option value="Both">Both (Sales & Purchase)</option>
-                      </select>
-                    </div>
-                  </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Description</label>
                     <textarea
@@ -923,15 +894,41 @@ const Products = ({ offeringMode }) => {
 
               {activeTab === 'products' && (
                 <>
-                  <div style={{ display: 'grid', gridTemplateColumns: offeringType === 'product' ? '1fr 1fr' : '1fr', gap: '16px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                     <div>
-                      <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>{offeringType === 'service' ? 'Service Name' : 'Product Name'}</label>
-                      <input placeholder={offeringType === 'service' ? 'Enter the service name' : 'Enter the product name'} type="text" value={prodForm.name} onChange={e => setProdForm({...prodForm, name: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
+                      <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>
+                        {offeringType === 'service' ? 'Service Name *' : 'Product Name *'}
+                      </label>
+                      <input 
+                        placeholder={offeringType === 'service' ? 'e.g. AC Repair & Maintenance' : 'Enter product name'} 
+                        type="text" 
+                        value={prodForm.name} 
+                        onChange={e => setProdForm({...prodForm, name: e.target.value})} 
+                        required 
+                        style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', boxSizing: 'border-box' }} 
+                      />
                     </div>
-                    {offeringType === 'product' && (
+                    {offeringType === 'service' ? (
+                      <div>
+                        <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Service ID</label>
+                        <input 
+                          placeholder="e.g. SRV-01" 
+                          type="text" 
+                          value={prodForm.serviceId || ''} 
+                          onChange={e => setProdForm({...prodForm, serviceId: e.target.value, sku: e.target.value})} 
+                          style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', fontFamily: 'monospace', boxSizing: 'border-box' }} 
+                        />
+                      </div>
+                    ) : (
                       <div>
                         <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Stock Keeping Unit (SKU)</label>
-                        <input placeholder="e.g. SKU-101" type="text" value={prodForm.sku} onChange={e => setProdForm({...prodForm, sku: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
+                        <input 
+                          placeholder="e.g. SKU-101" 
+                          type="text" 
+                          value={prodForm.sku} 
+                          onChange={e => setProdForm({...prodForm, sku: e.target.value})} 
+                          style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', boxSizing: 'border-box' }} 
+                        />
                       </div>
                     )}
                   </div>

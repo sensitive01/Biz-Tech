@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import AdminLayout from './layouts/AdminLayout';
 import Login from './pages/Login';
 import CustomerDirectory from './pages/CustomerDirectory';
+import DirectoryRegistrations from './pages/DirectoryRegistrations';
 import AddCustomer from './pages/AddCustomer';
 // Customer details and management view
 import CustomerDetails from './pages/CustomerDetails';
@@ -34,6 +35,8 @@ function App() {
         <Route path="/admin" element={<AdminLayout />}>
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="customers" element={<CustomerDirectory />} />
+          <Route path="directory-registrations" element={<DirectoryRegistrations />} />
+          <Route path="registrations" element={<DirectoryRegistrations />} />
           <Route path="customers/new" element={<AddCustomer />} />
           <Route path="inquiries" element={<ContactInquiries />} />
           <Route path="payment-approvals" element={<PaymentApprovals />} />

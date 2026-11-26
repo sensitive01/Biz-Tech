@@ -210,14 +210,17 @@ const AdminLayout = () => {
           
           <NavLink 
             to="/admin/customers" 
-            style={({isActive}) => ({
-              display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: 'var(--radius-lg)',
-              color: isActive ? 'var(--primary-blue)' : 'var(--text-secondary)',
-              background: isActive ? '#EFF4FF' : 'transparent',
-              fontWeight: isActive ? '600' : '500',
-              fontSize: '14px',
-              textDecoration: 'none'
-            })}
+            style={({isActive}) => {
+              const isCustActive = isActive || window.location.pathname.includes('/admin/directory-registrations') || window.location.pathname.includes('/admin/registrations');
+              return {
+                display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: 'var(--radius-lg)',
+                color: isCustActive ? 'var(--primary-blue)' : 'var(--text-secondary)',
+                background: isCustActive ? '#EFF4FF' : 'transparent',
+                fontWeight: isCustActive ? '600' : '500',
+                fontSize: '14px',
+                textDecoration: 'none'
+              };
+            }}
           >
             <Building2 size={18} />
             Customer Directory

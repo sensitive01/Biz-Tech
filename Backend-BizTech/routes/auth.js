@@ -185,9 +185,17 @@ router.post('/register', async (req, res) => {
 
     const resolvedOffering = offeringType || businessOfferingType || 'product';
 
+    // Account Tier: Free Business, Free Career, or Pro Business ERP
+    const accountType = req.body.accountType || 'pro_business';
+    const isFreeTier = accountType === 'free_business' || accountType === 'free_career';
+    const reqTags = req.body.tags || (req.body.businessProfile?.tags) || (req.body.careerProfile?.skills) || [];
+
+    const bp = req.body.businessProfile || {};
+    const cp = req.body.careerProfile || {};
+
     // Create new user with unique ID
     const userId = await generateUserId();
-    const targetIndustry = req.body.category || industry || '';
+    const targetIndustry = req.body.category || bp.category || industry || '';
     const targetCategories = req.body.categories || (req.body.category ? [req.body.category] : (industry ? [industry] : []));
     const targetSubCategory = req.body.subCategory || '';
 
@@ -197,13 +205,52 @@ router.post('/register', async (req, res) => {
       phone: cleanPhone,
       password,
       userId,
+      accountType,
+      tags: reqTags,
+      businessProfile: {
+        businessName: accountType === 'free_business' ? (bp.businessName || businessName || fullName) : (bp.businessName || ''),
+        category: accountType === 'free_business' ? (bp.category || targetIndustry) : '',
+        tags: accountType === 'free_business' ? (bp.tags || reqTags) : [],
+        ownerName: bp.ownerName || fullName,
+        contactPhone: bp.contactPhone || cleanPhone,
+        whatsappNumber: bp.whatsappNumber || bp.contactPhone || cleanPhone,
+        email: bp.email || email,
+        address: bp.address || address || '',
+        city: bp.city || '',
+        state: bp.state || '',
+        pincode: bp.pincode || '',
+        operatingHours: bp.operatingHours || '9:00 AM - 9:00 PM',
+        websiteOrSocial: bp.websiteOrSocial || '',
+        description: bp.description || '',
+        isVerified: false
+      },
+      careerProfile: {
+        fullName: accountType === 'free_career' ? (cp.fullName || fullName) : '',
+        jobCategory: accountType === 'free_career' ? (cp.jobCategory || '') : '',
+        skills: accountType === 'free_career' ? (cp.skills || reqTags) : [],
+        experience: cp.experience || '',
+        expectedSalary: cp.expectedSalary || '',
+        city: cp.city || '',
+        currentArea: cp.currentArea || '',
+        pincode: cp.pincode || '',
+        contactPhone: cp.contactPhone || cleanPhone,
+        whatsappNumber: cp.whatsappNumber || cp.contactPhone || cleanPhone,
+        email: cp.email || email,
+        availability: cp.availability || 'Immediate',
+        employmentType: cp.employmentType || 'Full-time',
+        drivingLicense: cp.drivingLicense || 'None',
+        qualification: cp.qualification || '',
+        bio: cp.bio || '',
+        isAvailableForHire: accountType === 'free_career'
+      },
+      isOnboardingCompleted: false,
       businessType: targetTypeNum,
-      businessName,
+      businessName: bp.businessName || businessName,
       industry: targetIndustry,
       category: targetIndustry,
       categories: targetCategories,
       subCategory: targetSubCategory,
-      address,
+      address: bp.address || address,
       offeringType: resolvedOffering,
       businessOfferingType: resolvedOffering,
       modules: (modules && Array.isArray(modules) && modules.length > 0)
@@ -247,9 +294,16 @@ router.post('/register', async (req, res) => {
           user: { 
             id: user.id, 
             userId: user.userId,
-            fullName, 
-            email, 
+            fullName: user.fullName, 
+            businessName: user.businessName || user.businessProfile?.businessName || '',
+            email: user.email, 
+            phone: user.phone,
             businessType: user.businessType, 
+            accountType: user.accountType || 'pro_business',
+            isOnboardingCompleted: user.isOnboardingCompleted,
+            businessProfile: user.businessProfile,
+            careerProfile: user.careerProfile,
+            tags: user.tags || [],
             modules: user.modules 
           } 
         });
@@ -361,7 +415,7 @@ router.post('/login', async (req, res) => {
         { expiresIn: '1d' },
         (err, token) => {
           if (err) throw err;
-          const isCompleted = user.isOnboardingCompleted === true || (Boolean(user.businessName) && Boolean(user.panNumber) && Boolean(user.subscription?.planId));
+          const isCompleted = user.accountType === 'free_business' || user.accountType === 'free_career' || user.isOnboardingCompleted === true || (Boolean(user.businessName) && Boolean(user.panNumber) && Boolean(user.subscription?.planId));
 
           res.json({ 
             token, 
@@ -375,6 +429,10 @@ router.post('/login', async (req, res) => {
               phone: user.phone,
               role: 'owner',
               businessType: user.businessType, 
+              accountType: user.accountType || 'pro_business',
+              businessProfile: user.businessProfile,
+              careerProfile: user.careerProfile,
+              tags: user.tags || [],
               businessName: user.businessName,
               panNumber: user.panNumber,
               gstNumber: user.gstNumber,

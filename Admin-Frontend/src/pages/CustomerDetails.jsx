@@ -1767,7 +1767,7 @@ const CustomerDetails = () => {
       initialFormData = {
         tenantId,
         name: '',
-        ...(isServ ? {} : { sku: '' }),
+        ...(isServ ? { serviceId: '' } : { sku: '' }),
         categoryId: availableCats[0]?._id || '',
         subCategoryId: '',
         price: '',
@@ -1780,6 +1780,7 @@ const CustomerDetails = () => {
       const isServ = isServicesSection || overrides.itemType === 'Service';
       initialFormData = {
         tenantId,
+        categoryId: '',
         name: '',
         itemType: isServ ? 'Service' : 'Product',
         transactionType: 'both',
@@ -1791,6 +1792,7 @@ const CustomerDetails = () => {
       const availableCats = categories.filter(c => isServ ? c.itemType?.toLowerCase() === 'service' : c.itemType?.toLowerCase() !== 'service');
       initialFormData = {
         tenantId,
+        subCategoryId: '',
         name: '',
         categoryId: availableCats[0]?._id || '',
         itemType: isServ ? 'Service' : 'Product',
@@ -1981,7 +1983,7 @@ const CustomerDetails = () => {
       const isServ = (item.itemType || item.categoryId?.itemType)?.toLowerCase() === 'service' || isServicesSection;
       initialFormData = {
         name: item.name || '',
-        ...(isServ ? {} : { sku: item.sku || '' }),
+        ...(isServ ? { serviceId: item.serviceId || item.sku || (item._id ? `SRV-${item._id.slice(-4).toUpperCase()}` : '') } : { sku: item.sku || '' }),
         categoryId: item.categoryId?._id || item.categoryId || '',
         subCategoryId: item.subCategoryId?._id || item.subCategoryId || '',
         price: item.price || 0,
@@ -1992,6 +1994,7 @@ const CustomerDetails = () => {
     } else if (type === 'category') {
       const isServ = item.itemType?.toLowerCase() === 'service' || isServicesSection;
       initialFormData = {
+        categoryId: item.categoryId || (item._id ? `CAT-${item._id.slice(-4).toUpperCase()}` : ''),
         name: item.name || '',
         itemType: isServ ? 'Service' : 'Product',
         transactionType: item.transactionType || 'both',
@@ -2000,6 +2003,7 @@ const CustomerDetails = () => {
     } else if (type === 'subcategory') {
       const isServ = (item.itemType || item.categoryId?.itemType)?.toLowerCase() === 'service' || isServicesSection;
       initialFormData = {
+        subCategoryId: item.subCategoryId || (item._id ? `SUB-${item._id.slice(-4).toUpperCase()}` : ''),
         name: item.name || '',
         categoryId: item.categoryId?._id || item.categoryId || '',
         itemType: isServ ? 'Service' : 'Product',
@@ -5720,11 +5724,8 @@ const CustomerDetails = () => {
                           <th onClick={() => requestSort('name')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
                             <div style={{ display: 'flex', alignItems: 'center' }}>Category Name {renderSortIcon('name')}</div>
                           </th>
-                          <th onClick={() => requestSort('itemType')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
-                            <div style={{ display: 'flex', alignItems: 'center' }}>Item Type {renderSortIcon('itemType')}</div>
-                          </th>
-                          <th onClick={() => requestSort('transactionType')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
-                            <div style={{ display: 'flex', alignItems: 'center' }}>Transaction Type {renderSortIcon('transactionType')}</div>
+                          <th onClick={() => requestSort('categoryId')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center' }}>Category ID {renderSortIcon('categoryId')}</div>
                           </th>
                           <th style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>Description</th>
                           <th style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', textAlign: 'right' }}>Actions</th>
@@ -5732,7 +5733,7 @@ const CustomerDetails = () => {
                       </thead>
                       <tbody>
                         {filteredCategories.length === 0 ? (
-                          <tr><td colSpan="6" style={{ padding: '36px 20px', textAlign: 'center', color: '#64748B' }}>No categories found.</td></tr>
+                          <tr><td colSpan="5" style={{ padding: '36px 20px', textAlign: 'center', color: '#64748B' }}>No categories found.</td></tr>
                         ) : (
                           paginatedCategories.map((item, idx) => (
                             <tr key={item._id || idx} style={{ borderBottom: '1px solid #F1F5F9', transition: 'background 0.15s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
@@ -5745,15 +5746,8 @@ const CustomerDetails = () => {
                                   <span>{item.name}</span>
                                 </div>
                               </td>
-                              <td style={{ padding: '14px 20px' }}>
-                                <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px', background: item.itemType === 'service' || item.itemType === 'Service' ? '#F0FDF4' : '#EFF6FF', color: item.itemType === 'service' || item.itemType === 'Service' ? '#16A34A' : '#2563EB', fontWeight: '600', textTransform: 'capitalize' }}>
-                                  {item.itemType || (isServicesSection ? 'Service' : 'Product')}
-                                </span>
-                              </td>
-                              <td style={{ padding: '14px 20px' }}>
-                                <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px', background: '#F1F5F9', color: '#475569', fontWeight: '500', textTransform: 'capitalize' }}>
-                                  {item.transactionType || 'Both'}
-                                </span>
+                              <td style={{ padding: '14px 20px', color: '#475569', fontFamily: 'monospace', fontSize: '13px', fontWeight: '600' }}>
+                                {item.categoryId || (item._id ? `CAT-${item._id.slice(-4).toUpperCase()}` : '-')}
                               </td>
                               <td style={{ padding: '14px 20px', color: '#64748B', fontSize: '13px' }}>
                                 {item.description || '-'}
@@ -5783,20 +5777,17 @@ const CustomerDetails = () => {
                           <th onClick={() => requestSort('name')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
                             <div style={{ display: 'flex', alignItems: 'center' }}>Sub Category Name {renderSortIcon('name')}</div>
                           </th>
+                          <th onClick={() => requestSort('subCategoryId')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center' }}>Sub Category ID {renderSortIcon('subCategoryId')}</div>
+                          </th>
                           <th style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>Parent Category</th>
-                          <th onClick={() => requestSort('itemType')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
-                            <div style={{ display: 'flex', alignItems: 'center' }}>Item Type {renderSortIcon('itemType')}</div>
-                          </th>
-                          <th onClick={() => requestSort('transactionType')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
-                            <div style={{ display: 'flex', alignItems: 'center' }}>Transaction Type {renderSortIcon('transactionType')}</div>
-                          </th>
                           <th style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>Description</th>
                           <th style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', textAlign: 'right' }}>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
                         {filteredSubcategories.length === 0 ? (
-                          <tr><td colSpan="7" style={{ padding: '36px 20px', textAlign: 'center', color: '#64748B' }}>No sub categories found.</td></tr>
+                          <tr><td colSpan="6" style={{ padding: '36px 20px', textAlign: 'center', color: '#64748B' }}>No sub categories found.</td></tr>
                         ) : (
                           paginatedSubcategories.map((item, idx) => (
                             <tr key={item._id || idx} style={{ borderBottom: '1px solid #F1F5F9', transition: 'background 0.15s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
@@ -5809,19 +5800,12 @@ const CustomerDetails = () => {
                                   <span>{item.name}</span>
                                 </div>
                               </td>
+                              <td style={{ padding: '14px 20px', color: '#475569', fontFamily: 'monospace', fontSize: '13px', fontWeight: '600' }}>
+                                {item.subCategoryId || (item._id ? `SUB-${item._id.slice(-4).toUpperCase()}` : '-')}
+                              </td>
                               <td style={{ padding: '14px 20px' }}>
                                 <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px', background: '#EFF6FF', color: '#1D4ED8', fontWeight: '600' }}>
                                   {item.categoryId?.name || 'General'}
-                                </span>
-                              </td>
-                              <td style={{ padding: '14px 20px' }}>
-                                <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px', background: item.itemType === 'service' || item.itemType === 'Service' ? '#F0FDF4' : '#EFF6FF', color: item.itemType === 'service' || item.itemType === 'Service' ? '#16A34A' : '#2563EB', fontWeight: '600', textTransform: 'capitalize' }}>
-                                  {item.itemType || item.categoryId?.itemType || (isServicesSection ? 'Service' : 'Product')}
-                                </span>
-                              </td>
-                              <td style={{ padding: '14px 20px' }}>
-                                <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px', background: '#F1F5F9', color: '#475569', fontWeight: '500', textTransform: 'capitalize' }}>
-                                  {item.transactionType || item.categoryId?.transactionType || 'Both'}
                                 </span>
                               </td>
                               <td style={{ padding: '14px 20px', color: '#64748B', fontSize: '13px' }}>
@@ -5852,9 +5836,13 @@ const CustomerDetails = () => {
                           <th onClick={() => requestSort('name')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
                             <div style={{ display: 'flex', alignItems: 'center' }}>Name {renderSortIcon('name')}</div>
                           </th>
-                          {!isServicesSection && (
+                          {!isServicesSection ? (
                             <th onClick={() => requestSort('sku')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
                               <div style={{ display: 'flex', alignItems: 'center' }}>SKU {renderSortIcon('sku')}</div>
+                            </th>
+                          ) : (
+                            <th onClick={() => requestSort('serviceId')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
+                              <div style={{ display: 'flex', alignItems: 'center' }}>Service ID {renderSortIcon('serviceId')}</div>
                             </th>
                           )}
                           <th onClick={() => requestSort('category')} style={{ padding: '14px 20px', fontSize: '12px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
@@ -5873,14 +5861,18 @@ const CustomerDetails = () => {
                       </thead>
                       <tbody>
                         {filteredProducts.length === 0 ? (
-                          <tr><td colSpan={isServicesSection ? 5 : 7} style={{ padding: '36px 20px', textAlign: 'center', color: '#64748B' }}>No {isServicesSection ? 'services' : 'products'} found.</td></tr>
+                          <tr><td colSpan={isServicesSection ? 6 : 7} style={{ padding: '36px 20px', textAlign: 'center', color: '#64748B' }}>No {isServicesSection ? 'services' : 'products'} found.</td></tr>
                         ) : (
                           paginatedProducts.map((item, idx) => (
                             <tr key={item._id || idx} style={{ borderBottom: '1px solid #F1F5F9', transition: 'background 0.15s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
                               <td style={{ padding: '14px 20px', fontSize: '13px', color: '#64748B', fontWeight: '500' }}>{startIndex + idx + 1}</td>
                               <td style={{ padding: '14px 20px', fontWeight: '600', color: '#0F172A', fontSize: '13px' }}>{item.name}</td>
-                              {!isServicesSection && (
+                              {!isServicesSection ? (
                                 <td style={{ padding: '14px 20px', color: '#64748B', fontFamily: 'monospace', fontSize: '12px' }}>{item.sku || 'N/A'}</td>
+                              ) : (
+                                <td style={{ padding: '14px 20px', color: '#475569', fontFamily: 'monospace', fontSize: '12px', fontWeight: '600' }}>
+                                  {item.serviceId || item.sku || (item._id ? `SRV-${item._id.slice(-4).toUpperCase()}` : '-')}
+                                </td>
                               )}
                               <td style={{ padding: '14px 20px' }}>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -8041,9 +8033,39 @@ const CustomerDetails = () => {
                                   type="button"
                                   onClick={() => setViewModalData({ type: 'investor', data: inv })}
                                   style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '6px', background: '#EFF6FF', border: '1px solid #DBEAFE', color: '#2563EB', cursor: 'pointer' }}
-      {/* ============================================================ */}
-      {/* VIEW MODAL */}
-      {/* ============================================================ */}
+                                  title="View Details"
+                                >
+                                  <Eye size={15} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => openEditModal('investor', inv)}
+                                  style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '6px', background: '#F0FDF4', border: '1px solid #BBF7D0', color: '#16A34A', cursor: 'pointer' }}
+                                  title="Edit Investor"
+                                >
+                                  <Edit2 size={15} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setDeleteConfirm({ type: 'investor', id: inv._id, name: inv.name })}
+                                  style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '6px', background: '#FEF2F2', border: '1px solid #FECACA', color: '#EF4444', cursor: 'pointer' }}
+                                  title="Delete Investor"
+                                >
+                                  <Trash2 size={15} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
       {viewModalData && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '20px' }}>
           <div style={{ background: 'white', borderRadius: '16px', maxWidth: '560px', width: '100%', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
@@ -8104,7 +8126,9 @@ const CustomerDetails = () => {
 
             <form onSubmit={handleEditSubmit}>
               <div style={{ padding: '24px', maxHeight: '70vh', overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
-                {Object.entries(editModalData.formData).map(([fieldKey, val]) => {
+                {Object.entries(editModalData.formData)
+                  .filter(([k]) => !((editModalData.type === 'category' || editModalData.type === 'subcategory') && ['itemType', 'transactionType'].includes(k)))
+                  .map(([fieldKey, val]) => {
                   const isEmployeeFieldInEmployee = editModalData.type === 'employee' && fieldKey === 'employeeId';
                   const label = isEmployeeFieldInEmployee
                     ? 'Employee ID'
@@ -8114,6 +8138,12 @@ const CustomerDetails = () => {
                         ? 'Branch ID'
                         : fieldKey === 'businessId'
                           ? 'Business ID'
+                          : fieldKey === 'serviceId'
+                            ? 'Service ID'
+                          : fieldKey === 'categoryId'
+                            ? 'Category ID'
+                          : fieldKey === 'subCategoryId'
+                            ? 'Sub Category ID'
                           : (fieldKey === 'documentNumber' && editModalData.type === 'document')
                             ? 'Registration / Certificate / Card Number'
                             : (fieldKey === 'fileUrl' && editModalData.type === 'document')
@@ -8840,7 +8870,7 @@ const CustomerDetails = () => {
               ) : (
                 <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 {Object.entries(addModalData.formData)
-                  .filter(([k]) => !['tenantId'].includes(k) && !(addModalData.type === 'attendance' && k === 'checkOut'))
+                  .filter(([k]) => !['tenantId'].includes(k) && !(addModalData.type === 'attendance' && k === 'checkOut') && !((addModalData.type === 'category' || addModalData.type === 'subcategory') && ['itemType', 'transactionType'].includes(k)))
                   .map(([fieldKey, fieldValue]) => {
                     const isEmployeeFieldInEmployee = addModalData.type === 'employee' && fieldKey === 'employeeId';
                     const label = isEmployeeFieldInEmployee
@@ -8851,6 +8881,12 @@ const CustomerDetails = () => {
                           ? 'Branch ID'
                           : fieldKey === 'businessId'
                             ? 'Business ID'
+                            : fieldKey === 'serviceId'
+                              ? 'Service ID'
+                            : fieldKey === 'categoryId'
+                              ? 'Category ID'
+                            : fieldKey === 'subCategoryId'
+                              ? 'Sub Category ID'
                             : (fieldKey === 'documentNumber' && addModalData.type === 'document')
                               ? 'Registration / Certificate / Card Number'
                               : (fieldKey === 'fileUrl' && addModalData.type === 'document')

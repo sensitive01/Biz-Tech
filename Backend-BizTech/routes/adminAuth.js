@@ -268,7 +268,9 @@ router.put('/change-password', async (req, res) => {
 // @desc    Get all users (customers) with scale metrics
 router.get('/users', async (req, res) => {
   try {
-    const users = await User.find().sort({ createdAt: -1 });
+    const users = await User.find({
+      accountType: { $nin: ['free_business', 'free_career'] }
+    }).sort({ createdAt: -1 });
 
     const usersWithCounts = await Promise.all(users.map(async (u) => {
       const matchTenant = { $in: [u._id.toString(), u._id] };
@@ -309,6 +311,145 @@ router.delete('/users/:id', async (req, res) => {
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');
+  }
+});
+
+// @route   PUT /api/admin/directory/verify-business/:id
+// @desc    Toggle verified badge for business listing
+router.put('/directory/verify-business/:id', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (!user.businessProfile) user.businessProfile = {};
+    user.businessProfile.isVerified = !Boolean(user.businessProfile.isVerified);
+    await user.save();
+    res.json({ message: 'Verification status updated', isVerified: user.businessProfile.isVerified });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Failed to update verification' });
+  }
+});
+
+// @route   PUT /api/admin/directory/toggle-hire-status/:id
+// @desc    Toggle hire status for career candidate
+router.put('/directory/toggle-hire-status/:id', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (!user.careerProfile) user.careerProfile = {};
+    const current = user.careerProfile.isAvailableForHire !== false;
+    user.careerProfile.isAvailableForHire = !current;
+    await user.save();
+    res.json({ message: 'Availability status updated', isAvailableForHire: user.careerProfile.isAvailableForHire });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Failed to update availability' });
+  }
+});
+
+// @route   PUT /api/admin/directory/business/:id
+// @desc    Admin updates a business listing
+router.put('/directory/business/:id', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const {
+      businessName, category, tags, ownerName, contactPhone, whatsappNumber,
+      email, address, city, state, pincode, websiteOrSocial, description, isVerified
+    } = req.body;
+
+    if (!user.businessProfile) user.businessProfile = {};
+    if (businessName !== undefined) user.businessProfile.businessName = businessName;
+    if (category !== undefined) user.businessProfile.category = category;
+    if (tags !== undefined) {
+      user.businessProfile.tags = tags;
+      user.tags = tags;
+    }
+    if (ownerName !== undefined) user.businessProfile.ownerName = ownerName;
+    if (contactPhone !== undefined) {
+      user.businessProfile.contactPhone = contactPhone;
+      user.phone = contactPhone;
+    }
+    if (whatsappNumber !== undefined) user.businessProfile.whatsappNumber = whatsappNumber;
+    if (email !== undefined) {
+      user.businessProfile.email = email;
+      user.email = email;
+    }
+    if (address !== undefined) {
+      user.businessProfile.address = address;
+      user.address = address;
+    }
+    if (city !== undefined) user.businessProfile.city = city;
+    if (state !== undefined) user.businessProfile.state = state;
+    if (pincode !== undefined) user.businessProfile.pincode = pincode;
+    if (websiteOrSocial !== undefined) user.businessProfile.websiteOrSocial = websiteOrSocial;
+    if (description !== undefined) user.businessProfile.description = description;
+    if (panNumber !== undefined) user.businessProfile.panNumber = panNumber.trim().toUpperCase();
+    if (panProofUrl !== undefined) user.businessProfile.panProofUrl = panProofUrl;
+    if (panProofName !== undefined) user.businessProfile.panProofName = panProofName;
+    if (isVerified !== undefined) user.businessProfile.isVerified = Boolean(isVerified);
+
+    if (businessName) user.businessName = businessName;
+    if (ownerName) user.fullName = ownerName;
+
+    await user.save();
+    res.json({ message: 'Business listing updated successfully', user });
+  } catch (err) {
+    console.error('Error updating business listing by admin:', err);
+    res.status(500).json({ message: 'Failed to update business listing' });
+  }
+});
+
+// @route   PUT /api/admin/directory/career/:id
+// @desc    Admin updates a candidate career profile
+router.put('/directory/career/:id', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const {
+      fullName, jobCategory, skills, experience, expectedSalary, city, currentArea,
+      pincode, contactPhone, whatsappNumber, email, availability, employmentType,
+      drivingLicense, qualification, bio, isAvailableForHire
+    } = req.body;
+
+    if (!user.careerProfile) user.careerProfile = {};
+    if (fullName !== undefined) {
+      user.careerProfile.fullName = fullName;
+      user.fullName = fullName;
+    }
+    if (jobCategory !== undefined) user.careerProfile.jobCategory = jobCategory;
+    if (skills !== undefined) {
+      user.careerProfile.skills = skills;
+      user.tags = skills;
+    }
+    if (experience !== undefined) user.careerProfile.experience = experience;
+    if (expectedSalary !== undefined) user.careerProfile.expectedSalary = expectedSalary;
+    if (city !== undefined) user.careerProfile.city = city;
+    if (currentArea !== undefined) user.careerProfile.currentArea = currentArea;
+    if (pincode !== undefined) user.careerProfile.pincode = pincode;
+    if (contactPhone !== undefined) {
+      user.careerProfile.contactPhone = contactPhone;
+      user.phone = contactPhone;
+    }
+    if (whatsappNumber !== undefined) user.careerProfile.whatsappNumber = whatsappNumber;
+    if (email !== undefined) {
+      user.careerProfile.email = email;
+      user.email = email;
+    }
+    if (availability !== undefined) user.careerProfile.availability = availability;
+    if (employmentType !== undefined) user.careerProfile.employmentType = employmentType;
+    if (drivingLicense !== undefined) user.careerProfile.drivingLicense = drivingLicense;
+    if (qualification !== undefined) user.careerProfile.qualification = qualification;
+    if (bio !== undefined) user.careerProfile.bio = bio;
+    if (isAvailableForHire !== undefined) user.careerProfile.isAvailableForHire = Boolean(isAvailableForHire);
+
+    await user.save();
+    res.json({ message: 'Career profile updated successfully', user });
+  } catch (err) {
+    console.error('Error updating career profile by admin:', err);
+    res.status(500).json({ message: 'Failed to update career profile' });
   }
 });
 

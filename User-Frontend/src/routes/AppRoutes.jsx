@@ -11,6 +11,10 @@ import {
   Register,
   Impersonate,
   NotFound,
+  BusinessProfileView,
+  CareerProfileView,
+  BusinessSetup,
+  CareerSetup,
 
   // Onboarding
   SelectType,
@@ -31,6 +35,7 @@ import {
   Inventory,
   Purchases,
   Sales,
+  LocalDirectory,
 
   // Organization
   Businesses,
@@ -61,6 +66,10 @@ export const AppRoutes = () => {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/impersonate" element={<Impersonate />} />
+      <Route path="/business/setup" element={<BusinessSetup />} />
+      <Route path="/business/profile" element={<BusinessProfileView />} />
+      <Route path="/career/setup" element={<CareerSetup />} />
+      <Route path="/career/profile" element={<CareerProfileView />} />
 
       {/* ======================================================== */}
       {/* ONBOARDING & SETUP FLOW                                  */}
@@ -95,6 +104,7 @@ export const AppRoutes = () => {
         <Route path="inventory" element={<Inventory />} />
         <Route path="purchases" element={<Purchases />} />
         <Route path="sales" element={<Sales />} />
+        <Route path="directory" element={<LocalDirectory />} />
 
         {/* Organization & Multi-Branch */}
         <Route path="businesses" element={<Businesses />} />

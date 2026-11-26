@@ -245,6 +245,77 @@ const CustomerDirectory = () => {
         </button>
       </div>
 
+      {/* DIRECTORY SECTION SWITCHER BAR */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        padding: '6px',
+        background: '#F1F5F9',
+        borderRadius: '12px',
+        width: 'fit-content'
+      }}>
+        <button
+          style={{
+            padding: '8px 16px',
+            borderRadius: '8px',
+            background: 'white',
+            color: '#2563EB',
+            fontWeight: '700',
+            fontSize: '13.5px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          <Building2 size={16} />
+          Pro ERP Clients ({customersData.length})
+        </button>
+
+        <button
+          onClick={() => navigate('/admin/directory-registrations?tab=business')}
+          style={{
+            padding: '8px 16px',
+            borderRadius: '8px',
+            background: 'transparent',
+            color: '#64748B',
+            fontWeight: '600',
+            fontSize: '13.5px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            cursor: 'pointer'
+          }}
+          onMouseOver={e => e.currentTarget.style.color = '#0F172A'}
+          onMouseOut={e => e.currentTarget.style.color = '#64748B'}
+        >
+          <Store size={16} />
+          Business Registrations
+        </button>
+
+        <button
+          onClick={() => navigate('/admin/directory-registrations?tab=career')}
+          style={{
+            padding: '8px 16px',
+            borderRadius: '8px',
+            background: 'transparent',
+            color: '#64748B',
+            fontWeight: '600',
+            fontSize: '13.5px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            cursor: 'pointer'
+          }}
+          onMouseOver={e => e.currentTarget.style.color = '#0F172A'}
+          onMouseOut={e => e.currentTarget.style.color = '#64748B'}
+        >
+          <Briefcase size={16} />
+          Career Registrations
+        </button>
+      </div>
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', marginBottom: '8px' }}>
         {/* Card 1: Total Client */}
         <div 

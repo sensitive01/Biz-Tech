@@ -30,6 +30,54 @@ const UserSchema = new mongoose.Schema({
     type: Number,
     default: 1
   },
+  accountType: {
+    type: String,
+    enum: ['free_business', 'free_career', 'pro_business'],
+    default: 'pro_business'
+  },
+  tags: {
+    type: [String],
+    default: []
+  },
+  businessProfile: {
+    businessName: { type: String, default: '' },
+    category: { type: String, default: '' },
+    tags: { type: [String], default: [] },
+    ownerName: { type: String, default: '' },
+    contactPhone: { type: String, default: '' },
+    whatsappNumber: { type: String, default: '' },
+    email: { type: String, default: '' },
+    address: { type: String, default: '' },
+    city: { type: String, default: '' },
+    state: { type: String, default: '' },
+    pincode: { type: String, default: '' },
+    operatingHours: { type: String, default: '9:00 AM - 9:00 PM' },
+    websiteOrSocial: { type: String, default: '' },
+    description: { type: String, default: '' },
+    panNumber: { type: String, default: '', uppercase: true, trim: true },
+    panProofUrl: { type: String, default: '' },
+    panProofName: { type: String, default: '' },
+    isVerified: { type: Boolean, default: false }
+  },
+  careerProfile: {
+    fullName: { type: String, default: '' },
+    jobCategory: { type: String, default: '' },
+    skills: { type: [String], default: [] },
+    experience: { type: String, default: '' },
+    expectedSalary: { type: String, default: '' },
+    city: { type: String, default: '' },
+    currentArea: { type: String, default: '' },
+    pincode: { type: String, default: '' },
+    contactPhone: { type: String, default: '' },
+    whatsappNumber: { type: String, default: '' },
+    email: { type: String, default: '' },
+    availability: { type: String, default: 'Immediate' },
+    employmentType: { type: String, default: 'Full-time' },
+    drivingLicense: { type: String, default: 'None' },
+    qualification: { type: String, default: '' },
+    bio: { type: String, default: '' },
+    isAvailableForHire: { type: Boolean, default: true }
+  },
   isOnboardingCompleted: {
     type: Boolean,
     default: false

@@ -1340,6 +1340,12 @@ const TenantLayout = () => {
             </NavLink>
           )}
 
+          {/* 12. Local Directory & Talent Network */}
+          <NavLink to="/tenant/directory" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
+            <Users size={18} />
+            <span>Talent & Directory</span>
+          </NavLink>
+
           {/* 12. Employees */}
           {tenantType >= 1 && currentUser?.role !== 'employee' && currentUser?.role !== 'investor' && (
             <NavLink to="/tenant/employees" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>

@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const CategorySchema = new mongoose.Schema({
   tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  categoryId: { type: String },
   name: { type: String, required: true },
   description: { type: String },
   image: { type: String },

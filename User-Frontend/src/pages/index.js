@@ -1,9 +1,3 @@
-/**
- * Centralized Page Exports
- * Grouped by domain for clean imports:
- * import { Login, TenantDashboard, Employees } from '@/pages';
- */
-
 // AUTH
 export { default as Login } from './auth/Login';
 export { default as Register } from './auth/Register';
@@ -14,7 +8,7 @@ export * as authPages from './auth';
 export { default as SelectType } from './onboarding/SelectType';
 export { default as SelectModules } from './onboarding/SelectModules';
 export { default as Onboarding } from './onboarding/Onboarding';
-export * as onboardingPages from './onboarding';
+export * as onboardingPages from './onboarding/index';
 
 // DASHBOARD
 export { default as TenantDashboard } from './dashboard/TenantDashboard';
@@ -31,6 +25,7 @@ export { default as Products } from './operations/Products';
 export { default as Inventory } from './operations/Inventory';
 export { default as Purchases } from './operations/Purchases';
 export { default as Sales } from './operations/Sales';
+export { default as LocalDirectory } from './operations/LocalDirectory';
 export * as operationsPages from './operations';
 
 // ORGANIZATION
@@ -49,10 +44,13 @@ export * as financePages from './finance';
 
 // PROFILE
 export { default as Profile } from './profile/Profile';
-export * as profilePages from './profile';
+export * as profilePages from './profile/index';
 
 // PUBLIC
 export { default as Landing } from './public/Landing';
 export { default as NotFound } from './public/NotFound';
+export { default as BusinessProfileView } from './public/BusinessProfileView';
+export { default as CareerProfileView } from './public/CareerProfileView';
+export { default as BusinessSetup } from './public/BusinessSetup';
+export { default as CareerSetup } from './public/CareerSetup';
 export * as publicPages from './public';
-
