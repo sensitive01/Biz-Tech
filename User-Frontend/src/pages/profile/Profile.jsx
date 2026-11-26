@@ -73,6 +73,19 @@ const Profile = () => {
       localStorage.setItem('workspace_sidebar_template', templateId);
     }
     window.dispatchEvent(new CustomEvent('themeTemplateChanged', { detail: { template: templateId } }));
+
+    // Persist template selection to backend user profile
+    const token = localStorage.getItem('token');
+    if (token) {
+      fetch(`${import.meta.env.VITE_API_URL}/api/auth/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ workspaceTemplate: templateId })
+      }).catch(err => console.error('Error persisting template preference:', err));
+    }
   };
 
   const getArchetypeInfo = (type) => {
@@ -147,6 +160,11 @@ const Profile = () => {
 
         const data = await response.json();
         setUser(data);
+        if (data.workspaceTemplate) {
+          setCurrentTemplate(data.workspaceTemplate);
+          localStorage.setItem('workspace_sidebar_template', data.workspaceTemplate);
+          document.documentElement.setAttribute('data-sidebar-template', data.workspaceTemplate);
+        }
         setFormData({
           fullName: data.fullName || '',
           phone: data.businessPhone || data.phone || '',
@@ -320,7 +338,8 @@ const Profile = () => {
           businessName: formData.businessName,
           regNo: formData.regNo,
           address: formData.address,
-          businessLogo: formData.businessLogo
+          businessLogo: formData.businessLogo,
+          workspaceTemplate: currentTemplate
         })
       });
 

@@ -49,6 +49,7 @@ const Products = ({ offeringMode }) => {
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
+  const [showConversion, setShowConversion] = useState(false);
 
   const storedUser = (() => {
     try {
@@ -91,7 +92,7 @@ const Products = ({ offeringMode }) => {
 
   const [catForm, setCatForm] = useState({ name: '', description: '', image: null, existingImage: null, itemType: defaultItemType, transactionType: defaultTransactionType });
   const [subCatForm, setSubCatForm] = useState({ name: '', categoryId: '', itemType: defaultItemType, transactionType: defaultTransactionType, description: '' });
-  const [prodForm, setProdForm] = useState({ name: '', sku: '', categoryId: '', subCategoryId: '', price: '', stock: '', image: null, existingImage: null, itemType: defaultItemType, description: '' });
+  const [prodForm, setProdForm] = useState({ name: '', sku: '', categoryId: '', subCategoryId: '', costPrice: '', price: '', stock: '', measurementType: 'Piece', unit: 'pcs', secondaryUnit: '', conversionFactor: '', image: null, existingImage: null, itemType: defaultItemType, description: '' });
 
   // Reset pagination & search when switching between Products and Services
   useEffect(() => {
@@ -141,10 +142,27 @@ const Products = ({ offeringMode }) => {
 
   const handleOpenAdd = () => {
     setEditingItem(null);
+    setShowConversion(false);
     const fixedItemType = offeringType === 'service' ? 'Service' : 'Product';
     setCatForm({ name: '', description: '', image: null, existingImage: null, itemType: fixedItemType, transactionType: defaultTransactionType });
     setSubCatForm({ name: '', categoryId: '', itemType: fixedItemType, transactionType: defaultTransactionType, description: '' });
-    setProdForm({ name: '', sku: '', categoryId: '', subCategoryId: '', price: '', stock: '', image: null, existingImage: null, itemType: fixedItemType, description: '' });
+    setProdForm({
+      name: '',
+      sku: '',
+      categoryId: '',
+      subCategoryId: '',
+      costPrice: '',
+      price: '',
+      stock: '',
+      measurementType: 'Piece',
+      unit: 'pcs',
+      secondaryUnit: '',
+      conversionFactor: '',
+      image: null,
+      existingImage: null,
+      itemType: fixedItemType,
+      description: ''
+    });
     setShowModal(true);
   };
 
@@ -175,6 +193,13 @@ const Products = ({ offeringMode }) => {
 
   const handleEditProduct = (item) => {
     setEditingItem(item);
+    const hasCustomConversion = Boolean(
+      (item.measurementType && item.measurementType !== 'Piece') ||
+      item.secondaryUnit ||
+      (item.unit && item.unit !== 'pcs') ||
+      item.conversionFactor
+    );
+    setShowConversion(hasCustomConversion);
     const catId = item.categoryId?._id || item.categoryId || '';
     const matchedCat = categories.find(c => c._id === catId);
     const derivedType = item.itemType || matchedCat?.itemType || (offeringType === 'service' ? 'Service' : 'Product');
@@ -183,8 +208,13 @@ const Products = ({ offeringMode }) => {
       sku: item.sku || '',
       categoryId: catId,
       subCategoryId: item.subCategoryId?._id || item.subCategoryId || '',
+      costPrice: item.costPrice !== undefined ? item.costPrice : '',
       price: item.price !== undefined ? item.price : '',
       stock: item.stock !== undefined ? item.stock : '',
+      measurementType: item.measurementType || 'Piece',
+      unit: item.unit || 'pcs',
+      secondaryUnit: item.secondaryUnit || '',
+      conversionFactor: item.conversionFactor !== undefined ? item.conversionFactor : '',
       image: null,
       existingImage: item.image || null,
       itemType: derivedType,
@@ -217,6 +247,9 @@ const Products = ({ offeringMode }) => {
 
   useEffect(() => {
     fetchData();
+    const handleUpdate = () => fetchData();
+    window.addEventListener('productDataUpdated', handleUpdate);
+    return () => window.removeEventListener('productDataUpdated', handleUpdate);
   }, []);
 
   const handleSubmit = async (e) => {
@@ -272,9 +305,10 @@ const Products = ({ offeringMode }) => {
       if (res.ok) {
         setShowModal(false);
         setEditingItem(null);
+        setShowConversion(false);
         setCatForm({ name: '', description: '', image: null, existingImage: null, itemType: targetItemType, transactionType: defaultTransactionType });
         setSubCatForm({ name: '', categoryId: '', itemType: targetItemType, transactionType: defaultTransactionType, description: '' });
-        setProdForm({ name: '', sku: '', categoryId: '', subCategoryId: '', price: '', stock: '', image: null, existingImage: null, itemType: targetItemType, description: '' });
+        setProdForm({ name: '', sku: '', categoryId: '', subCategoryId: '', costPrice: '', price: '', stock: '', measurementType: 'Piece', unit: 'pcs', secondaryUnit: '', conversionFactor: '', image: null, existingImage: null, itemType: targetItemType, description: '' });
         fetchData();
       } else {
         alert('Failed to save');
@@ -501,14 +535,14 @@ const Products = ({ offeringMode }) => {
                 <div style={{ display: 'flex', alignItems: 'center' }}>Type {renderSortIcon('type')}</div>
               </th>
                     <th onClick={() => requestSort('price')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',  padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
-                <div style={{ display: 'flex', alignItems: 'center' }}>Price {renderSortIcon('price')}</div>
+                <div style={{ display: 'flex', alignItems: 'center' }}>Buy / Sell Price {renderSortIcon('price')}</div>
               </th>
                     <th onClick={() => requestSort('stock')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',  padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
-                <div style={{ display: 'flex', alignItems: 'center' }}>Stock {renderSortIcon('stock')}</div>
+                <div style={{ display: 'flex', alignItems: 'center' }}>Stock & Unit {renderSortIcon('stock')}</div>
               </th>
                   </>
                 )}
-                <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', textAlign: 'right' }}>Actions</th>
+                <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', textAlign: 'center' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -625,32 +659,50 @@ const Products = ({ offeringMode }) => {
                             {item.itemType}
                           </span>
                         </td>
-                        <td style={{ padding: '16px 24px', color: '#475569', fontWeight: '500' }}>₹{item.price || 0}</td>
+                        <td style={{ padding: '16px 24px', color: '#475569' }}>
+                          <div style={{ fontSize: '14px', fontWeight: '700', color: '#0F172A' }}>
+                            ₹{Number(item.price || 0).toLocaleString('en-IN')}
+                            <span style={{ fontSize: '11px', color: '#64748B', fontWeight: '500', marginLeft: '4px' }}>/ {item.unit || 'unit'}</span>
+                          </div>
+                          {item.costPrice !== undefined && Number(item.costPrice) > 0 && (
+                            <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
+                              Buy: <span style={{ fontWeight: '600', color: '#334155' }}>₹{Number(item.costPrice).toLocaleString('en-IN')}</span>
+                            </div>
+                          )}
+                        </td>
                         <td style={{ padding: '16px 24px' }}>
                           {item.itemType === 'Service' ? (
                             <span style={{ color: '#94A3B8' }}>-</span>
                           ) : (
-                            <span style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                              padding: '3px 10px',
-                              borderRadius: '12px',
-                              fontSize: '12px',
-                              fontWeight: '700',
-                              background: Number(item.stock || 0) <= 0 ? '#FEF2F2' : Number(item.stock || 0) <= 5 ? '#FFFBEB' : '#ECFDF5',
-                              color: Number(item.stock || 0) <= 0 ? '#DC2626' : Number(item.stock || 0) <= 5 ? '#D97706' : '#16A34A',
-                              border: `1px solid ${Number(item.stock || 0) <= 0 ? '#FECACA' : Number(item.stock || 0) <= 5 ? '#FDE68A' : '#A7F3D0'}`
-                            }}>
-                              {Number(item.stock || 0) <= 0 ? '0 (Out of stock)' : `${item.stock} units`}
-                            </span>
+                            <div>
+                              <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '3px 10px',
+                                borderRadius: '12px',
+                                fontSize: '12px',
+                                fontWeight: '700',
+                                background: Number(item.stock || 0) <= 0 ? '#FEF2F2' : Number(item.stock || 0) <= 5 ? '#FFFBEB' : '#ECFDF5',
+                                color: Number(item.stock || 0) <= 0 ? '#DC2626' : Number(item.stock || 0) <= 5 ? '#D97706' : '#16A34A',
+                                border: `1px solid ${Number(item.stock || 0) <= 0 ? '#FECACA' : Number(item.stock || 0) <= 5 ? '#FDE68A' : '#A7F3D0'}`
+                              }}>
+                                {Number(item.stock || 0) <= 0 ? '0 (Out of stock)' : `${item.stock} ${item.unit || 'units'}`}
+                              </span>
+                              {item.measurementType && (
+                                <span style={{ display: 'block', fontSize: '11px', color: '#64748B', marginTop: '3px' }}>
+                                  {item.measurementType}
+                                  {item.secondaryUnit && item.conversionFactor ? ` • 1 ${item.secondaryUnit} = ${item.conversionFactor} ${item.unit || 'pcs'}` : ''}
+                                </span>
+                              )}
+                            </div>
                           )}
                         </td>
                       </>
                     )}
 
-                    <td style={{ padding: '16px 24px', textAlign: 'right' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                    <td style={{ padding: '16px 24px', textAlign: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                         {activeTab === 'products' && item.itemType !== 'Service' && (
                           <button
                             type="button"
@@ -944,28 +996,279 @@ const Products = ({ offeringMode }) => {
                     </div>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: offeringType === 'product' ? '1fr 1fr' : '1fr', gap: '16px' }}>
-                    {offeringType === 'product' && (
-                      <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                          <label style={{ fontSize: '14px', fontWeight: '600', color: '#1E293B' }}>Initial Stock Quantity</label>
-                          <span style={{ fontSize: '12px', color: '#64748B' }}>(Optional)</span>
+                  {offeringType === 'product' ? (
+                    <>
+                      {/* Pricing Row: Unit Buy Cost & Unit Sell Cost */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                            <label style={{ fontSize: '14px', fontWeight: '600', color: '#1E293B' }}>Unit Buy Cost (₹)</label>
+                            <span style={{ fontSize: '12px', color: '#64748B' }}>(Purchase Price)</span>
+                          </div>
+                          <input 
+                            placeholder="e.g. 450" 
+                            type="number" 
+                            min="0"
+                            step="0.01"
+                            value={prodForm.costPrice} 
+                            onChange={e => setProdForm({...prodForm, costPrice: e.target.value})} 
+                            style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', boxSizing: 'border-box' }} 
+                          />
                         </div>
-                        <input 
-                          placeholder="e.g. 10" 
-                          type="number" 
-                          min="0"
-                          value={prodForm.stock} 
-                          onChange={e => setProdForm({...prodForm, stock: e.target.value})} 
-                          style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} 
-                        />
+
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                            <label style={{ fontSize: '14px', fontWeight: '600', color: '#1E293B' }}>Unit Sell Cost (₹) *</label>
+                            <span style={{ fontSize: '12px', color: '#2563EB', fontWeight: '600' }}>(Selling Price)</span>
+                          </div>
+                          <input 
+                            placeholder="e.g. 799" 
+                            type="number" 
+                            min="0"
+                            step="0.01"
+                            value={prodForm.price} 
+                            onChange={e => setProdForm({...prodForm, price: e.target.value})} 
+                            required 
+                            style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', boxSizing: 'border-box' }} 
+                          />
+                        </div>
+
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                            <label style={{ fontSize: '14px', fontWeight: '600', color: '#1E293B' }}>Initial Stock</label>
+                            <span style={{ fontSize: '12px', color: '#64748B' }}>(Optional)</span>
+                          </div>
+                          <input 
+                            placeholder="e.g. 10" 
+                            type="number" 
+                            min="0"
+                            value={prodForm.stock} 
+                            onChange={e => setProdForm({...prodForm, stock: e.target.value})} 
+                            style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', boxSizing: 'border-box' }} 
+                          />
+                        </div>
                       </div>
-                    )}
+
+                      {/* Profit Margin Indicator */}
+                      {Number(prodForm.costPrice) > 0 && Number(prodForm.price) > 0 && (
+                        <div style={{ padding: '8px 14px', borderRadius: '8px', background: Number(prodForm.price) >= Number(prodForm.costPrice) ? '#F0FDF4' : '#FEF2F2', border: `1px solid ${Number(prodForm.price) >= Number(prodForm.costPrice) ? '#BBF7D0' : '#FECACA'}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12.5px' }}>
+                          <span style={{ color: Number(prodForm.price) >= Number(prodForm.costPrice) ? '#166534' : '#991B1B', fontWeight: '600' }}>
+                            {Number(prodForm.price) >= Number(prodForm.costPrice) ? 'Projected Profit Margin:' : 'Warning: Selling price is below buy cost'}
+                          </span>
+                          <span style={{ fontWeight: '700', color: Number(prodForm.price) >= Number(prodForm.costPrice) ? '#15803D' : '#DC2626' }}>
+                            ₹{(Number(prodForm.price) - Number(prodForm.costPrice)).toFixed(2)} / unit ({(((Number(prodForm.price) - Number(prodForm.costPrice)) / Number(prodForm.costPrice)) * 100).toFixed(1)}%)
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Checkbox to Toggle Product Type & Unit Conversion Section */}
+                      <div style={{ paddingTop: '4px' }}>
+                        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '9px', cursor: 'pointer', fontSize: '13.5px', fontWeight: '600', color: '#1E293B', userSelect: 'none' }}>
+                          <input
+                            type="checkbox"
+                            checked={showConversion}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setShowConversion(checked);
+                              if (!checked) {
+                                setProdForm(prev => ({
+                                  ...prev,
+                                  measurementType: 'Piece',
+                                  unit: 'pcs',
+                                  secondaryUnit: '',
+                                  conversionFactor: ''
+                                }));
+                              }
+                            }}
+                            style={{ width: '16px', height: '16px', accentColor: '#2563EB', cursor: 'pointer' }}
+                          />
+                          Enable Unit of Measure & Conversion
+                        </label>
+                        <p style={{ margin: '3px 0 0 25px', fontSize: '12px', color: '#64748B' }}>
+                          Configure measurement category (Weight, Piece, Liquid) and bulk packaging conversions.
+                        </p>
+                      </div>
+
+                      {/* Clean & Professional Unit Measurement & Conversion Section */}
+                      {showConversion && (
+                        <div style={{
+                          background: '#F8FAFC',
+                          border: '1px solid #E2E8F0',
+                          borderRadius: '10px',
+                          padding: '16px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '14px'
+                        }}>
+                          <div>
+                            <div style={{ fontSize: '13px', fontWeight: '700', color: '#1E293B', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                              Unit of Measurement
+                            </div>
+                            <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>
+                              Select the base measurement unit used for pricing and inventory tracking.
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                            <div>
+                              <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>
+                                Measurement Category *
+                              </label>
+                              <select
+                                value={prodForm.measurementType || 'Piece'}
+                                onChange={e => {
+                                  const t = e.target.value;
+                                  const defaultUnits = {
+                                    Piece: 'pcs',
+                                    Weight: 'kg',
+                                    Volume: 'L',
+                                    Length: 'meter',
+                                    Other: 'unit'
+                                  };
+                                  setProdForm(prev => ({
+                                    ...prev,
+                                    measurementType: t,
+                                    unit: defaultUnits[t] || 'pcs'
+                                  }));
+                                }}
+                                style={{ width: '100%', height: '38px', padding: '6px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', background: 'white', fontSize: '13px' }}
+                              >
+                                <option value="Piece">Piece / Count (Units, Items, Pieces)</option>
+                                <option value="Weight">Weight (Kg, Gram, Ton)</option>
+                                <option value="Volume">Volume / Liquid (Liter, ml)</option>
+                                <option value="Length">Length / Dimension (Meter, Feet)</option>
+                                <option value="Other">Other / Custom</option>
+                              </select>
+                            </div>
+
+                            <div>
+                              <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>
+                                Base Selling Unit *
+                              </label>
+                              {prodForm.measurementType === 'Other' ? (
+                                <input
+                                  type="text"
+                                  placeholder="e.g. Roll, Bundle, Sheet"
+                                  value={prodForm.unit || ''}
+                                  onChange={e => setProdForm({ ...prodForm, unit: e.target.value })}
+                                  style={{ width: '100%', height: '38px', padding: '6px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', background: 'white', fontSize: '13px', boxSizing: 'border-box' }}
+                                />
+                              ) : (
+                                <select
+                                  value={prodForm.unit || 'pcs'}
+                                  onChange={e => setProdForm({ ...prodForm, unit: e.target.value })}
+                                  style={{ width: '100%', height: '38px', padding: '6px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', background: 'white', fontSize: '13px' }}
+                                >
+                                  {prodForm.measurementType === 'Weight' ? (
+                                    <>
+                                      <option value="kg">Kilograms (kg)</option>
+                                      <option value="g">Grams (g)</option>
+                                      <option value="mg">Milligrams (mg)</option>
+                                      <option value="quintal">Quintal</option>
+                                      <option value="ton">Metric Ton</option>
+                                    </>
+                                  ) : prodForm.measurementType === 'Volume' ? (
+                                    <>
+                                      <option value="L">Liters (L)</option>
+                                      <option value="ml">Milliliters (ml)</option>
+                                      <option value="bottle">Bottle</option>
+                                      <option value="can">Can</option>
+                                      <option value="gallon">Gallon</option>
+                                    </>
+                                  ) : prodForm.measurementType === 'Length' ? (
+                                    <>
+                                      <option value="meter">Meters (m)</option>
+                                      <option value="cm">Centimeters (cm)</option>
+                                      <option value="feet">Feet (ft)</option>
+                                      <option value="inch">Inches (in)</option>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <option value="pcs">Pieces (pcs)</option>
+                                      <option value="unit">Units (unit)</option>
+                                      <option value="item">Items (item)</option>
+                                      <option value="pack">Packets (pkt)</option>
+                                      <option value="dozen">Dozen (12 pcs)</option>
+                                      <option value="pair">Pair</option>
+                                      <option value="set">Set</option>
+                                    </>
+                                  )}
+                                </select>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Packaging / Bulk Conversion */}
+                          <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: '12px' }}>
+                            <div style={{ fontSize: '12.5px', fontWeight: '700', color: '#1E293B', marginBottom: '4px' }}>
+                              Packaging / Bulk Unit Conversion <span style={{ fontWeight: '400', color: '#64748B' }}>(Optional)</span>
+                            </div>
+                            <div style={{ fontSize: '12px', color: '#64748B', marginBottom: '10px' }}>
+                              Specify if this product is packaged in bulk (e.g. 1 Box contains 10 Pieces, or 1 Carton contains 24 Bottles):
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                              <span style={{ fontSize: '13px', fontWeight: '600', color: '#334155' }}>1</span>
+                              <input
+                                type="text"
+                                placeholder="Package (e.g. Box, Carton)"
+                                value={prodForm.secondaryUnit || ''}
+                                onChange={e => setProdForm({ ...prodForm, secondaryUnit: e.target.value })}
+                                style={{ width: '180px', height: '38px', padding: '6px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }}
+                              />
+                              <span style={{ fontSize: '13px', fontWeight: '600', color: '#64748B' }}>contains</span>
+                              <input
+                                type="number"
+                                min="1"
+                                placeholder="Quantity (e.g. 10)"
+                                value={prodForm.conversionFactor || ''}
+                                onChange={e => setProdForm({ ...prodForm, conversionFactor: e.target.value })}
+                                style={{ width: '130px', height: '38px', padding: '6px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }}
+                              />
+                              <div style={{ height: '38px', padding: '0 12px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '700', color: '#2563EB' }}>
+                                {prodForm.unit || 'pcs'}
+                              </div>
+                            </div>
+
+                            {/* Live Rule Display */}
+                            {prodForm.secondaryUnit && prodForm.conversionFactor && (
+                              <div style={{ marginTop: '10px', padding: '8px 12px', background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: '6px', fontSize: '12.5px', color: '#166534', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span>Rule: 1 {prodForm.secondaryUnit} = {prodForm.conversionFactor} {prodForm.unit || 'pcs'}</span>
+                              </div>
+                            )}
+
+                            {/* Smart Auto-Correction Prompt if units were typed inverted */}
+                            {Boolean(
+                              prodForm.secondaryUnit &&
+                              ['piece', 'pieces', 'pcs', 'unit', 'units'].includes(prodForm.secondaryUnit.toLowerCase().trim()) &&
+                              ['box', 'carton', 'case', 'pack', 'packet'].includes((prodForm.unit || '').toLowerCase().trim())
+                            ) && (
+                              <div style={{ marginTop: '8px', padding: '8px 12px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '6px', fontSize: '12px', color: '#92400E', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <span>Tip: A {prodForm.unit} usually contains multiple {prodForm.secondaryUnit} (e.g. 1 {prodForm.unit} = {prodForm.conversionFactor || 10} {prodForm.secondaryUnit}).</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const oldUnit = prodForm.unit;
+                                    const oldSec = prodForm.secondaryUnit;
+                                    setProdForm(prev => ({ ...prev, unit: oldSec, secondaryUnit: oldUnit }));
+                                  }}
+                                  style={{ padding: '4px 8px', background: '#F59E0B', color: 'white', border: 'none', borderRadius: '4px', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }}
+                                >
+                                  Swap Units
+                                </button>
+                              </div>
+                            )}
+                          </div>
+
+                        </div>
+                      )}
+                    </>
+                  ) : (
                     <div>
-                      <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Price (₹)</label>
-                      <input placeholder="Enter the price amount" type="number" value={prodForm.price} onChange={e => setProdForm({...prodForm, price: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
+                      <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Service Price (₹) *</label>
+                      <input placeholder="Enter the service price" type="number" value={prodForm.price} onChange={e => setProdForm({...prodForm, price: e.target.value})} required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
                     </div>
-                  </div>
+                  )}
 
                   <div>
                     <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Description</label>
@@ -995,7 +1298,7 @@ const Products = ({ offeringMode }) => {
               )}
 
               <div style={{ display: 'flex', gap: '16px', marginTop: '12px' }}>
-                <button type="button" onClick={() => { setShowModal(false); setEditingItem(null); }} style={{ flex: 1, padding: '14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '10px', color: '#475569', fontWeight: '600', cursor: 'pointer' }}>Cancel</button>
+                <button type="button" onClick={() => { setShowModal(false); setEditingItem(null); setShowConversion(false); }} style={{ flex: 1, padding: '14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '10px', color: '#475569', fontWeight: '600', cursor: 'pointer' }}>Cancel</button>
                 <button type="submit" style={{ flex: 1, padding: '14px', background: offeringType === 'service' ? '#7C3AED' : '#2563EB', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', cursor: 'pointer' }}>{editingItem ? 'Update' : 'Save'}</button>
               </div>
             </form>

@@ -62,6 +62,10 @@ const TenantLayout = () => {
           const data = await res.json();
           setCurrentUser(data);
           localStorage.setItem('user', JSON.stringify(data));
+          if (data.workspaceTemplate) {
+            localStorage.setItem('workspace_sidebar_template', data.workspaceTemplate);
+            document.documentElement.setAttribute('data-sidebar-template', data.workspaceTemplate);
+          }
         }
       } catch (err) {
         console.error('Error fetching user:', err);
@@ -1266,7 +1270,15 @@ const TenantLayout = () => {
             </NavLink>
           )}
 
-          {/* 4a. Products (shown if offering is product or both) */}
+          {/* 4a. Purchases (Procurement: shown if Product is selected, placed above Products) */}
+          {(currentUser?.offeringType === 'product' || currentUser?.offeringType === 'both' || currentUser?.businessOfferingType === 'product' || currentUser?.businessOfferingType === 'both' || (!currentUser?.offeringType && !currentUser?.businessOfferingType)) && (
+            <NavLink to="/tenant/purchases" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
+              <ShoppingCart size={18} />
+              <span>Purchases</span>
+            </NavLink>
+          )}
+
+          {/* 4b. Products (shown if offering is product or both) */}
           {(currentUser?.offeringType === 'product' || currentUser?.offeringType === 'both' || currentUser?.businessOfferingType === 'product' || currentUser?.businessOfferingType === 'both' || (!currentUser?.offeringType && !currentUser?.businessOfferingType)) && (
             <NavLink to="/tenant/products" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <Package size={18} />
@@ -1274,7 +1286,7 @@ const TenantLayout = () => {
             </NavLink>
           )}
 
-          {/* 4b. Services (shown if offering is service, both, or institution) */}
+          {/* 4c. Services (shown if offering is service, both, or institution) */}
           {(currentUser?.offeringType === 'service' || currentUser?.offeringType === 'both' || currentUser?.offeringType === 'institution' || currentUser?.businessOfferingType === 'service' || currentUser?.businessOfferingType === 'both' || currentUser?.businessOfferingType === 'institution') && (
             <NavLink to="/tenant/services" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <Wrench size={18} />
@@ -1303,14 +1315,6 @@ const TenantLayout = () => {
             <NavLink to="/tenant/expenses" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
               <Receipt size={18} />
               <span>Expenses</span>
-            </NavLink>
-          )}
-
-          {/* 8. Purchases (shown ONLY if Product is selected) */}
-          {(currentUser?.offeringType === 'product' || currentUser?.offeringType === 'both' || currentUser?.businessOfferingType === 'product' || currentUser?.businessOfferingType === 'both' || (!currentUser?.offeringType && !currentUser?.businessOfferingType)) && (
-            <NavLink to="/tenant/purchases" className={({ isActive }) => isActive ? "sidebar-nav-link active" : "sidebar-nav-link"}>
-              <ShoppingCart size={18} />
-              <span>Purchases</span>
             </NavLink>
           )}
 

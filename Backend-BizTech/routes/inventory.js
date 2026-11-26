@@ -66,7 +66,7 @@ router.get('/', auth, async (req, res) => {
     }
 
     const items = await Inventory.find({ tenantId: req.user.id })
-      .populate('productId', 'name sku price stock image itemType')
+      .populate('productId', 'name sku price stock image itemType costPrice unit measurementType secondaryUnit conversionFactor')
       .sort({ createdAt: -1 });
     res.json(items);
   } catch (err) {
@@ -77,7 +77,7 @@ router.get('/', auth, async (req, res) => {
 // POST /api/inventory - Add or replenish stock (supports selecting an existing product)
 router.post('/', auth, async (req, res) => {
   try {
-    const { productId, itemName, sku, category, quantity, price, mode, quantityToAdd, supplier, costPrice, batchNumber, location, notes } = req.body;
+    const { productId, itemName, sku, category, quantity, price, mode, quantityToAdd, supplier, costPrice, batchNumber, location, notes, unit, measurementType, secondaryUnit, conversionFactor } = req.body;
 
     let targetProduct = null;
     if (productId) {
@@ -114,9 +114,13 @@ router.post('/', auth, async (req, res) => {
       if (category) existingInv.category = category;
       if (itemName) existingInv.itemName = itemName;
       if (productId) existingInv.productId = productId;
+      if (unit !== undefined) existingInv.unit = unit;
+      if (measurementType !== undefined) existingInv.measurementType = measurementType;
+      if (secondaryUnit !== undefined) existingInv.secondaryUnit = secondaryUnit;
+      if (conversionFactor !== undefined && conversionFactor !== '') existingInv.conversionFactor = Number(conversionFactor);
       await existingInv.save();
 
-      // Sync updated stock to linked Product
+      // Sync updated stock and details to linked Product
       const prodId = productId || existingInv.productId;
       if (prodId) {
         await Product.findOneAndUpdate(
@@ -124,13 +128,18 @@ router.post('/', auth, async (req, res) => {
           {
             $set: {
               stock: finalQty,
-              ...(price !== undefined && price !== '' ? { price: Number(price) } : {})
+              ...(price !== undefined && price !== '' ? { price: Number(price) } : {}),
+              ...(costPrice !== undefined && costPrice !== '' ? { costPrice: Number(costPrice) } : {}),
+              ...(unit !== undefined ? { unit } : {}),
+              ...(measurementType !== undefined ? { measurementType } : {}),
+              ...(secondaryUnit !== undefined ? { secondaryUnit } : {}),
+              ...(conversionFactor !== undefined && conversionFactor !== '' ? { conversionFactor: Number(conversionFactor) } : {})
             }
           }
         );
       }
 
-      const populated = await Inventory.findById(existingInv._id).populate('productId', 'name sku price stock image itemType');
+      const populated = await Inventory.findById(existingInv._id).populate('productId', 'name sku price stock image itemType costPrice unit measurementType secondaryUnit conversionFactor');
       return res.json(populated || existingInv);
     }
 
@@ -148,6 +157,10 @@ router.post('/', auth, async (req, res) => {
       quantity: finalQty,
       price: finalPrice,
       costPrice: costPrice !== undefined && costPrice !== '' ? Number(costPrice) : undefined,
+      unit: unit || targetProduct?.unit || 'pcs',
+      measurementType: measurementType || targetProduct?.measurementType || 'Piece',
+      secondaryUnit: secondaryUnit || targetProduct?.secondaryUnit || '',
+      conversionFactor: conversionFactor !== undefined && conversionFactor !== '' ? Number(conversionFactor) : (targetProduct?.conversionFactor || 1),
       supplier: supplier || '',
       batchNumber: batchNumber || '',
       location: location || '',
@@ -155,11 +168,20 @@ router.post('/', auth, async (req, res) => {
     });
     const saved = await newItem.save();
 
-    // If linked to product, sync product stock
+    // If linked to product, sync product stock and unit info
     if (productId) {
       await Product.findOneAndUpdate(
         { _id: productId, tenantId: req.user.id },
-        { $set: { stock: finalQty } }
+        { 
+          $set: { 
+            stock: finalQty,
+            ...(costPrice !== undefined && costPrice !== '' ? { costPrice: Number(costPrice) } : {}),
+            ...(unit !== undefined ? { unit } : {}),
+            ...(measurementType !== undefined ? { measurementType } : {}),
+            ...(secondaryUnit !== undefined ? { secondaryUnit } : {}),
+            ...(conversionFactor !== undefined && conversionFactor !== '' ? { conversionFactor: Number(conversionFactor) } : {})
+          } 
+        }
       );
     } else {
       // Auto-create product in catalogue if not existing
@@ -170,19 +192,28 @@ router.post('/', auth, async (req, res) => {
           name: finalItemName,
           sku: finalSku,
           price: finalPrice,
+          costPrice: costPrice !== undefined && costPrice !== '' ? Number(costPrice) : undefined,
           stock: finalQty,
+          unit: unit || 'pcs',
+          measurementType: measurementType || 'Piece',
+          secondaryUnit: secondaryUnit || '',
+          conversionFactor: conversionFactor !== undefined && conversionFactor !== '' ? Number(conversionFactor) : 1,
           itemType: 'Product',
           description: 'Created via Inventory'
         });
       } else {
         prod.stock = finalQty;
+        if (unit) prod.unit = unit;
+        if (measurementType) prod.measurementType = measurementType;
+        if (secondaryUnit) prod.secondaryUnit = secondaryUnit;
+        if (conversionFactor) prod.conversionFactor = Number(conversionFactor);
         await prod.save();
       }
       saved.productId = prod._id;
       await saved.save();
     }
 
-    const populated = await Inventory.findById(saved._id).populate('productId', 'name sku price stock image itemType');
+    const populated = await Inventory.findById(saved._id).populate('productId', 'name sku price stock image itemType costPrice unit measurementType secondaryUnit conversionFactor');
     res.json(populated || saved);
   } catch (err) {
     res.status(500).json({ message: 'Server Error' });
@@ -192,7 +223,7 @@ router.post('/', auth, async (req, res) => {
 // PUT /api/inventory/:id - Update inventory record & sync Product stock
 router.put('/:id', auth, async (req, res) => {
   try {
-    const { itemName, sku, category, quantity, price, productId, supplier, costPrice, batchNumber, location, notes } = req.body;
+    const { itemName, sku, category, quantity, price, productId, supplier, costPrice, batchNumber, location, notes, unit, measurementType, secondaryUnit, conversionFactor } = req.body;
     const finalQty = Number(quantity) || 0;
 
     const updated = await Inventory.findOneAndUpdate(
@@ -209,6 +240,10 @@ router.put('/:id', auth, async (req, res) => {
           ...(batchNumber !== undefined ? { batchNumber } : {}),
           ...(location !== undefined ? { location } : {}),
           ...(notes !== undefined ? { notes } : {}),
+          ...(unit !== undefined ? { unit } : {}),
+          ...(measurementType !== undefined ? { measurementType } : {}),
+          ...(secondaryUnit !== undefined ? { secondaryUnit } : {}),
+          ...(conversionFactor !== undefined && conversionFactor !== '' ? { conversionFactor: Number(conversionFactor) } : {}),
           ...(productId ? { productId } : {})
         }
       },
@@ -224,13 +259,18 @@ router.put('/:id', auth, async (req, res) => {
         {
           $set: {
             stock: finalQty,
-            ...(updated.price !== undefined ? { price: Number(updated.price) } : {})
+            ...(updated.price !== undefined ? { price: Number(updated.price) } : {}),
+            ...(costPrice !== undefined && costPrice !== '' ? { costPrice: Number(costPrice) } : {}),
+            ...(unit !== undefined ? { unit } : {}),
+            ...(measurementType !== undefined ? { measurementType } : {}),
+            ...(secondaryUnit !== undefined ? { secondaryUnit } : {}),
+            ...(conversionFactor !== undefined && conversionFactor !== '' ? { conversionFactor: Number(conversionFactor) } : {})
           }
         }
       );
     }
 
-    const populated = await Inventory.findById(updated._id).populate('productId', 'name sku price stock image itemType');
+    const populated = await Inventory.findById(updated._id).populate('productId', 'name sku price stock image itemType costPrice unit measurementType secondaryUnit conversionFactor');
     res.json(populated || updated);
   } catch (err) {
     res.status(500).json({ message: 'Server Error' });

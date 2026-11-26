@@ -50,15 +50,22 @@ const Inventory = () => {
     sku: '',
     category: '',
     quantityToAdd: '',
+    packageQtyToAdd: '',
+    restockUnitType: 'base',
     costPrice: '',
     supplier: '',
     batchNumber: '',
     location: '',
     notes: '',
-    currentStock: 0
+    currentStock: 0,
+    unit: 'pcs',
+    measurementType: 'Piece',
+    secondaryUnit: '',
+    conversionFactor: 1
   };
 
   const [formData, setFormData] = useState(initialForm);
+  const [showConversionSection, setShowConversionSection] = useState(false);
 
   const requestSort = (key) => {
     let direction = 'asc';
@@ -113,6 +120,16 @@ const Inventory = () => {
   useEffect(() => {
     fetchItems();
     fetchProducts();
+    const handleUpdate = () => {
+      fetchItems();
+      fetchProducts();
+    };
+    window.addEventListener('inventoryDataUpdated', handleUpdate);
+    window.addEventListener('productDataUpdated', handleUpdate);
+    return () => {
+      window.removeEventListener('inventoryDataUpdated', handleUpdate);
+      window.removeEventListener('productDataUpdated', handleUpdate);
+    };
   }, []);
 
   // Handle ?restock=productId query param from Products page shortcut
@@ -129,6 +146,7 @@ const Inventory = () => {
     setEditingItem(null);
     fetchProducts();
     setFormData(initialForm);
+    setShowConversionSection(false);
     setShowModal(true);
   };
 
@@ -139,6 +157,10 @@ const Inventory = () => {
     const prodId = item.productId?._id || item.productId;
     const prod = availableProducts.find(p => String(p._id) === String(prodId));
     const currStock = Number(item.quantity) || 0;
+    const unit = item.unit || prod?.unit || item.productId?.unit || 'pcs';
+    const measurementType = item.measurementType || prod?.measurementType || item.productId?.measurementType || 'Piece';
+    const secondaryUnit = item.secondaryUnit || prod?.secondaryUnit || item.productId?.secondaryUnit || '';
+    const conversionFactor = item.conversionFactor || prod?.conversionFactor || item.productId?.conversionFactor || 1;
 
     setFormData({
       productId: prodId || (prod ? prod._id : ''),
@@ -146,13 +168,20 @@ const Inventory = () => {
       sku: item.sku || (prod ? prod.sku : ''),
       category: item.category || (prod ? (prod.categoryId?.name || prod.category) : ''),
       quantityToAdd: '',
-      costPrice: item.costPrice !== undefined && item.costPrice !== null ? item.costPrice : '',
+      packageQtyToAdd: '',
+      restockUnitType: secondaryUnit && Number(conversionFactor) > 1 ? 'package' : 'base',
+      costPrice: item.costPrice !== undefined && item.costPrice !== null ? item.costPrice : (prod?.costPrice || ''),
       supplier: item.supplier || '',
       batchNumber: item.batchNumber || '',
       location: item.location || '',
       notes: item.notes || '',
-      currentStock: currStock
+      currentStock: currStock,
+      unit,
+      measurementType,
+      secondaryUnit,
+      conversionFactor
     });
+    setShowConversionSection(Boolean(secondaryUnit || (unit && unit !== 'pcs')));
     setShowModal(true);
   };
 
@@ -168,7 +197,14 @@ const Inventory = () => {
         itemName: '',
         sku: '',
         category: '',
-        currentStock: 0
+        currentStock: 0,
+        unit: 'pcs',
+        measurementType: 'Piece',
+        secondaryUnit: '',
+        conversionFactor: 1,
+        restockUnitType: 'base',
+        quantityToAdd: '',
+        packageQtyToAdd: ''
       }));
       return;
     }
@@ -177,6 +213,10 @@ const Inventory = () => {
     if (prod) {
       const existingInv = items.find(i => String(i.productId?._id || i.productId) === String(prod._id));
       const currStock = existingInv ? Number(existingInv.quantity) || 0 : (Number(prod.stock) || 0);
+      const unit = prod.unit || existingInv?.unit || 'pcs';
+      const measurementType = prod.measurementType || existingInv?.measurementType || 'Piece';
+      const secondaryUnit = prod.secondaryUnit || existingInv?.secondaryUnit || '';
+      const conversionFactor = prod.conversionFactor || existingInv?.conversionFactor || 1;
 
       setFormData(prev => ({
         ...prev,
@@ -184,13 +224,21 @@ const Inventory = () => {
         itemName: prod.name,
         sku: prod.sku || '',
         category: prod.categoryId?.name || prod.category || '',
-        costPrice: prev.costPrice || existingInv?.costPrice || '',
+        costPrice: prev.costPrice || existingInv?.costPrice || prod.costPrice || '',
         supplier: prev.supplier || existingInv?.supplier || '',
         batchNumber: prev.batchNumber || existingInv?.batchNumber || '',
         location: prev.location || existingInv?.location || '',
         notes: prev.notes || existingInv?.notes || '',
-        currentStock: currStock
+        currentStock: currStock,
+        unit,
+        measurementType,
+        secondaryUnit,
+        conversionFactor,
+        restockUnitType: secondaryUnit && Number(conversionFactor) > 1 ? 'package' : 'base',
+        quantityToAdd: '',
+        packageQtyToAdd: ''
       }));
+      setShowConversionSection(Boolean(secondaryUnit || (unit && unit !== 'pcs')));
     }
   };
 
@@ -213,6 +261,10 @@ const Inventory = () => {
         quantity: finalQty,
         quantityToAdd: formData.quantityToAdd,
         costPrice: formData.costPrice,
+        unit: formData.unit || 'pcs',
+        measurementType: formData.measurementType || 'Piece',
+        secondaryUnit: formData.secondaryUnit || '',
+        conversionFactor: formData.conversionFactor || 1,
         supplier: formData.supplier,
         batchNumber: formData.batchNumber,
         location: formData.location,
@@ -437,7 +489,7 @@ const Inventory = () => {
                 <th onClick={() => requestSort('quantity')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',  padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
                   <div style={{ display: 'flex', alignItems: 'center' }}>Quantity {renderSortIcon('quantity')}</div>
                 </th>
-                <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', textAlign: 'right' }}>Actions</th>
+                <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', textAlign: 'center' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -520,40 +572,54 @@ const Inventory = () => {
 
                       {/* Quantity & Stock Status Badge */}
                       <td style={{ padding: '16px 24px' }}>
-                        <span style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          padding: '4px 10px',
-                          borderRadius: '16px',
-                          fontSize: '13px',
-                          fontWeight: '700',
-                          background: isOut ? '#FEF2F2' : isLow ? '#FFFBEB' : '#ECFDF5',
-                          color: isOut ? '#DC2626' : isLow ? '#D97706' : '#16A34A',
-                          border: `1px solid ${isOut ? '#FECACA' : isLow ? '#FDE68A' : '#A7F3D0'}`
-                        }}>
-                          {isOut ? (
-                            <>
-                              <AlertCircle size={13} />
-                              <span>0 • Out of Stock</span>
-                            </>
-                          ) : isLow ? (
-                            <>
-                              <AlertTriangle size={13} />
-                              <span>{qty} • Low Stock</span>
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle2 size={13} />
-                              <span>{qty} units</span>
-                            </>
+                        <div>
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '4px 10px',
+                            borderRadius: '16px',
+                            fontSize: '13px',
+                            fontWeight: '700',
+                            background: isOut ? '#FEF2F2' : isLow ? '#FFFBEB' : '#ECFDF5',
+                            color: isOut ? '#DC2626' : isLow ? '#D97706' : '#16A34A',
+                            border: `1px solid ${isOut ? '#FECACA' : isLow ? '#FDE68A' : '#A7F3D0'}`
+                          }}>
+                            {isOut ? (
+                              <>
+                                <AlertCircle size={13} />
+                                <span>0 • Out of Stock</span>
+                              </>
+                            ) : isLow ? (
+                              <>
+                                <AlertTriangle size={13} />
+                                <span>{qty} {item.unit || item.productId?.unit || 'units'} • Low Stock</span>
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle2 size={13} />
+                                <span>{qty} {item.unit || item.productId?.unit || 'units'}</span>
+                              </>
+                            )}
+                          </span>
+
+                          {/* Packaging / Bulk Conversion details if defined */}
+                          {(item.secondaryUnit || item.productId?.secondaryUnit) && Number(item.conversionFactor || item.productId?.conversionFactor) > 1 && (
+                            <div style={{ fontSize: '11.5px', color: '#64748B', marginTop: '3px' }}>
+                              <span>
+                                ≈ {parseFloat((qty / Number(item.conversionFactor || item.productId?.conversionFactor)).toFixed(1))} {item.secondaryUnit || item.productId?.secondaryUnit}
+                              </span>
+                              <span style={{ marginLeft: '4px', color: '#94A3B8' }}>
+                                (1 {item.secondaryUnit || item.productId?.secondaryUnit} = {item.conversionFactor || item.productId?.conversionFactor} {item.unit || item.productId?.unit || 'pcs'})
+                              </span>
+                            </div>
                           )}
-                        </span>
+                        </div>
                       </td>
 
                       {/* Actions */}
-                      <td style={{ padding: '16px 24px', textAlign: 'right' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                      <td style={{ padding: '16px 24px', textAlign: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                           {/* Quick Restock button */}
                           <button 
                             type="button"
@@ -667,39 +733,120 @@ const Inventory = () => {
                 </select>
               </div>
 
-              {/* Quantity to Add (Units) */}
+              {/* Quantity to Add */}
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                   <label style={{ fontSize: '13px', fontWeight: '700', color: '#1E293B' }}>
-                    Quantity to Add (Units) *
+                    Quantity to Add *
                   </label>
                   {formData.productId && (
                     <span style={{ fontSize: '12px', fontWeight: '600', color: '#2563EB', background: '#EFF6FF', padding: '2px 8px', borderRadius: '6px' }}>
-                      Current Stock: {formData.currentStock || 0} units
+                      Current Stock: {formData.currentStock || 0} {formData.unit || 'pcs'}
                     </span>
                   )}
                 </div>
-                <input
-                  placeholder="Enter units to add (e.g. 10)"
-                  type="number"
-                  min="1"
-                  value={formData.quantityToAdd}
-                  onChange={e => setFormData({ ...formData, quantityToAdd: e.target.value })}
-                  required
-                  style={{ 
-                    width: '100%', 
-                    padding: '12px 16px', 
-                    borderRadius: '10px', 
-                    border: '1px solid #CBD5E1', 
-                    fontSize: '15px', 
-                    color: '#0F172A', 
-                    boxSizing: 'border-box',
-                    backgroundColor: 'white',
-                    cursor: 'text'
-                  }}
-                />
 
-                {/* Show new total ONLY when user enters a number and product is chosen */}
+                {/* If product has packaging conversion (e.g. 1 Box = 10 pcs), allow toggling between Base Units and Packages */}
+                {formData.secondaryUnit && Number(formData.conversionFactor) > 1 && (
+                  <div style={{ marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#F8FAFC', padding: '8px 12px', borderRadius: '8px', border: '1px solid #E2E8F0', flexWrap: 'wrap', gap: '8px' }}>
+                    <span style={{ fontSize: '12px', color: '#334155', fontWeight: '600' }}>
+                      Rule: 1 {formData.secondaryUnit} = {formData.conversionFactor} {formData.unit || 'pcs'}
+                    </span>
+                    <div style={{ display: 'flex', gap: '4px', background: '#E2E8F0', padding: '2px', borderRadius: '6px' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const factor = Number(formData.conversionFactor) || 1;
+                          const newBaseQty = formData.packageQtyToAdd ? String(Number(formData.packageQtyToAdd) * factor) : formData.quantityToAdd;
+                          setFormData(prev => ({ ...prev, restockUnitType: 'package', quantityToAdd: newBaseQty }));
+                        }}
+                        style={{
+                          padding: '4px 10px',
+                          border: 'none',
+                          borderRadius: '4px',
+                          fontSize: '11.5px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          background: formData.restockUnitType === 'package' ? '#2563EB' : 'transparent',
+                          color: formData.restockUnitType === 'package' ? 'white' : '#64748B'
+                        }}
+                      >
+                        Add in {formData.secondaryUnit}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, restockUnitType: 'base' }))}
+                        style={{
+                          padding: '4px 10px',
+                          border: 'none',
+                          borderRadius: '4px',
+                          fontSize: '11.5px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          background: formData.restockUnitType === 'base' ? '#2563EB' : 'transparent',
+                          color: formData.restockUnitType === 'base' ? 'white' : '#64748B'
+                        }}
+                      >
+                        Add in {formData.unit || 'pcs'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {formData.restockUnitType === 'package' && formData.secondaryUnit && Number(formData.conversionFactor) > 1 ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>
+                        Number of {formData.secondaryUnit} *
+                      </label>
+                      <input
+                        placeholder={`e.g. 5 ${formData.secondaryUnit}`}
+                        type="number"
+                        min="1"
+                        value={formData.packageQtyToAdd || ''}
+                        onChange={e => {
+                          const pQty = e.target.value;
+                          const factor = Number(formData.conversionFactor) || 1;
+                          const baseQty = pQty ? String(Number(pQty) * factor) : '';
+                          setFormData(prev => ({ ...prev, packageQtyToAdd: pQty, quantityToAdd: baseQty }));
+                        }}
+                        required
+                        style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', boxSizing: 'border-box' }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#64748B', marginBottom: '4px' }}>
+                        Total {formData.unit || 'pcs'} (Calculated)
+                      </label>
+                      <div style={{ height: '42px', padding: '0 14px', background: '#F1F5F9', border: '1px solid #CBD5E1', borderRadius: '8px', display: 'flex', alignItems: 'center', fontSize: '14px', fontWeight: '700', color: '#2563EB' }}>
+                        {formData.quantityToAdd ? `${formData.quantityToAdd} ${formData.unit || 'pcs'}` : `0 ${formData.unit || 'pcs'}`}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      placeholder={`Enter ${formData.unit || 'units'} to add (e.g. 10)`}
+                      type="number"
+                      min="1"
+                      value={formData.quantityToAdd}
+                      onChange={e => {
+                        const val = e.target.value;
+                        const factor = Number(formData.conversionFactor) || 1;
+                        const pQty = val ? String(parseFloat((Number(val) / factor).toFixed(2))) : '';
+                        setFormData(prev => ({ ...prev, quantityToAdd: val, packageQtyToAdd: pQty }));
+                      }}
+                      required
+                      style={{ flex: 1, padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', boxSizing: 'border-box' }}
+                    />
+                    <div style={{ height: '42px', minWidth: '60px', padding: '0 12px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '700', color: '#2563EB' }}>
+                      {formData.unit || 'pcs'}
+                    </div>
+                  </div>
+                )}
+
+                {/* Show new total stock preview */}
                 {formData.productId && formData.quantityToAdd && Number(formData.quantityToAdd) > 0 && (
                   <div style={{
                     marginTop: '8px',
@@ -711,16 +858,177 @@ const Inventory = () => {
                     color: '#15803D',
                     fontWeight: '600'
                   }}>
-                    📦 New Total Stock: <strong>{Number(formData.currentStock || 0) + Number(formData.quantityToAdd)} units</strong> ({formData.currentStock || 0} + {formData.quantityToAdd})
+                    📦 New Total Stock: <strong>{Number(formData.currentStock || 0) + Number(formData.quantityToAdd)} {formData.unit || 'pcs'}</strong> ({formData.currentStock || 0} + {formData.quantityToAdd})
+                    {formData.secondaryUnit && Number(formData.conversionFactor) > 1 && (
+                      <span style={{ marginLeft: '6px', color: '#166534', fontWeight: '500' }}>
+                        (≈ {((Number(formData.currentStock || 0) + Number(formData.quantityToAdd)) / Number(formData.conversionFactor)).toFixed(1)} {formData.secondaryUnit})
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
 
-              {/* Additional Stock Details - Always visible initially */}
+              {/* Tickbox to Edit / Configure Unit & Conversion for this product */}
+              <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: '10px' }}>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600', color: '#1E293B', userSelect: 'none' }}>
+                  <input
+                    type="checkbox"
+                    checked={showConversionSection}
+                    onChange={e => setShowConversionSection(e.target.checked)}
+                    style={{ width: '16px', height: '16px', accentColor: '#2563EB', cursor: 'pointer' }}
+                  />
+                  Unit of Measure & Packaging Conversion
+                </label>
+                <p style={{ margin: '2px 0 0 24px', fontSize: '11.5px', color: '#64748B' }}>
+                  Configure product measurement type ({formData.measurementType || 'Piece'}) and packaging conversion.
+                </p>
+              </div>
+
+              {showConversionSection && (
+                <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>
+                        Measurement Category *
+                      </label>
+                      <select
+                        value={formData.measurementType || 'Piece'}
+                        onChange={e => {
+                          const t = e.target.value;
+                          const defaultUnits = { Piece: 'pcs', Weight: 'kg', Volume: 'L', Length: 'meter', Other: 'unit' };
+                          setFormData(prev => ({ ...prev, measurementType: t, unit: defaultUnits[t] || 'pcs' }));
+                        }}
+                        style={{ width: '100%', height: '36px', padding: '6px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', background: 'white', fontSize: '12.5px' }}
+                      >
+                        <option value="Piece">Piece / Count (Units, Items, Pieces)</option>
+                        <option value="Weight">Weight (Kg, Gram, Ton)</option>
+                        <option value="Volume">Volume / Liquid (Liter, ml)</option>
+                        <option value="Length">Length / Dimension (Meter, Feet)</option>
+                        <option value="Other">Other / Custom</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>
+                        Base Selling Unit *
+                      </label>
+                      {formData.measurementType === 'Other' ? (
+                        <input
+                          type="text"
+                          placeholder="e.g. Roll, Sheet"
+                          value={formData.unit || ''}
+                          onChange={e => setFormData({ ...formData, unit: e.target.value })}
+                          style={{ width: '100%', height: '36px', padding: '6px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', background: 'white', fontSize: '12.5px', boxSizing: 'border-box' }}
+                        />
+                      ) : (
+                        <select
+                          value={formData.unit || 'pcs'}
+                          onChange={e => setFormData({ ...formData, unit: e.target.value })}
+                          style={{ width: '100%', height: '36px', padding: '6px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', background: 'white', fontSize: '12.5px' }}
+                        >
+                          {formData.measurementType === 'Weight' ? (
+                            <>
+                              <option value="kg">Kilograms (kg)</option>
+                              <option value="g">Grams (g)</option>
+                              <option value="mg">Milligrams (mg)</option>
+                              <option value="quintal">Quintal</option>
+                              <option value="ton">Metric Ton</option>
+                            </>
+                          ) : formData.measurementType === 'Volume' ? (
+                            <>
+                              <option value="L">Liters (L)</option>
+                              <option value="ml">Milliliters (ml)</option>
+                              <option value="bottle">Bottle</option>
+                              <option value="can">Can</option>
+                              <option value="gallon">Gallon</option>
+                            </>
+                          ) : formData.measurementType === 'Length' ? (
+                            <>
+                              <option value="meter">Meters (m)</option>
+                              <option value="cm">Centimeters (cm)</option>
+                              <option value="feet">Feet (ft)</option>
+                              <option value="inch">Inches (in)</option>
+                            </>
+                          ) : (
+                            <>
+                              <option value="pcs">Pieces (pcs)</option>
+                              <option value="unit">Units (unit)</option>
+                              <option value="item">Items (item)</option>
+                              <option value="pack">Packets (pkt)</option>
+                              <option value="dozen">Dozen (12 pcs)</option>
+                              <option value="pair">Pair</option>
+                              <option value="set">Set</option>
+                            </>
+                          )}
+                        </select>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Packaging Conversion Definition */}
+                  <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: '8px' }}>
+                    <div style={{ fontSize: '12px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>
+                      Packaging Conversion (e.g. 1 Box = 10 {formData.unit || 'pcs'})
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '12.5px', fontWeight: '600', color: '#334155' }}>1</span>
+                      <input
+                        type="text"
+                        placeholder="Package (e.g. Box, Carton)"
+                        value={formData.secondaryUnit || ''}
+                        onChange={e => setFormData({ ...formData, secondaryUnit: e.target.value })}
+                        style={{ width: '150px', height: '34px', padding: '4px 8px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '12.5px', boxSizing: 'border-box' }}
+                      />
+                      <span style={{ fontSize: '12px', fontWeight: '600', color: '#64748B' }}>contains</span>
+                      <input
+                        type="number"
+                        min="1"
+                        placeholder="Qty (e.g. 10)"
+                        value={formData.conversionFactor || ''}
+                        onChange={e => setFormData({ ...formData, conversionFactor: e.target.value })}
+                        style={{ width: '110px', height: '34px', padding: '4px 8px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '12.5px', boxSizing: 'border-box' }}
+                      />
+                      <div style={{ height: '34px', padding: '0 10px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '700', color: '#2563EB' }}>
+                        {formData.unit || 'pcs'}
+                      </div>
+                    </div>
+
+                    {formData.secondaryUnit && formData.conversionFactor && (
+                      <div style={{ marginTop: '6px', fontSize: '12px', color: '#166534', fontWeight: '600' }}>
+                        Rule: 1 {formData.secondaryUnit} = {formData.conversionFactor} {formData.unit || 'pcs'}
+                      </div>
+                    )}
+
+                    {/* Auto-Swap Helper */}
+                    {Boolean(
+                      formData.secondaryUnit &&
+                      ['piece', 'pieces', 'pcs', 'unit', 'units'].includes(formData.secondaryUnit.toLowerCase().trim()) &&
+                      ['box', 'carton', 'case', 'pack', 'packet'].includes((formData.unit || '').toLowerCase().trim())
+                    ) && (
+                      <div style={{ marginTop: '6px', padding: '6px 10px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '6px', fontSize: '11.5px', color: '#92400E', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span>Tip: A {formData.unit} contains {formData.secondaryUnit}.</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const oldUnit = formData.unit;
+                            const oldSec = formData.secondaryUnit;
+                            setFormData(prev => ({ ...prev, unit: oldSec, secondaryUnit: oldUnit }));
+                          }}
+                          style={{ padding: '2px 6px', background: '#F59E0B', color: 'white', border: 'none', borderRadius: '4px', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }}
+                        >
+                          Swap
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Additional Stock Details */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>
-                    Cost Price / Unit (₹)
+                    Cost Price / {formData.unit || 'unit'} (₹)
                   </label>
                   <input
                     placeholder="e.g. 750"
@@ -763,7 +1071,7 @@ const Inventory = () => {
               <div style={{ display: 'flex', gap: '16px', marginTop: '6px' }}>
                 <button
                   type="button"
-                  onClick={() => { setShowModal(false); setEditingItem(null); }}
+                  onClick={() => { setShowModal(false); setEditingItem(null); setShowConversionSection(false); }}
                   style={{ flex: 1, padding: '14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '10px', color: '#475569', fontWeight: '600', cursor: 'pointer' }}
                 >
                   Cancel
@@ -785,7 +1093,7 @@ const Inventory = () => {
                   }}
                 >
                   {formData.quantityToAdd && Number(formData.quantityToAdd) > 0
-                    ? `Add Stock (Total: ${Number(formData.currentStock || 0) + Number(formData.quantityToAdd)} units)`
+                    ? `Add Stock (Total: ${Number(formData.currentStock || 0) + Number(formData.quantityToAdd)} ${formData.unit || 'pcs'})`
                     : 'Add Stock'}
                 </button>
               </div>

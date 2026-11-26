@@ -56,6 +56,9 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
             category: categoryName,
             quantity: Number(saved.stock) || 0,
             price: Number(saved.price) || 0,
+            costPrice: Number(saved.costPrice) || 0,
+            unit: saved.unit || 'pcs',
+            measurementType: saved.measurementType || 'Piece',
             productId: saved._id
           }
         },
@@ -96,7 +99,10 @@ router.put('/:id', auth, upload.single('image'), async (req, res) => {
             sku: updated.sku || '',
             category: categoryName,
             quantity: Number(updated.stock) || 0,
-            price: Number(updated.price) || 0
+            price: Number(updated.price) || 0,
+            costPrice: Number(updated.costPrice) || 0,
+            unit: updated.unit || 'pcs',
+            measurementType: updated.measurementType || 'Piece'
           }
         },
         { upsert: true }

@@ -42,6 +42,10 @@ const UserSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  workspaceTemplate: {
+    type: String,
+    default: 'none'
+  },
   industry: {
     type: String,
     required: false

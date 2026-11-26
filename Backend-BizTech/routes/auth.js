@@ -1574,7 +1574,7 @@ router.put('/profile', async (req, res) => {
     if (!token) return res.status(401).json({ message: 'No token, authorization denied' });
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
-    const { fullName, phone, businessName, industry, address, regNo, businessPhone, businessLogo } = req.body;
+    const { fullName, phone, businessName, industry, address, regNo, businessPhone, businessLogo, workspaceTemplate } = req.body;
 
     const user = await User.findById(decoded.user.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
@@ -1583,6 +1583,7 @@ router.put('/profile', async (req, res) => {
     if (phone) user.phone = phone;
     if (businessName !== undefined) user.businessName = businessName;
     if (businessLogo !== undefined) user.businessLogo = businessLogo;
+    if (workspaceTemplate !== undefined) user.workspaceTemplate = workspaceTemplate;
     if (industry !== undefined) user.industry = industry;
     if (address !== undefined) user.address = address;
     if (regNo !== undefined) user.regNo = regNo;

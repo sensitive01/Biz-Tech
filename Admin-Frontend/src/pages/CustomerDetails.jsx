@@ -8,7 +8,8 @@ import {
   X, Sparkles, Eye, CreditCard, Edit2, Trash2, AlertTriangle, Save, CheckCircle2,
   ArrowUp, ArrowDown, ArrowUpDown, Plus, KeyRound, Lock, EyeOff, Tag,
   Pencil, Building, ShieldCheck, CalendarDays, List, ChevronLeft, ChevronRight, ChevronDown, Repeat, Bell, LogOut,
-  Barcode, Printer, PieChart, DollarSign, XCircle, Upload, Paperclip
+  Barcode, Printer, PieChart, DollarSign, XCircle, Upload, Paperclip,
+  Palette, RotateCcw, Image
 } from 'lucide-react';
 import TablePagination from '../components/TablePagination';
 import { exportToCSV } from '../utils/exportToCSV';
@@ -133,9 +134,12 @@ const CustomerDetails = () => {
   // Profile Page inline editing state
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
+  const logoInputRef = useRef(null);
   const [profileFormData, setProfileFormData] = useState({
     fullName: '',
     businessName: '',
+    businessLogo: '',
+    workspaceTemplate: 'none',
     email: '',
     phone: '',
     industry: '',
@@ -373,12 +377,96 @@ const CustomerDetails = () => {
     }).format(Number(amt) || 0);
   };
 
+  // Workspace Theme Templates definition (6 options including No Template default)
+  const WORKSPACE_TEMPLATES = [
+    {
+      id: 'none',
+      name: 'No Template (Default)',
+      tagline: 'Standard Clean White',
+      headerColor: '#FFFFFF',
+      sidebarColor: '#FFFFFF',
+      accentColor: '#2563EB',
+      borderColor: '#E2E8F0',
+      badgeText: 'Default Clean',
+      badgeBg: '#F1F5F9',
+      badgeColor: '#475569',
+      description: 'Preserve the original crisp white background across header and sidebar.'
+    },
+    {
+      id: 'navy',
+      name: 'Midnight Slate',
+      tagline: 'Deep Navy Blue',
+      headerColor: '#0F172A',
+      sidebarColor: '#0F172A',
+      accentColor: '#38BDF8',
+      borderColor: '#1E293B',
+      badgeText: 'Corporate Navy',
+      badgeBg: 'rgba(56, 189, 248, 0.15)',
+      badgeColor: '#0284C7',
+      description: 'Professional deep navy blue with cool sky blue accents.'
+    },
+    {
+      id: 'indigo',
+      name: 'Royal Indigo',
+      tagline: 'Deep Violet Indigo',
+      headerColor: '#1E1B4B',
+      sidebarColor: '#1E1B4B',
+      accentColor: '#818CF8',
+      borderColor: '#312E81',
+      badgeText: 'Royal Violet',
+      badgeBg: 'rgba(129, 140, 248, 0.15)',
+      badgeColor: '#4F46E5',
+      description: 'Sophisticated deep violet indigo styling with lavender accents.'
+    },
+    {
+      id: 'emerald',
+      name: 'Forest Emerald',
+      tagline: 'Rich Pine & Emerald',
+      headerColor: '#064E3B',
+      sidebarColor: '#064E3B',
+      accentColor: '#34D399',
+      borderColor: '#065F46',
+      badgeText: 'Pine Emerald',
+      badgeBg: 'rgba(52, 211, 153, 0.15)',
+      badgeColor: '#059669',
+      description: 'Rich deep pine emerald green with vibrant mint highlights.'
+    },
+    {
+      id: 'amber',
+      name: 'Warm Amber',
+      tagline: 'Rich Honey & Golden Bronze',
+      headerColor: '#78350F',
+      sidebarColor: '#78350F',
+      accentColor: '#FBBF24',
+      borderColor: '#92400E',
+      badgeText: 'Warm Amber',
+      badgeBg: 'rgba(245, 158, 11, 0.15)',
+      badgeColor: '#D97706',
+      description: 'Distinguished rich honey and golden bronze tones with amber highlights.'
+    },
+    {
+      id: 'crimson',
+      name: 'Royal Crimson',
+      tagline: 'Deep Wine & Burgundy',
+      headerColor: '#4C0519',
+      sidebarColor: '#4C0519',
+      accentColor: '#FB7185',
+      borderColor: '#831843',
+      badgeText: 'Wine Crimson',
+      badgeBg: 'rgba(251, 113, 133, 0.15)',
+      badgeColor: '#BE123C',
+      description: 'Distinctive deep wine and burgundy styling with rose highlights.'
+    }
+  ];
+
   // Sync Customer Profile Form Data
   useEffect(() => {
     if (customer && customer._id) {
       setProfileFormData({
         fullName: customer.fullName || '',
         businessName: customer.businessName || '',
+        businessLogo: customer.businessLogo || '',
+        workspaceTemplate: customer.workspaceTemplate || 'none',
         email: customer.email || '',
         phone: customer.phone || customer.businessPhone || '',
         industry: customer.industry || '',
@@ -393,6 +481,90 @@ const CustomerDetails = () => {
       });
     }
   }, [customer]);
+
+  const handleLogoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please select a valid image file (PNG, JPG, WEBP, SVG).');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Logo file size should be less than 5MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (uploadEvent) => {
+      const rawBase64 = uploadEvent.target.result;
+      const img = new window.Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          const MAX_SIZE = 256;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_SIZE) {
+              height = Math.round((height * MAX_SIZE) / width);
+              width = MAX_SIZE;
+            }
+          } else {
+            if (height > MAX_SIZE) {
+              width = Math.round((width * MAX_SIZE) / height);
+              height = MAX_SIZE;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          const compressed = canvas.toDataURL(file.type || 'image/png', 0.92);
+          setProfileFormData(prev => ({ ...prev, businessLogo: compressed }));
+        } catch (err) {
+          setProfileFormData(prev => ({ ...prev, businessLogo: rawBase64 }));
+        }
+        if (!isEditingProfile) setIsEditingProfile(true);
+      };
+      img.onerror = () => {
+        setProfileFormData(prev => ({ ...prev, businessLogo: rawBase64 }));
+        if (!isEditingProfile) setIsEditingProfile(true);
+      };
+      img.src = rawBase64;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveLogo = () => {
+    setProfileFormData(prev => ({ ...prev, businessLogo: '' }));
+    if (logoInputRef.current) logoInputRef.current.value = '';
+    if (!isEditingProfile) setIsEditingProfile(true);
+  };
+
+  const handleSelectTemplate = async (templateId) => {
+    setProfileFormData(prev => ({ ...prev, workspaceTemplate: templateId }));
+    try {
+      const response = await fetch(`${apiUrl}/api/admin/users/${customer._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        },
+        body: JSON.stringify({ workspaceTemplate: templateId })
+      });
+      if (response.ok) {
+        showNotification(`Workspace color template updated to ${templateId === 'none' ? 'No Template (Default Clean)' : templateId}!`);
+        fetchCustomerDetails();
+      }
+    } catch (err) {
+      console.error('Error saving template:', err);
+    }
+  };
 
   const getArchetypeInfo = (type) => {
     switch (Number(type)) {
@@ -462,6 +634,8 @@ const CustomerDetails = () => {
         body: JSON.stringify({
           fullName: profileFormData.fullName,
           businessName: profileFormData.businessName,
+          businessLogo: profileFormData.businessLogo,
+          workspaceTemplate: profileFormData.workspaceTemplate,
           phone: profileFormData.phone,
           businessPhone: profileFormData.phone,
           industry: profileFormData.industry,
@@ -1908,12 +2082,12 @@ const CustomerDetails = () => {
     ...(businessType === 4 || businesses.length > 0 ? [{ id: 'businesses', label: 'Businesses', icon: Building2, count: counts.businesses }] : []),
     ...(businessType >= 3 ? [{ id: 'branches', label: 'Branches', icon: Map, count: counts.branches }] : []),
     ...((businessType === 3 || businessType === 4) ? [{ id: 'investors', label: 'Investors', icon: Briefcase, count: counts.investors || investors.length }] : []),
+    ...(customer.operationsType !== 'billing_only' ? [{ id: 'purchases', label: 'Purchases', icon: ShoppingCart, count: counts.purchases }] : []),
     ...(customer.offeringType !== 'service' ? [{ id: 'products', label: 'Products', icon: Package, count: counts.products }] : []),
     ...(customer.offeringType !== 'product' ? [{ id: 'services', label: 'Services', icon: Wrench, count: counts.services }] : []),
     ...(customer.offeringType !== 'service' ? [{ id: 'inventory', label: 'Stock / Inventory', icon: Archive, count: counts.inventory }] : []),
     { id: 'customers', label: 'Customers', icon: UserCheck, count: counts.customers },
     { id: 'expenses', label: 'Expenses', icon: Receipt, count: counts.expenses },
-    ...(customer.operationsType !== 'billing_only' ? [{ id: 'purchases', label: 'Purchases', icon: ShoppingCart, count: counts.purchases }] : []),
     { id: 'sales', label: 'Billing / Sales', icon: TrendingUp, count: counts.sales },
     { id: 'documents', label: 'Documents', icon: FileText, count: counts.documents },
     { id: 'reminders', label: 'Reminders', icon: BellRing, count: counts.reminders },
@@ -3065,6 +3239,8 @@ const CustomerDetails = () => {
                             setProfileFormData({
                               fullName: customer.fullName || '',
                               businessName: customer.businessName || '',
+                              businessLogo: customer.businessLogo || '',
+                              workspaceTemplate: customer.workspaceTemplate || 'none',
                               email: customer.email || '',
                               phone: customer.phone || customer.businessPhone || '',
                               industry: customer.industry || '',
@@ -3115,7 +3291,7 @@ const CustomerDetails = () => {
                     width: '76px',
                     height: '76px',
                     borderRadius: '20px',
-                    background: 'linear-gradient(135deg, #2563EB 0%, #4F46E5 100%)',
+                    background: (profileFormData.businessLogo || customer.businessLogo) ? '#FFFFFF' : 'linear-gradient(135deg, #2563EB 0%, #4F46E5 100%)',
                     color: 'white',
                     display: 'flex',
                     alignItems: 'center',
@@ -3123,9 +3299,20 @@ const CustomerDetails = () => {
                     fontSize: '30px',
                     fontWeight: '700',
                     boxShadow: '0 8px 16px -4px rgba(37, 99, 235, 0.3)',
+                    border: (profileFormData.businessLogo || customer.businessLogo) ? '1px solid #CBD5E1' : 'none',
+                    overflow: 'hidden',
                     flexShrink: 0
                   }}>
-                    {customer.fullName ? customer.fullName.charAt(0).toUpperCase() : 'C'}
+                    {(profileFormData.businessLogo || customer.businessLogo) ? (
+                      <img
+                        src={profileFormData.businessLogo || customer.businessLogo}
+                        alt="Logo"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      />
+                    ) : (
+                      customer.fullName ? customer.fullName.charAt(0).toUpperCase() : 'C'
+                    )}
                   </div>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
@@ -3327,6 +3514,128 @@ const CustomerDetails = () => {
                     </div>
                   </div>
 
+                  {/* Business Logo & Header Brand Preview Box */}
+                  <div style={{
+                    padding: '20px',
+                    background: '#F8FAFC',
+                    border: '1px solid #E2E8F0',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '16px',
+                    marginBottom: '24px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                      {/* Preview of Header Logo */}
+                      <div style={{
+                        width: '48px',
+                        height: '48px',
+                        borderRadius: '10px',
+                        border: '1px solid #CBD5E1',
+                        overflow: 'hidden',
+                        background: 'white',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0
+                      }}>
+                        <img
+                          src={profileFormData.businessLogo || customer.businessLogo || '/logo.jpg'}
+                          alt="Business Logo"
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          onError={(e) => { e.currentTarget.src = '/logo.jpg'; }}
+                        />
+                      </div>
+
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                          <span style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748B' }}>
+                            Top Header Preview
+                          </span>
+                          {(profileFormData.businessLogo || customer.businessLogo) ? (
+                            <span style={{ fontSize: '11px', fontWeight: '600', background: '#ECFDF5', color: '#059669', padding: '1px 8px', borderRadius: '10px' }}>
+                              Custom Logo Active
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '11px', fontWeight: '600', background: '#F1F5F9', color: '#64748B', padding: '1px 8px', borderRadius: '10px' }}>
+                              Default Logo
+                            </span>
+                          )}
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '18px', fontWeight: '700', color: '#0F172A', fontFamily: 'Plus Jakarta Sans' }}>
+                            {(isEditingProfile ? profileFormData.businessName : (customer.businessName || profileFormData.businessName)) || 'My Workspace'}
+                          </span>
+                        </div>
+                        <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#64748B' }}>
+                          Initially shows standard logo &amp; "My Workspace". Updates in the header when changed.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Logo Controls */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                      <input
+                        type="file"
+                        ref={logoInputRef}
+                        accept="image/*"
+                        onChange={handleLogoUpload}
+                        style={{ display: 'none' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!isEditingProfile) setIsEditingProfile(true);
+                          logoInputRef.current?.click();
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '8px 16px',
+                          borderRadius: '8px',
+                          border: '1px solid #2563EB',
+                          background: '#EFF6FF',
+                          color: '#2563EB',
+                          fontSize: '13px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <Upload size={14} /> {(profileFormData.businessLogo || customer.businessLogo) ? 'Change Logo' : 'Upload Business Logo'}
+                      </button>
+
+                      {(profileFormData.businessLogo || customer.businessLogo) && (
+                        <button
+                          type="button"
+                          onClick={handleRemoveLogo}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '8px 14px',
+                            borderRadius: '8px',
+                            border: '1px solid #CBD5E1',
+                            background: 'white',
+                            color: '#64748B',
+                            fontSize: '13px',
+                            fontWeight: '500',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease'
+                          }}
+                          title="Reset to default BizTech logo"
+                        >
+                          <RotateCcw size={13} /> Reset to Default
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
                   {!isEditingProfile ? (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
                       <div style={{ padding: '16px', borderRadius: '10px', background: '#F8FAFC', border: '1px solid #F1F5F9' }}>
@@ -3373,15 +3682,18 @@ const CustomerDetails = () => {
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '20px' }}>
                       <div>
                         <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
-                          <Building size={14} color="#7C3AED" /> Business Name
+                          <Building size={14} color="#7C3AED" /> Business / Shop Name (Header Title)
                         </label>
                         <input
                           type="text"
                           value={profileFormData.businessName}
                           onChange={e => setProfileFormData({ ...profileFormData, businessName: e.target.value })}
-                          placeholder="e.g. Ajay Enterprises"
+                          placeholder="e.g. Acme Retailers (replaces 'My Workspace' in Header)"
                           style={{ width: '100%', height: '42px', padding: '8px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
                         />
+                        <span style={{ fontSize: '11px', color: '#64748B', display: 'block', marginTop: '3px' }}>
+                          This name is displayed in the top-left navigation header. Leave empty to use "My Workspace".
+                        </span>
                       </div>
 
                       <div>
@@ -3656,7 +3968,236 @@ const CustomerDetails = () => {
                   </div>
                 </div>
 
-                {/* Section 5: Business Setup & Architecture Card (Resume Setup Wizard) */}
+                {/* Section 5: Workspace Header & Sidebar Color Templates */}
+                <div style={{
+                  background: 'white',
+                  borderRadius: '16px',
+                  padding: '28px 32px',
+                  boxShadow: '0 4px 12px rgba(15, 23, 42, 0.04)',
+                  border: '1px solid #E2E8F0',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '24px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #F1F5F9', paddingBottom: '18px', flexWrap: 'wrap', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                      <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Palette size={22} />
+                      </div>
+                      <div>
+                        <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#0F172A', margin: '0 0 4px 0' }}>
+                          Header & Sidebar Color Templates
+                        </h3>
+                        <p style={{ color: '#64748B', fontSize: '13px', margin: 0 }}>
+                          Select a template to customize the background styling of the customer's top header and sidebar navigation, or choose "No Template" to retain the default clean view.
+                        </p>
+                      </div>
+                    </div>
+                    <div style={{
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      color: '#475569',
+                      background: '#F8FAFC',
+                      padding: '6px 14px',
+                      borderRadius: '20px',
+                      border: '1px solid #E2E8F0'
+                    }}>
+                      6 Template Options
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '18px' }}>
+                    {WORKSPACE_TEMPLATES.map((tpl) => {
+                      const isSelected = (profileFormData.workspaceTemplate || customer.workspaceTemplate || 'none') === tpl.id;
+                      return (
+                        <div
+                          key={tpl.id}
+                          onClick={() => handleSelectTemplate(tpl.id)}
+                          style={{
+                            border: isSelected ? '2px solid #2563EB' : '1px solid #E2E8F0',
+                            background: isSelected ? '#F0F7FF' : '#FFFFFF',
+                            borderRadius: '14px',
+                            padding: '20px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '14px',
+                            transition: 'all 0.2s ease',
+                            position: 'relative',
+                            boxShadow: isSelected ? '0 4px 14px rgba(37, 99, 235, 0.12)' : '0 1px 3px rgba(0,0,0,0.02)'
+                          }}
+                          onMouseOver={(e) => {
+                            if (!isSelected) {
+                              e.currentTarget.style.borderColor = '#94A3B8';
+                              e.currentTarget.style.transform = 'translateY(-2px)';
+                              e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.06)';
+                            }
+                          }}
+                          onMouseOut={(e) => {
+                            if (!isSelected) {
+                              e.currentTarget.style.borderColor = '#E2E8F0';
+                              e.currentTarget.style.transform = 'translateY(0)';
+                              e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.02)';
+                            }
+                          }}
+                        >
+                          {/* Visual Mini Mockup of Header & Sidebar */}
+                          <div style={{
+                            height: '76px',
+                            borderRadius: '8px',
+                            background: '#F8FAFC',
+                            border: '1px solid #E2E8F0',
+                            overflow: 'hidden',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.03)'
+                          }}>
+                            {/* Miniature Top Header */}
+                            <div style={{
+                              height: '22px',
+                              background: tpl.headerColor,
+                              borderBottom: `1px solid ${tpl.id === 'none' ? '#E2E8F0' : tpl.borderColor}`,
+                              display: 'flex',
+                              alignItems: 'center',
+                              padding: '0 8px',
+                              gap: '6px'
+                            }}>
+                              <div style={{ width: '8px', height: '8px', borderRadius: '2px', background: tpl.accentColor, flexShrink: 0 }} />
+                              <div style={{ width: '38px', height: '4px', borderRadius: '2px', background: tpl.id === 'none' ? '#94A3B8' : 'rgba(255,255,255,0.7)' }} />
+                              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                <div style={{ width: '14px', height: '4px', borderRadius: '2px', background: tpl.id === 'none' ? '#CBD5E1' : 'rgba(255,255,255,0.4)' }} />
+                                <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: tpl.accentColor }} />
+                              </div>
+                            </div>
+
+                            {/* Miniature Body: Sidebar + Main Area */}
+                            <div style={{ flex: 1, display: 'flex' }}>
+                              {/* Miniature Sidebar */}
+                              <div style={{
+                                width: '46px',
+                                background: tpl.sidebarColor,
+                                borderRight: `1px solid ${tpl.id === 'none' ? '#E2E8F0' : tpl.borderColor}`,
+                                padding: '5px 4px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '4px',
+                                flexShrink: 0
+                              }}>
+                                <div style={{ width: '100%', height: '5px', borderRadius: '2px', background: tpl.accentColor }} />
+                                <div style={{ width: '70%', height: '4px', borderRadius: '2px', background: tpl.id === 'none' ? '#CBD5E1' : 'rgba(255,255,255,0.45)' }} />
+                                <div style={{ width: '85%', height: '4px', borderRadius: '2px', background: tpl.id === 'none' ? '#CBD5E1' : 'rgba(255,255,255,0.45)' }} />
+                                <div style={{ width: '60%', height: '4px', borderRadius: '2px', background: tpl.id === 'none' ? '#CBD5E1' : 'rgba(255,255,255,0.45)' }} />
+                              </div>
+                              {/* Miniature Main Content */}
+                              <div style={{ flex: 1, padding: '6px 8px', display: 'flex', flexDirection: 'column', gap: '4px', background: '#F8FAFC' }}>
+                                <div style={{ width: '55%', height: '4px', borderRadius: '2px', background: '#CBD5E1' }} />
+                                <div style={{ display: 'flex', gap: '4px' }}>
+                                  <div style={{ flex: 1, height: '20px', borderRadius: '4px', background: 'white', border: '1px solid #E2E8F0' }} />
+                                  <div style={{ flex: 1, height: '20px', borderRadius: '4px', background: 'white', border: '1px solid #E2E8F0' }} />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Card Title & Selected Status */}
+                          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <div style={{
+                                width: '28px',
+                                height: '28px',
+                                borderRadius: '8px',
+                                background: tpl.headerColor,
+                                border: `1.5px solid ${tpl.id === 'none' ? '#CBD5E1' : tpl.borderColor}`,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.06)',
+                                flexShrink: 0
+                              }}>
+                                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: tpl.accentColor }} />
+                              </div>
+                              <div>
+                                <div style={{ fontWeight: '700', fontSize: '15px', color: '#0F172A', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  {tpl.name}
+                                </div>
+                                <span style={{ fontSize: '12px', color: '#64748B' }}>{tpl.tagline}</span>
+                              </div>
+                            </div>
+
+                            {isSelected ? (
+                              <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                background: '#EFF6FF',
+                                color: '#2563EB',
+                                padding: '3px 8px',
+                                borderRadius: '12px',
+                                fontSize: '11px',
+                                fontWeight: '700',
+                                flexShrink: 0
+                              }}>
+                                <Check size={12} strokeWidth={3} /> Active
+                              </div>
+                            ) : (
+                              <span style={{
+                                background: tpl.badgeBg,
+                                color: tpl.badgeColor,
+                                fontSize: '11px',
+                                fontWeight: '600',
+                                padding: '3px 8px',
+                                borderRadius: '12px',
+                                flexShrink: 0
+                              }}>
+                                {tpl.badgeText}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Description */}
+                          <p style={{ fontSize: '12.5px', color: '#64748B', margin: 0, lineHeight: '1.45', flex: 1 }}>
+                            {tpl.description}
+                          </p>
+
+                          {/* Action button */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSelectTemplate(tpl.id);
+                            }}
+                            style={{
+                              width: '100%',
+                              padding: '8px 12px',
+                              borderRadius: '8px',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '6px',
+                              transition: 'all 0.15s ease',
+                              background: isSelected ? '#2563EB' : '#F8FAFC',
+                              color: isSelected ? '#FFFFFF' : '#334155',
+                              border: isSelected ? '1px solid #2563EB' : '1px solid #E2E8F0'
+                            }}
+                          >
+                            {isSelected ? (
+                              <>
+                                <CheckCircle2 size={14} /> Currently Applied
+                              </>
+                            ) : (
+                              'Apply Template'
+                            )}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Section 6: Business Setup & Architecture Card (Resume Setup Wizard) */}
                 <div style={{
                   background: 'white',
                   borderRadius: '16px',
@@ -5548,7 +6089,17 @@ const CustomerDetails = () => {
                             <td style={{ padding: '14px 20px', fontWeight: '600', color: '#0F172A', fontSize: '13px' }}>{item.itemName || item.name}</td>
                             <td style={{ padding: '14px 20px', color: '#64748B', fontFamily: 'monospace', fontSize: '12px' }}>{item.sku || 'N/A'}</td>
                             <td style={{ padding: '14px 20px' }}><span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px', background: '#F1F5F9', color: '#475569', fontWeight: '500' }}>{item.category || 'General'}</span></td>
-                            <td style={{ padding: '14px 20px', fontWeight: '600', color: (item.quantity || 0) < 5 ? '#DC2626' : '#0F172A', fontSize: '13px' }}>{item.quantity ?? item.stock ?? 0} in stock</td>
+                            <td style={{ padding: '14px 20px' }}>
+                              <div style={{ fontWeight: '600', color: (item.quantity || 0) < 5 ? '#DC2626' : '#0F172A', fontSize: '13px' }}>
+                                {item.quantity ?? item.stock ?? 0} {item.unit || item.productId?.unit || 'units'}
+                              </div>
+                              {(item.secondaryUnit || item.productId?.secondaryUnit) && Number(item.conversionFactor || item.productId?.conversionFactor) > 1 && (
+                                <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
+                                  ≈ {parseFloat(((item.quantity ?? item.stock ?? 0) / Number(item.conversionFactor || item.productId?.conversionFactor)).toFixed(1))} {item.secondaryUnit || item.productId?.secondaryUnit}
+                                  <span style={{ marginLeft: '4px', color: '#94A3B8' }}>(1 {item.secondaryUnit || item.productId?.secondaryUnit} = {item.conversionFactor || item.productId?.conversionFactor} {item.unit || item.productId?.unit || 'pcs'})</span>
+                                </div>
+                              )}
+                            </td>
                             <td style={{ padding: '14px 20px', fontWeight: '700', color: '#2563EB', fontSize: '13px' }}>{formatCurrency(item.price)}</td>
                             <td style={{ padding: '14px 20px', textAlign: 'right' }}>
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
@@ -5557,15 +6108,27 @@ const CustomerDetails = () => {
                                   onClick={() => {
                                     const prodId = item.productId?._id || item.productId;
                                     const prod = products.find(p => String(p._id) === String(prodId));
+                                    const unit = item.unit || prod?.unit || item.productId?.unit || 'pcs';
+                                    const measurementType = item.measurementType || prod?.measurementType || item.productId?.measurementType || 'Piece';
+                                    const secondaryUnit = item.secondaryUnit || prod?.secondaryUnit || item.productId?.secondaryUnit || '';
+                                    const conversionFactor = item.conversionFactor || prod?.conversionFactor || item.productId?.conversionFactor || 1;
                                     openAddModal('inventory', {
                                       productId: prodId || (prod ? prod._id : ''),
                                       itemName: item.itemName || (prod ? prod.name : ''),
                                       sku: item.sku || (prod ? prod.sku : ''),
                                       category: item.category || (prod ? prod.categoryId?.name : ''),
                                       currentStock: Number(item.quantity ?? item.stock ?? 0),
-                                      costPrice: item.costPrice || '',
+                                      costPrice: item.costPrice || (prod ? prod.costPrice : ''),
                                       supplier: item.supplier || '',
-                                      notes: item.notes || ''
+                                      notes: item.notes || '',
+                                      unit,
+                                      measurementType,
+                                      secondaryUnit,
+                                      conversionFactor,
+                                      restockUnitType: secondaryUnit && Number(conversionFactor) > 1 ? 'package' : 'base',
+                                      quantityToAdd: '',
+                                      packageQtyToAdd: '',
+                                      showConversion: Boolean(secondaryUnit || (unit && unit !== 'pcs'))
                                     });
                                   }}
                                   title="Add Stock"
@@ -7478,50 +8041,6 @@ const CustomerDetails = () => {
                                   type="button"
                                   onClick={() => setViewModalData({ type: 'investor', data: inv })}
                                   style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '6px', background: '#EFF6FF', border: '1px solid #DBEAFE', color: '#2563EB', cursor: 'pointer' }}
-                                  title="View Details"
-                                >
-                                  <Eye size={15} />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => openEditModal('investor', inv)}
-                                  style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '6px', background: '#F1F5F9', border: '1px solid #E2E8F0', color: '#475569', cursor: 'pointer' }}
-                                  title="Edit Investor"
-                                >
-                                  <Edit2 size={15} />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setDeleteConfirm({ type: 'investor', id: inv._id, name: inv.name, parentId: customer._id })}
-                                  style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '6px', background: '#FEE2E2', border: '1px solid #FCA5A5', color: '#EF4444', cursor: 'pointer' }}
-                                  title="Delete Investor"
-                                >
-                                  <Trash2 size={15} />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-                <TablePagination
-                  currentPage={currentPage}
-                  setCurrentPage={setCurrentPage}
-                  totalItems={filteredInvestors.length}
-                  itemsPerPage={itemsPerPage}
-                  setItemsPerPage={setItemsPerPage}
-                  itemName="investors"
-                />
-              </div>
-            </div>
-          )}
-
-        </div>
-      </main>
-
       {/* ============================================================ */}
       {/* VIEW MODAL */}
       {/* ============================================================ */}
@@ -7903,7 +8422,14 @@ const CustomerDetails = () => {
                               itemName: '',
                               sku: '',
                               category: '',
-                              currentStock: 0
+                              currentStock: 0,
+                              unit: 'pcs',
+                              measurementType: 'Piece',
+                              secondaryUnit: '',
+                              conversionFactor: 1,
+                              restockUnitType: 'base',
+                              quantityToAdd: '',
+                              packageQtyToAdd: ''
                             }
                           }));
                           return;
@@ -7912,6 +8438,10 @@ const CustomerDetails = () => {
                         if (prod) {
                           const existingInv = inventory.find(i => String(i.productId?._id || i.productId) === String(prod._id));
                           const currStock = existingInv ? Number(existingInv.quantity) || 0 : (Number(prod.stock) || 0);
+                          const unit = prod.unit || existingInv?.unit || 'pcs';
+                          const measurementType = prod.measurementType || existingInv?.measurementType || 'Piece';
+                          const secondaryUnit = prod.secondaryUnit || existingInv?.secondaryUnit || '';
+                          const conversionFactor = prod.conversionFactor || existingInv?.conversionFactor || 1;
                           setAddModalData(prev => ({
                             ...prev,
                             formData: {
@@ -7920,11 +8450,19 @@ const CustomerDetails = () => {
                               itemName: prod.name,
                               sku: prod.sku || '',
                               category: prod.categoryId?.name || prod.category || 'General',
-                              costPrice: prev.formData.costPrice || existingInv?.costPrice || '',
+                              costPrice: prev.formData.costPrice || existingInv?.costPrice || prod.costPrice || '',
                               supplier: prev.formData.supplier || existingInv?.supplier || '',
                               notes: prev.formData.notes || existingInv?.notes || '',
                               currentStock: currStock,
-                              price: prod.price || 0
+                              price: prod.price || 0,
+                              unit,
+                              measurementType,
+                              secondaryUnit,
+                              conversionFactor,
+                              restockUnitType: secondaryUnit && Number(conversionFactor) > 1 ? 'package' : 'base',
+                              quantityToAdd: '',
+                              packageQtyToAdd: '',
+                              showConversion: Boolean(secondaryUnit || (unit && unit !== 'pcs'))
                             }
                           }));
                         }
@@ -7949,43 +8487,135 @@ const CustomerDetails = () => {
                         const isZero = stockVal <= 0;
                         return (
                           <option key={p._id} value={p._id}>
-                            {p.name} {p.sku ? `(${p.sku})` : ''} — Current Stock: {stockVal} {isZero ? '⚠️ [Out of Stock]' : 'units'}
+                            {p.name} {p.sku ? `(${p.sku})` : ''} — Current Stock: {stockVal} {isZero ? '⚠️ [Out of Stock]' : (p.unit || 'units')}
                           </option>
                         );
                       })}
                     </select>
                   </div>
 
-                  {/* Quantity to Add (Units) */}
+                  {/* Quantity to Add */}
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                       <label style={{ fontSize: '13px', fontWeight: '700', color: '#1E293B' }}>
-                        Quantity to Add (Units) *
+                        Quantity to Add *
                       </label>
                       {addModalData.formData.productId && (
                         <span style={{ fontSize: '12px', fontWeight: '600', color: '#2563EB', background: '#EFF6FF', padding: '2px 8px', borderRadius: '6px' }}>
-                          Current Stock: {addModalData.formData.currentStock || 0} units
+                          Current Stock: {addModalData.formData.currentStock || 0} {addModalData.formData.unit || 'pcs'}
                         </span>
                       )}
                     </div>
-                    <input
-                      placeholder="Enter units to add (e.g. 10)"
-                      type="number"
-                      min="1"
-                      value={addModalData.formData.quantityToAdd ?? ''}
-                      onChange={(e) => setAddModalData(prev => ({ ...prev, formData: { ...prev.formData, quantityToAdd: e.target.value } }))}
-                      required
-                      style={{
-                        width: '100%',
-                        padding: '11px 14px',
-                        borderRadius: '10px',
-                        border: '1px solid #CBD5E1',
-                        fontSize: '14px',
-                        color: '#0F172A',
-                        boxSizing: 'border-box',
-                        backgroundColor: 'white'
-                      }}
-                    />
+
+                    {/* Packaging Conversion quick toggle */}
+                    {addModalData.formData.secondaryUnit && Number(addModalData.formData.conversionFactor) > 1 && (
+                      <div style={{ marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#F8FAFC', padding: '8px 12px', borderRadius: '8px', border: '1px solid #E2E8F0', flexWrap: 'wrap', gap: '8px' }}>
+                        <span style={{ fontSize: '12px', color: '#334155', fontWeight: '600' }}>
+                          Rule: 1 {addModalData.formData.secondaryUnit} = {addModalData.formData.conversionFactor} {addModalData.formData.unit || 'pcs'}
+                        </span>
+                        <div style={{ display: 'flex', gap: '4px', background: '#E2E8F0', padding: '2px', borderRadius: '6px' }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const factor = Number(addModalData.formData.conversionFactor) || 1;
+                              const newBaseQty = addModalData.formData.packageQtyToAdd ? String(Number(addModalData.formData.packageQtyToAdd) * factor) : addModalData.formData.quantityToAdd;
+                              setAddModalData(prev => ({ ...prev, formData: { ...prev.formData, restockUnitType: 'package', quantityToAdd: newBaseQty } }));
+                            }}
+                            style={{
+                              padding: '4px 10px',
+                              border: 'none',
+                              borderRadius: '4px',
+                              fontSize: '11.5px',
+                              fontWeight: '600',
+                              cursor: 'pointer',
+                              background: addModalData.formData.restockUnitType === 'package' ? '#2563EB' : 'transparent',
+                              color: addModalData.formData.restockUnitType === 'package' ? 'white' : '#64748B'
+                            }}
+                          >
+                            Add in {addModalData.formData.secondaryUnit}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setAddModalData(prev => ({ ...prev, formData: { ...prev.formData, restockUnitType: 'base' } }))}
+                            style={{
+                              padding: '4px 10px',
+                              border: 'none',
+                              borderRadius: '4px',
+                              fontSize: '11.5px',
+                              fontWeight: '600',
+                              cursor: 'pointer',
+                              background: addModalData.formData.restockUnitType === 'base' ? '#2563EB' : 'transparent',
+                              color: addModalData.formData.restockUnitType === 'base' ? 'white' : '#64748B'
+                            }}
+                          >
+                            Add in {addModalData.formData.unit || 'pcs'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {addModalData.formData.restockUnitType === 'package' && addModalData.formData.secondaryUnit && Number(addModalData.formData.conversionFactor) > 1 ? (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>
+                            Number of {addModalData.formData.secondaryUnit} *
+                          </label>
+                          <input
+                            placeholder={`e.g. 5 ${addModalData.formData.secondaryUnit}`}
+                            type="number"
+                            min="1"
+                            value={addModalData.formData.packageQtyToAdd || ''}
+                            onChange={(e) => {
+                              const pQty = e.target.value;
+                              const factor = Number(addModalData.formData.conversionFactor) || 1;
+                              const baseQty = pQty ? String(Number(pQty) * factor) : '';
+                              setAddModalData(prev => ({ ...prev, formData: { ...prev.formData, packageQtyToAdd: pQty, quantityToAdd: baseQty } }));
+                            }}
+                            required
+                            style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', boxSizing: 'border-box' }}
+                          />
+                        </div>
+
+                        <div>
+                          <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#64748B', marginBottom: '4px' }}>
+                            Total {addModalData.formData.unit || 'pcs'} (Calculated)
+                          </label>
+                          <div style={{ height: '40px', padding: '0 14px', background: '#F1F5F9', border: '1px solid #CBD5E1', borderRadius: '8px', display: 'flex', alignItems: 'center', fontSize: '14px', fontWeight: '700', color: '#2563EB' }}>
+                            {addModalData.formData.quantityToAdd ? `${addModalData.formData.quantityToAdd} ${addModalData.formData.unit || 'pcs'}` : `0 ${addModalData.formData.unit || 'pcs'}`}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <input
+                          placeholder={`Enter ${addModalData.formData.unit || 'units'} to add (e.g. 10)`}
+                          type="number"
+                          min="1"
+                          value={addModalData.formData.quantityToAdd ?? ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            const factor = Number(addModalData.formData.conversionFactor) || 1;
+                            const pQty = val ? String(parseFloat((Number(val) / factor).toFixed(2))) : '';
+                            setAddModalData(prev => ({ ...prev, formData: { ...prev.formData, quantityToAdd: val, packageQtyToAdd: pQty } }));
+                          }}
+                          required
+                          style={{
+                            flex: 1,
+                            padding: '11px 14px',
+                            borderRadius: '10px',
+                            border: '1px solid #CBD5E1',
+                            fontSize: '14px',
+                            color: '#0F172A',
+                            boxSizing: 'border-box',
+                            backgroundColor: 'white'
+                          }}
+                        />
+                        <div style={{ height: '42px', minWidth: '60px', padding: '0 12px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '700', color: '#2563EB' }}>
+                          {addModalData.formData.unit || 'pcs'}
+                        </div>
+                      </div>
+                    )}
+
                     {addModalData.formData.productId && addModalData.formData.quantityToAdd && Number(addModalData.formData.quantityToAdd) > 0 && (
                       <div style={{
                         marginTop: '8px',
@@ -7997,16 +8627,177 @@ const CustomerDetails = () => {
                         color: '#15803D',
                         fontWeight: '600'
                       }}>
-                        📦 New Total Stock: <strong>{Number(addModalData.formData.currentStock || 0) + Number(addModalData.formData.quantityToAdd)} units</strong> ({addModalData.formData.currentStock || 0} + {addModalData.formData.quantityToAdd})
+                        📦 New Total Stock: <strong>{Number(addModalData.formData.currentStock || 0) + Number(addModalData.formData.quantityToAdd)} {addModalData.formData.unit || 'pcs'}</strong> ({addModalData.formData.currentStock || 0} + {addModalData.formData.quantityToAdd})
+                        {addModalData.formData.secondaryUnit && Number(addModalData.formData.conversionFactor) > 1 && (
+                          <span style={{ marginLeft: '6px', color: '#166534', fontWeight: '500' }}>
+                            (≈ {((Number(addModalData.formData.currentStock || 0) + Number(addModalData.formData.quantityToAdd)) / Number(addModalData.formData.conversionFactor)).toFixed(1)} {addModalData.formData.secondaryUnit})
+                          </span>
+                        )}
                       </div>
                     )}
                   </div>
+
+                  {/* Tickbox to Edit / Configure Unit & Conversion */}
+                  <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: '10px' }}>
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600', color: '#1E293B', userSelect: 'none' }}>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(addModalData.formData.showConversion)}
+                        onChange={(e) => setAddModalData(prev => ({ ...prev, formData: { ...prev.formData, showConversion: e.target.checked } }))}
+                        style={{ width: '16px', height: '16px', accentColor: '#2563EB', cursor: 'pointer' }}
+                      />
+                      Unit of Measure & Packaging Conversion
+                    </label>
+                    <p style={{ margin: '2px 0 0 24px', fontSize: '11.5px', color: '#64748B' }}>
+                      Configure product measurement type and packaging conversion rules.
+                    </p>
+                  </div>
+
+                  {addModalData.formData.showConversion && (
+                    <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>
+                            Measurement Category *
+                          </label>
+                          <select
+                            value={addModalData.formData.measurementType || 'Piece'}
+                            onChange={(e) => {
+                              const t = e.target.value;
+                              const defaultUnits = { Piece: 'pcs', Weight: 'kg', Volume: 'L', Length: 'meter', Other: 'unit' };
+                              setAddModalData(prev => ({ ...prev, formData: { ...prev.formData, measurementType: t, unit: defaultUnits[t] || 'pcs' } }));
+                            }}
+                            style={{ width: '100%', height: '36px', padding: '6px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', background: 'white', fontSize: '12.5px' }}
+                          >
+                            <option value="Piece">Piece / Count (Units, Items, Pieces)</option>
+                            <option value="Weight">Weight (Kg, Gram, Ton)</option>
+                            <option value="Volume">Volume / Liquid (Liter, ml)</option>
+                            <option value="Length">Length / Dimension (Meter, Feet)</option>
+                            <option value="Other">Other / Custom</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>
+                            Base Selling Unit *
+                          </label>
+                          {addModalData.formData.measurementType === 'Other' ? (
+                            <input
+                              type="text"
+                              placeholder="e.g. Roll, Sheet"
+                              value={addModalData.formData.unit || ''}
+                              onChange={(e) => setAddModalData(prev => ({ ...prev, formData: { ...prev.formData, unit: e.target.value } }))}
+                              style={{ width: '100%', height: '36px', padding: '6px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', background: 'white', fontSize: '12.5px', boxSizing: 'border-box' }}
+                            />
+                          ) : (
+                            <select
+                              value={addModalData.formData.unit || 'pcs'}
+                              onChange={(e) => setAddModalData(prev => ({ ...prev, formData: { ...prev.formData, unit: e.target.value } }))}
+                              style={{ width: '100%', height: '36px', padding: '6px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', background: 'white', fontSize: '12.5px' }}
+                            >
+                              {addModalData.formData.measurementType === 'Weight' ? (
+                                <>
+                                  <option value="kg">Kilograms (kg)</option>
+                                  <option value="g">Grams (g)</option>
+                                  <option value="mg">Milligrams (mg)</option>
+                                  <option value="quintal">Quintal</option>
+                                  <option value="ton">Metric Ton</option>
+                                </>
+                              ) : addModalData.formData.measurementType === 'Volume' ? (
+                                <>
+                                  <option value="L">Liters (L)</option>
+                                  <option value="ml">Milliliters (ml)</option>
+                                  <option value="bottle">Bottle</option>
+                                  <option value="can">Can</option>
+                                  <option value="gallon">Gallon</option>
+                                </>
+                              ) : addModalData.formData.measurementType === 'Length' ? (
+                                <>
+                                  <option value="meter">Meters (m)</option>
+                                  <option value="cm">Centimeters (cm)</option>
+                                  <option value="feet">Feet (ft)</option>
+                                  <option value="inch">Inches (in)</option>
+                                </>
+                              ) : (
+                                <>
+                                  <option value="pcs">Pieces (pcs)</option>
+                                  <option value="unit">Units (unit)</option>
+                                  <option value="item">Items (item)</option>
+                                  <option value="pack">Packets (pkt)</option>
+                                  <option value="dozen">Dozen (12 pcs)</option>
+                                  <option value="pair">Pair</option>
+                                  <option value="set">Set</option>
+                                </>
+                              )}
+                            </select>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Packaging Conversion Definition */}
+                      <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: '8px' }}>
+                        <div style={{ fontSize: '12px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>
+                          Packaging Conversion (e.g. 1 Box = 10 {addModalData.formData.unit || 'pcs'})
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '12.5px', fontWeight: '600', color: '#334155' }}>1</span>
+                          <input
+                            type="text"
+                            placeholder="Package (e.g. Box, Carton)"
+                            value={addModalData.formData.secondaryUnit || ''}
+                            onChange={(e) => setAddModalData(prev => ({ ...prev, formData: { ...prev.formData, secondaryUnit: e.target.value } }))}
+                            style={{ width: '150px', height: '34px', padding: '4px 8px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '12.5px', boxSizing: 'border-box' }}
+                          />
+                          <span style={{ fontSize: '12px', fontWeight: '600', color: '#64748B' }}>contains</span>
+                          <input
+                            type="number"
+                            min="1"
+                            placeholder="Qty (e.g. 10)"
+                            value={addModalData.formData.conversionFactor || ''}
+                            onChange={(e) => setAddModalData(prev => ({ ...prev, formData: { ...prev.formData, conversionFactor: e.target.value } }))}
+                            style={{ width: '110px', height: '34px', padding: '4px 8px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '12.5px', boxSizing: 'border-box' }}
+                          />
+                          <div style={{ height: '34px', padding: '0 10px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '700', color: '#2563EB' }}>
+                            {addModalData.formData.unit || 'pcs'}
+                          </div>
+                        </div>
+
+                        {addModalData.formData.secondaryUnit && addModalData.formData.conversionFactor && (
+                          <div style={{ marginTop: '6px', fontSize: '12px', color: '#166534', fontWeight: '600' }}>
+                            Rule: 1 {addModalData.formData.secondaryUnit} = {addModalData.formData.conversionFactor} {addModalData.formData.unit || 'pcs'}
+                          </div>
+                        )}
+
+                        {/* Auto-Swap Helper */}
+                        {Boolean(
+                          addModalData.formData.secondaryUnit &&
+                          ['piece', 'pieces', 'pcs', 'unit', 'units'].includes(addModalData.formData.secondaryUnit.toLowerCase().trim()) &&
+                          ['box', 'carton', 'case', 'pack', 'packet'].includes((addModalData.formData.unit || '').toLowerCase().trim())
+                        ) && (
+                          <div style={{ marginTop: '6px', padding: '6px 10px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '6px', fontSize: '11.5px', color: '#92400E', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <span>Tip: A {addModalData.formData.unit} contains {addModalData.formData.secondaryUnit}.</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const oldUnit = addModalData.formData.unit;
+                                const oldSec = addModalData.formData.secondaryUnit;
+                                setAddModalData(prev => ({ ...prev, formData: { ...prev.formData, unit: oldSec, secondaryUnit: oldUnit } }));
+                              }}
+                              style={{ padding: '2px 6px', background: '#F59E0B', color: 'white', border: 'none', borderRadius: '4px', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }}
+                            >
+                              Swap
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Cost Price & Supplier */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                     <div>
                       <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1E293B', marginBottom: '6px' }}>
-                        Cost Price / Unit (₹)
+                        Cost Price / {addModalData.formData.unit || 'unit'} (₹)
                       </label>
                       <input
                         placeholder="e.g. 750"

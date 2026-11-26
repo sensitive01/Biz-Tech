@@ -634,7 +634,7 @@ router.get('/users/:id/details', async (req, res) => {
       Branch.find({ tenantId: matchTenant }).select('-password').sort({ createdAt: -1 }),
       Employee.find({ tenantId: matchTenant }).select('-password').sort({ createdAt: -1 }),
       Customer.find({ tenantId: matchTenant }).sort({ createdAt: -1 }),
-      Inventory.find({ tenantId: matchTenant }).sort({ createdAt: -1 }),
+      Inventory.find({ tenantId: matchTenant }).populate('productId', 'name sku price stock image itemType costPrice unit measurementType secondaryUnit conversionFactor').sort({ createdAt: -1 }),
       Product.find({ tenantId: matchTenant }).populate('categoryId', 'name itemType transactionType').populate('subCategoryId', 'name itemType transactionType').sort({ createdAt: -1 }),
       Sale.find({ tenantId: matchTenant }).sort({ createdAt: -1 }),
       Expense.find({ tenantId: matchTenant }).sort({ createdAt: -1 }),
@@ -691,6 +691,8 @@ router.get('/users/:id/details', async (req, res) => {
         email: user.email,
         phone: user.phone,
         businessName: user.businessName || `${user.fullName}'s Business`,
+        businessLogo: user.businessLogo || '',
+        workspaceTemplate: user.workspaceTemplate || 'none',
         businessType: user.businessType || 1,
         industry: user.industry || 'Not specified',
         address: user.address || 'Not specified',
@@ -1169,7 +1171,8 @@ router.put('/users/:id', async (req, res) => {
       address, regNo, businessPhone, subscriptionStatus, 
       subscriptionBillingCycle, subscriptionCustomAmount,
       password, employeeLimit, branchLimit, businessLimit,
-      modules, offeringType, businessOfferingType, operationsType, businessOperationsType, businessType
+      modules, offeringType, businessOfferingType, operationsType, businessOperationsType, businessType,
+      businessLogo, workspaceTemplate
     } = req.body;
 
     const user = await User.findById(req.params.id);
@@ -1177,6 +1180,8 @@ router.put('/users/:id', async (req, res) => {
 
     if (fullName !== undefined) user.fullName = fullName;
     if (businessName !== undefined) user.businessName = businessName;
+    if (businessLogo !== undefined) user.businessLogo = businessLogo;
+    if (workspaceTemplate !== undefined) user.workspaceTemplate = workspaceTemplate;
     if (email !== undefined) user.email = email;
     if (phone !== undefined) user.phone = phone;
     if (industry !== undefined) user.industry = industry;
@@ -1897,7 +1902,7 @@ router.post('/inventory', async (req, res) => {
     const data = { ...req.body };
     if (!data.itemName && data.name) data.itemName = data.name;
 
-    const { tenantId, productId, itemName, sku, category, quantity, price, mode, quantityToAdd, supplier, costPrice, notes } = data;
+    const { tenantId, productId, itemName, sku, category, quantity, price, mode, quantityToAdd, supplier, costPrice, notes, unit, measurementType, secondaryUnit, conversionFactor } = data;
 
     let targetProduct = null;
     if (productId) {
@@ -1930,6 +1935,10 @@ router.post('/inventory', async (req, res) => {
       if (category) existingInv.category = category;
       if (itemName) existingInv.itemName = itemName;
       if (productId) existingInv.productId = productId;
+      if (unit !== undefined) existingInv.unit = unit;
+      if (measurementType !== undefined) existingInv.measurementType = measurementType;
+      if (secondaryUnit !== undefined) existingInv.secondaryUnit = secondaryUnit;
+      if (conversionFactor !== undefined && conversionFactor !== '') existingInv.conversionFactor = Number(conversionFactor);
       await existingInv.save();
 
       const prodId = productId || existingInv.productId;
@@ -1939,7 +1948,12 @@ router.post('/inventory', async (req, res) => {
           {
             $set: {
               stock: finalQty,
-              ...(price !== undefined && price !== '' ? { price: Number(price) } : {})
+              ...(price !== undefined && price !== '' ? { price: Number(price) } : {}),
+              ...(costPrice !== undefined && costPrice !== '' ? { costPrice: Number(costPrice) } : {}),
+              ...(unit !== undefined ? { unit } : {}),
+              ...(measurementType !== undefined ? { measurementType } : {}),
+              ...(secondaryUnit !== undefined ? { secondaryUnit } : {}),
+              ...(conversionFactor !== undefined && conversionFactor !== '' ? { conversionFactor: Number(conversionFactor) } : {})
             }
           }
         );
@@ -1961,6 +1975,10 @@ router.post('/inventory', async (req, res) => {
       quantity: finalQty,
       price: finalPrice,
       costPrice: costPrice !== undefined && costPrice !== '' ? Number(costPrice) : 0,
+      unit: unit || targetProduct?.unit || 'pcs',
+      measurementType: measurementType || targetProduct?.measurementType || 'Piece',
+      secondaryUnit: secondaryUnit || targetProduct?.secondaryUnit || '',
+      conversionFactor: conversionFactor !== undefined && conversionFactor !== '' ? Number(conversionFactor) : (targetProduct?.conversionFactor || 1),
       supplier: supplier || '',
       notes: notes || ''
     });
@@ -1973,7 +1991,12 @@ router.post('/inventory', async (req, res) => {
         {
           $set: {
             stock: finalQty,
-            ...(price !== undefined && price !== '' ? { price: Number(price) } : {})
+            ...(price !== undefined && price !== '' ? { price: Number(price) } : {}),
+            ...(costPrice !== undefined && costPrice !== '' ? { costPrice: Number(costPrice) } : {}),
+            ...(unit !== undefined ? { unit } : {}),
+            ...(measurementType !== undefined ? { measurementType } : {}),
+            ...(secondaryUnit !== undefined ? { secondaryUnit } : {}),
+            ...(conversionFactor !== undefined && conversionFactor !== '' ? { conversionFactor: Number(conversionFactor) } : {})
           }
         }
       );
