@@ -1574,7 +1574,7 @@ router.put('/profile', async (req, res) => {
     if (!token) return res.status(401).json({ message: 'No token, authorization denied' });
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
-    const { fullName, phone, businessName, industry, address, regNo, businessPhone } = req.body;
+    const { fullName, phone, businessName, industry, address, regNo, businessPhone, businessLogo } = req.body;
 
     const user = await User.findById(decoded.user.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
@@ -1582,6 +1582,7 @@ router.put('/profile', async (req, res) => {
     if (fullName) user.fullName = fullName;
     if (phone) user.phone = phone;
     if (businessName !== undefined) user.businessName = businessName;
+    if (businessLogo !== undefined) user.businessLogo = businessLogo;
     if (industry !== undefined) user.industry = industry;
     if (address !== undefined) user.address = address;
     if (regNo !== undefined) user.regNo = regNo;
@@ -1795,6 +1796,41 @@ router.post('/renew-plan', async (req, res) => {
       user.subscriptionBillingCycle = resolvedCycle;
 
       await user.save();
+
+      // Record approved payment approval entry for audit & paid invoice history
+      try {
+        const approvedRecord = new PaymentApproval({
+          tenantId: user._id,
+          businessName: user.businessName || 'Workspace',
+          ownerName: user.ownerName || user.fullName || 'Tenant Owner',
+          email: user.email,
+          phone: user.businessPhone || user.phone || '',
+          panNumber: user.panNumber || '',
+          businessType: user.businessType || 1,
+          planId: planId || user.subscription?.planId || 'Starter Plan',
+          planName: planName || user.subscription?.planName || 'Starter Plan',
+          billingCycle: resolvedCycle,
+          amount: resolvedAmount,
+          paymentMethod: 'Razorpay',
+          utrNumber: rzpPaymentId,
+          proofUrl: '',
+          originalFileName: '',
+          status: 'Approved',
+          reviewedBy: 'Razorpay Gateway',
+          reviewedAt: now,
+          history: [{
+            action: 'Approved',
+            previousStatus: 'None',
+            newStatus: 'Approved',
+            actor: 'Razorpay Gateway',
+            note: `Plan purchased online via Razorpay (${rzpPaymentId})`,
+            timestamp: now
+          }]
+        });
+        await approvedRecord.save();
+      } catch (logErr) {
+        console.warn('Error saving Razorpay payment approval record:', logErr);
+      }
 
       // Issue JWT token
       const payload = {

@@ -8,7 +8,7 @@ const PaymentApprovalSchema = new mongoose.Schema({
   },
   businessName: {
     type: String,
-    required: true,
+    default: 'Workspace',
     trim: true
   },
   ownerName: {
@@ -60,12 +60,12 @@ const PaymentApprovalSchema = new mongoose.Schema({
   },
   utrNumber: {
     type: String,
-    required: true,
+    default: '',
     trim: true
   },
   proofUrl: {
     type: String,
-    required: true,
+    default: '',
     trim: true
   },
   originalFileName: {

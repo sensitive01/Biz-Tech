@@ -297,7 +297,9 @@ const Login = () => {
         onClose={() => setShowRenewalModal(false)}
         prefillEmailOrPhone={email}
         prefillPassword={password}
-        currentPlanId={expiredInfo?.plan?.planId || 'tier-1'}
+        currentPlanId={expiredInfo?.plan?.planId || (expiredInfo?.plan?.businessType ? `tier-${expiredInfo.plan.businessType}` : 'tier-1')}
+        currentPlanName={expiredInfo?.plan?.planName || ''}
+        businessType={expiredInfo?.plan?.businessType}
         onSuccess={() => {
           setExpiredInfo(null);
           setShowRenewalModal(false);

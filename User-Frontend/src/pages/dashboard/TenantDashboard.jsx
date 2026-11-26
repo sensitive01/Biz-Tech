@@ -492,7 +492,9 @@ const TenantDashboard = () => {
         isOpen={showRenewalModal}
         onClose={() => setShowRenewalModal(false)}
         prefillEmailOrPhone={currentUser?.email || currentUser?.phone || ''}
-        currentPlanId={currentUser?.subscription?.planId || 'tier-1'}
+        currentPlanId={currentUser?.subscription?.planId || (currentUser?.businessType ? `tier-${currentUser.businessType}` : 'tier-1')}
+        currentPlanName={currentUser?.subscription?.planName || ''}
+        businessType={currentUser?.businessType || tenantType}
         onSuccess={(data) => {
           if (data?.user) setCurrentUser(data.user);
           setShowRenewalModal(false);

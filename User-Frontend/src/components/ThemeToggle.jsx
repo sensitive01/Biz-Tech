@@ -91,7 +91,7 @@ const ThemeToggle = ({ className = '', showLabel = false, size = 'default' }) =>
       {isDark ? (
         <Sun size={iconSize} color="#FBBF24" style={{ filter: 'drop-shadow(0 0 4px rgba(251, 191, 36, 0.4))' }} />
       ) : (
-        <Moon size={iconSize} color="#475569" />
+        <Moon size={iconSize} className="theme-toggle-moon" />
       )}
       {showLabel && (
         <span style={{ color: isDark ? '#F1F5F9' : '#334155' }}>

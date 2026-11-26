@@ -5,7 +5,6 @@ import TablePagination from '@/components/TablePagination';
 import { 
   CheckCircle2, 
   CreditCard, 
-  Shield, 
   Download, 
   Sparkles, 
   CalendarDays, 
@@ -17,7 +16,10 @@ import {
   Receipt, 
   IndianRupee, 
   Calendar,
-  AlertCircle
+  AlertCircle,
+  Printer,
+  Clock,
+  Loader2
 } from 'lucide-react';
 import SubscriptionRenewalModal from '@/components/SubscriptionRenewalModal';
 
@@ -41,221 +43,314 @@ const Billing = () => {
     }
   });
 
-  useEffect(() => {
-    const fetchMe = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        if (!token) return;
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/me`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const fresh = await res.json();
-          setCurrentUser(fresh);
-          localStorage.setItem('user', JSON.stringify(fresh));
-        }
-      } catch (e) {
-        console.error('Failed to fetch profile in Billing:', e);
+  // Real Subscription & Paid History States
+  const [paidHistory, setPaidHistory] = useState([]);
+  const [subscriptionSummary, setSubscriptionSummary] = useState(null);
+  const [loadingHistory, setLoadingHistory] = useState(true);
+  const [pricingTiers, setPricingTiers] = useState([]);
+
+  const fetchMe = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const fresh = await res.json();
+        setCurrentUser(fresh);
+        localStorage.setItem('user', JSON.stringify(fresh));
       }
-    };
+    } catch (e) {
+      console.error('Failed to fetch profile in Billing:', e);
+    }
+  };
+
+  const fetchSubscriptions = async () => {
+    try {
+      setLoadingHistory(true);
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/payment/my-subscriptions`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setSubscriptionSummary(data.summary);
+          setPaidHistory(data.history || []);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch subscriptions history:', err);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const fetchPricing = async () => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/pricing`);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          setPricingTiers(data);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch pricing:', e);
+    }
+  };
+
+  useEffect(() => {
     fetchMe();
+    fetchSubscriptions();
+    fetchPricing();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'subscriptions') {
+      fetchSubscriptions();
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     setCurrentPage(1);
   }, [searchInvoice, itemsPerPage]);
 
-  // Static Available Plans Data
-  const plans = [
+  // Real BizTech Pricing Tiers mapped with active user subscription
+  const baseTiers = [
     {
-      id: 'starter',
-      name: 'Starter Plan',
-      tagline: 'Best for single-store retailers & small teams',
-      price: 49,
-      period: '/month',
-      isCurrent: false,
-      badge: null,
+      id: 'tier-1',
+      tierNum: 1,
+      name: 'Type 1: Sole Operator',
+      tagline: '1 Owner • 1 Store • Single Login (Owner Managed)',
+      price: 1000,
+      annualPrice: 8400,
       features: [
-        'Up to 5 Employees',
-        '1 Business Location / Branch',
-        'Standard Product & Inventory Catalog',
-        'Basic Sales & Purchase Reports',
-        'Email Support (48h response)',
-        '1 GB Document Storage'
+        'Single Owner Admin Login',
+        '1 Store / Shop Location',
+        'Owner-Managed Staff Attendance & Leaves',
+        'Products, Services & Barcode Inventory',
+        'POS Counter Billing & Invoices',
+        'Quotation Management for Bulk Orders',
+        'Customer CRM, Purchases & Expenses'
       ]
     },
     {
-      id: 'professional',
-      name: 'Professional Suite',
-      tagline: 'Ideal for scaling multi-branch operations',
-      price: 99,
-      period: '/month',
-      isCurrent: false,
+      id: 'tier-2',
+      tierNum: 2,
+      name: 'Type 2: Single Branch + Staff',
+      tagline: '1 Owner • 1 Store • Multi-Login with Staff Portals',
+      price: 2000,
+      annualPrice: 16800,
       badge: 'POPULAR',
       features: [
-        'Up to 25 Employees',
-        'Up to 3 Branches / Warehouses',
-        'Full Inventory & Stock Alerts',
-        'Advanced Sales Analytics & CSV Export',
-        'Live Chat & Priority Email Support',
-        '10 GB Document Storage',
-        'Customer & Supplier Management'
+        'Multi-User Logins for Owner & Staff Members',
+        '1 Store Location with Store Badge',
+        'Dedicated Staff Portal for Attendance Clock In/Out',
+        'Staff Leave & Permission Request Submission',
+        'Formal Managerial Leave Approval Workflow',
+        'Products, Services & Warehouse Stock Tracking',
+        'POS Billing, Bulk Quotes & Barcode Scanner'
       ]
     },
     {
-      id: 'enterprise',
-      name: 'Enterprise Suite',
-      tagline: 'Full-featured power for enterprise business',
-      price: 199,
-      period: '/month',
-      isCurrent: true,
-      badge: 'CURRENT ACTIVE PLAN',
+      id: 'tier-3',
+      tierNum: 3,
+      name: 'Type 3: Multi-Branch Enterprise',
+      tagline: '1 Owner • Multiple Branches • Multi-Location Operations',
+      price: 3000,
+      annualPrice: 25200,
+      badge: 'MULTI-BRANCH',
       features: [
-        'Unlimited Employees & Staff',
-        'Up to 10 Branches / Warehouses',
-        'Real-time Multi-tenant Sync',
-        'Full Financial & Tax Invoicing',
-        '24/7 Dedicated Priority Support',
-        'Unlimited Document Storage',
-        'Custom Reporting & Audit Logs',
-        'Custom Roles & Granular Permissions'
+        'Branches Module (Add & Manage Store Locations)',
+        'Dedicated Branch Login Credentials & Managers',
+        'Branch-Based Filtering Across All Reports & Data',
+        'Investors Module (Equity Stakeholders & Audit Access)',
+        'Cross-Branch Staff Allocation & Transfer',
+        'Centralized Attendance & Leave Approvals',
+        'Multi-Location Inventory, POS Billing & Purchases'
       ]
     },
     {
-      id: 'corporate',
-      name: 'Ultimate Corporate',
-      tagline: 'Custom infrastructure & dedicated services',
-      price: 299,
-      period: '/month',
-      isCurrent: false,
-      badge: 'MAXIMUM SCALE',
+      id: 'tier-4',
+      tierNum: 4,
+      name: 'Type 4: Multi-Business Conglomerate',
+      tagline: '1 Owner • Multiple Businesses • Multiple Branches',
+      price: 4000,
+      annualPrice: 33600,
+      badge: 'ENTERPRISE SCALE',
       features: [
-        'Unlimited Everything',
-        'Unlimited Branches & Franchises',
-        'Dedicated Enterprise Account Manager',
-        'Custom API Integrations & Webhooks',
-        'Custom Domain & White-label Branding',
-        '99.99% Guaranteed SLA Uptime',
-        'Onboarding & Staff Training Included'
+        'Businesses Module (Add Independent Corporate Entities & GSTINs)',
+        '1-Click Business Switcher in Top Navigation Bar',
+        'Conglomerate Branch Hierarchy (Map Branches to Businesses)',
+        'Group & Individual Entity Investor Management',
+        'Dedicated Business & Branch Login Credentials',
+        'Unlimited Employees across Entire Conglomerate',
+        'Unified Workforce, Group Consolidated Analytics & Reports'
       ]
     }
   ];
 
-  // Static Monthly Subscription Paid List Data
-  const monthlyPaidHistory = [
-    {
-      id: 'INV-2026-10',
-      period: 'October 2026',
-      date: 'Oct 01, 2026',
-      plan: 'Enterprise Suite',
-      amount: '₹199.00',
-      method: 'Visa •••• 4242',
-      status: 'Paid',
-      transactionId: 'TXN-9842109'
-    },
-    {
-      id: 'INV-2026-09',
-      period: 'September 2026',
-      date: 'Sep 01, 2026',
-      plan: 'Enterprise Suite',
-      amount: '₹199.00',
-      method: 'Visa •••• 4242',
-      status: 'Paid',
-      transactionId: 'TXN-8741021'
-    },
-    {
-      id: 'INV-2026-08',
-      period: 'August 2026',
-      date: 'Aug 01, 2026',
-      plan: 'Enterprise Suite',
-      amount: '₹199.00',
-      method: 'Visa •••• 4242',
-      status: 'Paid',
-      transactionId: 'TXN-7631980'
-    },
-    {
-      id: 'INV-2026-07',
-      period: 'July 2026',
-      date: 'Jul 01, 2026',
-      plan: 'Enterprise Suite',
-      amount: '₹199.00',
-      method: 'Visa •••• 4242',
-      status: 'Paid',
-      transactionId: 'TXN-6520843'
-    },
-    {
-      id: 'INV-2026-06',
-      period: 'June 2026',
-      date: 'Jun 01, 2026',
-      plan: 'Enterprise Suite',
-      amount: '₹199.00',
-      method: 'Visa •••• 4242',
-      status: 'Paid',
-      transactionId: 'TXN-5419732'
-    },
-    {
-      id: 'INV-2026-05',
-      period: 'May 2026',
-      date: 'May 01, 2026',
-      plan: 'Enterprise Suite',
-      amount: '₹199.00',
-      method: 'Visa •••• 4242',
-      status: 'Paid',
-      transactionId: 'TXN-4308621'
-    },
-    {
-      id: 'INV-2026-04',
-      period: 'April 2026',
-      date: 'Apr 01, 2026',
-      plan: 'Enterprise Suite',
-      amount: '₹199.00',
-      method: 'Visa •••• 4242',
-      status: 'Paid',
-      transactionId: 'TXN-3297510'
-    },
-    {
-      id: 'INV-2026-03',
-      period: 'March 2026',
-      date: 'Mar 01, 2026',
-      plan: 'Enterprise Suite',
-      amount: '₹199.00',
-      method: 'Visa •••• 4242',
-      status: 'Paid',
-      transactionId: 'TXN-2186409'
-    },
-    {
-      id: 'INV-2026-02',
-      period: 'February 2026',
-      date: 'Feb 01, 2026',
-      plan: 'Enterprise Suite',
-      amount: '₹199.00',
-      method: 'Visa •••• 4242',
-      status: 'Paid',
-      transactionId: 'TXN-1075398'
-    },
-    {
-      id: 'INV-2026-01',
-      period: 'January 2026',
-      date: 'Jan 01, 2026',
-      plan: 'Enterprise Suite',
-      amount: '₹199.00',
-      method: 'Visa •••• 4242',
-      status: 'Paid',
-      transactionId: 'TXN-0964287'
-    }
-  ];
+  const currentPlanName = (currentUser?.subscription?.planName || '').toLowerCase();
+  const currentBusinessType = Number(currentUser?.businessType) || 1;
 
-  const filteredHistory = monthlyPaidHistory.filter(inv => 
-    inv.id.toLowerCase().includes(searchInvoice.toLowerCase()) ||
-    inv.period.toLowerCase().includes(searchInvoice.toLowerCase()) ||
-    inv.date.toLowerCase().includes(searchInvoice.toLowerCase())
-  );
+  const plans = baseTiers.map(t => {
+    const matchedPricing = pricingTiers.find(p => 
+      p.customerType?.toLowerCase().includes(`type ${t.tierNum}`) || 
+      p.customerType?.toLowerCase().includes(`tier ${t.tierNum}`)
+    );
+    const price = matchedPricing ? matchedPricing.amount : t.price;
+    const isCurrent = currentPlanName.includes(`type ${t.tierNum}`) || 
+      currentPlanName.includes(`tier ${t.tierNum}`) || 
+      (currentPlanName === '' && currentBusinessType === t.tierNum);
+
+    return {
+      ...t,
+      price,
+      period: '/month',
+      isCurrent,
+      badge: isCurrent ? 'CURRENT ACTIVE PLAN' : t.badge
+    };
+  });
+
+  // Filter real payment invoices
+  const filteredHistory = paidHistory.filter(inv => {
+    const q = searchInvoice.toLowerCase();
+    return (
+      (inv.id && inv.id.toLowerCase().includes(q)) ||
+      (inv.invoiceNumber && inv.invoiceNumber.toLowerCase().includes(q)) ||
+      (inv.period && inv.period.toLowerCase().includes(q)) ||
+      (inv.date && inv.date.toLowerCase().includes(q)) ||
+      (inv.plan && inv.plan.toLowerCase().includes(q)) ||
+      (inv.method && inv.method.toLowerCase().includes(q)) ||
+      (inv.transactionId && inv.transactionId.toLowerCase().includes(q))
+    );
+  });
 
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedHistory = filteredHistory.slice(startIndex, startIndex + itemsPerPage);
 
   const handleTabChange = (newTab) => {
     setSearchParams({ tab: newTab });
+  };
+
+  // Printable Invoice Generator
+  const handlePrintInvoice = (invoice) => {
+    if (!invoice) return;
+    const printWindow = window.open('', '_blank', 'width=800,height=900');
+    if (!printWindow) {
+      alert('Please allow popups to view and print the invoice.');
+      return;
+    }
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Invoice - ${invoice.id}</title>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 40px; color: #0F172A; }
+            .header { display: flex; justify-content: space-between; border-bottom: 2px solid #E2E8F0; padding-bottom: 24px; margin-bottom: 30px; }
+            .logo { font-size: 24px; font-weight: 800; color: #2563EB; }
+            .inv-meta { text-align: right; }
+            .inv-meta h1 { margin: 0 0 6px 0; font-size: 22px; color: #0F172A; }
+            .inv-meta p { margin: 2px 0; color: #64748B; font-size: 13px; }
+            .client-info { margin-bottom: 30px; }
+            .client-info h4 { margin: 0 0 8px 0; font-size: 14px; text-transform: uppercase; color: #64748B; }
+            .client-info p { margin: 2px 0; font-size: 15px; font-weight: 600; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+            th { background: #F8FAFC; padding: 12px 16px; text-align: left; font-size: 13px; text-transform: uppercase; color: #64748B; border-bottom: 1px solid #CBD5E1; }
+            td { padding: 16px; border-bottom: 1px solid #E2E8F0; font-size: 14px; }
+            .total-row { display: flex; justify-content: flex-end; margin-bottom: 40px; }
+            .total-box { width: 280px; }
+            .total-line { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; }
+            .total-line.final { border-top: 2px solid #0F172A; font-size: 18px; font-weight: 800; color: #16A34A; }
+            .badge { display: inline-block; padding: 4px 10px; border-radius: 99px; font-size: 12px; font-weight: 700; background: #DCFCE7; color: #166534; }
+            .footer { border-top: 1px solid #E2E8F0; padding-top: 20px; font-size: 12px; color: #94A3B8; text-align: center; }
+            @media print {
+              body { padding: 0; }
+              button { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <div class="logo">BizTech SaaS Platform</div>
+              <p style="margin: 6px 0 0 0; color: #64748B; font-size: 13px;">Official Tax Invoice & Receipt</p>
+            </div>
+            <div class="inv-meta">
+              <h1>INVOICE</h1>
+              <p><strong>Invoice ID:</strong> ${invoice.id}</p>
+              <p><strong>Date:</strong> ${invoice.date}</p>
+              <p><strong>Status:</strong> <span class="badge">${invoice.status}</span></p>
+            </div>
+          </div>
+
+          <div class="client-info">
+            <h4>Billed To:</h4>
+            <p>${currentUser?.businessName || currentUser?.fullName || 'Valued Customer'}</p>
+            <p style="font-weight: 400; color: #475569;">${currentUser?.email || ''}</p>
+            ${currentUser?.phone ? `<p style="font-weight: 400; color: #475569;">Phone: ${currentUser.phone}</p>` : ''}
+            ${currentUser?.userId ? `<p style="font-weight: 400; color: #475569;">Tenant ID: ${currentUser.userId}</p>` : ''}
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th>Billing Cycle</th>
+                <th>Payment Method</th>
+                <th>Transaction / UTR</th>
+                <th style="text-align: right;">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>${invoice.plan}</strong><br><span style="color: #64748B; font-size: 12px;">Period: ${invoice.period}</span></td>
+                <td>${invoice.billingCycle || 'Monthly'}</td>
+                <td>${invoice.method}</td>
+                <td style="font-family: monospace;">${invoice.transactionId}</td>
+                <td style="text-align: right; font-weight: 700;">${invoice.amount}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="total-row">
+            <div class="total-box">
+              <div class="total-line">
+                <span>Subtotal</span>
+                <span>${invoice.amount}</span>
+              </div>
+              <div class="total-line">
+                <span>Tax (GST Included)</span>
+                <span>₹0.00</span>
+              </div>
+              <div class="total-line final">
+                <span>Total Paid</span>
+                <span>${invoice.amount}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="footer">
+            Thank you for choosing BizTech. For questions, contact billing@biztech.com.
+          </div>
+
+          <script>
+            window.onload = function() {
+              window.print();
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
   };
 
   return (
@@ -516,45 +611,6 @@ const Billing = () => {
             </div>
           </div>
 
-          {/* Payment Method & Security Card */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
-            <div style={{ background: 'white', borderRadius: '14px', padding: '24px', border: '1px solid #E2E8F0' }}>
-              <h4 style={{ fontSize: '16px', fontWeight: '700', color: '#0F172A', margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <CreditCard size={18} color="var(--primary-blue)" /> Payment Method
-              </h4>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', background: '#F8FAFC', borderRadius: '10px', border: '1px solid #E2E8F0', marginBottom: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ width: '44px', height: '30px', background: '#1E293B', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '700', fontSize: '12px' }}>
-                    VISA
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '14px', fontWeight: '600', color: '#0F172A' }}>Visa ending in 4242</div>
-                    <div style={{ fontSize: '12px', color: '#64748B' }}>Expires 12/28 • Default Payment</div>
-                  </div>
-                </div>
-                <span style={{ fontSize: '12px', fontWeight: '600', color: '#16A34A', background: '#DCFCE7', padding: '3px 8px', borderRadius: '6px' }}>
-                  Active
-                </span>
-              </div>
-              <button style={{ width: '100%', padding: '10px', background: 'white', border: '1px dashed #CBD5E1', borderRadius: '8px', color: 'var(--primary-blue)', fontWeight: '600', fontSize: '13px', cursor: 'pointer' }}>
-                + Add or Update Payment Card
-              </button>
-            </div>
-
-            <div style={{ background: '#F8FAFC', borderRadius: '14px', padding: '24px', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#0F172A', marginBottom: '10px' }}>
-                <Shield size={22} color="#16A34A" />
-                <h4 style={{ fontSize: '16px', fontWeight: '700', margin: 0 }}>Encrypted & Secure Billing</h4>
-              </div>
-              <p style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#64748B', lineHeight: '1.6' }}>
-                All transactions are encrypted with 256-bit SSL protocols. Invoices and monthly payment records are maintained for tax and audit compliance.
-              </p>
-              <div style={{ fontSize: '12px', color: '#94A3B8' }}>
-                Questions? Contact billing at <span style={{ color: 'var(--primary-blue)', fontWeight: '500' }}>billing@biztech.com</span>
-              </div>
-            </div>
-          </div>
-
         </div>
       )}
 
@@ -568,26 +624,42 @@ const Billing = () => {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
             <div style={{ background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
               <div style={{ fontSize: '13px', color: '#64748B', fontWeight: '500', marginBottom: '6px' }}>Current Subscription</div>
-              <div style={{ fontSize: '20px', fontWeight: '700', color: '#0F172A' }}>Enterprise Suite</div>
-              <div style={{ fontSize: '12px', color: '#16A34A', fontWeight: '600', marginTop: '4px' }}>● Status: Active</div>
+              <div style={{ fontSize: '20px', fontWeight: '700', color: '#0F172A' }}>
+                {subscriptionSummary?.currentPlan || currentUser?.subscription?.planName || 'Standard Plan'}
+              </div>
+              <div style={{ fontSize: '12px', color: '#16A34A', fontWeight: '600', marginTop: '4px' }}>
+                ● Status: {subscriptionSummary?.status || currentUser?.subscriptionStatus || 'Active'}
+              </div>
             </div>
 
             <div style={{ background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-              <div style={{ fontSize: '13px', color: '#64748B', fontWeight: '500', marginBottom: '6px' }}>Monthly Rate</div>
-              <div style={{ fontSize: '20px', fontWeight: '700', color: '#0F172A' }}>₹199.00 / mo</div>
-              <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px' }}>Auto-billed on 1st of month</div>
+              <div style={{ fontSize: '13px', color: '#64748B', fontWeight: '500', marginBottom: '6px' }}>Billing Rate</div>
+              <div style={{ fontSize: '20px', fontWeight: '700', color: '#0F172A' }}>
+                {subscriptionSummary?.monthlyRate || (currentUser?.subscription?.amount ? `₹${Number(currentUser.subscription.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })} / ${currentUser.subscription?.billingCycle === 'Annual' ? 'yr' : 'mo'}` : '₹1,000.00 / mo')}
+              </div>
+              <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px' }}>
+                {subscriptionSummary?.autoBilledNote || (currentUser?.subscription?.billingCycle === 'Annual' ? 'Auto-billed annually' : 'Auto-billed on 1st of month')}
+              </div>
             </div>
 
             <div style={{ background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-              <div style={{ fontSize: '13px', color: '#64748B', fontWeight: '500', marginBottom: '6px' }}>Total Paid (2026 YTD)</div>
-              <div style={{ fontSize: '20px', fontWeight: '700', color: '#0F172A' }}>₹1,990.00</div>
-              <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px' }}>10 Consecutive Monthly Invoices</div>
+              <div style={{ fontSize: '13px', color: '#64748B', fontWeight: '500', marginBottom: '6px' }}>Total Paid</div>
+              <div style={{ fontSize: '20px', fontWeight: '700', color: '#0F172A' }}>
+                {subscriptionSummary?.totalPaidFormatted || (currentUser?.subscription?.amount ? `₹${Number(currentUser.subscription.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '₹0.00')}
+              </div>
+              <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px' }}>
+                {subscriptionSummary?.paidInvoicesNote || `${paidHistory.filter(i => i.status === 'Paid').length} Paid Invoices`}
+              </div>
             </div>
 
             <div style={{ background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
               <div style={{ fontSize: '13px', color: '#64748B', fontWeight: '500', marginBottom: '6px' }}>Next Due Date</div>
-              <div style={{ fontSize: '20px', fontWeight: '700', color: 'var(--primary-blue)' }}>Nov 01, 2026</div>
-              <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px' }}>Amount: ₹199.00</div>
+              <div style={{ fontSize: '20px', fontWeight: '700', color: 'var(--primary-blue)' }}>
+                {subscriptionSummary?.nextDueDate || (currentUser?.subscriptionRenewalDate || currentUser?.subscription?.validUntil ? new Date(currentUser.subscriptionRenewalDate || currentUser.subscription?.validUntil).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }) : 'N/A')}
+              </div>
+              <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px' }}>
+                Amount: {subscriptionSummary?.nextDueAmountFormatted || (currentUser?.subscription?.amount ? `₹${Number(currentUser.subscription.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '₹0.00')}
+              </div>
             </div>
           </div>
 
@@ -605,7 +677,20 @@ const Billing = () => {
             </div>
 
             <button
-              onClick={() => exportToCSV(monthlyPaidHistory, 'Monthly_Plan_Subscriptions')}
+              onClick={() => {
+                const exportData = paidHistory.map(h => ({
+                  'Invoice ID': h.id,
+                  'Billing Period': h.period,
+                  'Paid Date': h.date,
+                  'Plan Subscribed': h.plan,
+                  'Billing Cycle': h.billingCycle || 'Monthly',
+                  'Amount Paid': h.amount,
+                  'Payment Method': h.method,
+                  'Transaction / UTR': h.transactionId,
+                  'Status': h.status
+                }));
+                exportToCSV(exportData.length > 0 ? exportData : [{ 'Status': 'No Paid Invoices Recorded' }], 'My_Subscription_Paid_List');
+              }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -643,61 +728,92 @@ const Billing = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredHistory.length === 0 ? (
+                  {loadingHistory ? (
                     <tr>
-                      <td colSpan="9" style={{ padding: '48px 20px', textAlign: 'center', color: '#64748B' }}>
-                        No subscription records found matching "{searchInvoice}"
+                      <td colSpan="9" style={{ padding: '64px 20px', textAlign: 'center', color: '#64748B' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                          <Loader2 size={32} color="var(--primary-blue)" style={{ animation: 'spin 1s linear infinite' }} />
+                          <div style={{ fontSize: '14px', fontWeight: '600', color: '#0F172A' }}>Loading payment history...</div>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : filteredHistory.length === 0 ? (
+                    <tr>
+                      <td colSpan="9" style={{ padding: '64px 20px', textAlign: 'center', color: '#64748B' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                          <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94A3B8' }}>
+                            <Receipt size={24} />
+                          </div>
+                          <div style={{ fontSize: '16px', fontWeight: '600', color: '#0F172A' }}>No Paid Invoices Found</div>
+                          <div style={{ fontSize: '13px', color: '#64748B', maxWidth: '380px' }}>
+                            {searchInvoice ? `No subscription records matching "${searchInvoice}".` : 'You have no recorded subscription payments yet. When you activate or renew your plan, your invoices and receipts will appear here.'}
+                          </div>
+                        </div>
                       </td>
                     </tr>
                   ) : (
-                    paginatedHistory.map((item, index) => (
-                      <tr 
-                        key={item.id} 
-                        style={{ borderBottom: '1px solid #F1F5F9', transition: 'background 0.2s' }}
-                        onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'}
-                        onMouseOut={(e) => e.currentTarget.style.background = 'white'}
-                      >
-                        <td style={{ padding: '16px 20px', fontSize: '14px', color: '#64748B', fontWeight: '500' }}>{startIndex + index + 1}</td>
-                        <td style={{ padding: '16px 20px', fontSize: '14px', fontWeight: '600', color: 'var(--primary-blue)', fontFamily: 'monospace' }}>
-                          {item.id}
-                        </td>
-                        <td style={{ padding: '16px 20px', fontSize: '14px', fontWeight: '600', color: '#0F172A' }}>{item.period}</td>
-                        <td style={{ padding: '16px 20px', fontSize: '14px', color: '#64748B' }}>{item.date}</td>
-                        <td style={{ padding: '16px 20px', fontSize: '14px', color: '#334155', fontWeight: '500' }}>
-                          <span style={{ padding: '4px 8px', background: '#EFF6FF', color: '#1E40AF', borderRadius: '6px', fontSize: '12px', fontWeight: '600' }}>
-                            {item.plan}
-                          </span>
-                        </td>
-                        <td style={{ padding: '16px 20px', fontSize: '14px', fontWeight: '700', color: '#0F172A' }}>{item.amount}</td>
-                        <td style={{ padding: '16px 20px', fontSize: '13px', color: '#64748B' }}>{item.method}</td>
-                        <td style={{ padding: '16px 20px' }}>
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 10px', background: '#DCFCE7', color: '#166534', borderRadius: '99px', fontSize: '12px', fontWeight: '600' }}>
-                            <Check size={12} /> {item.status}
-                          </span>
-                        </td>
-                        <td style={{ padding: '16px 20px', textAlign: 'right' }}>
-                          <button
-                            onClick={() => setSelectedInvoice(item)}
-                            title="View / Download Invoice"
-                            style={{
+                    paginatedHistory.map((item, index) => {
+                      const isPaid = item.status === 'Paid';
+                      const isPending = item.status === 'Pending';
+                      return (
+                        <tr 
+                          key={item._id || item.id} 
+                          style={{ borderBottom: '1px solid #F1F5F9', transition: 'background 0.2s' }}
+                          onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'}
+                          onMouseOut={(e) => e.currentTarget.style.background = 'white'}
+                        >
+                          <td style={{ padding: '16px 20px', fontSize: '14px', color: '#64748B', fontWeight: '500' }}>{startIndex + index + 1}</td>
+                          <td style={{ padding: '16px 20px', fontSize: '14px', fontWeight: '600', color: 'var(--primary-blue)', fontFamily: 'monospace' }}>
+                            {item.id}
+                          </td>
+                          <td style={{ padding: '16px 20px', fontSize: '14px', fontWeight: '600', color: '#0F172A' }}>{item.period}</td>
+                          <td style={{ padding: '16px 20px', fontSize: '14px', color: '#64748B' }}>{item.date}</td>
+                          <td style={{ padding: '16px 20px', fontSize: '14px', color: '#334155', fontWeight: '500' }}>
+                            <span style={{ padding: '4px 8px', background: '#EFF6FF', color: '#1E40AF', borderRadius: '6px', fontSize: '12px', fontWeight: '600' }}>
+                              {item.plan}
+                            </span>
+                          </td>
+                          <td style={{ padding: '16px 20px', fontSize: '14px', fontWeight: '700', color: '#0F172A' }}>{item.amount}</td>
+                          <td style={{ padding: '16px 20px', fontSize: '13px', color: '#64748B' }}>{item.method}</td>
+                          <td style={{ padding: '16px 20px' }}>
+                            <span style={{
                               display: 'inline-flex',
                               alignItems: 'center',
-                              gap: '6px',
-                              padding: '6px 12px',
-                              background: '#EFF6FF',
-                              color: 'var(--primary-blue)',
-                              borderRadius: '6px',
-                              border: 'none',
-                              fontSize: '13px',
-                              fontWeight: '600',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            <Download size={14} /> Invoice
-                          </button>
-                        </td>
-                      </tr>
-                    ))
+                              gap: '4px',
+                              padding: '4px 10px',
+                              background: isPaid ? '#DCFCE7' : isPending ? '#FEF3C7' : '#FEE2E2',
+                              color: isPaid ? '#166534' : isPending ? '#92400E' : '#991B1B',
+                              borderRadius: '99px',
+                              fontSize: '12px',
+                              fontWeight: '600'
+                            }}>
+                              {isPaid ? <Check size={12} /> : isPending ? <Clock size={12} /> : <AlertCircle size={12} />} {item.status}
+                            </span>
+                          </td>
+                          <td style={{ padding: '16px 20px', textAlign: 'right' }}>
+                            <button
+                              onClick={() => setSelectedInvoice(item)}
+                              title="View / Download Invoice"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '6px 12px',
+                                background: '#EFF6FF',
+                                color: 'var(--primary-blue)',
+                                borderRadius: '6px',
+                                border: 'none',
+                                fontSize: '13px',
+                                fontWeight: '600',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <Download size={14} /> Invoice
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -767,13 +883,10 @@ const Billing = () => {
                 Close
               </button>
               <button 
-                onClick={() => {
-                  alert(`Downloading Invoice ${selectedInvoice.id} (${selectedInvoice.period})...`);
-                  setSelectedInvoice(null);
-                }} 
+                onClick={() => handlePrintInvoice(selectedInvoice)} 
                 style={{ flex: 1, padding: '12px', background: 'var(--primary-blue)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
               >
-                <Download size={16} /> Download PDF
+                <Printer size={16} /> Print / Save PDF
               </button>
             </div>
           </div>
@@ -801,12 +914,12 @@ const Billing = () => {
               </button>
               <button 
                 onClick={() => {
-                  alert(`Plan changed successfully to ${upgradeModalPlan.name}!`);
                   setUpgradeModalPlan(null);
+                  setShowRenewalModal(true);
                 }} 
                 style={{ flex: 1, padding: '12px', background: 'var(--primary-blue)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '600', cursor: 'pointer' }}
               >
-                Confirm Switch
+                Proceed to Payment
               </button>
             </div>
           </div>
@@ -820,10 +933,14 @@ const Billing = () => {
         isOpen={showRenewalModal}
         onClose={() => setShowRenewalModal(false)}
         prefillEmailOrPhone={currentUser?.email || currentUser?.phone || ''}
-        currentPlanId={currentUser?.subscription?.planId || 'tier-1'}
+        currentPlanId={currentUser?.subscription?.planId || (currentUser?.businessType ? `tier-${currentUser.businessType}` : 'tier-1')}
+        currentPlanName={currentUser?.subscription?.planName || ''}
+        businessType={currentUser?.businessType}
         onSuccess={(data) => {
           if (data?.user) setCurrentUser(data.user);
           setShowRenewalModal(false);
+          fetchSubscriptions();
+          fetchMe();
         }}
       />
 

@@ -38,6 +38,10 @@ const UserSchema = new mongoose.Schema({
     type: String,
     required: false
   },
+  businessLogo: {
+    type: String,
+    default: ''
+  },
   industry: {
     type: String,
     required: false

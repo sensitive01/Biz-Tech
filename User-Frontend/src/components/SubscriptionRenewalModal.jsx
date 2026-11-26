@@ -58,13 +58,57 @@ const SubscriptionRenewalModal = ({
   onClose,
   prefillEmailOrPhone = '',
   prefillPassword = '',
-  currentPlanId = 'tier-1',
+  currentPlanId = '',
+  currentPlanName = '',
+  businessType = null,
   onSuccess
 }) => {
   if (!isOpen) return null;
 
-  const [billingCycle, setBillingCycle] = useState('Monthly');
-  const [selectedTierId, setSelectedTierId] = useState(currentPlanId || 'tier-1');
+  // Resolve current active tier
+  const resolveCurrentTier = () => {
+    if (currentPlanId) {
+      const match = TIERS.find(t => t.id === currentPlanId || `tier-${t.tierNum}` === currentPlanId);
+      if (match) return match;
+    }
+    if (currentPlanName) {
+      const nameLower = currentPlanName.toLowerCase();
+      const match = TIERS.find(t => 
+        nameLower.includes(`tier ${t.tierNum}`) || 
+        nameLower.includes(`type ${t.tierNum}`)
+      );
+      if (match) return match;
+    }
+    if (businessType) {
+      const match = TIERS.find(t => t.tierNum === Number(businessType));
+      if (match) return match;
+    }
+    try {
+      const stored = JSON.parse(localStorage.getItem('user') || '{}');
+      if (stored?.subscription?.planId) {
+        const match = TIERS.find(t => t.id === stored.subscription.planId || `tier-${t.tierNum}` === stored.subscription.planId);
+        if (match) return match;
+      }
+      if (stored?.subscription?.planName) {
+        const nameLower = stored.subscription.planName.toLowerCase();
+        const match = TIERS.find(t => 
+          nameLower.includes(`tier ${t.tierNum}`) || 
+          nameLower.includes(`type ${t.tierNum}`)
+        );
+        if (match) return match;
+      }
+      const bType = Number(stored?.businessType) || Number(localStorage.getItem('tenantType'));
+      if (bType) {
+        const match = TIERS.find(t => t.tierNum === bType);
+        if (match) return match;
+      }
+    } catch (e) {}
+
+    return TIERS[0];
+  };
+
+  const selectedTier = resolveCurrentTier();
+  const [billingCycle, setBillingCycle] = useState('Annual');
   const [paymentMethod, setPaymentMethod] = useState('upi_qr');
   
   const [emailOrPhone, setEmailOrPhone] = useState(prefillEmailOrPhone || '');
@@ -103,11 +147,9 @@ const SubscriptionRenewalModal = ({
     fetchActiveUpi();
   }, []);
 
-  const selectedTier = TIERS.find(t => t.id === selectedTierId) || TIERS[0];
   const isAnnual = billingCycle === 'Annual';
   const baseRate = isAnnual ? selectedTier.annualBase : selectedTier.monthlyBase;
-  const gstAmount = Math.round(baseRate * 0.18);
-  const grandTotal = baseRate + gstAmount;
+  const grandTotal = baseRate; // Plan amount is inclusive of GST
 
   const handleProofChange = (e) => {
     const file = e.target.files?.[0];
@@ -526,51 +568,70 @@ const SubscriptionRenewalModal = ({
                 </div>
               </div>
 
-              {/* Tier Cards Grid */}
+              {/* Current Active Plan Card */}
               <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-                gap: '12px'
+                background: '#F8FAFC',
+                border: '1.5px solid #2563EB',
+                borderRadius: '16px',
+                padding: '20px 24px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '16px',
+                boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.08)'
               }}>
-                {TIERS.map(tier => {
-                  const isSelected = selectedTierId === tier.id;
-                  const price = isAnnual ? tier.annualBase : tier.monthlyBase;
-                  return (
-                    <div
-                      key={tier.id}
-                      onClick={() => setSelectedTierId(tier.id)}
-                      style={{
-                        padding: '16px',
-                        borderRadius: '14px',
-                        border: isSelected ? '2px solid #2563EB' : '1px solid #E2E8F0',
-                        background: isSelected ? '#EFF6FF' : 'white',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'space-between',
-                        transition: 'all 0.2s'
-                      }}
-                    >
-                      <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                          <span style={{ fontSize: '12px', fontWeight: '700', color: isSelected ? '#2563EB' : '#475569' }}>
-                            {tier.title}
-                          </span>
-                          {isSelected && <CheckCircle2 size={16} color="#2563EB" />}
-                        </div>
-                        <div style={{ fontSize: '22px', fontWeight: '800', color: '#0F172A', marginBottom: '6px' }}>
-                          ₹{price.toLocaleString()}
-                          <span style={{ fontSize: '11px', fontWeight: '500', color: '#64748B' }}>
-                            /{isAnnual ? 'yr' : 'mo'}
-                          </span>
-                        </div>
-                        <p style={{ fontSize: '11px', color: '#64748B', margin: 0, lineHeight: '1.4' }}>
-                          {tier.desc}
-                        </p>
-                      </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{
+                    width: '48px',
+                    height: '48px',
+                    borderRadius: '14px',
+                    background: '#EFF6FF',
+                    color: '#2563EB',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}>
+                    <Sparkles size={24} />
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                      <span style={{
+                        fontSize: '11px',
+                        fontWeight: '800',
+                        background: '#DBEAFE',
+                        color: '#1E40AF',
+                        padding: '3px 9px',
+                        borderRadius: '6px',
+                        letterSpacing: '0.5px'
+                      }}>
+                        CURRENT ACTIVE TIER
+                      </span>
                     </div>
-                  );
-                })}
+                    <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#0F172A', margin: '0 0 4px 0' }}>
+                      {selectedTier.title}
+                    </h3>
+                    <p style={{ fontSize: '13px', color: '#64748B', margin: 0 }}>
+                      {selectedTier.desc}
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '24px', fontWeight: '800', color: '#0F172A' }}>
+                    ₹{grandTotal.toLocaleString()}
+                    <span style={{ fontSize: '13px', fontWeight: '500', color: '#64748B' }}>
+                      /{isAnnual ? 'yr' : 'mo'}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#64748B', fontWeight: '600', marginTop: '1px' }}>
+                    Inclusive of GST
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#16A34A', fontWeight: '600', marginTop: '2px' }}>
+                    {isAnnual ? 'Renews for 365 Days (Annual Plan)' : 'Renews for 30 Days (Monthly Plan)'}
+                  </div>
+                </div>
               </div>
 
               {/* Order Summary */}
@@ -581,26 +642,32 @@ const SubscriptionRenewalModal = ({
                 padding: '16px 20px',
                 fontSize: '13px'
               }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                   <span style={{ color: '#64748B' }}>
                     {selectedTier.title} ({billingCycle} • {isAnnual ? '1 Year / 365 Days' : '1 Month / 30 Days'})
                   </span>
-                  <span style={{ fontWeight: '600', color: '#0F172A' }}>₹{baseRate.toLocaleString()}</span>
+                  <span style={{ fontWeight: '600', color: '#0F172A' }}>₹{grandTotal.toLocaleString()}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                  <span style={{ color: '#64748B' }}>Goods & Services Tax (GST 18%)</span>
-                  <span style={{ fontWeight: '600', color: '#0F172A' }}>₹{gstAmount.toLocaleString()}</span>
+                  <span style={{ color: '#64748B' }}>Tax Status</span>
+                  <span style={{ fontWeight: '600', color: '#16A34A', background: '#DCFCE7', padding: '2px 8px', borderRadius: '4px', fontSize: '12px' }}>
+                    Inclusive of GST
+                  </span>
                 </div>
                 <div style={{
                   display: 'flex',
                   justifyContent: 'space-between',
+                  alignItems: 'center',
                   borderTop: '1px solid #CBD5E1',
                   paddingTop: '10px',
                   fontWeight: '800',
                   fontSize: '15px'
                 }}>
-                  <span style={{ color: '#0F172A' }}>Total Amount Payable:</span>
-                  <span style={{ color: '#2563EB', fontSize: '18px' }}>₹{grandTotal.toLocaleString()}</span>
+                  <div>
+                    <span style={{ color: '#0F172A' }}>Total Amount Payable:</span>
+                    <span style={{ display: 'block', fontSize: '11px', color: '#64748B', fontWeight: '500' }}>Inclusive of GST</span>
+                  </div>
+                  <span style={{ color: '#2563EB', fontSize: '20px' }}>₹{grandTotal.toLocaleString()}</span>
                 </div>
               </div>
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   User, Mail, Phone, Building, MapPin, 
@@ -6,7 +6,8 @@ import {
   Building2, Briefcase, Pencil, Check, X, 
   ShieldCheck, ArrowRight, CheckCircle2,
   Lock, Key, Eye, EyeOff, AlertCircle,
-  Sun, Moon, Palette
+  Sun, Moon, Palette, Layout, Sparkles,
+  Upload, RotateCcw, Image
 } from 'lucide-react';
 
 const Profile = () => {
@@ -18,6 +19,7 @@ const Profile = () => {
   const [singleBranch, setSingleBranch] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const logoInputRef = useRef(null);
 
   // Profile Form State
   const [formData, setFormData] = useState({
@@ -25,7 +27,8 @@ const Profile = () => {
     phone: '',
     businessName: '',
     regNo: '',
-    address: ''
+    address: '',
+    businessLogo: ''
   });
 
   // Password Change State
@@ -41,26 +44,35 @@ const Profile = () => {
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
 
-  // Theme Customization State (defaults to light mode)
-  const [currentTheme, setCurrentTheme] = useState(() => {
-    return localStorage.getItem('biztech_theme') || 'light';
+  // Sidebar & Header Template Customization State (defaults to 'none' / No Template)
+  const [currentTemplate, setCurrentTemplate] = useState(() => {
+    const saved = localStorage.getItem('workspace_sidebar_template');
+    if (saved === 'charcoal') {
+      localStorage.setItem('workspace_sidebar_template', 'navy');
+      return 'navy';
+    }
+    return saved || 'none';
   });
 
   useEffect(() => {
-    const handleThemeEvent = (e) => {
-      if (e.detail?.theme) setCurrentTheme(e.detail.theme);
+    const handleTemplateEvent = () => {
+      const saved = localStorage.getItem('workspace_sidebar_template') || 'none';
+      setCurrentTemplate(saved);
     };
-    window.addEventListener('themeChanged', handleThemeEvent);
-    return () => window.removeEventListener('themeChanged', handleThemeEvent);
+    window.addEventListener('themeTemplateChanged', handleTemplateEvent);
+    return () => window.removeEventListener('themeTemplateChanged', handleTemplateEvent);
   }, []);
 
-  const handleSelectTheme = (mode) => {
-    setCurrentTheme(mode);
-    document.documentElement.setAttribute('data-theme', mode);
-    if (mode === 'dark') document.body.classList.add('dark-theme');
-    else document.body.classList.remove('dark-theme');
-    localStorage.setItem('biztech_theme', mode);
-    window.dispatchEvent(new CustomEvent('themeChanged', { detail: { theme: mode } }));
+  const handleSelectTemplate = (templateId) => {
+    setCurrentTemplate(templateId);
+    if (templateId === 'none') {
+      document.documentElement.setAttribute('data-sidebar-template', 'none');
+      localStorage.setItem('workspace_sidebar_template', 'none');
+    } else {
+      document.documentElement.setAttribute('data-sidebar-template', templateId);
+      localStorage.setItem('workspace_sidebar_template', templateId);
+    }
+    window.dispatchEvent(new CustomEvent('themeTemplateChanged', { detail: { template: templateId } }));
   };
 
   const getArchetypeInfo = (type) => {
@@ -140,7 +152,8 @@ const Profile = () => {
           phone: data.businessPhone || data.phone || '',
           businessName: data.businessName || '',
           regNo: data.regNo || '',
-          address: data.address || ''
+          address: data.address || '',
+          businessLogo: data.businessLogo || ''
         });
 
         if (Number(data.businessType) === 2) {
@@ -172,7 +185,8 @@ const Profile = () => {
             phone: parsed.businessPhone || parsed.phone || '',
             businessName: parsed.businessName || '',
             regNo: parsed.regNo || '',
-            address: parsed.address || ''
+            address: parsed.address || '',
+            businessLogo: parsed.businessLogo || ''
           });
         }
       } finally {
@@ -190,7 +204,8 @@ const Profile = () => {
         phone: user.businessPhone || user.phone || '',
         businessName: user.businessName || '',
         regNo: user.regNo || '',
-        address: user.address || ''
+        address: user.address || '',
+        businessLogo: user.businessLogo || ''
       });
     }
     setSaveSuccess(false);
@@ -204,10 +219,81 @@ const Profile = () => {
         phone: user.businessPhone || user.phone || '',
         businessName: user.businessName || '',
         regNo: user.regNo || '',
-        address: user.address || ''
+        address: user.address || '',
+        businessLogo: user.businessLogo || ''
       });
     }
     setIsEditing(false);
+  };
+
+  const handleLogoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please select a valid image file (PNG, JPG, WEBP, SVG).');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Logo file size should be less than 5MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (uploadEvent) => {
+      const rawBase64 = uploadEvent.target.result;
+      const img = new window.Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          const MAX_SIZE = 256;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_SIZE) {
+              height = Math.round((height * MAX_SIZE) / width);
+              width = MAX_SIZE;
+            }
+          } else {
+            if (height > MAX_SIZE) {
+              width = Math.round((width * MAX_SIZE) / height);
+              height = MAX_SIZE;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          const compressed = canvas.toDataURL(file.type || 'image/png', 0.92);
+          setFormData(prev => ({ ...prev, businessLogo: compressed }));
+        } catch (err) {
+          setFormData(prev => ({ ...prev, businessLogo: rawBase64 }));
+        }
+        if (!isEditing) {
+          setIsEditing(true);
+        }
+      };
+      img.onerror = () => {
+        setFormData(prev => ({ ...prev, businessLogo: rawBase64 }));
+        if (!isEditing) {
+          setIsEditing(true);
+        }
+      };
+      img.src = rawBase64;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveLogo = () => {
+    setFormData(prev => ({ ...prev, businessLogo: '' }));
+    if (logoInputRef.current) logoInputRef.current.value = '';
+    if (!isEditing) {
+      setIsEditing(true);
+    }
   };
 
   const handleSaveProfile = async (e) => {
@@ -233,7 +319,8 @@ const Profile = () => {
           businessPhone: formData.phone,
           businessName: formData.businessName,
           regNo: formData.regNo,
-          address: formData.address
+          address: formData.address,
+          businessLogo: formData.businessLogo
         })
       });
 
@@ -603,7 +690,130 @@ const Profile = () => {
             </div>
             <div>
               <h3 style={{ fontSize: '17px', fontWeight: '600', color: 'var(--text-title)', margin: 0 }}>Business Information</h3>
-              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>Registered commercial entity and official premises</p>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>Registered commercial entity, workspace branding, and official premises</p>
+            </div>
+          </div>
+
+          {/* Workspace Header Brand & Logo Card */}
+          <div style={{
+            background: '#F8FAFC',
+            border: '1px solid #E2E8F0',
+            borderRadius: '14px',
+            padding: '20px 24px',
+            marginBottom: '24px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '20px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              {/* Logo Preview Container */}
+              <div style={{
+                position: 'relative',
+                width: '60px',
+                height: '60px',
+                borderRadius: '12px',
+                overflow: 'hidden',
+                background: 'white',
+                border: '1.5px solid #CBD5E1',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0
+              }}>
+                <img
+                  src={formData.businessLogo || user?.businessLogo || '/logo.jpg'}
+                  alt="Business Logo"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  onError={(e) => { e.currentTarget.src = '/logo.jpg'; }}
+                />
+              </div>
+
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-muted)' }}>
+                    Top Header Preview
+                  </span>
+                  {(formData.businessLogo || user?.businessLogo) ? (
+                    <span style={{ fontSize: '11px', fontWeight: '600', background: '#ECFDF5', color: '#059669', padding: '1px 8px', borderRadius: '10px' }}>
+                      Custom Logo Active
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: '11px', fontWeight: '600', background: '#F1F5F9', color: '#64748B', padding: '1px 8px', borderRadius: '10px' }}>
+                      Default Logo
+                    </span>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '18px', fontWeight: '700', color: 'var(--text-title)', fontFamily: 'Plus Jakarta Sans' }}>
+                    {(isEditing ? formData.businessName : (user?.businessName || formData.businessName)) || 'My Workspace'}
+                  </span>
+                </div>
+                <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                  Initially shows standard logo &amp; "My Workspace". Updates in the header when changed.
+                </p>
+              </div>
+            </div>
+
+            {/* Logo Controls */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <input
+                type="file"
+                ref={logoInputRef}
+                accept="image/*"
+                onChange={handleLogoUpload}
+                style={{ display: 'none' }}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isEditing) setIsEditing(true);
+                  logoInputRef.current?.click();
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--primary-blue)',
+                  background: '#EFF6FF',
+                  color: 'var(--primary-blue)',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <Upload size={14} /> {(formData.businessLogo || user?.businessLogo) ? 'Change Logo' : 'Upload Business Logo'}
+              </button>
+
+              {(formData.businessLogo || user?.businessLogo) && (
+                <button
+                  type="button"
+                  onClick={handleRemoveLogo}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid #CBD5E1',
+                    background: 'white',
+                    color: '#64748B',
+                    fontSize: '13px',
+                    fontWeight: '500',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                  title="Reset to default BizTech logo"
+                >
+                  <RotateCcw size={13} /> Reset to Default
+                </button>
+              )}
             </div>
           </div>
 
@@ -677,16 +887,19 @@ const Profile = () => {
               
               <div className="input-group" style={{ margin: 0 }}>
                 <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Building size={14} color="#7C3AED" /> Business / Shop Name
+                  <Building size={14} color="#7C3AED" /> Business / Shop Name (Header Title)
                 </label>
                 <input 
                   type="text" 
                   className="input-field" 
                   value={formData.businessName} 
                   onChange={e => setFormData({ ...formData, businessName: e.target.value })} 
-                  placeholder="e.g. Acme Retailers"
+                  placeholder="e.g. Acme Retailers (replaces 'My Workspace' in Header)"
                   style={{ height: '42px', fontSize: '14px' }}
                 />
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '3px' }}>
+                  This name is displayed in the top-left navigation header. Leave empty to use "My Workspace".
+                </span>
               </div>
 
               <div className="input-group" style={{ margin: 0 }}>
@@ -905,7 +1118,7 @@ const Profile = () => {
         </form>
       </div>
 
-      {/* Section 4: Appearance & Accessibility (Dark / Light Mode) */}
+      {/* Section 4: Workspace Header & Sidebar Color Templates */}
       <div style={{ 
         background: 'white', 
         borderRadius: '16px', 
@@ -914,98 +1127,292 @@ const Profile = () => {
         border: '1px solid var(--border-color)',
         display: 'flex',
         flexDirection: 'column',
-        gap: '20px'
+        gap: '24px'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '18px' }}>
-          <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#EFF6FF', color: 'var(--primary-blue)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Palette size={20} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '18px', flexWrap: 'wrap', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: '#EFF6FF', color: 'var(--primary-blue)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Palette size={22} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: '18px', fontWeight: '700', color: 'var(--text-title)', margin: '0 0 4px 0' }}>
+                Header & Sidebar Color Templates
+              </h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: 0 }}>
+                Select a template to change the background styling of your top header and sidebar navigation, or choose "No Template" to retain the default clean view.
+              </p>
+            </div>
           </div>
-          <div>
-            <h3 style={{ fontSize: '18px', fontWeight: '700', color: 'var(--text-title)', margin: '0 0 4px 0' }}>
-              Appearance & Accessibility
-            </h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: 0 }}>
-              Seamlessly switch between Light Mode and Dark Mode based on your work environment.
-            </p>
+          <div style={{
+            fontSize: '12px',
+            fontWeight: '600',
+            color: 'var(--text-secondary)',
+            background: '#F8FAFC',
+            padding: '6px 14px',
+            borderRadius: '20px',
+            border: '1px solid var(--border-color)'
+          }}>
+            6 Template Options
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
-          
-          {/* Light Mode Card */}
-          <div 
-            onClick={() => handleSelectTheme('light')}
-            style={{
-              border: `2px solid ${currentTheme === 'light' ? 'var(--primary-blue)' : 'var(--border-color)'}`,
-              background: currentTheme === 'light' ? 'rgba(37, 99, 235, 0.04)' : '#FFFFFF',
-              borderRadius: '14px',
-              padding: '20px',
-              cursor: 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
-              transition: 'all 0.2s',
-              position: 'relative'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: '#FEF3C7', color: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Sun size={20} />
-                </div>
-                <div>
-                  <div style={{ fontWeight: '700', fontSize: '15px', color: 'var(--text-title)' }}>Light Mode</div>
-                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Crisp daylight aesthetic</span>
-                </div>
-              </div>
-              {currentTheme === 'light' && (
-                <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: 'var(--primary-blue)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Check size={14} />
-                </div>
-              )}
-            </div>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.4' }}>
-              High-contrast daytime interface designed for maximum legibility in bright offices and daylight workspaces.
-            </p>
-          </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '18px' }}>
+          {[
+            {
+              id: 'none',
+              name: 'No Template (Default)',
+              tagline: 'Standard Clean White',
+              headerColor: '#FFFFFF',
+              sidebarColor: '#FFFFFF',
+              accentColor: '#2563EB',
+              borderColor: '#E2E8F0',
+              badgeText: 'Default Clean',
+              badgeBg: '#F1F5F9',
+              badgeColor: '#475569'
+            },
+            {
+              id: 'navy',
+              name: 'Midnight Slate',
+              tagline: 'Deep Navy Blue',
+              headerColor: '#0F172A',
+              sidebarColor: '#0F172A',
+              accentColor: '#38BDF8',
+              borderColor: '#1E293B',
+              badgeText: 'Corporate Navy',
+              badgeBg: 'rgba(56, 189, 248, 0.15)',
+              badgeColor: '#0284C7'
+            },
+            {
+              id: 'indigo',
+              name: 'Royal Indigo',
+              tagline: 'Deep Violet Indigo',
+              headerColor: '#1E1B4B',
+              sidebarColor: '#1E1B4B',
+              accentColor: '#818CF8',
+              borderColor: '#312E81',
+              badgeText: 'Royal Violet',
+              badgeBg: 'rgba(129, 140, 248, 0.15)',
+              badgeColor: '#4F46E5'
+            },
+            {
+              id: 'emerald',
+              name: 'Forest Emerald',
+              tagline: 'Rich Pine & Emerald',
+              headerColor: '#064E3B',
+              sidebarColor: '#064E3B',
+              accentColor: '#34D399',
+              borderColor: '#065F46',
+              badgeText: 'Pine Emerald',
+              badgeBg: 'rgba(52, 211, 153, 0.15)',
+              badgeColor: '#059669'
+            },
+            {
+              id: 'amber',
+              name: 'Warm Amber',
+              tagline: 'Rich Honey & Golden Bronze',
+              headerColor: '#78350F',
+              sidebarColor: '#78350F',
+              accentColor: '#FBBF24',
+              borderColor: '#92400E',
+              badgeText: 'Warm Amber',
+              badgeBg: 'rgba(245, 158, 11, 0.15)',
+              badgeColor: '#D97706'
+            },
+            {
+              id: 'crimson',
+              name: 'Royal Crimson',
+              tagline: 'Deep Wine & Burgundy',
+              headerColor: '#4C0519',
+              sidebarColor: '#4C0519',
+              accentColor: '#FB7185',
+              borderColor: '#831843',
+              badgeText: 'Wine Crimson',
+              badgeBg: 'rgba(251, 113, 133, 0.15)',
+              badgeColor: '#BE123C'
+            }
+          ].map((tpl) => {
+            const isSelected = currentTemplate === tpl.id;
+            return (
+              <div
+                key={tpl.id}
+                onClick={() => handleSelectTemplate(tpl.id)}
+                style={{
+                  border: isSelected ? '2px solid var(--primary-blue)' : '1px solid var(--border-color)',
+                  background: isSelected ? 'rgba(37, 99, 235, 0.03)' : '#FFFFFF',
+                  borderRadius: '14px',
+                  padding: '20px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '14px',
+                  transition: 'all 0.2s ease',
+                  position: 'relative',
+                  boxShadow: isSelected ? '0 4px 14px rgba(37, 99, 235, 0.12)' : '0 1px 3px rgba(0,0,0,0.02)'
+                }}
+                onMouseOver={(e) => {
+                  if (!isSelected) {
+                    e.currentTarget.style.borderColor = '#94A3B8';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.06)';
+                  }
+                }}
+                onMouseOut={(e) => {
+                  if (!isSelected) {
+                    e.currentTarget.style.borderColor = 'var(--border-color)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.02)';
+                  }
+                }}
+              >
+                {/* Visual Mini Mockup of Header & Sidebar */}
+                <div style={{
+                  height: '76px',
+                  borderRadius: '8px',
+                  background: '#F8FAFC',
+                  border: '1px solid #E2E8F0',
+                  overflow: 'hidden',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.03)'
+                }}>
+                  {/* Miniature Top Header */}
+                  <div style={{
+                    height: '22px',
+                    background: tpl.headerColor,
+                    borderBottom: `1px solid ${tpl.id === 'none' ? '#E2E8F0' : tpl.borderColor}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '0 8px',
+                    gap: '6px'
+                  }}>
+                    <div style={{ width: '8px', height: '8px', borderRadius: '2px', background: tpl.accentColor, flexShrink: 0 }} />
+                    <div style={{ width: '38px', height: '4px', borderRadius: '2px', background: tpl.id === 'none' ? '#94A3B8' : 'rgba(255,255,255,0.7)' }} />
+                    <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <div style={{ width: '14px', height: '4px', borderRadius: '2px', background: tpl.id === 'none' ? '#CBD5E1' : 'rgba(255,255,255,0.4)' }} />
+                      <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: tpl.accentColor }} />
+                    </div>
+                  </div>
 
-          {/* Dark Mode Card */}
-          <div 
-            onClick={() => handleSelectTheme('dark')}
-            style={{
-              border: `2px solid ${currentTheme === 'dark' ? 'var(--primary-blue)' : 'var(--border-color)'}`,
-              background: currentTheme === 'dark' ? 'rgba(59, 130, 246, 0.1)' : '#FFFFFF',
-              borderRadius: '14px',
-              padding: '20px',
-              cursor: 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
-              transition: 'all 0.2s',
-              position: 'relative'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: '#1E293B', color: '#60A5FA', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Moon size={20} />
+                  {/* Miniature Body: Sidebar + Main Area */}
+                  <div style={{ flex: 1, display: 'flex' }}>
+                    {/* Miniature Sidebar */}
+                    <div style={{
+                      width: '46px',
+                      background: tpl.sidebarColor,
+                      borderRight: `1px solid ${tpl.id === 'none' ? '#E2E8F0' : tpl.borderColor}`,
+                      padding: '5px 4px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px',
+                      flexShrink: 0
+                    }}>
+                      <div style={{ width: '100%', height: '5px', borderRadius: '2px', background: tpl.accentColor }} />
+                      <div style={{ width: '70%', height: '4px', borderRadius: '2px', background: tpl.id === 'none' ? '#CBD5E1' : 'rgba(255,255,255,0.45)' }} />
+                      <div style={{ width: '85%', height: '4px', borderRadius: '2px', background: tpl.id === 'none' ? '#CBD5E1' : 'rgba(255,255,255,0.45)' }} />
+                      <div style={{ width: '60%', height: '4px', borderRadius: '2px', background: tpl.id === 'none' ? '#CBD5E1' : 'rgba(255,255,255,0.45)' }} />
+                    </div>
+                    {/* Miniature Main Content */}
+                    <div style={{ flex: 1, padding: '6px 8px', display: 'flex', flexDirection: 'column', gap: '4px', background: '#F8FAFC' }}>
+                      <div style={{ width: '55%', height: '4px', borderRadius: '2px', background: '#CBD5E1' }} />
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        <div style={{ flex: 1, height: '20px', borderRadius: '4px', background: 'white', border: '1px solid #E2E8F0' }} />
+                        <div style={{ flex: 1, height: '20px', borderRadius: '4px', background: 'white', border: '1px solid #E2E8F0' }} />
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <div style={{ fontWeight: '700', fontSize: '15px', color: 'var(--text-title)' }}>Dark Mode</div>
-                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Reduced glare night aesthetic</span>
-                </div>
-              </div>
-              {currentTheme === 'dark' && (
-                <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: 'var(--primary-blue)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Check size={14} />
-                </div>
-              )}
-            </div>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.4' }}>
-              Deep slate night theme engineered to minimize ocular fatigue and glare during evening shifts and dark environments.
-            </p>
-          </div>
 
+                {/* Card Title & Selected Status */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '8px',
+                      background: tpl.headerColor,
+                      border: `1.5px solid ${tpl.id === 'none' ? '#CBD5E1' : tpl.borderColor}`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.06)',
+                      flexShrink: 0
+                    }}>
+                      <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: tpl.accentColor }} />
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: '700', fontSize: '15px', color: 'var(--text-title)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {tpl.name}
+                      </div>
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{tpl.tagline}</span>
+                    </div>
+                  </div>
+
+                  {isSelected ? (
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      background: '#EFF6FF',
+                      color: 'var(--primary-blue)',
+                      padding: '3px 8px',
+                      borderRadius: '12px',
+                      fontSize: '11px',
+                      fontWeight: '700',
+                      flexShrink: 0
+                    }}>
+                      <Check size={12} strokeWidth={3} /> Active
+                    </div>
+                  ) : (
+                    <span style={{
+                      background: tpl.badgeBg,
+                      color: tpl.badgeColor,
+                      fontSize: '11px',
+                      fontWeight: '600',
+                      padding: '3px 8px',
+                      borderRadius: '12px',
+                      flexShrink: 0
+                    }}>
+                      {tpl.badgeText}
+                    </span>
+                  )}
+                </div>
+
+                {/* Description */}
+                <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.45', flex: 1 }}>
+                  {tpl.description}
+                </p>
+
+                {/* Action button */}
+                <button
+                  type="button"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    transition: 'all 0.15s ease',
+                    background: isSelected ? 'var(--primary-blue)' : '#F8FAFC',
+                    color: isSelected ? '#FFFFFF' : 'var(--text-title)',
+                    border: isSelected ? '1px solid var(--primary-blue)' : '1px solid var(--border-color)'
+                  }}
+                >
+                  {isSelected ? (
+                    <>
+                      <CheckCircle2 size={14} /> Currently Applied
+                    </>
+                  ) : (
+                    'Apply Template'
+                  )}
+                </button>
+              </div>
+            );
+          })}
         </div>
       </div>
 

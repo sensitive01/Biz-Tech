@@ -3,10 +3,14 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 
-// Initialize theme on initial load (defaults to light mode)
+// Initialize theme and header/sidebar template on initial load
 const savedTheme = localStorage.getItem('biztech_theme') || 'light';
 document.documentElement.setAttribute('data-theme', savedTheme);
 if (savedTheme === 'dark') document.body.classList.add('dark-theme');
+
+const savedTemplate = localStorage.getItem('workspace_sidebar_template') || 'none';
+const effectiveTemplate = savedTemplate === 'charcoal' ? 'navy' : savedTemplate;
+document.documentElement.setAttribute('data-sidebar-template', effectiveTemplate);
 
 // Globally disable mouse wheel changing number input values across the entire application
 document.addEventListener('wheel', () => {

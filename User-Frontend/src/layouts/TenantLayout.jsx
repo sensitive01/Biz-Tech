@@ -82,6 +82,16 @@ const TenantLayout = () => {
   }, []);
 
   useEffect(() => {
+    const applyTemplate = () => {
+      const template = localStorage.getItem('workspace_sidebar_template') || 'none';
+      document.documentElement.setAttribute('data-sidebar-template', template);
+    };
+    applyTemplate();
+    window.addEventListener('themeTemplateChanged', applyTemplate);
+    return () => window.removeEventListener('themeTemplateChanged', applyTemplate);
+  }, []);
+
+  useEffect(() => {
     const fetchActiveAlerts = async () => {
       try {
         const token = localStorage.getItem('token');
@@ -379,6 +389,7 @@ const TenantLayout = () => {
     <div ref={businessDropdownRef} style={{ position: 'relative' }}>
       <button
         type="button"
+        className="header-filter-btn"
         onClick={() => {
           setShowBusinessDropdown(!showBusinessDropdown);
           setShowBranchDropdown(false);
@@ -586,6 +597,7 @@ const TenantLayout = () => {
     <div ref={branchDropdownRef} style={{ position: 'relative' }}>
       <button
         type="button"
+        className="header-filter-btn"
         onClick={() => {
           setShowBranchDropdown(!showBranchDropdown);
           setShowBusinessDropdown(false);
@@ -851,10 +863,29 @@ const TenantLayout = () => {
       <header className="top-header" style={{ padding: 0 }}>
         {/* Logo Area (Left) */}
         <div style={{ width: '240px', height: '100%', display: 'flex', alignItems: 'center', padding: '0 20px', gap: '10px', flexShrink: 0, borderRight: '1px solid var(--border-color)', boxSizing: 'border-box' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #E2E8F0', flexShrink: 0 }}>
-            <img src="/logo.jpg" alt="BizTech Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #E2E8F0', flexShrink: 0, background: 'white' }}>
+            <img 
+              src={currentUser?.businessLogo || "/logo.jpg"} 
+              alt="Workspace Logo" 
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+              onError={(e) => { e.currentTarget.src = '/logo.jpg'; }}
+            />
           </div>
-          <span style={{ fontSize: '17px', fontWeight: '700', color: 'var(--text-title)', fontFamily: 'Plus Jakarta Sans' }}>My Workspace</span>
+          <span 
+            className="header-brand-title" 
+            style={{ 
+              fontSize: '17px', 
+              fontWeight: '700', 
+              color: 'var(--text-title)', 
+              fontFamily: 'Plus Jakarta Sans',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}
+            title={currentUser?.businessName || "My Workspace"}
+          >
+            {currentUser?.businessName || "My Workspace"}
+          </span>
         </div>
 
         {/* Header Right Content */}
@@ -974,6 +1005,7 @@ const TenantLayout = () => {
             {/* Notification Bell with Badge & Dropdown */}
             <div style={{ position: 'relative' }}>
               <div
+                className="header-profile-btn"
                 onClick={() => {
                   setShowAlertMenu(!showAlertMenu);
                   setShowProfileMenu(false);
@@ -1065,6 +1097,7 @@ const TenantLayout = () => {
 
             <div style={{ position: 'relative' }}>
               <div
+                className="header-profile-btn"
                 onClick={() => {
                   if (showProfileMenu) {
                     setShowProfileMenu(false);
@@ -1099,11 +1132,11 @@ const TenantLayout = () => {
                   {getInitials(currentUser?.fullName)}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
-                  <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-title)', lineHeight: '1.2' }}>
+                  <span className="header-user-name" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-title)', lineHeight: '1.2' }}>
                     {currentUser?.fullName || 'Business Owner'}
                   </span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
-                    <span style={{
+                    <span className="header-user-badge" style={{
                       fontSize: '10px',
                       fontWeight: '700',
                       color: '#2563EB',
