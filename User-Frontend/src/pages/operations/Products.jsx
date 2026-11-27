@@ -2,7 +2,7 @@ import { exportToCSV } from '@/utils/exportToCSV';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import { ArrowUp, ArrowDown, Plus, Search, Package, Tag, Trash2, Pencil, X, AlertTriangle, ArrowUpDown, Download, Wrench } from 'lucide-react';
+import { ArrowUp, ArrowDown, Plus, Search, Package, Tag, Trash2, Pencil, X, AlertTriangle, ArrowUpDown, Download, Wrench, ShoppingCart } from 'lucide-react';
 import TablePagination from '@/components/TablePagination';
 import { getSubCategoriesForCategory, normalizeCategoryKey } from '../../constants/businessCategories';
 
@@ -540,7 +540,7 @@ const Products = ({ offeringMode }) => {
                     </th>
                     {offeringType !== 'service' && (
                       <th onClick={() => requestSort('stock')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
-                        <div style={{ display: 'flex', alignItems: 'center' }}>Stock & Unit {renderSortIcon('stock')}</div>
+                        <div style={{ display: 'flex', alignItems: 'center' }}>In Stock {renderSortIcon('stock')}</div>
                       </th>
                     )}
                   </>
@@ -687,22 +687,16 @@ const Products = ({ offeringMode }) => {
                                   display: 'inline-flex',
                                   alignItems: 'center',
                                   gap: '6px',
-                                  padding: '3px 10px',
+                                  padding: '4px 12px',
                                   borderRadius: '12px',
-                                  fontSize: '12px',
+                                  fontSize: '12.5px',
                                   fontWeight: '700',
                                   background: Number(item.stock || 0) <= 0 ? '#FEF2F2' : Number(item.stock || 0) <= 5 ? '#FFFBEB' : '#ECFDF5',
                                   color: Number(item.stock || 0) <= 0 ? '#DC2626' : Number(item.stock || 0) <= 5 ? '#D97706' : '#16A34A',
                                   border: `1px solid ${Number(item.stock || 0) <= 0 ? '#FECACA' : Number(item.stock || 0) <= 5 ? '#FDE68A' : '#A7F3D0'}`
                                 }}>
-                                  {Number(item.stock || 0) <= 0 ? '0 (Out of stock)' : `${item.stock} ${item.unit || 'units'}`}
+                                  {Number(item.stock || 0) <= 0 ? '0 pcs (Out of stock)' : `${item.stock} ${item.unit || 'pcs'}`}
                                 </span>
-                                {item.measurementType && (
-                                  <span style={{ display: 'block', fontSize: '11px', color: '#64748B', marginTop: '3px' }}>
-                                    {item.measurementType}
-                                    {item.secondaryUnit && item.conversionFactor ? ` • 1 ${item.secondaryUnit} = ${item.conversionFactor} ${item.unit || 'pcs'}` : ''}
-                                  </span>
-                                )}
                               </div>
                             )}
                           </td>
@@ -713,26 +707,48 @@ const Products = ({ offeringMode }) => {
                     <td style={{ padding: '16px 24px', textAlign: 'center' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                         {activeTab === 'products' && item.itemType !== 'Service' && (
-                          <button
-                            type="button"
-                            onClick={() => navigate(`/tenant/inventory?restock=${item._id}`)}
-                            title="Add Stock"
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              width: '32px',
-                              height: '32px',
-                              background: '#F0FDF4',
-                              color: '#16A34A',
-                              border: '1px solid #BBF7D0',
-                              borderRadius: '6px',
-                              cursor: 'pointer',
-                              transition: 'all 0.15s ease'
-                            }}
-                          >
-                            <Plus size={16} />
-                          </button>
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/tenant/sales?tab=product&sellItem=${item._id}`)}
+                              title="Sell / Bill this Product"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                width: '32px',
+                                height: '32px',
+                                background: '#EFF6FF',
+                                color: '#2563EB',
+                                border: '1px solid #BFDBFE',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease'
+                              }}
+                            >
+                              <ShoppingCart size={15} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/tenant/inventory?restock=${item._id}`)}
+                              title="Add Stock"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                width: '32px',
+                                height: '32px',
+                                background: '#F0FDF4',
+                                color: '#16A34A',
+                                border: '1px solid #BBF7D0',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease'
+                              }}
+                            >
+                              <Plus size={16} />
+                            </button>
+                          </>
                         )}
                         <button
                           onClick={() => {

@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom';
 import { 
   ArrowUp, 
   ArrowDown, 
+  ArrowLeft,
   TrendingUp, 
   Plus, 
   X, 
@@ -17,7 +18,6 @@ import {
   ArrowUpDown, 
   Download, 
   IndianRupee, 
-  ShoppingCart, 
   Receipt,
   Barcode,
   FileText,
@@ -26,7 +26,11 @@ import {
   Sparkles,
   Package,
   Wrench,
-  Check
+  Check,
+  User,
+  UserPlus,
+  Clock,
+  ShoppingCart
 } from 'lucide-react';
 import TablePagination from '@/components/TablePagination';
 
@@ -67,34 +71,58 @@ const BarcodeSVG = ({ code, width = 160, height = 48, showText = true }) => {
   );
 };
 
-// Default empty lists for fresh accounts
-const DEFAULT_QUOTATIONS = [];
-const DEFAULT_BARCODES = [];
-
 const Sales = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
 
-  // Active Tab: 'Sales' (Billing), 'Purchase', 'Quotation', 'Barcode'
+  // Retrieve current user and business offering group from localStorage
+  const storedUser = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem('user') || '{}');
+    } catch {
+      return {};
+    }
+  }, []);
+
+  // Commercial offering groups:
+  // Group 1: 'product' -> Only Product Billing
+  // Group 2: 'service' -> Only Service Billing
+  // Group 3: 'both'    -> Both Product & Service Billing
+  const offeringType = useMemo(() => {
+    const raw = String(storedUser?.businessOfferingType || storedUser?.offeringType || '').toLowerCase();
+    if (raw === 'service') return 'service';
+    if (raw === 'both') return 'both';
+    return 'product'; // Default Group 1
+  }, [storedUser]);
+
+  const isProductEnabled = offeringType === 'product' || offeringType === 'both';
+  const isServiceEnabled = offeringType === 'service' || offeringType === 'both';
+
+  // Active Tab: 'Product', 'Service', 'Quotation', 'Barcode'
   const initialType = useMemo(() => {
-    if (tabParam === 'purchase') return 'Purchase';
+    if (tabParam === 'service' && isServiceEnabled) return 'Service';
     if (tabParam === 'quotation') return 'Quotation';
     if (tabParam === 'barcode') return 'Barcode';
-    return 'Sales';
-  }, [tabParam]);
+    if (tabParam === 'product' && isProductEnabled) return 'Product';
+    return isProductEnabled ? 'Product' : 'Service';
+  }, [tabParam, isProductEnabled, isServiceEnabled]);
 
   const [type, setType] = useState(initialType);
 
   // Synchronize active tab with URL query parameter
   useEffect(() => {
-    if (tabParam === 'purchase') setType('Purchase');
+    if (tabParam === 'service' && isServiceEnabled) setType('Service');
+    else if (tabParam === 'product' && isProductEnabled) setType('Product');
     else if (tabParam === 'quotation') setType('Quotation');
     else if (tabParam === 'barcode') setType('Barcode');
-    else if (tabParam === 'sales') setType('Sales');
-  }, [tabParam]);
+    else if (!tabParam) {
+      setType(isProductEnabled ? 'Product' : 'Service');
+    }
+  }, [tabParam, isProductEnabled, isServiceEnabled]);
 
   const [salesItems, setSalesItems] = useState([]);
-  const [purchaseItems, setPurchaseItems] = useState([]);
+  const [customersList, setCustomersList] = useState([]);
+  const [productsList, setProductsList] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Quotation Management State
@@ -154,8 +182,32 @@ const Sales = () => {
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
 
-  // Form data for Billing & Purchase
-  const [formData, setFormData] = useState({ number: '', partyName: '', date: '', amount: '', status: '' });
+  // ----------------------------------------------------
+  // INVOICE CREATION STATE (Product & Service Billing)
+  // ----------------------------------------------------
+  const [customerMode, setCustomerMode] = useState('walkin'); // 'walkin' | 'existing' | 'new'
+  const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const [newCustomer, setNewCustomer] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    address: ''
+  });
+
+  const [invoiceHeader, setInvoiceHeader] = useState({
+    invoiceNo: '',
+    date: new Date().toISOString().substring(0, 10),
+    status: 'Paid',
+    notes: ''
+  });
+
+  // Line items for the invoice: [{ productId, name, quantity, unit, unitPrice, amount }]
+  const [lineItems, setLineItems] = useState([]);
+
+  // Step 2: Product Picker State
+  const [pickerProdId, setPickerProdId] = useState('');
+  const [pickerQty, setPickerQty] = useState(1);
+  const [pickerPrice, setPickerPrice] = useState(0);
 
   // Form data for Quotation
   const [quoteFormData, setQuoteFormData] = useState({
@@ -225,6 +277,15 @@ const Sales = () => {
       : <ArrowDown size={14} style={{ color: 'var(--primary-blue)', marginLeft: '4px' }} />;
   };
 
+  // Available catalog filtered by active tab
+  const availableCatalog = useMemo(() => {
+    if (type === 'Service') {
+      return productsList.filter(p => (p.itemType || '').toLowerCase() === 'service');
+    }
+    return productsList.filter(p => (p.itemType || 'Product').toLowerCase() !== 'service');
+  }, [productsList, type]);
+
+  // Open Add Modal
   const handleOpenAdd = () => {
     if (type === 'Quotation') {
       setEditingQuotation(null);
@@ -253,7 +314,7 @@ const Sales = () => {
       setBarcodeFormData({
         code: generatedCode,
         name: '',
-        offeringType: 'Both',
+        offeringType: 'Product',
         sku: `SKU-${Math.floor(1000 + Math.random() * 9000)}`,
         category: 'General Inventory',
         price: '',
@@ -263,14 +324,38 @@ const Sales = () => {
       return;
     }
 
+    // Product or Service Invoice
     setEditingItem(null);
-    setFormData({
-      number: '',
-      partyName: '',
+    setCustomerMode(customersList.length > 0 ? 'existing' : 'new');
+    setSelectedCustomerId(customersList[0]?._id || '');
+    setNewCustomer({ name: '', phone: '', email: '', address: '' });
+    
+    // Auto-generate invoice number: INV-YEAR-XXX
+    const nextInvoiceCount = salesItems.length + 1;
+    const prefix = type === 'Service' ? 'SRV' : 'INV';
+    const autoInvNo = `${prefix}-${new Date().getFullYear()}-${String(nextInvoiceCount).padStart(3, '0')}`;
+    
+    setInvoiceHeader({
+      invoiceNo: autoInvNo,
       date: new Date().toISOString().substring(0, 10),
-      amount: '',
-      status: type === 'Purchase' ? 'Pending' : 'Paid'
+      status: 'Paid',
+      notes: ''
     });
+
+    // Initialize product picker
+    const firstProduct = availableCatalog[0];
+    if (firstProduct) {
+      setPickerProdId(firstProduct._id);
+      setPickerQty(1);
+      setPickerPrice(Number(firstProduct.price) || 0);
+    } else {
+      setPickerProdId('');
+      setPickerQty(1);
+      setPickerPrice(0);
+    }
+    // Cart starts clean for new selection
+    setLineItems([]);
+
     setShowModal(true);
   };
 
@@ -283,13 +368,48 @@ const Sales = () => {
     }
 
     setEditingItem(item);
-    setFormData({
-      number: item.invoiceNo || item.poNumber || '',
-      partyName: item.customerName || item.supplierName || '',
-      date: item.date ? (typeof item.date === 'string' ? item.date.substring(0, 10) : new Date(item.date).toISOString().substring(0, 10)) : '',
-      amount: item.amount || '',
-      status: item.status || (type === 'Purchase' ? 'Pending' : 'Paid')
+    // Find customer if exists
+    const matchedCustomer = customersList.find(c => c._id === item.customerId || c.name === item.customerName);
+    if (matchedCustomer) {
+      setCustomerMode('existing');
+      setSelectedCustomerId(matchedCustomer._id);
+    } else {
+      setCustomerMode('new');
+      setNewCustomer({
+        name: item.customerName || '',
+        phone: item.customerPhone || '',
+        email: item.customerEmail || '',
+        address: item.customerAddress || ''
+      });
+    }
+
+    setInvoiceHeader({
+      invoiceNo: item.invoiceNo || '',
+      date: item.date ? (typeof item.date === 'string' ? item.date.substring(0, 10) : new Date(item.date).toISOString().substring(0, 10)) : new Date().toISOString().substring(0, 10),
+      status: item.status || 'Paid',
+      notes: item.notes || ''
     });
+
+    if (Array.isArray(item.items) && item.items.length > 0) {
+      setLineItems(item.items.map(it => ({
+        productId: it.productId || '',
+        name: it.name || '',
+        quantity: Number(it.quantity) || 1,
+        unit: it.unit || 'pcs',
+        unitPrice: Number(it.unitPrice) || 0,
+        amount: Number(it.amount) || ((Number(it.quantity) || 1) * (Number(it.unitPrice) || 0))
+      })));
+    } else {
+      setLineItems([{
+        productId: '',
+        name: item.itemsSummary || 'Item',
+        quantity: 1,
+        unit: 'pcs',
+        unitPrice: Number(item.amount) || 0,
+        amount: Number(item.amount) || 0
+      }]);
+    }
+
     setShowModal(true);
   };
 
@@ -298,17 +418,22 @@ const Sales = () => {
       setLoading(true);
       const token = localStorage.getItem('token');
       const headers = { 'Authorization': `Bearer ${token}` };
-      const [salesRes, purchaseRes] = await Promise.all([
+      const [salesRes, customersRes, productsRes] = await Promise.all([
         fetch(`${import.meta.env.VITE_API_URL}/api/sales`, { headers }),
-        fetch(`${import.meta.env.VITE_API_URL}/api/purchases`, { headers })
+        fetch(`${import.meta.env.VITE_API_URL}/api/customers`, { headers }),
+        fetch(`${import.meta.env.VITE_API_URL}/api/products`, { headers })
       ]);
       if (salesRes.ok) {
         const salesData = await salesRes.json();
         setSalesItems(salesData);
       }
-      if (purchaseRes.ok) {
-        const purchaseData = await purchaseRes.json();
-        setPurchaseItems(purchaseData);
+      if (customersRes.ok) {
+        const customersData = await customersRes.json();
+        setCustomersList(customersData);
+      }
+      if (productsRes.ok) {
+        const productsData = await productsRes.json();
+        setProductsList(productsData);
       }
     } catch (err) {
       console.error('Error fetching billing data:', err);
@@ -321,48 +446,333 @@ const Sales = () => {
     fetchItems();
   }, []);
 
-  // Save Billing or Purchase form
-  const handleSubmit = async (e) => {
+  // Handle sellItem query param (e.g. from Products table "Sell" button)
+  useEffect(() => {
+    const sellItemId = searchParams.get('sellItem');
+    if (sellItemId && productsList.length > 0) {
+      const matched = productsList.find(p => p._id === sellItemId);
+      if (matched) {
+        setEditingItem(null);
+        setCustomerMode('walkin');
+        const nextInvoiceCount = salesItems.length + 1;
+        const prefix = (matched.itemType || '').toLowerCase() === 'service' ? 'SRV' : 'INV';
+        setInvoiceHeader({
+          invoiceNo: `${prefix}-${new Date().getFullYear()}-${String(nextInvoiceCount).padStart(3, '0')}`,
+          date: new Date().toISOString().substring(0, 10),
+          status: 'Paid',
+          notes: ''
+        });
+        setLineItems([{
+          productId: matched._id,
+          name: matched.name,
+          quantity: 1,
+          unit: matched.unit || 'pcs',
+          unitPrice: Number(matched.price) || 0,
+          amount: Number(matched.price) || 0
+        }]);
+        setShowModal(true);
+      }
+    }
+  }, [searchParams, productsList]);
+
+  // Update line item details when product selected or quantity changed
+  const handleProductSelect = (index, prodId) => {
+    const selectedProd = productsList.find(p => p._id === prodId);
+    const updated = [...lineItems];
+    if (selectedProd) {
+      const qty = Number(updated[index].quantity) > 0 ? Number(updated[index].quantity) : 1;
+      const rate = Number(selectedProd.price) || 0;
+      updated[index] = {
+        ...updated[index],
+        productId: selectedProd._id,
+        name: selectedProd.name,
+        unit: selectedProd.unit || 'pcs',
+        unitPrice: rate,
+        amount: Math.round(qty * rate * 100) / 100
+      };
+    } else {
+      updated[index] = {
+        ...updated[index],
+        productId: '',
+        name: '',
+        unit: 'pcs',
+        unitPrice: 0,
+        amount: 0
+      };
+    }
+    setLineItems(updated);
+  };
+
+  const handleQuantityChange = (index, newQty) => {
+    const updated = [...lineItems];
+    const rate = Number(updated[index].unitPrice) || 0;
+    const numVal = newQty === '' ? '' : Math.max(0, Number(newQty));
+    const effectiveQty = typeof numVal === 'number' ? numVal : 0;
+    updated[index] = {
+      ...updated[index],
+      quantity: newQty,
+      amount: Math.round(effectiveQty * rate * 100) / 100
+    };
+    setLineItems(updated);
+  };
+
+  const adjustQuantity = (index, delta) => {
+    const updated = [...lineItems];
+    const currentQty = Number(updated[index].quantity) || 0;
+    const newQty = Math.max(1, currentQty + delta);
+    const rate = Number(updated[index].unitPrice) || 0;
+    updated[index] = {
+      ...updated[index],
+      quantity: newQty,
+      amount: Math.round(newQty * rate * 100) / 100
+    };
+    setLineItems(updated);
+  };
+
+  const handleUnitPriceChange = (index, newRate) => {
+    const updated = [...lineItems];
+    const qty = Number(updated[index].quantity) || 0;
+    const numRate = newRate === '' ? '' : Math.max(0, Number(newRate));
+    const effectiveRate = typeof numRate === 'number' ? numRate : 0;
+    updated[index] = {
+      ...updated[index],
+      unitPrice: newRate,
+      amount: Math.round(qty * effectiveRate * 100) / 100
+    };
+    setLineItems(updated);
+  };
+
+  // Selected product object from Step 2 picker
+  const selectedPickerProd = useMemo(() => {
+    return productsList.find(p => p._id === pickerProdId) || null;
+  }, [productsList, pickerProdId]);
+
+  const handlePickerProductChange = (prodId) => {
+    setPickerProdId(prodId);
+    const found = productsList.find(p => p._id === prodId);
+    if (found) {
+      setPickerPrice(Number(found.price) || 0);
+    }
+  };
+
+  const handleAddToCartFromPicker = () => {
+    if (!pickerProdId) {
+      alert(`Please select a ${type.toLowerCase()} from the dropdown first.`);
+      return;
+    }
+    const found = productsList.find(p => p._id === pickerProdId);
+    if (!found) return;
+
+    const qty = Number(pickerQty) > 0 ? Number(pickerQty) : 1;
+    const price = Number(pickerPrice) >= 0 ? Number(pickerPrice) : (Number(found.price) || 0);
+
+    setLineItems(prev => {
+      const existingIdx = prev.findIndex(item => item.productId === found._id);
+      if (existingIdx >= 0) {
+        const updated = [...prev];
+        const newQty = (Number(updated[existingIdx].quantity) || 0) + qty;
+        updated[existingIdx] = {
+          ...updated[existingIdx],
+          quantity: newQty,
+          unitPrice: price,
+          amount: Math.round(newQty * price * 100) / 100
+        };
+        return updated;
+      } else {
+        return [
+          ...prev,
+          {
+            productId: found._id,
+            name: found.name,
+            quantity: qty,
+            unit: found.unit || 'pcs',
+            unitPrice: price,
+            amount: Math.round(qty * price * 100) / 100
+          }
+        ];
+      }
+    });
+
+    setPickerQty(1);
+  };
+
+  const quickAddProductToCart = (prod) => {
+    const price = Number(prod.price) || 0;
+    setLineItems(prev => {
+      const existingIdx = prev.findIndex(item => item.productId === prod._id);
+      if (existingIdx >= 0) {
+        const updated = [...prev];
+        const newQty = (Number(updated[existingIdx].quantity) || 0) + 1;
+        const effectivePrice = Number(updated[existingIdx].unitPrice) || price;
+        updated[existingIdx] = {
+          ...updated[existingIdx],
+          quantity: newQty,
+          amount: Math.round(newQty * effectivePrice * 100) / 100
+        };
+        return updated;
+      } else {
+        return [
+          ...prev,
+          {
+            productId: prod._id,
+            name: prod.name,
+            quantity: 1,
+            unit: prod.unit || 'pcs',
+            unitPrice: price,
+            amount: price
+          }
+        ];
+      }
+    });
+  };
+
+  const addLineItem = () => {
+    const defaultProd = availableCatalog[0];
+    if (defaultProd) {
+      setLineItems(prev => [
+        ...prev,
+        {
+          productId: defaultProd._id,
+          name: defaultProd.name,
+          quantity: 1,
+          unit: defaultProd.unit || 'pcs',
+          unitPrice: Number(defaultProd.price) || 0,
+          amount: Number(defaultProd.price) || 0
+        }
+      ]);
+    } else {
+      setLineItems(prev => [
+        ...prev,
+        { productId: '', name: '', quantity: 1, unit: 'pcs', unitPrice: 0, amount: 0 }
+      ]);
+    }
+  };
+
+  const removeLineItem = (index) => {
+    setLineItems(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Total Billing Amount calculation
+  const totalBillingAmount = useMemo(() => {
+    return lineItems.reduce((acc, it) => acc + (Number(it.amount) || 0), 0);
+  }, [lineItems]);
+
+  // Save Product or Service Invoice
+  const handleSubmitInvoice = async (e) => {
     e.preventDefault();
     try {
       const token = localStorage.getItem('token');
-      const isPurchase = type === 'Purchase';
-      const endpoint = isPurchase ? 'purchases' : 'sales';
-      const url = editingItem
-        ? `${import.meta.env.VITE_API_URL}/api/${endpoint}/${editingItem._id}`
-        : `${import.meta.env.VITE_API_URL}/api/${endpoint}`;
-      const method = editingItem ? 'PUT' : 'POST';
+      let finalCustomerId = selectedCustomerId;
+      let finalCustomerName = '';
+      let finalCustomerPhone = '';
+      let finalCustomerEmail = '';
+      let finalCustomerAddress = '';
 
-      const payload = isPurchase
-        ? {
-            poNumber: formData.number,
-            supplierName: formData.partyName,
-            date: formData.date,
-            amount: Number(formData.amount),
-            status: formData.status || 'Pending'
-          }
-        : {
-            invoiceNo: formData.number,
-            customerName: formData.partyName,
-            date: formData.date,
-            amount: Number(formData.amount),
-            status: formData.status || 'Paid'
+      // 1. Process customer
+      if (customerMode === 'walkin') {
+        finalCustomerName = 'Walk-in Customer';
+      } else if (customerMode === 'new') {
+        if (!newCustomer.name.trim()) {
+          alert('Please enter a Customer Name.');
+          return;
+        }
+
+        const custRes = await fetch(`${import.meta.env.VITE_API_URL}/api/customers`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({
+            name: newCustomer.name.trim(),
+            phone: newCustomer.phone.trim(),
+            email: newCustomer.email.trim(),
+            address: newCustomer.address.trim(),
+            customerType: 'Retail'
+          })
+        });
+
+        if (custRes.ok) {
+          const savedCustomer = await custRes.json();
+          finalCustomerId = savedCustomer._id;
+          finalCustomerName = savedCustomer.name;
+          finalCustomerPhone = savedCustomer.phone;
+          finalCustomerEmail = savedCustomer.email;
+          finalCustomerAddress = savedCustomer.address;
+          setCustomersList(prev => [savedCustomer, ...prev]);
+        } else {
+          finalCustomerName = newCustomer.name.trim();
+          finalCustomerPhone = newCustomer.phone.trim();
+          finalCustomerEmail = newCustomer.email.trim();
+          finalCustomerAddress = newCustomer.address.trim();
+        }
+      } else {
+        const found = customersList.find(c => c._id === selectedCustomerId);
+        if (!found) {
+          alert('Please select an existing customer or switch to "Walk-in Customer".');
+          return;
+        }
+        finalCustomerId = found._id;
+        finalCustomerName = found.name;
+        finalCustomerPhone = found.phone || '';
+        finalCustomerEmail = found.email || '';
+        finalCustomerAddress = found.address || '';
+      }
+
+      // 2. Validate line items
+      const validItems = lineItems
+        .filter(it => it.name && it.name.trim())
+        .map(it => {
+          const qty = Number(it.quantity) > 0 ? Number(it.quantity) : 1;
+          const rate = Number(it.unitPrice) || 0;
+          return {
+            ...it,
+            quantity: qty,
+            unitPrice: rate,
+            amount: Math.round(qty * rate * 100) / 100
           };
+        });
+
+      if (validItems.length === 0) {
+        alert(type === 'Service' ? 'Please add at least one service to the billing cart before submitting.' : 'Please add at least one product to the billing cart before submitting.');
+        return;
+      }
+
+      // 3. Prepare Invoice Payload
+      const billingCategory = type === 'Service' ? 'Service' : 'Product';
+      const payload = {
+        invoiceNo: invoiceHeader.invoiceNo.trim(),
+        customerName: finalCustomerName,
+        customerId: finalCustomerId,
+        customerPhone: finalCustomerPhone,
+        customerEmail: finalCustomerEmail,
+        customerAddress: finalCustomerAddress,
+        billingType: billingCategory,
+        date: invoiceHeader.date,
+        items: validItems,
+        amount: totalBillingAmount,
+        status: invoiceHeader.status || 'Paid',
+        notes: invoiceHeader.notes
+      };
+
+      const url = editingItem
+        ? `${import.meta.env.VITE_API_URL}/api/sales/${editingItem._id}`
+        : `${import.meta.env.VITE_API_URL}/api/sales`;
+      const method = editingItem ? 'PUT' : 'POST';
 
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(payload)
       });
+
       if (res.ok) {
         setShowModal(false);
         setEditingItem(null);
         fetchItems();
       } else {
-        alert(editingItem ? 'Failed to update record' : 'Failed to add record');
+        alert(editingItem ? 'Failed to update invoice.' : 'Failed to create invoice.');
       }
     } catch (err) {
-      console.error(err);
+      console.error('Error saving invoice:', err);
+      alert('An error occurred while saving the invoice.');
     }
   };
 
@@ -378,28 +788,39 @@ const Sales = () => {
       const updated = quotations.map(q => q._id === editingQuotation._id ? { ...quoteFormData, amount: finalAmount } : q);
       saveQuotations(updated);
     } else {
-      const newQuote = {
+      const newEntry = {
         ...quoteFormData,
-        _id: 'q_' + Date.now(),
-        amount: finalAmount
+        _id: 'qt_' + Date.now(),
+        amount: finalAmount,
+        createdAt: new Date().toISOString()
       };
-      saveQuotations([newQuote, ...quotations]);
+      saveQuotations([newEntry, ...quotations]);
     }
     setShowQuotationModal(false);
     setEditingQuotation(null);
   };
 
-  // Convert Quotation into a Real Billing Invoice
-  const handleConfirmConvert = async () => {
-    if (!convertQuotation) return;
+  // Convert Quotation to Invoice
+  const handleConvertQuotation = async (quote) => {
     try {
       const token = localStorage.getItem('token');
       const invoicePayload = {
-        invoiceNo: `INV-${convertQuotation.quoteNo.replace('QT-', '')}`,
-        customerName: convertQuotation.customerName,
+        invoiceNo: `INV-${quote.quoteNo.replace('QT-', '')}`,
+        customerName: quote.customerName,
+        customerPhone: quote.phone,
+        customerEmail: quote.email,
         date: new Date().toISOString().substring(0, 10),
-        amount: Number(convertQuotation.amount),
-        status: 'Paid'
+        amount: Number(quote.amount) || 0,
+        billingType: isProductEnabled ? 'Product' : 'Service',
+        status: 'Paid',
+        items: [{
+          name: quote.items || 'Bulk Order Items',
+          quantity: Number(quote.quantity) || 1,
+          unit: 'pcs',
+          unitPrice: Number(quote.unitPrice) || 0,
+          amount: Number(quote.amount) || 0
+        }],
+        notes: quote.notes || ''
       };
 
       const res = await fetch(`${import.meta.env.VITE_API_URL}/api/sales`, {
@@ -409,14 +830,11 @@ const Sales = () => {
       });
 
       if (res.ok) {
-        // Mark quotation as Converted
-        const updated = quotations.map(q => q._id === convertQuotation._id ? { ...q, status: 'Converted to Invoice' } : q);
-        saveQuotations(updated);
+        const updatedQuotes = quotations.map(q => q._id === quote._id ? { ...q, status: 'Converted to Invoice' } : q);
+        saveQuotations(updatedQuotes);
         setConvertQuotation(null);
+        setType(isProductEnabled ? 'Product' : 'Service');
         fetchItems();
-        handleTabChange('Sales');
-      } else {
-        alert('Failed to generate billing invoice from quotation');
       }
     } catch (err) {
       console.error(err);
@@ -426,14 +844,16 @@ const Sales = () => {
   // Save Barcode
   const handleSaveBarcode = (e) => {
     e.preventDefault();
-    const newBarcode = {
+    const newEntry = {
       ...barcodeFormData,
-      _id: 'bc_' + Date.now()
+      _id: 'bc_' + Date.now(),
+      createdAt: new Date().toISOString()
     };
-    saveBarcodes([newBarcode, ...barcodes]);
+    saveBarcodes([newEntry, ...barcodes]);
     setShowBarcodeModal(false);
   };
 
+  // Delete Record
   const confirmDelete = async () => {
     if (!deleteId) return;
 
@@ -453,8 +873,7 @@ const Sales = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const endpoint = type === 'Purchase' ? 'purchases' : 'sales';
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/${endpoint}/${deleteId}`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/sales/${deleteId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -462,7 +881,7 @@ const Sales = () => {
         setDeleteId(null);
         fetchItems();
       } else {
-        alert('Failed to delete record');
+        alert('Failed to delete invoice');
       }
     } catch (err) {
       console.error(err);
@@ -474,13 +893,16 @@ const Sales = () => {
     setSearch(val);
   };
 
-  // Determine active item list
+  // Determine active item list based on active tab
   const activeItems = useMemo(() => {
-    if (type === 'Purchase') return purchaseItems;
     if (type === 'Quotation') return quotations;
     if (type === 'Barcode') return barcodes;
-    return salesItems;
-  }, [type, purchaseItems, quotations, barcodes, salesItems]);
+    if (type === 'Service') {
+      return salesItems.filter(s => (s.billingType || '').toLowerCase() === 'service');
+    }
+    // Product Billing (default fallback includes legacy items without billingType)
+    return salesItems.filter(s => (s.billingType || 'Product').toLowerCase() !== 'service');
+  }, [type, quotations, barcodes, salesItems]);
 
   const filteredItems = useMemo(() => {
     return activeItems
@@ -505,12 +927,12 @@ const Sales = () => {
         let bVal = b[sortConfig.key];
         
         if (sortConfig.key === 'number') {
-          aVal = a.poNumber || a.invoiceNo || a.quoteNo || a.code || '';
-          bVal = b.poNumber || b.invoiceNo || b.quoteNo || b.code || '';
+          aVal = a.invoiceNo || a.quoteNo || a.code || '';
+          bVal = b.invoiceNo || b.quoteNo || b.code || '';
         }
         if (sortConfig.key === 'party') {
-          aVal = a.supplierName || a.customerName || a.name || '';
-          bVal = b.supplierName || b.customerName || b.name || '';
+          aVal = a.customerName || a.name || '';
+          bVal = b.customerName || b.name || '';
         }
 
         if (aVal === null || aVal === undefined) aVal = '';
@@ -543,10 +965,11 @@ const Sales = () => {
   const handleExport = () => {
     if (type === 'Quotation') {
       exportToCSV(filteredItems.map(q => ({
-        'Quote No': q.quoteNo,
-        'Customer Name': q.customerName,
-        'Phone': q.phone || 'N/A',
-        'Bulk Items': q.items,
+        'Quote #': q.quoteNo,
+        'Client': q.customerName,
+        'Phone': q.phone || '',
+        'Email': q.email || '',
+        'Items': q.items,
         'Quantity': q.quantity,
         'Unit Rate (INR)': q.unitPrice,
         'Total Quoted (INR)': q.amount,
@@ -572,10 +995,885 @@ const Sales = () => {
     }
 
     exportToCSV(filteredItems.map(item => ({ 
-      ...item, 
-      date: formatDate(item.date) 
-    })), type === 'Purchase' ? 'Purchases_Billing' : 'Sales_Billing');
+      'Invoice No': item.invoiceNo,
+      'Customer Name': item.customerName,
+      'Phone': item.customerPhone || '',
+      'Date': formatDate(item.date),
+      'Amount (INR)': item.amount,
+      'Status': item.status || 'Paid',
+      'Billing Type': item.billingType || type
+    })), `${type}_Invoices`);
   };
+
+  // Specific counts for tabs
+  const productInvoicesCount = useMemo(() => {
+    return salesItems.filter(s => (s.billingType || 'Product').toLowerCase() !== 'service').length;
+  }, [salesItems]);
+
+  const serviceInvoicesCount = useMemo(() => {
+    return salesItems.filter(s => (s.billingType || '').toLowerCase() === 'service').length;
+  }, [salesItems]);
+
+  // ========================================================
+  // 1. IN-PAGE VIEW: VIEW INVOICE RECORD
+  // (Renders directly within TenantLayout without hiding or dimming sidebar/header)
+  // ========================================================
+  if (viewItem) {
+    return (
+      <div style={{ padding: '24px', maxWidth: '1000px', margin: '0 auto', animation: 'fadeIn 0.25s ease-out' }}>
+        {/* Top Navigation */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px', background: 'white', padding: '16px 20px', borderRadius: '16px', border: '1px solid #E2E8F0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+          
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button
+              type="button"
+              onClick={() => {
+                const itemToEdit = viewItem;
+                setViewItem(null);
+                handleEdit(itemToEdit);
+              }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '9px 16px',
+                background: 'white',
+                border: '1px solid #CBD5E1',
+                borderRadius: '10px',
+                color: '#2563EB',
+                fontSize: '13.5px',
+                fontWeight: '700',
+                cursor: 'pointer'
+              }}
+            >
+              <Pencil size={15} /> Edit Invoice
+            </button>
+            <button
+              type="button"
+              onClick={() => window.print()}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '9px 20px',
+                background: '#2563EB',
+                color: 'white',
+                border: 'none',
+                borderRadius: '10px',
+                fontSize: '13.5px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)'
+              }}
+            >
+              <Printer size={16} /> Print Invoice
+            </button>
+          </div>
+        </div>
+
+        {/* Invoice Printable View Card */}
+        <div style={{ background: 'white', padding: '36px', borderRadius: '16px', border: '1px solid #E2E8F0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #F1F5F9', paddingBottom: '20px', marginBottom: '24px' }}>
+            <div>
+              <span style={{ fontSize: '11px', fontWeight: '800', color: '#2563EB', background: '#EFF6FF', padding: '4px 12px', borderRadius: '14px', textTransform: 'uppercase' }}>
+                {viewItem.billingType || 'Customer'} Invoice
+              </span>
+              <h2 style={{ fontSize: '26px', fontWeight: '800', color: '#0F172A', margin: '8px 0 4px 0', fontFamily: 'monospace' }}>
+                {viewItem.invoiceNo}
+              </h2>
+              <div style={{ fontSize: '13px', color: '#64748B' }}>Issued on: {formatDate(viewItem.date)}</div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 14px',
+                borderRadius: '20px',
+                fontSize: '13px',
+                fontWeight: '700',
+                background: (viewItem.status || 'Paid').toLowerCase() === 'paid' ? '#DCFCE7' : '#FEF3C7',
+                color: (viewItem.status || 'Paid').toLowerCase() === 'paid' ? '#15803D' : '#B45309'
+              }}>
+                {(viewItem.status || 'Paid').toLowerCase() === 'paid' ? <CheckCircle2 size={14} /> : <Clock size={14} />}
+                {viewItem.status || 'Paid'}
+              </span>
+            </div>
+          </div>
+
+          {/* Customer Details Box */}
+          <div style={{ background: '#F8FAFC', padding: '20px', borderRadius: '12px', border: '1px solid #E2E8F0', marginBottom: '24px' }}>
+            <div style={{ fontSize: '11px', fontWeight: '800', color: '#64748B', textTransform: 'uppercase', marginBottom: '6px', letterSpacing: '0.5px' }}>
+              Customer / Billed To
+            </div>
+            <div style={{ fontSize: '18px', fontWeight: '800', color: '#0F172A' }}>{viewItem.customerName}</div>
+            <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', marginTop: '6px' }}>
+              {viewItem.customerPhone && <div style={{ fontSize: '13.5px', color: '#475569' }}>📞 {viewItem.customerPhone}</div>}
+              {viewItem.customerEmail && <div style={{ fontSize: '13.5px', color: '#475569' }}>✉️ {viewItem.customerEmail}</div>}
+              {viewItem.customerAddress && <div style={{ fontSize: '13.5px', color: '#475569' }}>📍 {viewItem.customerAddress}</div>}
+            </div>
+          </div>
+
+          {/* Itemized Breakdown Table */}
+          {Array.isArray(viewItem.items) && viewItem.items.length > 0 ? (
+            <div style={{ border: '1px solid #E2E8F0', borderRadius: '12px', overflow: 'hidden', marginBottom: '24px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                <thead style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0' }}>
+                  <tr>
+                    <th style={{ padding: '12px 18px', fontSize: '12px', fontWeight: '700', color: '#64748B' }}>Item</th>
+                    <th style={{ padding: '12px 18px', fontSize: '12px', fontWeight: '700', color: '#64748B', textAlign: 'center' }}>Qty</th>
+                    <th style={{ padding: '12px 18px', fontSize: '12px', fontWeight: '700', color: '#64748B', textAlign: 'right' }}>Rate (₹)</th>
+                    <th style={{ padding: '12px 18px', fontSize: '12px', fontWeight: '700', color: '#64748B', textAlign: 'right' }}>Total (₹)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {viewItem.items.map((it, idx) => (
+                    <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                      <td style={{ padding: '14px 18px', fontSize: '14px', color: '#0F172A', fontWeight: '600' }}>{it.name}</td>
+                      <td style={{ padding: '14px 18px', fontSize: '14px', color: '#475569', textAlign: 'center' }}>{it.quantity} {it.unit || 'pcs'}</td>
+                      <td style={{ padding: '14px 18px', fontSize: '14px', color: '#475569', textAlign: 'right' }}>₹{Number(it.unitPrice).toLocaleString()}</td>
+                      <td style={{ padding: '14px 18px', fontSize: '14px', color: '#0F172A', fontWeight: '800', textAlign: 'right' }}>₹{Number(it.amount).toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+
+          {/* Total Box */}
+          <div style={{ background: '#F0FDF4', border: '1.5px solid #BBF7D0', padding: '18px 24px', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <span style={{ fontSize: '12px', fontWeight: '800', color: '#166534', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Amount Paid</span>
+              <div style={{ fontSize: '13px', color: '#15803D', marginTop: '2px' }}>Payment Status: {viewItem.status || 'Paid'}</div>
+            </div>
+            <div style={{ fontSize: '28px', fontWeight: '900', color: '#14532D' }}>
+              ₹{Number(viewItem.amount).toLocaleString()}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ========================================================
+  // 2. IN-PAGE VIEW: CREATE OR EDIT INVOICE
+  // (Renders directly within TenantLayout without hiding or dimming sidebar/header)
+  // ========================================================
+  if (showModal) {
+    return (
+      <div style={{ padding: '24px', maxWidth: '1240px', margin: '0 auto', animation: 'fadeIn 0.25s ease-out' }}>
+        
+        {/* Top Header & Navigation Bar */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '24px',
+          flexWrap: 'wrap',
+          gap: '16px',
+          background: 'white',
+          padding: '18px 24px',
+          borderRadius: '16px',
+          border: '1px solid #E2E8F0',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '11px', fontWeight: '800', background: type === 'Service' ? '#F5F3FF' : '#EFF6FF', color: type === 'Service' ? '#7C3AED' : '#2563EB', padding: '3px 10px', borderRadius: '20px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  {type} Billing
+                </span>
+                <span style={{ fontSize: '12px', color: '#94A3B8' }}>•</span>
+                <span style={{ fontSize: '12.5px', color: '#64748B', fontFamily: 'monospace', fontWeight: '700' }}>
+                  {invoiceHeader.invoiceNo}
+                </span>
+              </div>
+              <h1 style={{ fontSize: '22px', fontWeight: '800', color: '#0F172A', margin: '4px 0 0 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                {type === 'Service' ? <Wrench size={22} color="#7C3AED" /> : <Package size={22} color="#2563EB" />}
+                {editingItem ? 'Edit' : 'Add New'} {type} Invoice
+              </h1>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <button
+              type="button"
+              onClick={() => { setShowModal(false); setEditingItem(null); }}
+              style={{ padding: '10px 18px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '10px', color: '#475569', fontWeight: '600', fontSize: '13.5px', cursor: 'pointer' }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmitInvoice}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 24px',
+                background: type === 'Service' ? '#7C3AED' : '#2563EB',
+                color: 'white',
+                border: 'none',
+                borderRadius: '10px',
+                fontWeight: '700',
+                fontSize: '13.5px',
+                cursor: 'pointer',
+                boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)'
+              }}
+            >
+              <Check size={16} />
+              {editingItem ? 'Update Invoice' : 'Submit & Generate Bill'}
+            </button>
+          </div>
+        </div>
+
+        {/* Invoice Form Card */}
+        <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '32px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)' }}>
+          <form onSubmit={handleSubmitInvoice} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            
+            {/* ---------------------------------------------------- */}
+            {/* STEP 1: CUSTOMER SELECTION OR QUICK-ADD NEW CUSTOMER */}
+            {/* ---------------------------------------------------- */}
+            <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
+                <label style={{ fontSize: '13px', fontWeight: '800', color: '#1E293B', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  1. Customer Information *
+                </label>
+                
+                {/* Mode Toggle Pills */}
+                <div style={{ display: 'inline-flex', background: '#E2E8F0', borderRadius: '8px', padding: '3px', gap: '3px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setCustomerMode('walkin')}
+                    style={{
+                      padding: '5px 12px',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      background: customerMode === 'walkin' ? 'white' : 'transparent',
+                      color: customerMode === 'walkin' ? '#16A34A' : '#64748B',
+                      boxShadow: customerMode === 'walkin' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none'
+                    }}
+                  >
+                    ⚡ Walk-in Customer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCustomerMode('existing')}
+                    style={{
+                      padding: '5px 12px',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      background: customerMode === 'existing' ? 'white' : 'transparent',
+                      color: customerMode === 'existing' ? '#2563EB' : '#64748B',
+                      boxShadow: customerMode === 'existing' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none'
+                    }}
+                  >
+                    Registered Customer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCustomerMode('new')}
+                    style={{
+                      padding: '5px 12px',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      background: customerMode === 'new' ? 'white' : 'transparent',
+                      color: customerMode === 'new' ? '#2563EB' : '#64748B',
+                      boxShadow: customerMode === 'new' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none'
+                    }}
+                  >
+                    + Add New Customer
+                  </button>
+                </div>
+              </div>
+
+              {customerMode === 'walkin' ? (
+                <div style={{ padding: '12px 16px', background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: '8px', fontSize: '13px', color: '#166534', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700' }}>
+                    <span>⚡ Standard Walk-in Retail Customer</span>
+                  </div>
+                  <span style={{ fontSize: '12px', color: '#15803D', fontWeight: '600' }}>Fast Cash Sale • No details required</span>
+                </div>
+              ) : customerMode === 'existing' ? (
+                <div>
+                  {customersList.length === 0 ? (
+                    <div style={{ padding: '14px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '8px', fontSize: '13px', color: '#92400E' }}>
+                      No saved customers found. Switched to <strong>Add New Customer</strong> below to enter details:
+                      <div style={{ marginTop: '8px' }}>
+                        <button
+                          type="button"
+                          onClick={() => setCustomerMode('new')}
+                          style={{ padding: '6px 12px', background: '#D97706', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}
+                        >
+                          Enter New Customer
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <select
+                        value={selectedCustomerId}
+                        onChange={(e) => setSelectedCustomerId(e.target.value)}
+                        required
+                        style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', background: 'white' }}
+                      >
+                        <option value="">-- Select Registered Customer --</option>
+                        {customersList.map(cust => (
+                          <option key={cust._id} value={cust._id}>
+                            {cust.name} {cust.phone ? `(${cust.phone})` : ''} - {cust.companyName || 'Retail'}
+                          </option>
+                        ))}
+                      </select>
+
+                      {/* Customer Quick Preview */}
+                      {(() => {
+                        const chosen = customersList.find(c => c._id === selectedCustomerId);
+                        if (!chosen) return null;
+                        return (
+                          <div style={{ marginTop: '12px', padding: '12px 16px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '13px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div>
+                              <span style={{ fontWeight: '700', color: '#0F172A' }}>{chosen.name}</span>
+                              {chosen.phone && <span style={{ color: '#64748B', marginLeft: '10px' }}>📞 {chosen.phone}</span>}
+                              {chosen.address && <span style={{ color: '#64748B', marginLeft: '10px' }}>📍 {chosen.address}</span>}
+                            </div>
+                            <span style={{ fontSize: '11px', background: '#EFF6FF', color: '#2563EB', padding: '3px 10px', borderRadius: '12px', fontWeight: '700' }}>
+                              {chosen.customerType || 'Customer'}
+                            </span>
+                          </div>
+                        );
+                      })()}
+                    </>
+                  )}
+                </div>
+              ) : (
+                /* Add New Customer Inputs */
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>Customer Name *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Ramesh Kumar"
+                        value={newCustomer.name}
+                        onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>Phone Number</label>
+                      <input
+                        type="tel"
+                        placeholder="e.g. 9876543210"
+                        value={newCustomer.phone}
+                        onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })}
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>Email (Optional)</label>
+                      <input
+                        type="email"
+                        placeholder="e.g. customer@gmail.com"
+                        value={newCustomer.email}
+                        onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })}
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>City / Address (Optional)</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. MG Road, Bengaluru"
+                        value={newCustomer.address}
+                        onChange={(e) => setNewCustomer({ ...newCustomer, address: e.target.value })}
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ fontSize: '12px', color: '#16A34A', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '600' }}>
+                    <CheckCircle2 size={14} />
+                    This customer will automatically be added to your Customer Directory upon submission.
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ---------------------------------------------------- */}
+            {/* STEP 2: PRODUCT SELECTION                            */}
+            {/* ---------------------------------------------------- */}
+            <div style={{ background: '#F8FAFC', border: '1.5px solid #E2E8F0', borderRadius: '14px', padding: '22px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '11px', fontWeight: '800', background: '#2563EB', color: 'white', padding: '4px 10px', borderRadius: '8px', letterSpacing: '0.5px' }}>
+                    STEP 2
+                  </span>
+                  <label style={{ fontSize: '14px', fontWeight: '800', color: '#1E293B', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    {type} Selection *
+                  </label>
+                </div>
+                <span style={{ fontSize: '12.5px', color: '#64748B', fontWeight: '600' }}>
+                  Select item, set quantity & price, then click <strong>+ Add to Cart</strong>
+                </span>
+              </div>
+
+              {availableCatalog.length === 0 ? (
+                <div style={{ padding: '16px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '10px', fontSize: '13px', color: '#92400E' }}>
+                  No {type.toLowerCase()}s found in your catalog. Please add {type.toLowerCase()}s in the <strong>{type}s</strong> section first.
+                </div>
+              ) : (
+                <div>
+                  {/* Picker Grid Controls */}
+                  <div style={{
+                    background: 'white',
+                    border: '1.5px solid #E2E8F0',
+                    borderRadius: '12px',
+                    padding: '16px 20px',
+                    display: 'grid',
+                    gridTemplateColumns: '2.5fr 1.2fr 1.2fr 1.3fr auto',
+                    gap: '16px',
+                    alignItems: 'end',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
+                  }}>
+                    {/* Product Dropdown */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', marginBottom: '6px' }}>
+                        Select {type} *
+                      </label>
+                      <select
+                        value={pickerProdId}
+                        onChange={(e) => handlePickerProductChange(e.target.value)}
+                        style={{ width: '100%', height: '42px', padding: '0 12px', borderRadius: '8px', border: '1.5px solid #CBD5E1', fontSize: '14px', background: 'white', fontWeight: '600', color: '#0F172A' }}
+                      >
+                        <option value="">-- Choose {type} --</option>
+                        {availableCatalog.map(p => (
+                          <option key={p._id} value={p._id}>
+                            {p.name} — ₹{p.price}/{p.unit || 'pcs'} (Stock: {p.stock || 0} pcs)
+                          </option>
+                        ))}
+                      </select>
+                      {selectedPickerProd && (
+                        <div style={{ marginTop: '6px', fontSize: '12px' }}>
+                          <span style={{
+                            color: Number(selectedPickerProd.stock || 0) > 0 ? '#16A34A' : '#DC2626',
+                            fontWeight: '700',
+                            background: Number(selectedPickerProd.stock || 0) > 0 ? '#F0FDF4' : '#FEF2F2',
+                            padding: '2px 8px',
+                            borderRadius: '6px'
+                          }}>
+                            In Stock: {selectedPickerProd.stock || 0} {selectedPickerProd.unit || 'pcs'}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Quantity (pcs) Stepper */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', marginBottom: '6px' }}>
+                        Qty ({selectedPickerProd?.unit || 'pcs'}) *
+                      </label>
+                      <div style={{ display: 'flex', alignItems: 'center', border: '1.5px solid #CBD5E1', borderRadius: '8px', overflow: 'hidden', height: '42px', background: '#F8FAFC' }}>
+                        <button
+                          type="button"
+                          onClick={() => setPickerQty(q => Math.max(1, Number(q || 1) - 1))}
+                          disabled={Number(pickerQty) <= 1}
+                          style={{ width: '36px', height: '100%', border: 'none', background: 'transparent', cursor: Number(pickerQty) <= 1 ? 'not-allowed' : 'pointer', color: '#475569', fontWeight: '800', fontSize: '16px' }}
+                        >
+                          −
+                        </button>
+                        <input
+                          type="number"
+                          min="1"
+                          value={pickerQty}
+                          onChange={(e) => setPickerQty(e.target.value === '' ? '' : Math.max(1, Number(e.target.value)))}
+                          style={{ width: '100%', height: '100%', textAlign: 'center', border: 'none', borderLeft: '1px solid #E2E8F0', borderRight: '1px solid #E2E8F0', background: 'white', fontSize: '14px', fontWeight: '700', color: '#0F172A', outline: 'none' }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setPickerQty(q => Number(q || 0) + 1)}
+                          style={{ width: '36px', height: '100%', border: 'none', background: 'transparent', cursor: 'pointer', color: '#2563EB', fontWeight: '800', fontSize: '16px' }}
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Price / pcs */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', marginBottom: '6px' }}>
+                        Price / {selectedPickerProd?.unit || 'pcs'} (₹)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={pickerPrice}
+                        onChange={(e) => setPickerPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                        style={{ width: '100%', height: '42px', padding: '0 12px', borderRadius: '8px', border: '1.5px solid #CBD5E1', fontSize: '14px', fontWeight: '600', color: '#0F172A', boxSizing: 'border-box' }}
+                      />
+                    </div>
+
+                    {/* Subtotal preview */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#166534', textTransform: 'uppercase', marginBottom: '6px' }}>
+                        Subtotal (₹)
+                      </label>
+                      <div style={{ height: '42px', padding: '0 12px', background: '#F0FDF4', border: '1.5px solid #86EFAC', borderRadius: '8px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end', boxSizing: 'border-box' }}>
+                        <div style={{ fontSize: '16px', fontWeight: '800', color: '#15803D' }}>
+                          ₹{((Number(pickerQty) || 0) * (Number(pickerPrice) || 0)).toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Add to Cart Button */}
+                    <div>
+                      <button
+                        type="button"
+                        onClick={handleAddToCartFromPicker}
+                        disabled={!pickerProdId}
+                        style={{
+                          height: '42px',
+                          padding: '0 20px',
+                          background: !pickerProdId ? '#94A3B8' : (type === 'Service' ? '#7C3AED' : '#2563EB'),
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '8px',
+                          fontWeight: '700',
+                          fontSize: '13.5px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          cursor: !pickerProdId ? 'not-allowed' : 'pointer',
+                          whiteSpace: 'nowrap',
+                          boxShadow: !pickerProdId ? 'none' : '0 4px 6px -1px rgba(37,99,235,0.2)'
+                        }}
+                      >
+                        <ShoppingCart size={16} /> + Add to Cart
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Quick Add Chips */}
+                  {availableCatalog.length > 0 && (
+                    <div style={{ marginTop: '14px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '12px', fontWeight: '700', color: '#64748B' }}>
+                        ⚡ Quick Add:
+                      </span>
+                      {availableCatalog.slice(0, 6).map(prod => (
+                        <button
+                          key={prod._id}
+                          type="button"
+                          onClick={() => quickAddProductToCart(prod)}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '5px 12px',
+                            background: 'white',
+                            border: '1px solid #CBD5E1',
+                            borderRadius: '20px',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            color: '#1E293B',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease'
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#2563EB'; e.currentTarget.style.color = '#2563EB'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#CBD5E1'; e.currentTarget.style.color = '#1E293B'; }}
+                          title={`Click to add 1 ${prod.unit || 'pcs'} of ${prod.name} directly to cart`}
+                        >
+                          <Plus size={13} color="#2563EB" />
+                          <span>{prod.name}</span>
+                          <span style={{ color: '#16A34A', fontWeight: '700' }}>₹{prod.price}</span>
+                          <span style={{ fontSize: '11px', color: '#94A3B8' }}>({prod.stock || 0} {prod.unit || 'pcs'})</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* ---------------------------------------------------- */}
+            {/* STEP 3: BILLING SECTION (CART & FINAL BILL)          */}
+            {/* ---------------------------------------------------- */}
+            <div style={{ background: '#F8FAFC', border: '1.5px solid #E2E8F0', borderRadius: '14px', padding: '22px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '11px', fontWeight: '800', background: '#16A34A', color: 'white', padding: '4px 10px', borderRadius: '8px', letterSpacing: '0.5px' }}>
+                    STEP 3
+                  </span>
+                  <label style={{ fontSize: '14px', fontWeight: '800', color: '#1E293B', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Billing Section (Cart & Edit) *
+                  </label>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: '700', color: '#15803D', background: '#DCFCE7', padding: '4px 12px', borderRadius: '14px' }}>
+                    🛒 {lineItems.length} {lineItems.length === 1 ? 'Item' : 'Items'} in Cart
+                  </span>
+                  {lineItems.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setLineItems([])}
+                      style={{ fontSize: '12px', color: '#EF4444', background: 'transparent', border: 'none', cursor: 'pointer', fontWeight: '600' }}
+                    >
+                      Clear Cart
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Cart Table */}
+              {lineItems.length === 0 ? (
+                <div style={{
+                  background: 'white',
+                  border: '1.5px dashed #CBD5E1',
+                  borderRadius: '12px',
+                  padding: '36px 20px',
+                  textAlign: 'center',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94A3B8' }}>
+                    <ShoppingCart size={24} />
+                  </div>
+                  <div style={{ fontSize: '15px', fontWeight: '700', color: '#475569' }}>
+                    Your billing cart is empty
+                  </div>
+                  <div style={{ fontSize: '13px', color: '#94A3B8', maxWidth: '380px' }}>
+                    Select a {type.toLowerCase()} in Step 2 above and click <strong>+ Add to Cart</strong>, or click any Quick Add button.
+                  </div>
+                </div>
+              ) : (
+                <div style={{ background: 'white', border: '1px solid #CBD5E1', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                    <thead style={{ background: '#F8FAFC', borderBottom: '1.5px solid #E2E8F0' }}>
+                      <tr>
+                        <th style={{ padding: '12px 16px', fontSize: '11.5px', fontWeight: '800', color: '#475569', textTransform: 'uppercase', width: '50px' }}>#</th>
+                        <th style={{ padding: '12px 16px', fontSize: '11.5px', fontWeight: '800', color: '#475569', textTransform: 'uppercase' }}>Item Name</th>
+                        <th style={{ padding: '12px 16px', fontSize: '11.5px', fontWeight: '800', color: '#475569', textTransform: 'uppercase', width: '170px', textAlign: 'center' }}>Quantity (Edit)</th>
+                        <th style={{ padding: '12px 16px', fontSize: '11.5px', fontWeight: '800', color: '#475569', textTransform: 'uppercase', width: '150px', textAlign: 'right' }}>Price / pc (₹)</th>
+                        <th style={{ padding: '12px 16px', fontSize: '11.5px', fontWeight: '800', color: '#475569', textTransform: 'uppercase', width: '150px', textAlign: 'right' }}>Total (₹)</th>
+                        <th style={{ padding: '12px 16px', fontSize: '11.5px', fontWeight: '800', color: '#475569', textTransform: 'uppercase', width: '60px', textAlign: 'center' }}>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {lineItems.map((item, idx) => {
+                        const matchedProd = productsList.find(p => p._id === item.productId);
+                        const unitLabel = item.unit || 'pcs';
+
+                        return (
+                          <tr key={idx} style={{ borderBottom: idx < lineItems.length - 1 ? '1px solid #F1F5F9' : 'none' }}>
+                            {/* S.No */}
+                            <td style={{ padding: '14px 16px', fontSize: '13px', color: '#64748B', fontWeight: '700' }}>
+                              {idx + 1}
+                            </td>
+
+                            {/* Item Name */}
+                            <td style={{ padding: '14px 16px' }}>
+                              <div style={{ fontSize: '14px', fontWeight: '700', color: '#0F172A' }}>{item.name}</div>
+                              {matchedProd && (
+                                <div style={{ fontSize: '11.5px', color: Number(matchedProd.stock || 0) > 0 ? '#16A34A' : '#DC2626', fontWeight: '600', marginTop: '2px' }}>
+                                  In Stock: {matchedProd.stock || 0} {unitLabel}
+                                </div>
+                              )}
+                            </td>
+
+                            {/* Editable Quantity Stepper */}
+                            <td style={{ padding: '14px 16px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #CBD5E1', borderRadius: '8px', overflow: 'hidden', height: '36px', width: '140px', margin: '0 auto', background: '#F8FAFC' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => adjustQuantity(idx, -1)}
+                                  disabled={Number(item.quantity) <= 1}
+                                  style={{ width: '34px', height: '100%', border: 'none', background: 'transparent', cursor: Number(item.quantity) <= 1 ? 'not-allowed' : 'pointer', color: '#475569', fontWeight: '800', fontSize: '15px' }}
+                                >
+                                  −
+                                </button>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={item.quantity}
+                                  onChange={(e) => handleQuantityChange(idx, e.target.value)}
+                                  required
+                                  style={{ width: '100%', height: '100%', textAlign: 'center', border: 'none', borderLeft: '1px solid #E2E8F0', borderRight: '1px solid #E2E8F0', background: 'white', fontSize: '13.5px', fontWeight: '700', color: '#0F172A', outline: 'none' }}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => adjustQuantity(idx, 1)}
+                                  style={{ width: '34px', height: '100%', border: 'none', background: 'transparent', cursor: 'pointer', color: '#2563EB', fontWeight: '800', fontSize: '15px' }}
+                                >
+                                  +
+                                </button>
+                              </div>
+                            </td>
+
+                            {/* Editable Unit Price */}
+                            <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={item.unitPrice}
+                                onChange={(e) => handleUnitPriceChange(idx, e.target.value)}
+                                required
+                                style={{ width: '110px', height: '36px', padding: '0 10px', textAlign: 'right', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', fontWeight: '700', color: '#0F172A', boxSizing: 'border-box' }}
+                              />
+                            </td>
+
+                            {/* Total Amount */}
+                            <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                              <div style={{ fontSize: '15px', fontWeight: '800', color: '#15803D' }}>
+                                ₹{(Number(item.amount) || 0).toLocaleString()}
+                              </div>
+                              <div style={{ fontSize: '10.5px', color: '#64748B' }}>
+                                {item.quantity} × ₹{item.unitPrice}
+                              </div>
+                            </td>
+
+                            {/* Action: Delete */}
+                            <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                              <button
+                                type="button"
+                                onClick={() => removeLineItem(idx)}
+                                style={{ background: '#FEE2E2', color: '#EF4444', border: 'none', borderRadius: '6px', width: '32px', height: '32px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s ease' }}
+                                title="Remove item from cart"
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Invoice Header Details (Invoice No, Date, Status) */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: '16px', marginTop: '20px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', marginBottom: '6px' }}>
+                    Invoice Number *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={invoiceHeader.invoiceNo}
+                    onChange={(e) => setInvoiceHeader({ ...invoiceHeader, invoiceNo: e.target.value })}
+                    style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', fontFamily: 'monospace', fontWeight: '700', boxSizing: 'border-box' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', marginBottom: '6px' }}>
+                    Billing Date *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={invoiceHeader.date}
+                    onChange={(e) => setInvoiceHeader({ ...invoiceHeader, date: e.target.value })}
+                    style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', boxSizing: 'border-box' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', marginBottom: '6px' }}>
+                    Payment Status
+                  </label>
+                  <select
+                    value={invoiceHeader.status}
+                    onChange={(e) => setInvoiceHeader({ ...invoiceHeader, status: e.target.value })}
+                    style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', background: 'white', fontWeight: '600' }}
+                  >
+                    <option value="Paid">Paid (Cash/Online)</option>
+                    <option value="Pending">Pending / Credit</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Grand Total Billing Amount Card */}
+              <div style={{
+                marginTop: '20px',
+                background: 'linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)',
+                border: '1.5px solid #86EFAC',
+                borderRadius: '12px',
+                padding: '18px 24px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '12px'
+              }}>
+                <div>
+                  <span style={{ fontSize: '12.5px', fontWeight: '800', color: '#166534', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Total Billing Amount
+                  </span>
+                  <div style={{ fontSize: '13px', color: '#15803D', marginTop: '2px' }}>
+                    {lineItems.length} {lineItems.length === 1 ? 'item' : 'items'} • {lineItems.reduce((acc, it) => acc + (Number(it.quantity) || 0), 0)} total pcs
+                  </div>
+                </div>
+                <div style={{ fontSize: '32px', fontWeight: '900', color: '#14532D' }}>
+                  ₹{Number(totalBillingAmount).toLocaleString()}
+                </div>
+              </div>
+
+              {/* Bottom Action Buttons */}
+              <div style={{ display: 'flex', gap: '14px', justifyContent: 'flex-end', marginTop: '20px' }}>
+                <button 
+                  type="button" 
+                  onClick={() => { setShowModal(false); setEditingItem(null); }} 
+                  style={{ padding: '11px 22px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '10px', color: '#475569', fontWeight: '700', fontSize: '13.5px', cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={lineItems.length === 0}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '11px 32px',
+                    background: lineItems.length === 0 ? '#94A3B8' : (type === 'Service' ? '#7C3AED' : '#2563EB'),
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '10px',
+                    fontWeight: '800',
+                    fontSize: '14px',
+                    cursor: lineItems.length === 0 ? 'not-allowed' : 'pointer',
+                    boxShadow: lineItems.length === 0 ? 'none' : '0 4px 6px -1px rgba(37,99,235,0.2)'
+                  }}
+                >
+                  <Check size={16} />
+                  {editingItem ? 'Update Invoice' : 'Submit & Generate Bill'}
+                </button>
+              </div>
+
+            </div>
+
+          </form>
+        </div>
+
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: '24px', maxWidth: '1240px', margin: '0 auto', animation: 'fadeIn 0.3s ease-out' }}>
@@ -587,10 +1885,12 @@ const Sales = () => {
             <TrendingUp size={28} color="var(--primary-blue)" /> Billing & Commercial Operations
           </h1>
           <p style={{ color: '#64748B', fontSize: '14px', margin: 0 }}>
-            Mandatory core billing, purchase invoices, bulk order quotations, and barcode asset tracking.
+            {offeringType === 'product' && 'Product customer billing invoices, bulk order quotations, and barcode asset tracking.'}
+            {offeringType === 'service' && 'Service customer billing invoices and bulk service quotations.'}
+            {offeringType === 'both' && 'Unified product and service customer billing, bulk order quotations, and asset barcodes.'}
           </p>
           
-          {/* Navigation Tabs */}
+          {/* Navigation Tabs (Dynamic based on Onboarding Commercial Group) */}
           <div style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -602,73 +1902,77 @@ const Sales = () => {
             gap: '4px',
             flexWrap: 'wrap'
           }}>
-            {/* 1. Billing / Sales Tab */}
-            <button
-              type="button"
-              onClick={() => handleTabChange('Sales')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '8px 18px',
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: '600',
-                background: type === 'Sales' ? 'white' : 'transparent',
-                color: type === 'Sales' ? 'var(--primary-blue, #2563EB)' : '#64748B',
-                border: 'none',
-                boxShadow: type === 'Sales' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              <TrendingUp size={15} />
-              <span>Billing</span>
-              <span style={{
-                fontSize: '11px',
-                padding: '2px 7px',
-                borderRadius: '99px',
-                background: type === 'Sales' ? '#EFF6FF' : '#E2E8F0',
-                color: type === 'Sales' ? 'var(--primary-blue, #2563EB)' : '#64748B',
-                fontWeight: '700'
-              }}>
-                {salesItems.length}
-              </span>
-            </button>
+            {/* 1. Product Billing Tab (Group 1 or Group 3) */}
+            {isProductEnabled && (
+              <button
+                type="button"
+                onClick={() => handleTabChange('Product')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 18px',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  background: type === 'Product' ? 'white' : 'transparent',
+                  color: type === 'Product' ? 'var(--primary-blue, #2563EB)' : '#64748B',
+                  border: 'none',
+                  boxShadow: type === 'Product' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <Package size={15} />
+                <span>Product</span>
+                <span style={{
+                  fontSize: '11px',
+                  padding: '2px 7px',
+                  borderRadius: '99px',
+                  background: type === 'Product' ? '#EFF6FF' : '#E2E8F0',
+                  color: type === 'Product' ? 'var(--primary-blue, #2563EB)' : '#64748B',
+                  fontWeight: '700'
+                }}>
+                  {productInvoicesCount}
+                </span>
+              </button>
+            )}
 
-            {/* 2. Purchase Tab */}
-            <button
-              type="button"
-              onClick={() => handleTabChange('Purchase')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '8px 18px',
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: '600',
-                background: type === 'Purchase' ? 'white' : 'transparent',
-                color: type === 'Purchase' ? 'var(--primary-blue, #2563EB)' : '#64748B',
-                border: 'none',
-                boxShadow: type === 'Purchase' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              <ShoppingCart size={15} />
-              <span>Purchase</span>
-              <span style={{
-                fontSize: '11px',
-                padding: '2px 7px',
-                borderRadius: '99px',
-                background: type === 'Purchase' ? '#EFF6FF' : '#E2E8F0',
-                color: type === 'Purchase' ? 'var(--primary-blue, #2563EB)' : '#64748B',
-                fontWeight: '700'
-              }}>
-                {purchaseItems.length}
-              </span>
-            </button>
+            {/* 2. Service Billing Tab (Group 2 or Group 3) */}
+            {isServiceEnabled && (
+              <button
+                type="button"
+                onClick={() => handleTabChange('Service')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 18px',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  background: type === 'Service' ? 'white' : 'transparent',
+                  color: type === 'Service' ? '#7C3AED' : '#64748B',
+                  border: 'none',
+                  boxShadow: type === 'Service' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <Wrench size={15} />
+                <span>Service</span>
+                <span style={{
+                  fontSize: '11px',
+                  padding: '2px 7px',
+                  borderRadius: '99px',
+                  background: type === 'Service' ? '#F5F3FF' : '#E2E8F0',
+                  color: type === 'Service' ? '#7C3AED' : '#64748B',
+                  fontWeight: '700'
+                }}>
+                  {serviceInvoicesCount}
+                </span>
+              </button>
+            )}
 
             {/* 3. Quotation Tab (Bulk Orders) */}
             <button
@@ -704,39 +2008,41 @@ const Sales = () => {
               </span>
             </button>
 
-            {/* 4. Barcode Tab (Always available like Quotation) */}
-            <button
-              type="button"
-              onClick={() => handleTabChange('Barcode')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '8px 18px',
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: '600',
-                background: type === 'Barcode' ? 'white' : 'transparent',
-                color: type === 'Barcode' ? '#7C3AED' : '#64748B',
-                border: 'none',
-                boxShadow: type === 'Barcode' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              <Barcode size={15} />
-              <span>Bar Code</span>
-              <span style={{
-                fontSize: '11px',
-                padding: '2px 7px',
-                borderRadius: '99px',
-                background: type === 'Barcode' ? '#EDE9FE' : '#E2E8F0',
-                color: type === 'Barcode' ? '#6D28D9' : '#64748B',
-                fontWeight: '700'
-              }}>
-                {barcodes.length}
-              </span>
-            </button>
+            {/* 4. Barcode Tab (Products & Assets) */}
+            {isProductEnabled && (
+              <button
+                type="button"
+                onClick={() => handleTabChange('Barcode')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 18px',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  background: type === 'Barcode' ? 'white' : 'transparent',
+                  color: type === 'Barcode' ? '#0D9488' : '#64748B',
+                  border: 'none',
+                  boxShadow: type === 'Barcode' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <Barcode size={15} />
+                <span>Bar Code</span>
+                <span style={{
+                  fontSize: '11px',
+                  padding: '2px 7px',
+                  borderRadius: '99px',
+                  background: type === 'Barcode' ? '#CCFBF1' : '#E2E8F0',
+                  color: type === 'Barcode' ? '#0F766E' : '#64748B',
+                  fontWeight: '700'
+                }}>
+                  {barcodes.length}
+                </span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -748,22 +2054,20 @@ const Sales = () => {
             alignItems: 'center', 
             gap: '8px', 
             padding: '12px 20px', 
-            background: type === 'Quotation' ? '#D97706' : (type === 'Barcode' ? '#7C3AED' : 'var(--primary-blue)'), 
-            border: 'none', 
-            borderRadius: '10px', 
+            background: type === 'Service' ? '#7C3AED' : type === 'Quotation' ? '#D97706' : type === 'Barcode' ? '#0D9488' : 'var(--primary-blue, #2563EB)', 
             color: 'white', 
+            border: 'none', 
+            borderRadius: '12px', 
             fontWeight: '600', 
             fontSize: '14px', 
             cursor: 'pointer',
-            boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
-            transition: 'transform 0.15s ease'
+            boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.2)',
+            transition: 'all 0.2s ease'
           }}
-          onMouseDown={e => e.currentTarget.style.transform = 'scale(0.98)'}
-          onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
         >
           <Plus size={18} /> 
-          {type === 'Purchase' && 'Add Purchase Order'}
-          {type === 'Sales' && 'Add New Invoice'}
+          {type === 'Product' && 'Add New Invoice'}
+          {type === 'Service' && 'Add Service Invoice'}
           {type === 'Quotation' && 'New Bulk Quotation'}
           {type === 'Barcode' && 'Generate Barcode'}
         </button>
@@ -868,14 +2172,15 @@ const Sales = () => {
             </div>
           </>
         ) : (
+          /* Product or Service Invoices Metrics */
           <>
             <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-              <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {type === 'Purchase' ? <ShoppingCart size={24} /> : <Receipt size={24} />}
+              <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#EFF6FF', color: 'var(--primary-blue, #2563EB)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Receipt size={24} />
               </div>
               <div>
                 <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>
-                  {type === 'Purchase' ? 'Total Purchases' : 'Total Invoices'}
+                  Total {type} Invoices
                 </p>
                 <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '800' }}>{activeItems.length}</h3>
               </div>
@@ -887,7 +2192,7 @@ const Sales = () => {
               </div>
               <div>
                 <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>
-                  {type === 'Purchase' ? 'Total Spent' : 'Total Revenue'}
+                  Total {type} Revenue
                 </p>
                 <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '800' }}>
                   ₹{activeItems.reduce((acc, i) => acc + (Number(i.amount || 0)), 0).toLocaleString()}
@@ -896,22 +2201,26 @@ const Sales = () => {
             </div>
 
             <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-              <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#F5F3FF', color: '#8B5CF6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <TrendingUp size={24} />
+              <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#DCFCE7', color: '#15803D', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <CheckCircle2 size={24} />
               </div>
               <div>
-                <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Customer Invoices</p>
-                <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '800' }}>{salesItems.length}</h3>
+                <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Paid Invoices</p>
+                <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '800' }}>
+                  {activeItems.filter(i => (i.status || 'Paid').toLowerCase() === 'paid').length}
+                </h3>
               </div>
             </div>
 
             <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-              <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#FFFBEB', color: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <ShoppingCart size={24} />
+              <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#FEF3C7', color: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Clock size={24} />
               </div>
               <div>
-                <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Purchases</p>
-                <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '800' }}>{purchaseItems.length}</h3>
+                <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Pending Invoices</p>
+                <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '800' }}>
+                  {activeItems.filter(i => (i.status || '').toLowerCase() === 'pending').length}
+                </h3>
               </div>
             </div>
           </>
@@ -920,32 +2229,31 @@ const Sales = () => {
 
       {/* Control Bar: Search, Date Filter, Export */}
       <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ flex: '0 1 300px', minWidth: '240px', position: 'relative' }}>
+        <div style={{ flex: '0 1 320px', minWidth: '240px', position: 'relative' }}>
           <Search size={18} color="#94A3B8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
           <input
             type="text"
             placeholder={
-              type === 'Purchase' ? 'Search purchases...' :
               type === 'Quotation' ? 'Search bulk quotations...' :
-              type === 'Barcode' ? 'Search barcodes or SKUs...' : 'Search sales invoices...'
+              type === 'Barcode' ? 'Search barcodes or SKUs...' : `Search ${type.toLowerCase()} invoices...`
             }
             value={search}
             onChange={(e) => handleSearchChange(e.target.value)}
-            style={{ width: '100%', padding: '11px 16px 11px 42px', borderRadius: '10px', border: '1px solid #CBD5E1', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }}
+            style={{ width: '100%', padding: '10px 16px 10px 44px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none', background: 'white', boxSizing: 'border-box' }}
           />
         </div>
 
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
           {type !== 'Barcode' && (
-            <select 
-              value={filterDays} 
-              onChange={(e) => setFilterDays(e.target.value)} 
-              style={{ padding: '10px 14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '14px', outline: 'none', cursor: 'pointer' }}
+            <select
+              value={filterDays}
+              onChange={(e) => setFilterDays(e.target.value)}
+              style={{ padding: '10px 14px', border: '1px solid #CBD5E1', borderRadius: '8px', background: 'white', color: '#334155', fontWeight: '500', outline: 'none', fontSize: '13px', cursor: 'pointer' }}
             >
               <option value="all">Filter: All Time</option>
               <option value="7">Last 7 Days</option>
               <option value="30">Last 30 Days</option>
-              <option value="custom">Custom Range</option>
+              <option value="custom">Custom Date Range</option>
             </select>
           )}
 
@@ -1133,20 +2441,23 @@ const Sales = () => {
               </tbody>
             </table>
           ) : (
-            /* VIEW C: STANDARD BILLING / PURCHASES TABLE */
-            <table style={{ width: '100%', minWidth: '800px', borderCollapse: 'collapse', textAlign: 'left' }}>
+            /* VIEW C: PRODUCT / SERVICE INVOICES TABLE */
+            <table style={{ width: '100%', minWidth: '850px', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>
                 <tr style={{ background: '#F8FAFC' }}>
                   <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', width: '60px' }}>S.No</th>
                   <th onClick={() => requestSort('number')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',  padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
                     <div style={{ display: 'flex', alignItems: 'center' }}>
-                      {type === 'Purchase' ? 'PO Number' : 'InvoiceNo'} {renderSortIcon('number')}
+                      Invoice No {renderSortIcon('number')}
                     </div>
                   </th>
                   <th onClick={() => requestSort('party')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',  padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
                     <div style={{ display: 'flex', alignItems: 'center' }}>
-                      {type === 'Purchase' ? 'Supplier Name' : 'CustomerName'} {renderSortIcon('party')}
+                      Customer Name {renderSortIcon('party')}
                     </div>
+                  </th>
+                  <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
+                    {type === 'Service' ? 'Services Billed' : 'Products Billed'}
                   </th>
                   <th onClick={() => requestSort('date')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',  padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
                     <div style={{ display: 'flex', alignItems: 'center' }}>Date {renderSortIcon('date')}</div>
@@ -1154,45 +2465,89 @@ const Sales = () => {
                   <th onClick={() => requestSort('amount')} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',  padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>
                     <div style={{ display: 'flex', alignItems: 'center' }}>Amount (₹) {renderSortIcon('amount')}</div>
                   </th>
+                  <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase' }}>Status</th>
                   <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: '600', color: '#64748B', borderBottom: '1px solid #E2E8F0', textTransform: 'uppercase', textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan="6" style={{ padding: '32px', textAlign: 'center', color: '#64748B' }}>Loading records...</td></tr>
+                  <tr><td colSpan="8" style={{ padding: '32px', textAlign: 'center', color: '#64748B' }}>Loading {type.toLowerCase()} invoices...</td></tr>
                 ) : filteredItems.length === 0 ? (
                   <tr>
-                    <td colSpan="6" style={{ textAlign: 'center', padding: '48px 20px', color: '#94A3B8' }}>
-                      {type === 'Purchase' ? (
-                        <ShoppingCart size={40} style={{ opacity: 0.3, marginBottom: '10px', display: 'inline-block' }} />
+                    <td colSpan="8" style={{ textAlign: 'center', padding: '48px 20px', color: '#94A3B8' }}>
+                      {type === 'Service' ? (
+                        <Wrench size={40} style={{ opacity: 0.3, marginBottom: '10px', display: 'inline-block' }} />
                       ) : (
-                        <TrendingUp size={40} style={{ opacity: 0.3, marginBottom: '10px', display: 'inline-block' }} />
+                        <Package size={40} style={{ opacity: 0.3, marginBottom: '10px', display: 'inline-block' }} />
                       )}
                       <h4 style={{ margin: '0 0 6px 0', color: '#334155', fontSize: '16px', fontWeight: '700' }}>
-                        No {type === 'Purchase' ? 'Purchases' : 'Billing Invoices'} Found
+                        No {type} Invoices Found
                       </h4>
                       <p style={{ margin: 0, fontSize: '13.5px' }}>
-                        {type === 'Purchase' ? 'Record a purchase order to stock your inventory.' : 'Create customer sales bills and invoices to record transactions.'}
+                        Click "+ Add New Invoice" above to select a customer, choose {type.toLowerCase()}s, and record a transaction.
                       </p>
                     </td>
                   </tr>
                 ) : (
-                  paginatedItems.map((item, index) => (
-                    <tr key={item._id} style={{ borderBottom: '1px solid #E2E8F0', transition: 'background 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
-                      <td style={{ padding: '16px 24px', fontSize: '15px', color: '#475569', fontWeight: '500' }}>{startIndex + index + 1}</td>
-                      <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px', fontWeight: '600' }}>{item.invoiceNo || item.poNumber}</td>
-                      <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px' }}>{item.customerName || item.supplierName}</td>
-                      <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px', whiteSpace: 'nowrap' }}>{formatDate(item.date)}</td>
-                      <td style={{ padding: '16px 24px', color: '#0F172A', fontSize: '14px', fontWeight: '600' }}>₹{Number(item.amount).toLocaleString()}</td>
-                      <td style={{ padding: '16px 24px', textAlign: 'right' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
-                          <button onClick={() => setViewItem(item)} title="View" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#EFF6FF', color: '#3B82F6', border: 'none', borderRadius: '6px', cursor: 'pointer' }}><Eye size={16} /></button>
-                          <button onClick={() => handleEdit(item)} title="Edit" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#EFF6FF', color: '#2563EB', border: 'none', borderRadius: '6px', cursor: 'pointer' }}><Pencil size={15} /></button>
-                          <button onClick={() => setDeleteId(item._id)} title="Delete" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#FEE2E2', color: '#EF4444', border: 'none', borderRadius: '6px', cursor: 'pointer' }}><Trash2 size={16} /></button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                  paginatedItems.map((item, index) => {
+                    const itemsSummary = Array.isArray(item.items) && item.items.length > 0
+                      ? item.items.map(it => `${it.name}${it.quantity > 1 ? ` (×${it.quantity})` : ''}`).join(', ')
+                      : (item.itemsSummary || 'Standard Bill');
+
+                    const isPaid = (item.status || 'Paid').toLowerCase() === 'paid';
+
+                    return (
+                      <tr key={item._id} style={{ borderBottom: '1px solid #E2E8F0', transition: 'background 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
+                        <td style={{ padding: '16px 24px', fontSize: '14px', color: '#475569', fontWeight: '500' }}>{startIndex + index + 1}</td>
+                        <td style={{ padding: '16px 24px', color: '#2563EB', fontSize: '14px', fontWeight: '700', fontFamily: 'monospace' }}>
+                          {item.invoiceNo || `INV-${startIndex + index + 1}`}
+                        </td>
+                        <td style={{ padding: '16px 24px', color: '#0F172A', fontSize: '14px', fontWeight: '600' }}>
+                          <div>{item.customerName || 'Walk-in Customer'}</div>
+                          {item.customerPhone && (
+                            <div style={{ fontSize: '12px', color: '#64748B', fontWeight: '400' }}>{item.customerPhone}</div>
+                          )}
+                        </td>
+                        <td style={{ padding: '16px 24px', color: '#334155', fontSize: '13px', maxWidth: '280px' }}>
+                          <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: '500' }} title={itemsSummary}>
+                            {itemsSummary}
+                          </div>
+                          {Array.isArray(item.items) && item.items.length > 1 && (
+                            <span style={{ fontSize: '11px', color: '#2563EB', fontWeight: '600' }}>
+                              +{item.items.length} line items
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ padding: '16px 24px', color: '#475569', fontSize: '14px', whiteSpace: 'nowrap' }}>{formatDate(item.date)}</td>
+                        <td style={{ padding: '16px 24px', color: '#0F172A', fontSize: '15px', fontWeight: '800' }}>
+                          ₹{Number(item.amount).toLocaleString()}
+                        </td>
+                        <td style={{ padding: '16px 24px' }}>
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '3px 10px',
+                            borderRadius: '20px',
+                            fontSize: '12px',
+                            fontWeight: '700',
+                            background: isPaid ? '#DCFCE7' : '#FEF3C7',
+                            color: isPaid ? '#15803D' : '#B45309'
+                          }}>
+                            {isPaid ? <CheckCircle2 size={12} /> : <Clock size={12} />}
+                            {isPaid ? 'Paid' : 'Pending'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '16px 24px', textAlign: 'right' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                            <button onClick={() => setViewItem(item)} title="View Invoice" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#EFF6FF', color: '#3B82F6', border: 'none', borderRadius: '6px', cursor: 'pointer' }}><Eye size={16} /></button>
+                            <button onClick={() => handleEdit(item)} title="Edit Invoice" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#EFF6FF', color: '#2563EB', border: 'none', borderRadius: '6px', cursor: 'pointer' }}><Pencil size={15} /></button>
+                            <button onClick={() => setDeleteId(item._id)} title="Delete Invoice" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', background: '#FEE2E2', color: '#EF4444', border: 'none', borderRadius: '6px', cursor: 'pointer' }}><Trash2 size={16} /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -1206,78 +2561,15 @@ const Sales = () => {
           totalItems={filteredItems.length}
           itemsPerPage={itemsPerPage}
           setItemsPerPage={setItemsPerPage}
-          itemName={type === 'Quotation' ? 'quotations' : type === 'Barcode' ? 'barcodes' : 'records'}
+          itemName={type === 'Quotation' ? 'quotations' : type === 'Barcode' ? 'barcodes' : `${type.toLowerCase()} invoices`}
         />
       </div>
 
-      {/* MODAL 1: ADD/EDIT BILLING OR PURCHASE */}
-      {showModal && createPortal(
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '24px' }}>
-          <div style={{ background: 'white', padding: '32px', borderRadius: '20px', width: '100%', maxWidth: '500px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-              <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#0F172A', margin: 0 }}>
-                {editingItem ? 'Edit' : 'Add New'} {type === 'Purchase' ? 'Purchase Order' : 'Billing Invoice'}
-              </h2>
-              <button onClick={() => { setShowModal(false); setEditingItem(null); }} style={{ background: '#F1F5F9', border: 'none', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer' }}><X size={18} /></button>
-            </div>
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>
-                  {type === 'Purchase' ? 'PO Number' : 'Invoice Number'}
-                </label>
-                <input
-                  placeholder={type === 'Purchase' ? 'e.g. PO-1001' : 'e.g. INV-1001'}
-                  type="text"
-                  value={formData.number}
-                  onChange={e => setFormData({ ...formData, number: e.target.value })}
-                  required
-                  style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }}
-                />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>
-                  {type === 'Purchase' ? 'Supplier Name' : 'Customer Name'}
-                </label>
-                <input
-                  placeholder={type === 'Purchase' ? 'Enter supplier name' : 'Enter customer name'}
-                  type="text"
-                  value={formData.partyName}
-                  onChange={e => setFormData({ ...formData, partyName: e.target.value })}
-                  required
-                  style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }}
-                />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Date</label>
-                <input
-                  type="date"
-                  value={formData.date}
-                  onChange={e => setFormData({ ...formData, date: e.target.value })}
-                  required
-                  style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }}
-                />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '8px' }}>Amount (₹)</label>
-                <input
-                  placeholder="Enter the amount (₹)"
-                  type="number"
-                  value={formData.amount}
-                  onChange={e => setFormData({ ...formData, amount: e.target.value })}
-                  required
-                  style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '15px', color: '#0F172A', boxSizing: 'border-box' }}
-                />
-              </div>
-              <div style={{ display: 'flex', gap: '16px', marginTop: '12px' }}>
-                <button type="button" onClick={() => { setShowModal(false); setEditingItem(null); }} style={{ flex: 1, padding: '14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '10px', color: '#475569', fontWeight: '600', cursor: 'pointer' }}>Cancel</button>
-                <button type="submit" style={{ flex: 1, padding: '14px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', cursor: 'pointer' }}>{editingItem ? 'Update' : 'Save'}</button>
-              </div>
-            </form>
-          </div>
-        </div>, document.body
-      )}
 
-      {/* MODAL 2: ADD/EDIT BULK QUOTATION */}
+
+      {/* ======================================================== */}
+      {/* MODAL 2: ADD/EDIT BULK QUOTATION                          */}
+      {/* ======================================================== */}
       {showQuotationModal && createPortal(
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.45)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '24px' }}>
           <div style={{ background: 'white', padding: '32px', borderRadius: '20px', width: '100%', maxWidth: '580px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
@@ -1320,9 +2612,9 @@ const Sales = () => {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>Contact Phone</label>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>Phone Number</label>
                   <input
-                    type="text"
+                    type="tel"
                     placeholder="e.g. 9876543210"
                     value={quoteFormData.phone}
                     onChange={e => setQuoteFormData({ ...quoteFormData, phone: e.target.value })}
@@ -1439,7 +2731,9 @@ const Sales = () => {
         </div>, document.body
       )}
 
-      {/* MODAL 3: VIEW / PRINT FORMAL QUOTATION */}
+      {/* ======================================================== */}
+      {/* MODAL 3: VIEW / PRINT FORMAL QUOTATION                    */}
+      {/* ======================================================== */}
       {viewingQuotation && createPortal(
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.45)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '24px' }}>
           <div style={{ background: 'white', padding: '36px', borderRadius: '20px', width: '100%', maxWidth: '640px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', maxHeight: '90vh', overflowY: 'auto' }}>
@@ -1459,97 +2753,111 @@ const Sales = () => {
                 <div style={{ fontSize: '13px', color: '#64748B', marginTop: '4px' }}>{viewingQuotation.phone || 'Phone: N/A'}</div>
                 <div style={{ fontSize: '13px', color: '#64748B' }}>{viewingQuotation.email || 'Email: N/A'}</div>
               </div>
-              <div style={{ background: '#F8FAFC', padding: '16px', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
-                <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', marginBottom: '4px' }}>Quotation Status</div>
-                <span style={{ fontSize: '13px', fontWeight: '700', color: viewingQuotation.status === 'Approved' ? '#16A34A' : '#D97706' }}>
-                  {viewingQuotation.status}
+              <div style={{ background: '#F8FAFC', padding: '16px', borderRadius: '12px', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', marginBottom: '4px' }}>Estimate Status</div>
+                <span style={{ fontSize: '14px', fontWeight: '700', color: viewingQuotation.status === 'Approved' ? '#16A34A' : viewingQuotation.status === 'Converted to Invoice' ? '#2563EB' : '#D97706' }}>
+                  ● {viewingQuotation.status}
                 </span>
-                <div style={{ fontSize: '12px', color: '#64748B', marginTop: '6px' }}>
-                  {viewingQuotation.notes || 'Standard volume order terms apply.'}
-                </div>
+                <div style={{ fontSize: '12px', color: '#64748B', marginTop: '6px' }}>Formal validity guaranteed until: {formatDate(viewingQuotation.validUntil)}</div>
               </div>
             </div>
 
-            <div style={{ border: '1px solid #E2E8F0', borderRadius: '12px', overflow: 'hidden', marginBottom: '24px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+            <div style={{ border: '1px solid #E2E8F0', borderRadius: '12px', overflow: 'hidden', marginBottom: '20px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                 <thead style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0' }}>
                   <tr>
-                    <th style={{ padding: '10px 14px', color: '#64748B' }}>Description</th>
-                    <th style={{ padding: '10px 14px', color: '#64748B', textAlign: 'center' }}>Quantity</th>
-                    <th style={{ padding: '10px 14px', color: '#64748B', textAlign: 'right' }}>Unit Rate</th>
-                    <th style={{ padding: '10px 14px', color: '#64748B', textAlign: 'right' }}>Total (₹)</th>
+                    <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B' }}>Specification / Item</th>
+                    <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', textAlign: 'right' }}>Qty</th>
+                    <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', textAlign: 'right' }}>Rate (₹)</th>
+                    <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748B', textAlign: 'right' }}>Total (₹)</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
-                    <td style={{ padding: '14px', fontWeight: '600', color: '#0F172A' }}>{viewingQuotation.items}</td>
-                    <td style={{ padding: '14px', textAlign: 'center', color: '#475569' }}>{viewingQuotation.quantity}</td>
-                    <td style={{ padding: '14px', textAlign: 'right', color: '#475569' }}>₹{Number(viewingQuotation.unitPrice).toLocaleString()}</td>
-                    <td style={{ padding: '14px', textAlign: 'right', fontWeight: '700', color: '#0F172A' }}>₹{Number(viewingQuotation.amount).toLocaleString()}</td>
+                    <td style={{ padding: '14px 16px', fontSize: '14px', color: '#0F172A', fontWeight: '500' }}>{viewingQuotation.items}</td>
+                    <td style={{ padding: '14px 16px', fontSize: '14px', color: '#475569', textAlign: 'right' }}>{viewingQuotation.quantity}</td>
+                    <td style={{ padding: '14px 16px', fontSize: '14px', color: '#475569', textAlign: 'right' }}>₹{Number(viewingQuotation.unitPrice).toLocaleString()}</td>
+                    <td style={{ padding: '14px 16px', fontSize: '14px', color: '#0F172A', fontWeight: '700', textAlign: 'right' }}>₹{(Number(viewingQuotation.quantity) * Number(viewingQuotation.unitPrice)).toLocaleString()}</td>
                   </tr>
                 </tbody>
               </table>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '24px' }}>
+              <div style={{ width: '280px', background: '#F8FAFC', padding: '16px', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13px', color: '#64748B' }}>
+                  <span>Gross Total:</span>
+                  <span>₹{(Number(viewingQuotation.quantity) * Number(viewingQuotation.unitPrice)).toLocaleString()}</span>
+                </div>
+                {viewingQuotation.discount > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13px', color: '#16A34A', fontWeight: '600' }}>
+                    <span>Volume Discount ({viewingQuotation.discount}%):</span>
+                    <span>-₹{Math.round((Number(viewingQuotation.quantity) * Number(viewingQuotation.unitPrice)) * (Number(viewingQuotation.discount) / 100)).toLocaleString()}</span>
+                  </div>
+                )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '2px solid #E2E8F0', paddingTop: '8px', fontSize: '16px', fontWeight: '800', color: '#0F172A' }}>
+                  <span>Final Quoted:</span>
+                  <span>₹{Number(viewingQuotation.amount).toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+
+            {viewingQuotation.notes && (
+              <div style={{ padding: '12px 16px', background: '#FFFBEB', borderRadius: '8px', border: '1px solid #FDE68A', fontSize: '13px', color: '#92400E', marginBottom: '24px' }}>
+                <strong>Commercial Terms:</strong> {viewingQuotation.notes}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '14px' }}>
+              <button type="button" onClick={() => setViewingQuotation(null)} style={{ flex: 1, padding: '12px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '10px', color: '#475569', fontWeight: '600', cursor: 'pointer' }}>Close</button>
               <button 
                 type="button" 
-                onClick={() => window.print()}
-                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', background: '#F1F5F9', border: '1px solid #CBD5E1', borderRadius: '10px', color: '#334155', fontWeight: '700', cursor: 'pointer' }}
+                onClick={() => window.print()} 
+                style={{ flex: 1.5, padding: '12px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
               >
-                <Printer size={16} /> Print Quotation
+                <Printer size={16} /> Print Formal PDF
               </button>
-              {viewingQuotation.status !== 'Converted to Invoice' && (
-                <button 
-                  type="button" 
-                  onClick={() => {
-                    setViewingQuotation(null);
-                    setConvertQuotation(viewingQuotation);
-                  }}
-                  style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 24px', background: '#16A34A', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '700', cursor: 'pointer', boxShadow: '0 4px 10px rgba(22,163,74,0.25)' }}
-                >
-                  <Check size={16} /> Convert to Live Invoice
-                </button>
-              )}
             </div>
           </div>
         </div>, document.body
       )}
 
-      {/* MODAL 4: CONVERT QUOTATION TO INVOICE CONFIRMATION */}
+      {/* ======================================================== */}
+      {/* MODAL 4: CONVERT QUOTATION TO LIVE INVOICE                */}
+      {/* ======================================================== */}
       {convertQuotation && createPortal(
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.45)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '24px' }}>
           <div style={{ background: 'white', padding: '32px', borderRadius: '20px', width: '100%', maxWidth: '440px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
-            <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: '#DCFCE7', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 18px auto' }}>
-              <CheckCircle2 size={32} />
+            <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: '#DCFCE7', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto' }}>
+              <Check size={28} />
             </div>
             <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#0F172A', margin: '0 0 8px 0' }}>
-              Convert Quotation to Invoice
+              Convert to Billing Invoice?
             </h2>
-            <p style={{ color: '#64748B', fontSize: '14px', lineHeight: '1.5', margin: '0 0 20px 0' }}>
-              Convert <strong>{convertQuotation.quoteNo}</strong> for <strong>{convertQuotation.customerName}</strong> into an official billing invoice of <strong>₹{Number(convertQuotation.amount).toLocaleString()}</strong>?
+            <p style={{ color: '#64748B', fontSize: '14px', margin: '0 0 20px 0' }}>
+              Quotation <strong>{convertQuotation.quoteNo}</strong> for <strong>{convertQuotation.customerName}</strong> worth <strong>₹{Number(convertQuotation.amount).toLocaleString()}</strong> will be booked as an official invoice.
             </p>
             <div style={{ display: 'flex', gap: '12px' }}>
               <button type="button" onClick={() => setConvertQuotation(null)} style={{ flex: 1, padding: '12px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '10px', color: '#475569', fontWeight: '600', cursor: 'pointer' }}>Cancel</button>
-              <button type="button" onClick={handleConfirmConvert} style={{ flex: 1.4, padding: '12px', background: '#16A34A', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '700', cursor: 'pointer', boxShadow: '0 4px 10px rgba(22,163,74,0.25)' }}>
-                Confirm & Bill
-              </button>
+              <button type="button" onClick={() => handleConvertQuotation(convertQuotation)} style={{ flex: 1.5, padding: '12px', background: '#16A34A', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '700', cursor: 'pointer' }}>Confirm & Bill</button>
             </div>
           </div>
         </div>, document.body
       )}
 
-      {/* MODAL 5: ADD / GENERATE BARCODE */}
+      {/* ======================================================== */}
+      {/* MODAL 5: GENERATE / REGISTER BARCODE STICKER              */}
+      {/* ======================================================== */}
       {showBarcodeModal && createPortal(
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.45)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '24px' }}>
           <div style={{ background: 'white', padding: '32px', borderRadius: '20px', width: '100%', maxWidth: '520px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <div>
                 <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#0F172A', margin: '0 0 4px 0' }}>
-                  Generate Barcode & Tag Asset
+                  Generate Item Barcode
                 </h2>
                 <p style={{ margin: 0, fontSize: '13px', color: '#64748B' }}>
-                  Create standard barcode labels for physical products or service bundles.
+                  Assign physical scannable barcode tags to items and inventory.
                 </p>
               </div>
               <button onClick={() => setShowBarcodeModal(false)} style={{ background: '#F1F5F9', border: 'none', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer' }}><X size={18} /></button>
@@ -1557,36 +2865,11 @@ const Sales = () => {
 
             <form onSubmit={handleSaveBarcode} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>Item Scope</label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
-                  {['Product', 'Service', 'Both'].map((opt) => (
-                    <button
-                      key={opt}
-                      type="button"
-                      onClick={() => setBarcodeFormData({ ...barcodeFormData, offeringType: opt })}
-                      style={{
-                        padding: '10px 8px',
-                        borderRadius: '8px',
-                        border: barcodeFormData.offeringType === opt ? '2px solid #7C3AED' : '1px solid #CBD5E1',
-                        background: barcodeFormData.offeringType === opt ? '#EDE9FE' : '#FFFFFF',
-                        color: barcodeFormData.offeringType === opt ? '#6D28D9' : '#475569',
-                        fontWeight: '700',
-                        fontSize: '12px',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      {opt === 'Product' ? '📦 Product' : opt === 'Service' ? '🛠️ Service' : '🔄 Both Hybrid'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>Item / Package Name *</label>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>Item / Offering Name *</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Industrial Sealant Cartridge 500ml"
+                  placeholder="e.g. Basmati Rice 5kg or AC Compressor"
                   value={barcodeFormData.name}
                   onChange={e => setBarcodeFormData({ ...barcodeFormData, name: e.target.value })}
                   style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', boxSizing: 'border-box' }}
@@ -1595,7 +2878,7 @@ const Sales = () => {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>SKU Code *</label>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>Stock Keeping Unit (SKU) *</label>
                   <input
                     type="text"
                     required
@@ -1645,7 +2928,7 @@ const Sales = () => {
 
               <div style={{ display: 'flex', gap: '14px', marginTop: '8px' }}>
                 <button type="button" onClick={() => setShowBarcodeModal(false)} style={{ flex: 1, padding: '12px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '10px', color: '#475569', fontWeight: '600', cursor: 'pointer' }}>Cancel</button>
-                <button type="submit" style={{ flex: 1, padding: '12px', background: '#7C3AED', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '700', cursor: 'pointer' }}>
+                <button type="submit" style={{ flex: 1, padding: '12px', background: '#0D9488', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '700', cursor: 'pointer' }}>
                   Save & Tag
                 </button>
               </div>
@@ -1654,7 +2937,9 @@ const Sales = () => {
         </div>, document.body
       )}
 
-      {/* MODAL 6: PRINTABLE THERMAL BARCODE LABELS SHEET */}
+      {/* ======================================================== */}
+      {/* MODAL 6: PRINTABLE THERMAL BARCODE LABELS SHEET           */}
+      {/* ======================================================== */}
       {printingBarcode && createPortal(
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.45)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '24px' }}>
           <div style={{ background: 'white', padding: '32px', borderRadius: '20px', width: '100%', maxWidth: '480px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
@@ -1665,7 +2950,6 @@ const Sales = () => {
               <button onClick={() => setPrintingBarcode(null)} style={{ background: '#F1F5F9', border: 'none', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer' }}><X size={18} /></button>
             </div>
 
-            {/* Sticker Graphic Preview (Thermal 50mm x 25mm style) */}
             <div style={{
               background: '#FFFFFF',
               border: '2px dashed #94A3B8',
@@ -1692,7 +2976,7 @@ const Sales = () => {
               <button 
                 type="button" 
                 onClick={() => window.print()} 
-                style={{ flex: 1.5, padding: '12px', background: '#7C3AED', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                style={{ flex: 1.5, padding: '12px', background: '#0D9488', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
               >
                 <Printer size={16} /> Print Thermal Stickers
               </button>
@@ -1701,47 +2985,11 @@ const Sales = () => {
         </div>, document.body
       )}
 
-      {/* MODAL 7: VIEW BILLING / PURCHASE RECORD */}
-      {viewItem && createPortal(
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '24px' }}>
-          <div style={{ background: 'white', padding: '32px', borderRadius: '20px', width: '100%', maxWidth: '500px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-              <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#0F172A', margin: 0 }}>
-                {type === 'Purchase' ? 'Purchase Order Details' : 'Billing Invoice Details'}
-              </h2>
-              <button onClick={() => setViewItem(null)} style={{ background: '#F1F5F9', border: 'none', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer' }}><X size={18} /></button>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
-                <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>
-                  {type === 'Purchase' ? 'PO Number' : 'Invoice Number'}
-                </p>
-                <p style={{ margin: 0, fontSize: '16px', color: '#0F172A', fontWeight: '600' }}>{viewItem.invoiceNo || viewItem.poNumber}</p>
-              </div>
-              <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
-                <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>
-                  {type === 'Purchase' ? 'Supplier Name' : 'Customer Name'}
-                </p>
-                <p style={{ margin: 0, fontSize: '16px', color: '#0F172A' }}>{viewItem.customerName || viewItem.supplierName}</p>
-              </div>
-              <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
-                <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Date</p>
-                <p style={{ margin: 0, fontSize: '16px', color: '#0F172A' }}>{formatDate(viewItem.date)}</p>
-              </div>
-              <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
-                <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Amount</p>
-                <p style={{ margin: 0, fontSize: '16px', color: '#0F172A', fontWeight: '700' }}>₹{Number(viewItem.amount).toLocaleString()}</p>
-              </div>
-              <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
-                <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Status</p>
-                <p style={{ margin: 0, fontSize: '16px', color: '#0F172A' }}>{viewItem.status || (type === 'Purchase' ? 'Pending' : 'Paid')}</p>
-              </div>
-            </div>
-          </div>
-        </div>, document.body
-      )}
 
-      {/* MODAL 8: DELETE CONFIRMATION */}
+
+      {/* ======================================================== */}
+      {/* MODAL 8: DELETE CONFIRMATION                              */}
+      {/* ======================================================== */}
       {deleteId && createPortal(
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '24px' }}>
           <div style={{ background: 'white', padding: '32px', borderRadius: '20px', width: '100%', maxWidth: '400px', textAlign: 'center' }}>
@@ -1749,7 +2997,7 @@ const Sales = () => {
               <AlertTriangle size={32} color="#EF4444" />
             </div>
             <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#0F172A', margin: '0 0 12px 0' }}>Delete Record</h2>
-            <p style={{ color: '#64748B', margin: '0 0 24px 0' }}>Are you sure you want to delete this record? This action cannot be undone.</p>
+            <p style={{ color: '#64748B', margin: '0 0 24px 0' }}>Are you sure you want to delete this invoice? This action cannot be undone.</p>
             <div style={{ display: 'flex', gap: '16px' }}>
               <button type="button" onClick={() => setDeleteId(null)} style={{ flex: 1, padding: '14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '10px', color: '#475569', fontWeight: '600', cursor: 'pointer' }}>Cancel</button>
               <button type="button" onClick={confirmDelete} style={{ flex: 1, padding: '14px', background: '#EF4444', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', cursor: 'pointer' }}>Delete</button>

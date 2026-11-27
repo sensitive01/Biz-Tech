@@ -574,40 +574,20 @@ const Inventory = () => {
                             {isOut ? (
                               <>
                                 <AlertCircle size={13} />
-                                <span>0 • Out of Stock</span>
+                                <span>0 pcs • Out of Stock</span>
                               </>
                             ) : isLow ? (
                               <>
                                 <AlertTriangle size={13} />
-                                <span>{qty} {item.unit || item.productId?.unit || 'units'} • Low Stock</span>
+                                <span>{qty} {item.unit || item.productId?.unit || 'pcs'} • Low Stock</span>
                               </>
                             ) : (
                               <>
                                 <CheckCircle2 size={13} />
-                                <span>{qty} {item.unit || item.productId?.unit || 'units'}</span>
+                                <span>{qty} {item.unit || item.productId?.unit || 'pcs'}</span>
                               </>
                             )}
                           </span>
-
-                          {/* Packaging / Bulk Conversion details if defined */}
-                          {(() => {
-                            const factor = Number(item.conversionFactor || item.productId?.conversionFactor) || 1;
-                            const secUnit = item.secondaryUnit || item.productId?.secondaryUnit;
-                            if (!secUnit || factor <= 1) return null;
-                            const wholeBoxes = Math.floor(qty / factor);
-                            const rem = qty % factor;
-                            const breakdown = rem > 0 ? `${wholeBoxes} ${secUnit} + ${rem} ${item.unit || 'pcs'}` : `${wholeBoxes} ${secUnit}`;
-                            return (
-                              <div style={{ fontSize: '11.5px', color: '#475569', marginTop: '4px', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
-                                <span style={{ background: '#F1F5F9', padding: '2px 6px', borderRadius: '4px', fontWeight: '700', color: '#1E293B' }}>
-                                  = {breakdown}
-                                </span>
-                                <span style={{ color: '#94A3B8', fontSize: '11px' }}>
-                                  (1 {secUnit} = {factor} {item.unit || item.productId?.unit || 'pcs'})
-                                </span>
-                              </div>
-                            );
-                          })()}
                         </div>
                       </td>
 
