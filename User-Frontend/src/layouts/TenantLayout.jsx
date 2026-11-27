@@ -1218,10 +1218,11 @@ const TenantLayout = () => {
                       <div style={{ height: '1px', background: 'var(--border-color)', margin: '4px 0' }}></div>
 
                       <button
+                        className="header-logout-btn"
                         onClick={handleLogout}
                         style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', background: 'transparent', border: 'none', color: '#EF4444', fontSize: '14px', fontWeight: '500', cursor: 'pointer', borderRadius: '6px', textAlign: 'left' }}
-                        onMouseOver={(e) => e.currentTarget.style.background = '#FEF2F2'}
-                        onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                        onMouseOver={(e) => { e.currentTarget.style.background = '#FEF2F2'; e.currentTarget.style.color = '#DC2626'; }}
+                        onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#EF4444'; }}
                       >
                         <LogOut size={16} /> Logout
                       </button>

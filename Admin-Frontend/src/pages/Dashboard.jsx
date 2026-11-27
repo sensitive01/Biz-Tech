@@ -481,10 +481,10 @@ const Dashboard = () => {
                   </tr>
                 ) : recentCustomers.length === 0 ? (
                   <tr>
-                    <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: '#64748B' }}>
-                      <Building2 size={28} style={{ margin: '0 auto 10px auto', color: '#CBD5E1' }} />
-                      <div style={{ fontWeight: '600', color: '#0F172A', fontSize: '15px' }}>No customers onboarded yet</div>
-                      <div style={{ fontSize: '13px', marginTop: '4px' }}>Get started by onboarding your first client business.</div>
+                    <td colSpan={5} style={{ textAlign: 'center', padding: '48px 20px', color: '#94A3B8' }}>
+                      <Building2 size={40} style={{ opacity: 0.3, marginBottom: '10px', display: 'inline-block' }} />
+                      <h4 style={{ margin: '0 0 6px 0', color: '#334155', fontSize: '16px', fontWeight: '700' }}>No Customers Found</h4>
+                      <p style={{ margin: '0 0 12px 0', fontSize: '13.5px' }}>Get started by onboarding your first client business.</p>
                       <button 
                         className="btn-primary" 
                         onClick={() => navigate('/admin/customers/new')}

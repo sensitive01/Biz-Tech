@@ -642,16 +642,10 @@ const Employees = () => {
                 </tr>
               ) : filteredEmployees.length === 0 ? (
                 <tr>
-                  <td colSpan={(tenantType >= 2) ? "8" : "6"} style={{ padding: '64px 32px', textAlign: 'center' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                      <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
-                        <Users size={32} color="#3B82F6" />
-                      </div>
-                      <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#0F172A', marginBottom: '8px' }}>No employees found</h3>
-                      <p style={{ color: '#64748B', maxWidth: '400px', margin: '0 auto', lineHeight: '1.5' }}>
-                        No employees match your filters.
-                      </p>
-                    </div>
+                  <td colSpan={(tenantType >= 2) ? "8" : "6"} style={{ textAlign: 'center', padding: '48px 20px', color: '#94A3B8' }}>
+                    <Users size={40} style={{ opacity: 0.3, marginBottom: '10px', display: 'inline-block' }} />
+                    <h4 style={{ margin: '0 0 6px 0', color: '#334155', fontSize: '16px', fontWeight: '700' }}>No Employees Found</h4>
+                    <p style={{ margin: 0, fontSize: '13.5px' }}>Add staff members to manage roles, shifts, salaries, and roster schedules.</p>
                   </td>
                 </tr>
               ) : (

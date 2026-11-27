@@ -497,24 +497,10 @@ const Inventory = () => {
                 <tr><td colSpan="6" style={{ padding: '32px', textAlign: 'center', color: '#64748B' }}>Loading inventory...</td></tr>
               ) : filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan="6" style={{ padding: '64px 32px', textAlign: 'center' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                      <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
-                        <Archive size={32} color="#3B82F6" />
-                      </div>
-                      <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#0F172A', marginBottom: '8px' }}>No stock items found</h3>
-                      <p style={{ color: '#64748B', fontSize: '14px', margin: '0 0 16px 0', maxWidth: '450px', lineHeight: '1.5' }}>
-                        Products added in your Products Catalogue automatically appear here. You can add stock to existing catalogue products or replenish inventory.
-                      </p>
-                      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
-                        <button 
-                          onClick={handleOpenAdd}
-                          style={{ padding: '8px 16px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '6px', fontWeight: '600', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                        >
-                          <Plus size={16} /> Add Stock to Product
-                        </button>
-                      </div>
-                    </div>
+                  <td colSpan="6" style={{ textAlign: 'center', padding: '48px 20px', color: '#94A3B8' }}>
+                    <Archive size={40} style={{ opacity: 0.3, marginBottom: '10px', display: 'inline-block' }} />
+                    <h4 style={{ margin: '0 0 6px 0', color: '#334155', fontSize: '16px', fontWeight: '700' }}>No Stock Items Found</h4>
+                    <p style={{ margin: 0, fontSize: '13.5px' }}>Products in your catalogue appear here to track current quantities and stock replenishment.</p>
                   </td>
                 </tr>
               ) : (

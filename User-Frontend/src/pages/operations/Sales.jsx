@@ -1162,15 +1162,18 @@ const Sales = () => {
                   <tr><td colSpan="6" style={{ padding: '32px', textAlign: 'center', color: '#64748B' }}>Loading records...</td></tr>
                 ) : filteredItems.length === 0 ? (
                   <tr>
-                    <td colSpan="6" style={{ padding: '64px 32px', textAlign: 'center' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                        <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
-                          {type === 'Purchase' ? <ShoppingCart size={32} color="#3B82F6" /> : <TrendingUp size={32} color="#3B82F6" />}
-                        </div>
-                        <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#0F172A', marginBottom: '8px' }}>
-                          No {type === 'Purchase' ? 'purchase records' : 'billing invoices'} found
-                        </h3>
-                      </div>
+                    <td colSpan="6" style={{ textAlign: 'center', padding: '48px 20px', color: '#94A3B8' }}>
+                      {type === 'Purchase' ? (
+                        <ShoppingCart size={40} style={{ opacity: 0.3, marginBottom: '10px', display: 'inline-block' }} />
+                      ) : (
+                        <TrendingUp size={40} style={{ opacity: 0.3, marginBottom: '10px', display: 'inline-block' }} />
+                      )}
+                      <h4 style={{ margin: '0 0 6px 0', color: '#334155', fontSize: '16px', fontWeight: '700' }}>
+                        No {type === 'Purchase' ? 'Purchases' : 'Billing Invoices'} Found
+                      </h4>
+                      <p style={{ margin: 0, fontSize: '13.5px' }}>
+                        {type === 'Purchase' ? 'Record a purchase order to stock your inventory.' : 'Create customer sales bills and invoices to record transactions.'}
+                      </p>
                     </td>
                   </tr>
                 ) : (

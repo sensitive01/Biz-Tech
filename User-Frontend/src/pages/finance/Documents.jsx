@@ -289,11 +289,10 @@ const Documents = () => {
                 <tr><td colSpan="7" style={{ padding: '32px', textAlign: 'center', color: '#64748B' }}>Loading...</td></tr>
               ) : filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan="7" style={{ padding: '64px 32px', textAlign: 'center' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                      <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}><FileText size={32} color="#3B82F6" /></div>
-                      <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#0F172A', marginBottom: '8px' }}>No records found</h3>
-                    </div>
+                  <td colSpan="7" style={{ textAlign: 'center', padding: '48px 20px', color: '#94A3B8' }}>
+                    <FileText size={40} style={{ opacity: 0.3, marginBottom: '10px', display: 'inline-block' }} />
+                    <h4 style={{ margin: '0 0 6px 0', color: '#334155', fontSize: '16px', fontWeight: '700' }}>No Documents Found</h4>
+                    <p style={{ margin: 0, fontSize: '13.5px' }}>Upload and store business registrations, tax licenses, and statutory certificates.</p>
                   </td>
                 </tr>
               ) : (

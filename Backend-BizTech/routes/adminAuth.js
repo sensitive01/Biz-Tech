@@ -453,6 +453,201 @@ router.put('/directory/career/:id', async (req, res) => {
   }
 });
 
+// @route   POST /api/admin/directory/business
+// @desc    Admin directly creates a new business directory listing
+router.post('/directory/business', async (req, res) => {
+  try {
+    const {
+      businessName,
+      ownerName,
+      contactPhone,
+      whatsappNumber,
+      email,
+      address,
+      city,
+      state,
+      pincode,
+      category,
+      tags,
+      websiteOrSocial,
+      description,
+      panNumber,
+      panProofUrl,
+      panProofName,
+      isVerified
+    } = req.body;
+
+    if (!businessName || !businessName.trim()) {
+      return res.status(400).json({ message: 'Business or Shop name is required.' });
+    }
+
+    const cleanPhone = (contactPhone || '').trim().replace(/[^0-9]/g, '');
+    if (!cleanPhone || cleanPhone.length !== 10) {
+      return res.status(400).json({ message: 'Valid 10-digit contact phone number is required.' });
+    }
+
+    // Clean PAN if provided
+    let cleanPan = '';
+    if (panNumber && panNumber.trim()) {
+      cleanPan = panNumber.trim().toUpperCase();
+      const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+      if (!panRegex.test(cleanPan)) {
+        return res.status(400).json({ message: 'Invalid PAN card format (Must be 5 capital letters, 4 digits, 1 capital letter, e.g. ABCDE1234F).' });
+      }
+
+      const existingPan = await User.findOne({
+        accountType: 'free_business',
+        'businessProfile.panNumber': cleanPan
+      });
+      if (existingPan) {
+        return res.status(400).json({ message: `PAN Card Number (${cleanPan}) is already registered by another business.` });
+      }
+    }
+
+    // Generate clean email or fallback
+    const cleanEmail = email && email.trim() 
+      ? email.trim().toLowerCase() 
+      : `biz_${cleanPhone}_${Date.now().toString(36)}@directory.biztech.local`;
+
+    const existingUser = await User.findOne({ email: cleanEmail });
+    if (existingUser) {
+      return res.status(400).json({ message: 'A user with this email address already exists.' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(`BizTech@${cleanPhone.slice(-4)}`, salt);
+    const candidateUserId = await generateUserId();
+
+    const newUser = new User({
+      userId: candidateUserId,
+      fullName: ownerName?.trim() || businessName.trim(),
+      email: cleanEmail,
+      phone: cleanPhone,
+      password: hashedPassword,
+      businessName: businessName.trim(),
+      address: address?.trim() || '',
+      streetAddress: address?.trim() || '',
+      city: city?.trim() || '',
+      state: state?.trim() || '',
+      pincode: pincode?.trim() || '',
+      tags: Array.isArray(tags) ? tags : [],
+      accountType: 'free_business',
+      businessType: 1,
+      isOnboardingCompleted: true,
+      businessProfile: {
+        businessName: businessName.trim(),
+        ownerName: ownerName?.trim() || '',
+        category: category?.trim() || 'Retail',
+        tags: Array.isArray(tags) ? tags : [],
+        contactPhone: cleanPhone,
+        whatsappNumber: whatsappNumber?.trim() || cleanPhone,
+        email: cleanEmail,
+        address: address?.trim() || '',
+        city: city?.trim() || '',
+        state: state?.trim() || '',
+        pincode: pincode?.trim() || '',
+        websiteOrSocial: websiteOrSocial?.trim() || '',
+        description: description?.trim() || '',
+        panNumber: cleanPan,
+        panProofUrl: panProofUrl || '',
+        panProofName: panProofName || '',
+        isVerified: Boolean(isVerified)
+      }
+    });
+
+    await newUser.save();
+    res.status(201).json({ message: 'Business listing created successfully', business: newUser });
+  } catch (err) {
+    console.error('Error creating business listing by admin:', err);
+    res.status(500).json({ message: 'Failed to create business listing' });
+  }
+});
+
+// @route   POST /api/admin/directory/career
+// @desc    Admin directly creates a new candidate career profile
+router.post('/directory/career', async (req, res) => {
+  try {
+    const {
+      fullName,
+      jobCategory,
+      experience,
+      contactPhone,
+      whatsappNumber,
+      email,
+      city,
+      currentArea,
+      pincode,
+      qualification,
+      employmentType,
+      availability,
+      expectedSalary,
+      drivingLicense,
+      skills,
+      bio,
+      isAvailableForHire
+    } = req.body;
+
+    if (!fullName || !fullName.trim()) {
+      return res.status(400).json({ message: 'Candidate full name is required.' });
+    }
+
+    const cleanPhone = (contactPhone || '').trim().replace(/[^0-9]/g, '');
+    if (!cleanPhone || cleanPhone.length !== 10) {
+      return res.status(400).json({ message: 'Valid 10-digit contact phone number is required.' });
+    }
+
+    const cleanEmail = email && email.trim()
+      ? email.trim().toLowerCase()
+      : `career_${cleanPhone}_${Date.now().toString(36)}@directory.biztech.local`;
+
+    const existingUser = await User.findOne({ email: cleanEmail });
+    if (existingUser) {
+      return res.status(400).json({ message: 'A candidate with this email address already exists.' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(`Career@${cleanPhone.slice(-4)}`, salt);
+    const candidateUserId = await generateUserId();
+
+    const newUser = new User({
+      userId: candidateUserId,
+      fullName: fullName.trim(),
+      email: cleanEmail,
+      phone: cleanPhone,
+      password: hashedPassword,
+      city: city?.trim() || '',
+      tags: Array.isArray(skills) ? skills : [],
+      accountType: 'free_career',
+      isOnboardingCompleted: true,
+      careerProfile: {
+        fullName: fullName.trim(),
+        jobCategory: jobCategory?.trim() || 'General Work',
+        skills: Array.isArray(skills) ? skills : [],
+        experience: experience?.trim() || 'Fresher',
+        expectedSalary: expectedSalary?.trim() || 'Negotiable',
+        city: city?.trim() || '',
+        currentArea: currentArea?.trim() || '',
+        pincode: pincode?.trim() || '',
+        contactPhone: cleanPhone,
+        whatsappNumber: whatsappNumber?.trim() || cleanPhone,
+        email: cleanEmail,
+        availability: availability?.trim() || 'Immediate',
+        employmentType: employmentType?.trim() || 'Full-time',
+        drivingLicense: drivingLicense?.trim() || 'None',
+        qualification: qualification?.trim() || '',
+        bio: bio?.trim() || '',
+        isAvailableForHire: isAvailableForHire !== false
+      }
+    });
+
+    await newUser.save();
+    res.status(201).json({ message: 'Candidate career profile created successfully', candidate: newUser });
+  } catch (err) {
+    console.error('Error creating career candidate by admin:', err);
+    res.status(500).json({ message: 'Failed to create candidate profile' });
+  }
+});
+
 // @route   POST /api/admin/create-customer
 // @desc    Admin creates and fully onboards a customer across all 7 steps (no payment gateway needed)
 router.post('/create-customer', async (req, res) => {

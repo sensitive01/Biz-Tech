@@ -1,13 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Building2,
   MapPin,
   Clock,
   Phone,
-  MessageSquare,
-  Mail,
-  User,
   Tag,
   ShieldCheck,
   Sparkles,
@@ -16,16 +12,12 @@ import {
   ExternalLink,
   CheckCircle2,
   X,
-  Share2,
-  Navigation,
   Globe,
   Star,
   FileText,
   Upload,
   Loader2
 } from 'lucide-react';
-import ThemeToggle from '@/components/ThemeToggle';
-import LanguageSelector from '@/components/LanguageSelector';
 
 const POPULAR_BUSINESS_TAGS = [
   'Retail', 'Wholesale', 'Kirana & Grocery', 'Supermarket',
@@ -258,8 +250,6 @@ const BusinessProfileView = () => {
             <Edit3 size={14} /> Edit Profile
           </button>
           
-          
-
           <button
             onClick={handleLogout}
             style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '8px', fontSize: '12.5px', fontWeight: '600', color: '#DC2626', cursor: 'pointer' }}

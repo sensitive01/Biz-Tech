@@ -4398,7 +4398,13 @@ const CustomerDetails = () => {
                     </thead>
                     <tbody>
                       {filteredAttendance.length === 0 ? (
-                        <tr><td colSpan="7" style={{ padding: '36px 20px', textAlign: 'center', color: '#64748B' }}>No attendance records found.</td></tr>
+                        <tr>
+                          <td colSpan="7" style={{ textAlign: 'center', padding: '48px 20px', color: '#94A3B8' }}>
+                            <Clock size={40} style={{ opacity: 0.3, marginBottom: '10px', display: 'inline-block' }} />
+                            <h4 style={{ margin: '0 0 6px 0', color: '#334155', fontSize: '16px', fontWeight: '700' }}>No Attendance Records Found</h4>
+                            <p style={{ margin: 0, fontSize: '13.5px' }}>Staff clock-in and daily attendance check-ins will appear here.</p>
+                          </td>
+                        </tr>
                       ) : (
                         paginatedAttendance.map((item, idx) => (
                           <tr key={item._id || idx} style={{ borderBottom: '1px solid #F1F5F9', transition: 'background 0.15s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
@@ -4608,7 +4614,13 @@ const CustomerDetails = () => {
                     </thead>
                     <tbody>
                       {filteredLeaves.length === 0 ? (
-                        <tr><td colSpan="8" style={{ padding: '36px 20px', textAlign: 'center', color: '#64748B' }}>No leave applications logged.</td></tr>
+                        <tr>
+                          <td colSpan="8" style={{ textAlign: 'center', padding: '48px 20px', color: '#94A3B8' }}>
+                            <Calendar size={40} style={{ opacity: 0.3, marginBottom: '10px', display: 'inline-block' }} />
+                            <h4 style={{ margin: '0 0 6px 0', color: '#334155', fontSize: '16px', fontWeight: '700' }}>No Leave Requests Found</h4>
+                            <p style={{ margin: 0, fontSize: '13.5px' }}>Staff leave applications, permissions, and time-off requests will appear here.</p>
+                          </td>
+                        </tr>
                       ) : (
                         paginatedLeaves.map((item, idx) => (
                           <tr key={item._id || idx} style={{ borderBottom: '1px solid #F1F5F9', transition: 'background 0.15s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
@@ -5094,7 +5106,13 @@ const CustomerDetails = () => {
                         </thead>
                         <tbody>
                           {filteredReminders.length === 0 ? (
-                            <tr><td colSpan="7" style={{ padding: '36px 20px', textAlign: 'center', color: '#64748B' }}>No reminders found.</td></tr>
+                            <tr>
+                              <td colSpan="7" style={{ textAlign: 'center', padding: '48px 20px', color: '#94A3B8' }}>
+                                <Bell size={40} style={{ opacity: 0.3, marginBottom: '10px', display: 'inline-block' }} />
+                                <h4 style={{ margin: '0 0 6px 0', color: '#334155', fontSize: '16px', fontWeight: '700' }}>No Reminders Found</h4>
+                                <p style={{ margin: 0, fontSize: '13.5px' }}>Scheduled alerts and store reminders will appear here.</p>
+                              </td>
+                            </tr>
                           ) : (
                             paginatedReminders.map((item, idx) => (
                               <tr key={item._id || idx} style={{ borderBottom: '1px solid #F1F5F9', transition: 'background 0.15s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
@@ -5270,7 +5288,13 @@ const CustomerDetails = () => {
                     </thead>
                     <tbody>
                       {filteredDocuments.length === 0 ? (
-                        <tr><td colSpan="7" style={{ padding: '36px 20px', textAlign: 'center', color: '#64748B' }}>No documents uploaded.</td></tr>
+                        <tr>
+                          <td colSpan="7" style={{ textAlign: 'center', padding: '48px 20px', color: '#94A3B8' }}>
+                            <FileText size={40} style={{ opacity: 0.3, marginBottom: '10px', display: 'inline-block' }} />
+                            <h4 style={{ margin: '0 0 6px 0', color: '#334155', fontSize: '16px', fontWeight: '700' }}>No Documents Found</h4>
+                            <p style={{ margin: 0, fontSize: '13.5px' }}>Upload legal, business, and compliance files to manage them securely.</p>
+                          </td>
+                        </tr>
                       ) : (
                         paginatedDocuments.map((item, idx) => (
                           <tr key={item._id || idx} style={{ borderBottom: '1px solid #F1F5F9', transition: 'background 0.15s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
@@ -5447,7 +5471,13 @@ const CustomerDetails = () => {
                     </thead>
                     <tbody>
                       {filteredPurchases.length === 0 ? (
-                        <tr><td colSpan="7" style={{ padding: '36px 20px', textAlign: 'center', color: '#64748B' }}>No purchase orders found.</td></tr>
+                        <tr>
+                          <td colSpan="7" style={{ textAlign: 'center', padding: '48px 20px', color: '#94A3B8' }}>
+                            <ShoppingCart size={40} style={{ opacity: 0.3, marginBottom: '10px', display: 'inline-block' }} />
+                            <h4 style={{ margin: '0 0 6px 0', color: '#334155', fontSize: '16px', fontWeight: '700' }}>No Purchases Found</h4>
+                            <p style={{ margin: 0, fontSize: '13.5px' }}>Purchase orders and vendor stock invoices will appear here.</p>
+                          </td>
+                        </tr>
                       ) : (
                         paginatedPurchases.map((item, idx) => (
                           <tr key={item._id || idx} style={{ borderBottom: '1px solid #F1F5F9', transition: 'background 0.15s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
@@ -5733,7 +5763,13 @@ const CustomerDetails = () => {
                       </thead>
                       <tbody>
                         {filteredCategories.length === 0 ? (
-                          <tr><td colSpan="5" style={{ padding: '36px 20px', textAlign: 'center', color: '#64748B' }}>No categories found.</td></tr>
+                          <tr>
+                            <td colSpan="5" style={{ textAlign: 'center', padding: '48px 20px', color: '#94A3B8' }}>
+                              <Tag size={40} style={{ opacity: 0.3, marginBottom: '10px', display: 'inline-block' }} />
+                              <h4 style={{ margin: '0 0 6px 0', color: '#334155', fontSize: '16px', fontWeight: '700' }}>No Categories Found</h4>
+                              <p style={{ margin: 0, fontSize: '13.5px' }}>Add product categories to classify store inventory.</p>
+                            </td>
+                          </tr>
                         ) : (
                           paginatedCategories.map((item, idx) => (
                             <tr key={item._id || idx} style={{ borderBottom: '1px solid #F1F5F9', transition: 'background 0.15s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
@@ -5787,7 +5823,13 @@ const CustomerDetails = () => {
                       </thead>
                       <tbody>
                         {filteredSubcategories.length === 0 ? (
-                          <tr><td colSpan="6" style={{ padding: '36px 20px', textAlign: 'center', color: '#64748B' }}>No sub categories found.</td></tr>
+                          <tr>
+                            <td colSpan="6" style={{ textAlign: 'center', padding: '48px 20px', color: '#94A3B8' }}>
+                              <Layers size={40} style={{ opacity: 0.3, marginBottom: '10px', display: 'inline-block' }} />
+                              <h4 style={{ margin: '0 0 6px 0', color: '#334155', fontSize: '16px', fontWeight: '700' }}>No Sub Categories Found</h4>
+                              <p style={{ margin: 0, fontSize: '13.5px' }}>Add sub categories to organize catalogue products.</p>
+                            </td>
+                          </tr>
                         ) : (
                           paginatedSubcategories.map((item, idx) => (
                             <tr key={item._id || idx} style={{ borderBottom: '1px solid #F1F5F9', transition: 'background 0.15s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
@@ -5861,7 +5903,19 @@ const CustomerDetails = () => {
                       </thead>
                       <tbody>
                         {filteredProducts.length === 0 ? (
-                          <tr><td colSpan={isServicesSection ? 6 : 7} style={{ padding: '36px 20px', textAlign: 'center', color: '#64748B' }}>No {isServicesSection ? 'services' : 'products'} found.</td></tr>
+                          <tr>
+                            <td colSpan={isServicesSection ? 6 : 7} style={{ textAlign: 'center', padding: '48px 20px', color: '#94A3B8' }}>
+                              {isServicesSection ? (
+                                <Wrench size={40} style={{ opacity: 0.3, marginBottom: '10px', display: 'inline-block' }} />
+                              ) : (
+                                <Package size={40} style={{ opacity: 0.3, marginBottom: '10px', display: 'inline-block' }} />
+                              )}
+                              <h4 style={{ margin: '0 0 6px 0', color: '#334155', fontSize: '16px', fontWeight: '700' }}>
+                                No {isServicesSection ? 'Services' : 'Products'} Found
+                              </h4>
+                              <p style={{ margin: 0, fontSize: '13.5px' }}>Catalog items added to this tenant will be listed here.</p>
+                            </td>
+                          </tr>
                         ) : (
                           paginatedProducts.map((item, idx) => (
                             <tr key={item._id || idx} style={{ borderBottom: '1px solid #F1F5F9', transition: 'background 0.15s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
@@ -6073,7 +6127,13 @@ const CustomerDetails = () => {
                     </thead>
                     <tbody>
                       {filteredInventory.length === 0 ? (
-                        <tr><td colSpan="7" style={{ padding: '36px 20px', textAlign: 'center', color: '#64748B' }}>No inventory items recorded.</td></tr>
+                        <tr>
+                          <td colSpan="7" style={{ textAlign: 'center', padding: '48px 20px', color: '#94A3B8' }}>
+                            <Archive size={40} style={{ opacity: 0.3, marginBottom: '10px', display: 'inline-block' }} />
+                            <h4 style={{ margin: '0 0 6px 0', color: '#334155', fontSize: '16px', fontWeight: '700' }}>No Stock Items Found</h4>
+                            <p style={{ margin: 0, fontSize: '13.5px' }}>Add stock levels and unit conversions for catalog items.</p>
+                          </td>
+                        </tr>
                       ) : (
                         paginatedInventory.map((item, idx) => (
                           <tr key={item._id || idx} style={{ borderBottom: '1px solid #F1F5F9', transition: 'background 0.15s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
@@ -6288,7 +6348,13 @@ const CustomerDetails = () => {
                     </thead>
                     <tbody>
                       {filteredCustomersList.length === 0 ? (
-                        <tr><td colSpan="7" style={{ padding: '36px 20px', textAlign: 'center', color: '#64748B' }}>No customers added.</td></tr>
+                        <tr>
+                          <td colSpan="7" style={{ textAlign: 'center', padding: '48px 20px', color: '#94A3B8' }}>
+                            <Users size={40} style={{ opacity: 0.3, marginBottom: '10px', display: 'inline-block' }} />
+                            <h4 style={{ margin: '0 0 6px 0', color: '#334155', fontSize: '16px', fontWeight: '700' }}>No Customers Found</h4>
+                            <p style={{ margin: 0, fontSize: '13.5px' }}>Registered buyers and clients will appear here.</p>
+                          </td>
+                        </tr>
                       ) : (
                         paginatedCustomers.map((cust, idx) => (
                           <tr key={cust._id || idx} style={{ borderBottom: '1px solid #F1F5F9', transition: 'background 0.15s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
@@ -6447,16 +6513,10 @@ const CustomerDetails = () => {
                     <tbody>
                       {filteredExpenses.length === 0 ? (
                         <tr>
-                          <td colSpan="7" style={{ padding: '64px 32px', textAlign: 'center' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                              <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
-                                <Receipt size={32} color="#3B82F6" />
-                              </div>
-                              <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#0F172A', marginBottom: '8px' }}>No expenses found</h3>
-                              <p style={{ color: '#64748B', maxWidth: '400px', margin: '0 auto', lineHeight: '1.5', fontSize: '14px' }}>
-                                No expenses logged or matching the current search filters.
-                              </p>
-                            </div>
+                          <td colSpan="7" style={{ textAlign: 'center', padding: '48px 20px', color: '#94A3B8' }}>
+                            <Receipt size={40} style={{ opacity: 0.3, marginBottom: '10px', display: 'inline-block' }} />
+                            <h4 style={{ margin: '0 0 6px 0', color: '#334155', fontSize: '16px', fontWeight: '700' }}>No Expenses Found</h4>
+                            <p style={{ margin: 0, fontSize: '13.5px' }}>Track daily operational costs and vendor payments.</p>
                           </td>
                         </tr>
                       ) : (
@@ -6715,16 +6775,10 @@ const CustomerDetails = () => {
                         <tbody>
                           {filteredSales.length === 0 ? (
                             <tr>
-                              <td colSpan="7" style={{ padding: '64px 32px', textAlign: 'center' }}>
-                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                  <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
-                                    <TrendingUp size={32} color="#3B82F6" />
-                                  </div>
-                                  <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#0F172A', marginBottom: '8px' }}>No sales records found</h3>
-                                  <p style={{ color: '#64748B', maxWidth: '400px', margin: '0 auto', lineHeight: '1.5', fontSize: '14px' }}>
-                                    No sales or billing transactions recorded yet.
-                                  </p>
-                                </div>
+                              <td colSpan="7" style={{ textAlign: 'center', padding: '48px 20px', color: '#94A3B8' }}>
+                                <TrendingUp size={40} style={{ opacity: 0.3, marginBottom: '10px', display: 'inline-block' }} />
+                                <h4 style={{ margin: '0 0 6px 0', color: '#334155', fontSize: '16px', fontWeight: '700' }}>No Sales Records Found</h4>
+                                <p style={{ margin: 0, fontSize: '13.5px' }}>Invoices and billing receipts will appear here.</p>
                               </td>
                             </tr>
                           ) : (
@@ -7019,16 +7073,10 @@ const CustomerDetails = () => {
                     <tbody>
                       {filteredBranches.length === 0 ? (
                         <tr>
-                          <td colSpan={(businessType === 4 || businesses.length > 0) ? "8" : "7"} style={{ padding: '64px 32px', textAlign: 'center' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                              <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
-                                <Store size={32} color="#3B82F6" />
-                              </div>
-                              <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#0F172A', marginBottom: '8px' }}>No branches found</h3>
-                              <p style={{ color: '#64748B', maxWidth: '400px', margin: '0 auto', lineHeight: '1.5', fontSize: '14px' }}>
-                                No branches registered or matching search filters.
-                              </p>
-                            </div>
+                          <td colSpan={(businessType === 4 || businesses.length > 0) ? "8" : "7"} style={{ textAlign: 'center', padding: '48px 20px', color: '#94A3B8' }}>
+                            <Store size={40} style={{ opacity: 0.3, marginBottom: '10px', display: 'inline-block' }} />
+                            <h4 style={{ margin: '0 0 6px 0', color: '#334155', fontSize: '16px', fontWeight: '700' }}>No Branches Found</h4>
+                            <p style={{ margin: 0, fontSize: '13.5px' }}>Physical store and outlet locations will appear here.</p>
                           </td>
                         </tr>
                       ) : (
@@ -7291,16 +7339,10 @@ const CustomerDetails = () => {
                     <tbody>
                       {filteredEmployees.length === 0 ? (
                         <tr>
-                          <td colSpan="8" style={{ padding: '64px 32px', textAlign: 'center' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                              <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
-                                <Users size={32} color="#3B82F6" />
-                              </div>
-                              <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#0F172A', marginBottom: '8px' }}>No employees found</h3>
-                              <p style={{ color: '#64748B', maxWidth: '400px', margin: '0 auto', lineHeight: '1.5', fontSize: '14px' }}>
-                                No employees added yet or matching the search filters.
-                              </p>
-                            </div>
+                          <td colSpan="8" style={{ textAlign: 'center', padding: '48px 20px', color: '#94A3B8' }}>
+                            <Users size={40} style={{ opacity: 0.3, marginBottom: '10px', display: 'inline-block' }} />
+                            <h4 style={{ margin: '0 0 6px 0', color: '#334155', fontSize: '16px', fontWeight: '700' }}>No Employees Found</h4>
+                            <p style={{ margin: 0, fontSize: '13.5px' }}>Staff members, roles, and branch assignments will appear here.</p>
                           </td>
                         </tr>
                       ) : (
@@ -7558,16 +7600,10 @@ const CustomerDetails = () => {
                     <tbody>
                       {filteredBusinesses.length === 0 ? (
                         <tr>
-                          <td colSpan="8" style={{ padding: '64px 32px', textAlign: 'center' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                              <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
-                                <Building2 size={32} color="#3B82F6" />
-                              </div>
-                              <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#0F172A', marginBottom: '8px' }}>No businesses found</h3>
-                              <p style={{ color: '#64748B', maxWidth: '400px', margin: '0 auto', lineHeight: '1.5', fontSize: '14px' }}>
-                                No businesses match the current search or filters. Click the button above to add one.
-                              </p>
-                            </div>
+                          <td colSpan="8" style={{ textAlign: 'center', padding: '48px 20px', color: '#94A3B8' }}>
+                            <Building2 size={40} style={{ opacity: 0.3, marginBottom: '10px', display: 'inline-block' }} />
+                            <h4 style={{ margin: '0 0 6px 0', color: '#334155', fontSize: '16px', fontWeight: '700' }}>No Businesses Found</h4>
+                            <p style={{ margin: 0, fontSize: '13.5px' }}>Registered companies and enterprise divisions will appear here.</p>
                           </td>
                         </tr>
                       ) : (
@@ -7588,36 +7624,27 @@ const CustomerDetails = () => {
                             </td>
                             <td style={{ padding: '14px 12px', verticalAlign: 'middle' }}>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                <span style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                  fontSize: '11px',
-                                  fontWeight: '600',
-                                  padding: '2px 8px',
-                                  borderRadius: '6px',
-                                  background: b.offeringType === 'service' ? '#F3E8FF' : b.offeringType === 'product' ? '#EFF6FF' : '#F0FDF4',
-                                  color: b.offeringType === 'service' ? '#7E22CE' : b.offeringType === 'product' ? '#1D4ED8' : '#15803D',
-                                  width: 'fit-content',
-                                  border: `1px solid ${b.offeringType === 'service' ? '#E9D5FF' : b.offeringType === 'product' ? '#BFDBFE' : '#BBF7D0'}`
-                                }}>
-                                  {b.offeringType === 'service' ? '🛠️ Services' : b.offeringType === 'product' ? '📦 Products' : '🔄 Product & Service'}
-                                </span>
-                                <span style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                  fontSize: '11px',
-                                  fontWeight: '600',
-                                  padding: '2px 8px',
-                                  borderRadius: '6px',
-                                  background: b.operationsType === 'sales' ? '#EFF6FF' : b.operationsType === 'purchases' ? '#FEF3C7' : '#F8FAFC',
-                                  color: b.operationsType === 'sales' ? '#1D4ED8' : b.operationsType === 'purchases' ? '#B45309' : '#475569',
-                                  width: 'fit-content',
-                                  border: `1px solid ${b.operationsType === 'sales' ? '#BFDBFE' : b.operationsType === 'purchases' ? '#FDE68A' : '#E2E8F0'}`
-                                }}>
-                                  {b.operationsType === 'sales' ? '📈 Sales Only' : b.operationsType === 'purchases' ? '🛒 Purchases' : '🔁 Sales & Purchases'}
-                                </span>
+                                <div>
+                                  <span style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '5px',
+                                    fontSize: '11.5px',
+                                    fontWeight: '600',
+                                    padding: '2.5px 8px',
+                                    borderRadius: '6px',
+                                    background: b.offeringType === 'service' ? '#FAF5FF' : b.offeringType === 'product' ? '#EFF6FF' : '#F0FDF4',
+                                    color: b.offeringType === 'service' ? '#7C3AED' : b.offeringType === 'product' ? '#2563EB' : '#16A34A',
+                                    border: `1px solid ${b.offeringType === 'service' ? '#E9D5FF' : b.offeringType === 'product' ? '#BFDBFE' : '#BBF7D0'}`
+                                  }}>
+                                    {b.offeringType === 'service' ? <Wrench size={12} /> : b.offeringType === 'product' ? <Package size={12} /> : <Layers size={12} />}
+                                    <span>{b.offeringType === 'service' ? 'Services' : b.offeringType === 'product' ? 'Products' : 'Product & Service'}</span>
+                                  </span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11.5px', color: '#64748B', paddingLeft: '2px' }}>
+                                  <ShoppingCart size={11} color="#94A3B8" />
+                                  <span>{b.operationsType === 'sales' ? 'Sales Only' : b.operationsType === 'purchases' ? 'Purchases Only' : b.operationsType === 'none' ? 'Billing Only' : 'Purchases & Billing'}</span>
+                                </div>
                               </div>
                             </td>
                             <td style={{ padding: '14px 12px', verticalAlign: 'middle' }}>
@@ -7922,10 +7949,10 @@ const CustomerDetails = () => {
                     <tbody>
                       {filteredInvestors.length === 0 ? (
                         <tr>
-                          <td colSpan="7" style={{ padding: '56px 24px', textAlign: 'center', color: '#64748B' }}>
-                            <Briefcase size={36} color="#CBD5E1" style={{ margin: '0 auto 12px auto', display: 'block' }} />
-                            <p style={{ margin: 0, fontWeight: '700', fontSize: '15px', color: '#334155' }}>No investor records found.</p>
-                            <p style={{ margin: '4px 0 0 0', fontSize: '13px' }}>Click "Add Investor" to register a new capital partner with portal login.</p>
+                          <td colSpan="7" style={{ textAlign: 'center', padding: '48px 20px', color: '#94A3B8' }}>
+                            <Briefcase size={40} style={{ opacity: 0.3, marginBottom: '10px', display: 'inline-block' }} />
+                            <h4 style={{ margin: '0 0 6px 0', color: '#334155', fontSize: '16px', fontWeight: '700' }}>No Investors Found</h4>
+                            <p style={{ margin: 0, fontSize: '13.5px' }}>Capital partners and shareholders will appear here.</p>
                           </td>
                         </tr>
                       ) : (

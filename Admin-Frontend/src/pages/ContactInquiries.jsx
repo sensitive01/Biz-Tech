@@ -618,12 +618,10 @@ const ContactInquiries = () => {
                 </tr>
               ) : filteredInquiries.length === 0 ? (
                 <tr>
-                  <td colSpan="7" style={{ padding: '56px 20px', textAlign: 'center', color: '#64748B' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                      <Mail size={36} color="#CBD5E1" />
-                      <p style={{ margin: '4px 0 0 0', fontSize: '15px', fontWeight: '600', color: '#334155' }}>No inquiries found</p>
-                      <span style={{ fontSize: '13px', color: '#94A3B8' }}>Try adjusting your search terms or filters.</span>
-                    </div>
+                  <td colSpan="7" style={{ textAlign: 'center', padding: '48px 20px', color: '#94A3B8' }}>
+                    <Mail size={40} style={{ opacity: 0.3, marginBottom: '10px', display: 'inline-block' }} />
+                    <h4 style={{ margin: '0 0 6px 0', color: '#334155', fontSize: '16px', fontWeight: '700' }}>No Inquiries Found</h4>
+                    <p style={{ margin: 0, fontSize: '13.5px' }}>Try adjusting your search terms or filters.</p>
                   </td>
                 </tr>
               ) : (

@@ -1345,8 +1345,24 @@ body, .top-header, .sidebar, .card, .input-field, .btn-secondary {
 
 [data-sidebar-template]:not([data-sidebar-template="none"]) .top-header div[style*="position: absolute"] span,
 [data-sidebar-template]:not([data-sidebar-template="none"]) .top-header div[style*="position: absolute"] p,
-[data-sidebar-template]:not([data-sidebar-template="none"]) .top-header div[style*="position: absolute"] button {
+[data-sidebar-template]:not([data-sidebar-template="none"]) .top-header div[style*="position: absolute"] button:not(.header-logout-btn) {
   color: #0F172A !important;
+}
+
+[data-sidebar-template]:not([data-sidebar-template="none"]) .top-header div[style*="position: absolute"] .header-logout-btn,
+[data-sidebar-template]:not([data-sidebar-template="none"]) .top-header div[style*="position: absolute"] .header-logout-btn svg {
+  color: #EF4444 !important;
+  stroke: #EF4444 !important;
+}
+
+[data-sidebar-template]:not([data-sidebar-template="none"]) .top-header div[style*="position: absolute"] .header-logout-btn:hover {
+  background-color: #FEF2F2 !important;
+  color: #DC2626 !important;
+}
+
+[data-sidebar-template]:not([data-sidebar-template="none"]) .top-header div[style*="position: absolute"] .header-logout-btn:hover svg {
+  color: #DC2626 !important;
+  stroke: #DC2626 !important;
 }
 
 [data-sidebar-template]:not([data-sidebar-template="none"]) .top-header div[style*="position: absolute"] p[style*="monospace"] {

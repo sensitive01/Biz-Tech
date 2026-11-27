@@ -529,16 +529,10 @@ const Businesses = () => {
                 </tr>
               ) : filteredBusinesses.length === 0 ? (
                 <tr>
-                  <td colSpan={isInvestor ? 7 : 8} style={{ padding: '64px 32px', textAlign: 'center' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                      <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
-                        <Building2 size={32} color="#3B82F6" />
-                      </div>
-                      <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#0F172A', marginBottom: '8px' }}>No businesses found</h3>
-                      <p style={{ color: '#64748B', maxWidth: '400px', margin: '0 auto', lineHeight: '1.5' }}>
-                        You haven't added any businesses yet. Click the button above to add one.
-                      </p>
-                    </div>
+                  <td colSpan={isInvestor ? 7 : 8} style={{ textAlign: 'center', padding: '48px 20px', color: '#94A3B8' }}>
+                    <Building2 size={40} style={{ opacity: 0.3, marginBottom: '10px', display: 'inline-block' }} />
+                    <h4 style={{ margin: '0 0 6px 0', color: '#334155', fontSize: '16px', fontWeight: '700' }}>No Businesses Found</h4>
+                    <p style={{ margin: 0, fontSize: '13.5px' }}>Click the button above to register a company or enterprise division.</p>
                   </td>
                 </tr>
               ) : (
@@ -567,36 +561,27 @@ const Businesses = () => {
 
                     <td style={{ padding: '14px 12px', verticalAlign: 'middle' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <span style={{ 
-                          display: 'inline-flex', 
-                          alignItems: 'center', 
-                          gap: '4px', 
-                          fontSize: '11px', 
-                          fontWeight: '600', 
-                          padding: '2px 8px', 
-                          borderRadius: '6px', 
-                          background: b.offeringType === 'service' ? '#F3E8FF' : b.offeringType === 'product' ? '#EFF6FF' : '#F0FDF4', 
-                          color: b.offeringType === 'service' ? '#7E22CE' : b.offeringType === 'product' ? '#1D4ED8' : '#15803D',
-                          width: 'fit-content',
-                          border: `1px solid ${b.offeringType === 'service' ? '#E9D5FF' : b.offeringType === 'product' ? '#BFDBFE' : '#BBF7D0'}`
-                        }}>
-                          {b.offeringType === 'service' ? '🛠️ Services' : b.offeringType === 'product' ? '📦 Products' : '🔄 Product & Service'}
-                        </span>
-                        <span style={{ 
-                          display: 'inline-flex', 
-                          alignItems: 'center', 
-                          gap: '4px', 
-                          fontSize: '11px', 
-                          fontWeight: '600', 
-                          padding: '2px 8px', 
-                          borderRadius: '6px', 
-                          background: b.operationsType === 'none' ? '#F8FAFC' : '#FEF3C7', 
-                          color: b.operationsType === 'none' ? '#475569' : '#B45309',
-                          width: 'fit-content',
-                          border: `1px solid ${b.operationsType === 'none' ? '#E2E8F0' : '#FDE68A'}`
-                        }}>
-                          {b.operationsType === 'none' ? '🧾 Billing Only' : '🛒 Purchases & Billing'}
-                        </span>
+                        <div>
+                          <span style={{ 
+                            display: 'inline-flex', 
+                            alignItems: 'center', 
+                            gap: '5px', 
+                            fontSize: '11.5px', 
+                            fontWeight: '600', 
+                            padding: '2.5px 8px', 
+                            borderRadius: '6px', 
+                            background: b.offeringType === 'service' ? '#FAF5FF' : b.offeringType === 'product' ? '#EFF6FF' : '#F0FDF4', 
+                            color: b.offeringType === 'service' ? '#7C3AED' : b.offeringType === 'product' ? '#2563EB' : '#16A34A',
+                            border: `1px solid ${b.offeringType === 'service' ? '#E9D5FF' : b.offeringType === 'product' ? '#BFDBFE' : '#BBF7D0'}`
+                          }}>
+                            {b.offeringType === 'service' ? <Wrench size={12} /> : b.offeringType === 'product' ? <Package size={12} /> : <Boxes size={12} />}
+                            <span>{b.offeringType === 'service' ? 'Services' : b.offeringType === 'product' ? 'Products' : 'Product & Service'}</span>
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11.5px', color: '#64748B', paddingLeft: '2px' }}>
+                          <ShoppingCart size={11} color="#94A3B8" />
+                          <span>{b.operationsType === 'none' ? 'Billing Only' : 'Purchases & Billing'}</span>
+                        </div>
                       </div>
                     </td>
 
@@ -1311,15 +1296,17 @@ const Businesses = () => {
               </div>
               <div style={{ padding: '12px 14px', background: '#F8FAFC', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
                 <p style={{ margin: '0 0 4px 0', fontSize: '11px', color: '#64748B', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Offering Model</p>
-                <p style={{ margin: 0, fontSize: '14px', color: '#0F172A', fontWeight: '600' }}>
-                  {viewBusiness.offeringType === 'service' ? '🛠️ Services Only' : viewBusiness.offeringType === 'product' ? '📦 Products Only' : '🔄 Products & Services'}
-                </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: 0, fontSize: '14px', color: '#0F172A', fontWeight: '600' }}>
+                  {viewBusiness.offeringType === 'service' ? <Wrench size={15} color="#7C3AED" /> : viewBusiness.offeringType === 'product' ? <Package size={15} color="#2563EB" /> : <Boxes size={15} color="#16A34A" />}
+                  <span>{viewBusiness.offeringType === 'service' ? 'Services Only' : viewBusiness.offeringType === 'product' ? 'Products Only' : 'Products & Services'}</span>
+                </div>
               </div>
               <div style={{ padding: '12px 14px', background: '#F8FAFC', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
                 <p style={{ margin: '0 0 4px 0', fontSize: '11px', color: '#64748B', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Trade Operations</p>
-                <p style={{ margin: 0, fontSize: '14px', color: '#0F172A', fontWeight: '600' }}>
-                  {viewBusiness.operationsType === 'sales' ? '📈 Sales Only' : viewBusiness.operationsType === 'purchases' ? '🛒 Purchases Only' : '🔁 Sales & Purchases'}
-                </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: 0, fontSize: '14px', color: '#0F172A', fontWeight: '600' }}>
+                  <ShoppingCart size={15} color="#64748B" />
+                  <span>{viewBusiness.operationsType === 'sales' ? 'Sales Only' : viewBusiness.operationsType === 'purchases' ? 'Purchases Only' : viewBusiness.operationsType === 'none' ? 'Billing Only' : 'Purchases & Billing'}</span>
+                </div>
               </div>
               <div style={{ padding: '12px 14px', background: '#F8FAFC', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
                 <p style={{ margin: '0 0 4px 0', fontSize: '11px', color: '#64748B', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Contact Person</p>

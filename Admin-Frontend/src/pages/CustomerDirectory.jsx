@@ -30,6 +30,8 @@ const CustomerDirectory = () => {
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const [customersData, setCustomersData] = useState([]);
+  const [bizCount, setBizCount] = useState(0);
+  const [careerCount, setCareerCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [deleteCustomerId, setDeleteCustomerId] = useState(null);
   const [impersonatingId, setImpersonatingId] = useState(null);
@@ -136,6 +138,17 @@ const CustomerDirectory = () => {
         console.error("Failed to fetch users", err);
         setLoading(false);
       });
+
+    // Also fetch business and career counts for navigation parity
+    fetch(`${import.meta.env.VITE_API_URL}/api/directory/businesses`)
+      .then(res => res.ok ? res.json() : [])
+      .then(data => setBizCount(Array.isArray(data) ? data.length : 0))
+      .catch(() => {});
+
+    fetch(`${import.meta.env.VITE_API_URL}/api/directory/careers`)
+      .then(res => res.ok ? res.json() : [])
+      .then(data => setCareerCount(Array.isArray(data) ? data.length : 0))
+      .catch(() => {});
   };
 
   React.useEffect(() => {
@@ -270,7 +283,7 @@ const CustomerDirectory = () => {
           }}
         >
           <Building2 size={16} />
-          Pro ERP Clients ({customersData.length})
+          Pro Business Clients ({customersData.length})
         </button>
 
         <button
@@ -291,7 +304,7 @@ const CustomerDirectory = () => {
           onMouseOut={e => e.currentTarget.style.color = '#64748B'}
         >
           <Store size={16} />
-          Business Registrations
+          Business Registrations ({bizCount})
         </button>
 
         <button
@@ -312,7 +325,7 @@ const CustomerDirectory = () => {
           onMouseOut={e => e.currentTarget.style.color = '#64748B'}
         >
           <Briefcase size={16} />
-          Career Registrations
+          Career Registrations ({careerCount})
         </button>
       </div>
 
@@ -554,8 +567,10 @@ const CustomerDirectory = () => {
           <tbody>
             {paginatedCustomers.length === 0 ? (
               <tr>
-                <td colSpan="8" style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                  No customers found matching your criteria.
+                <td colSpan="8" style={{ textAlign: 'center', padding: '48px 20px', color: '#94A3B8' }}>
+                  <Users size={40} style={{ opacity: 0.3, marginBottom: '10px', display: 'inline-block' }} />
+                  <h4 style={{ margin: '0 0 6px 0', color: '#334155', fontSize: '16px', fontWeight: '700' }}>No Customers Found</h4>
+                  <p style={{ margin: 0, fontSize: '13.5px' }}>No registered business clients match your current search or filter criteria.</p>
                 </td>
               </tr>
             ) : (

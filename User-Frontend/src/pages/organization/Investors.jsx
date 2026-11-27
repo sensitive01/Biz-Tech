@@ -552,12 +552,10 @@ const Investors = () => {
                 <tr><td colSpan="7" style={{ padding: '36px', textAlign: 'center', color: '#64748B' }}>Loading investors...</td></tr>
               ) : filteredInvestors.length === 0 ? (
                 <tr>
-                  <td colSpan="7" style={{ padding: '64px 32px', textAlign: 'center', color: '#64748B' }}>
-                    <Briefcase size={36} color="#CBD5E1" style={{ marginBottom: '12px', display: 'inline-block' }} />
-                    <p style={{ margin: 0, fontWeight: '600', fontSize: '16px', color: '#334155' }}>No investor records found.</p>
-                    {isOwner && (
-                      <p style={{ margin: '4px 0 0 0', fontSize: '13px' }}>Click "Add Investor" to register a new capital partner with portal login.</p>
-                    )}
+                  <td colSpan="7" style={{ textAlign: 'center', padding: '48px 20px', color: '#94A3B8' }}>
+                    <Briefcase size={40} style={{ opacity: 0.3, marginBottom: '10px', display: 'inline-block' }} />
+                    <h4 style={{ margin: '0 0 6px 0', color: '#334155', fontSize: '16px', fontWeight: '700' }}>No Investors Found</h4>
+                    <p style={{ margin: 0, fontSize: '13.5px' }}>Register capital partners and shareholders to share executive performance reports.</p>
                   </td>
                 </tr>
               ) : paginatedInvestors.map((inv, index) => {

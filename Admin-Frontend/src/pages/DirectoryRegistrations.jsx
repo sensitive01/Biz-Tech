@@ -28,7 +28,15 @@ import {
   X,
   Truck,
   Upload,
-  Loader2
+  Loader2,
+  Plus,
+  FileCheck,
+  AlertCircle,
+  ChevronDown,
+  UserCheck,
+  UserX,
+  Users,
+  UserPlus
 } from 'lucide-react';
 import { exportToCSV } from '../utils/exportToCSV';
 import TablePagination from '../components/TablePagination';
@@ -44,14 +52,16 @@ const DirectoryRegistrations = () => {
   // Data state
   const [businesses, setBusinesses] = useState([]);
   const [careers, setCareers] = useState([]);
+  const [proClientsCount, setProClientsCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Filters
+  // Filters (Card click & Dropdown filter)
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedFilter, setSelectedFilter] = useState('All');
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedCity, setSelectedCity] = useState('All');
-  const [selectedStatus, setSelectedStatus] = useState('All');
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -61,6 +71,46 @@ const DirectoryRegistrations = () => {
   const [viewItem, setViewItem] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [previewProofImage, setPreviewProofImage] = useState(null);
+
+  // Add Registration State
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [creatingRegistration, setCreatingRegistration] = useState(false);
+  const [uploadingAddProof, setUploadingAddProof] = useState(false);
+  const [customAddTag, setCustomAddTag] = useState('');
+  const [customAddSkill, setCustomAddSkill] = useState('');
+  const [addForm, setAddForm] = useState({
+    businessName: '',
+    ownerName: '',
+    contactPhone: '',
+    whatsappNumber: '',
+    email: '',
+    address: '',
+    city: '',
+    state: '',
+    pincode: '',
+    category: 'Retail',
+    tags: ['Retail'],
+    websiteOrSocial: '',
+    description: '',
+    panNumber: '',
+    panProofUrl: '',
+    panProofName: '',
+    isVerified: true,
+
+    fullName: '',
+    jobCategory: 'Retail & Store Sales',
+    experience: '1-2 Years',
+    qualification: "Bachelor's Degree (Any)",
+    employmentType: 'Full-time',
+    availability: 'Immediate',
+    expectedSalary: 'Negotiable',
+    drivingLicense: 'None',
+    skills: ['Customer Service', 'Store Operations'],
+    currentArea: '',
+    bio: '',
+    isAvailableForHire: true
+  });
 
   // Edit State
   const [editItem, setEditItem] = useState(null);
@@ -84,24 +134,30 @@ const DirectoryRegistrations = () => {
     setSearchQuery('');
     setSelectedCategory('All');
     setSelectedCity('All');
-    setSelectedStatus('All');
+    setSelectedFilter('All');
+    setShowFilterDropdown(false);
   };
 
   const fetchData = async () => {
     try {
       setRefreshing(true);
-      const [bizRes, careerRes] = await Promise.all([
+      const [bizRes, careerRes, usersRes] = await Promise.all([
         fetch(`${import.meta.env.VITE_API_URL}/api/directory/businesses`),
-        fetch(`${import.meta.env.VITE_API_URL}/api/directory/careers`)
+        fetch(`${import.meta.env.VITE_API_URL}/api/directory/careers`),
+        fetch(`${import.meta.env.VITE_API_URL}/api/admin/users`)
       ]);
 
       if (bizRes.ok) {
         const bizData = await bizRes.json();
-        setBusinesses(bizData);
+        setBusinesses(Array.isArray(bizData) ? bizData : []);
       }
       if (careerRes.ok) {
         const careerData = await careerRes.json();
-        setCareers(careerData);
+        setCareers(Array.isArray(careerData) ? careerData : []);
+      }
+      if (usersRes.ok) {
+        const usersData = await usersRes.json();
+        setProClientsCount(Array.isArray(usersData) ? usersData.length : 0);
       }
     } catch (err) {
       console.error('Failed to fetch directory data:', err);
@@ -259,6 +315,205 @@ const DirectoryRegistrations = () => {
     }
   };
 
+  // Add New Registration Handlers
+  const handleOpenAddModal = () => {
+    setAddForm({
+      businessName: '',
+      ownerName: '',
+      contactPhone: '',
+      whatsappNumber: '',
+      email: '',
+      address: '',
+      city: '',
+      state: '',
+      pincode: '',
+      category: 'Retail',
+      tags: ['Retail'],
+      websiteOrSocial: '',
+      description: '',
+      panNumber: '',
+      panProofUrl: '',
+      panProofName: '',
+      isVerified: true,
+
+      fullName: '',
+      jobCategory: 'Retail & Store Sales',
+      experience: '1-2 Years',
+      qualification: "Bachelor's Degree (Any)",
+      employmentType: 'Full-time',
+      availability: 'Immediate',
+      expectedSalary: 'Negotiable',
+      drivingLicense: 'None',
+      skills: ['Customer Service', 'Store Operations'],
+      currentArea: '',
+      bio: '',
+      isAvailableForHire: true
+    });
+    setCustomAddTag('');
+    setCustomAddSkill('');
+    setShowAddModal(true);
+  };
+
+  const handleAddProofUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setAddForm(prev => ({
+        ...prev,
+        panProofUrl: reader.result,
+        panProofName: file.name
+      }));
+    };
+    reader.readAsDataURL(file);
+
+    setUploadingAddProof(true);
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
+      const formData = new FormData();
+      formData.append('proof', file);
+
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/directory/upload-pan-proof`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
+
+      const data = await res.json();
+      if (res.ok && data.fileUrl) {
+        setAddForm(prev => ({
+          ...prev,
+          panProofUrl: data.fileUrl,
+          panProofName: data.originalName || file.name
+        }));
+      }
+    } catch (err) {
+      console.error('Error uploading proof image for new business:', err);
+    } finally {
+      setUploadingAddProof(false);
+    }
+  };
+
+  const handleCreateRegistration = async (e) => {
+    e.preventDefault();
+    setCreatingRegistration(true);
+    try {
+      const isBusiness = activeTab === 'business';
+      const endpoint = isBusiness
+        ? `${import.meta.env.VITE_API_URL}/api/admin/directory/business`
+        : `${import.meta.env.VITE_API_URL}/api/admin/directory/career`;
+
+      const payload = isBusiness ? {
+        businessName: addForm.businessName,
+        ownerName: addForm.ownerName,
+        contactPhone: addForm.contactPhone,
+        whatsappNumber: addForm.whatsappNumber || addForm.contactPhone,
+        email: addForm.email,
+        address: addForm.address,
+        city: addForm.city,
+        state: addForm.state,
+        pincode: addForm.pincode,
+        category: addForm.category,
+        tags: addForm.tags,
+        websiteOrSocial: addForm.websiteOrSocial,
+        description: addForm.description,
+        panNumber: addForm.panNumber,
+        panProofUrl: addForm.panProofUrl,
+        panProofName: addForm.panProofName,
+        isVerified: addForm.isVerified
+      } : {
+        fullName: addForm.fullName,
+        jobCategory: addForm.jobCategory,
+        experience: addForm.experience,
+        contactPhone: addForm.contactPhone,
+        whatsappNumber: addForm.whatsappNumber || addForm.contactPhone,
+        email: addForm.email,
+        city: addForm.city,
+        currentArea: addForm.currentArea,
+        pincode: addForm.pincode,
+        qualification: addForm.qualification,
+        employmentType: addForm.employmentType,
+        availability: addForm.availability,
+        expectedSalary: addForm.expectedSalary,
+        drivingLicense: addForm.drivingLicense,
+        skills: addForm.skills,
+        bio: addForm.bio,
+        isAvailableForHire: addForm.isAvailableForHire
+      };
+
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.message || 'Failed to create registration');
+        return;
+      }
+
+      if (isBusiness && data.business) {
+        const newBiz = {
+          _id: data.business._id,
+          userId: data.business.userId,
+          businessName: data.business.businessProfile?.businessName || data.business.businessName,
+          category: data.business.businessProfile?.category || 'Retail',
+          tags: data.business.businessProfile?.tags || [],
+          ownerName: data.business.businessProfile?.ownerName || data.business.fullName,
+          phone: data.business.businessProfile?.contactPhone || data.business.phone,
+          whatsappNumber: data.business.businessProfile?.whatsappNumber || data.business.phone,
+          email: data.business.businessProfile?.email || data.business.email,
+          address: data.business.businessProfile?.address || '',
+          city: data.business.businessProfile?.city || '',
+          state: data.business.businessProfile?.state || '',
+          pincode: data.business.businessProfile?.pincode || '',
+          websiteOrSocial: data.business.businessProfile?.websiteOrSocial || '',
+          description: data.business.businessProfile?.description || '',
+          panNumber: data.business.businessProfile?.panNumber || '',
+          panProofUrl: data.business.businessProfile?.panProofUrl || '',
+          panProofName: data.business.businessProfile?.panProofName || '',
+          isVerified: Boolean(data.business.businessProfile?.isVerified),
+          registeredAt: data.business.createdAt
+        };
+        setBusinesses(prev => [newBiz, ...prev]);
+      } else if (!isBusiness && data.candidate) {
+        const newCar = {
+          _id: data.candidate._id,
+          userId: data.candidate.userId,
+          fullName: data.candidate.careerProfile?.fullName || data.candidate.fullName,
+          jobCategory: data.candidate.careerProfile?.jobCategory || 'General Work',
+          skills: data.candidate.careerProfile?.skills || [],
+          experience: data.candidate.careerProfile?.experience || 'Fresher',
+          expectedSalary: data.candidate.careerProfile?.expectedSalary || '',
+          city: data.candidate.careerProfile?.city || '',
+          currentArea: data.candidate.careerProfile?.currentArea || '',
+          pincode: data.candidate.careerProfile?.pincode || '',
+          phone: data.candidate.careerProfile?.contactPhone || data.candidate.phone,
+          whatsappNumber: data.candidate.careerProfile?.whatsappNumber || data.candidate.phone,
+          email: data.candidate.careerProfile?.email || data.candidate.email,
+          availability: data.candidate.careerProfile?.availability || 'Immediate',
+          employmentType: data.candidate.careerProfile?.employmentType || 'Full-time',
+          drivingLicense: data.candidate.careerProfile?.drivingLicense || 'None',
+          qualification: data.candidate.careerProfile?.qualification || '',
+          bio: data.candidate.careerProfile?.bio || '',
+          isAvailableForHire: data.candidate.careerProfile?.isAvailableForHire !== false,
+          registeredAt: data.candidate.createdAt
+        };
+        setCareers(prev => [newCar, ...prev]);
+      }
+
+      setShowAddModal(false);
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      alert('Error creating registration');
+    } finally {
+      setCreatingRegistration(false);
+    }
+  };
+
   // Toggle Business Verification
   const handleToggleVerification = async (bizId) => {
     try {
@@ -347,16 +602,24 @@ const DirectoryRegistrations = () => {
         (b.city && b.city.toLowerCase().includes(q)) ||
         (b.state && b.state.toLowerCase().includes(q)) ||
         (b.address && b.address.toLowerCase().includes(q)) ||
+        (b.panNumber && b.panNumber.toLowerCase().includes(q)) ||
         (b.tags && b.tags.some(t => t.toLowerCase().includes(q)))
       );
 
-      const matchesStatus = selectedStatus === 'All' ||
-        (selectedStatus === 'Verified' && b.isVerified) ||
-        (selectedStatus === 'Unverified' && !b.isVerified);
+      let matchesFilter = true;
+      if (selectedFilter === 'Verified') {
+        matchesFilter = Boolean(b.isVerified);
+      } else if (selectedFilter === 'Unverified') {
+        matchesFilter = !b.isVerified;
+      } else if (selectedFilter === 'With Proof') {
+        matchesFilter = Boolean(b.panProofUrl);
+      } else if (selectedFilter === 'Missing Proof') {
+        matchesFilter = !b.panProofUrl;
+      }
 
-      return matchesSearch && matchesStatus;
+      return matchesSearch && matchesFilter;
     });
-  }, [businesses, searchQuery, selectedStatus]);
+  }, [businesses, searchQuery, selectedFilter]);
 
   // Filtered Careers
   const filteredCareers = useMemo(() => {
@@ -369,16 +632,24 @@ const DirectoryRegistrations = () => {
         (c.phone && c.phone.toLowerCase().includes(q)) ||
         (c.city && c.city.toLowerCase().includes(q)) ||
         (c.currentArea && c.currentArea.toLowerCase().includes(q)) ||
-        (c.skills && c.skills.some(s => s.toLowerCase().includes(q)))
+        (c.skills && c.skills.some(s => s.toLowerCase().includes(q))) ||
+        (c.experience && c.experience.toLowerCase().includes(q))
       );
 
-      const matchesStatus = selectedStatus === 'All' ||
-        (selectedStatus === 'Available' && c.isAvailableForHire !== false) ||
-        (selectedStatus === 'Unavailable' && c.isAvailableForHire === false);
+      let matchesFilter = true;
+      if (selectedFilter === 'Available') {
+        matchesFilter = c.isAvailableForHire !== false;
+      } else if (selectedFilter === 'Unavailable') {
+        matchesFilter = c.isAvailableForHire === false;
+      } else if (selectedFilter === 'Immediate') {
+        matchesFilter = !c.availability || c.availability.toLowerCase().includes('immediate');
+      } else if (selectedFilter === 'Experienced') {
+        matchesFilter = c.experience && !c.experience.toLowerCase().includes('fresher');
+      }
 
-      return matchesSearch && matchesStatus;
+      return matchesSearch && matchesFilter;
     });
-  }, [careers, searchQuery, selectedStatus]);
+  }, [careers, searchQuery, selectedFilter]);
 
   // Paginated Data
   const currentList = activeTab === 'business' ? filteredBusinesses : filteredCareers;
@@ -400,6 +671,8 @@ const DirectoryRegistrations = () => {
         'City': b.city,
         'State': b.state,
         'Pincode': b.pincode,
+        'PAN': b.panNumber || '',
+        'Proof': b.panProofUrl ? 'Attached' : 'None',
         'Tags': (b.tags || []).join('; '),
         'Website': b.websiteOrSocial || '',
         'Verified': b.isVerified ? 'Yes' : 'No',
@@ -430,64 +703,48 @@ const DirectoryRegistrations = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
-      
-      {/* Page Title & Actions */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+
+      {/* PAGE HEADER (Matched with Pro Business Clients) */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '14px' }}>
         <div>
-          <h1 style={{ fontSize: '28px', marginBottom: '6px', color: '#0F172A' }}>
-            Business & Career Registrations
+          <h1 style={{ fontSize: '28px', marginBottom: '8px', color: 'var(--text-title, #0F172A)' }}>
+            {activeTab === 'business' ? 'Business Registrations' : 'Career Registrations'}
           </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '14.5px', margin: 0 }}>
-            Monitor and manage registered local store listings and job seeker career profiles
+          <p style={{ color: 'var(--text-secondary, #64748B)', fontSize: '15px', margin: 0 }}>
+            {activeTab === 'business'
+              ? 'View and manage registered local business listings and storefronts'
+              : 'View and manage job seeker and candidate career profiles'}
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button
-            onClick={fetchData}
-            disabled={refreshing}
-            style={{
-              padding: '9px 16px',
-              borderRadius: '8px',
-              border: '1px solid #CBD5E1',
-              background: 'white',
-              color: '#334155',
-              fontWeight: '600',
-              fontSize: '13.5px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              cursor: 'pointer'
-            }}
-          >
-            <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
-            Refresh
-          </button>
-
-          <button
-            onClick={handleExportCSV}
-            style={{
-              padding: '9px 18px',
-              borderRadius: '8px',
-              border: '1px solid #CBD5E1',
-              background: 'white',
-              color: '#334155',
-              fontWeight: '600',
-              fontSize: '13.5px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              cursor: 'pointer'
-            }}
-          >
-            <Download size={15} />
-            Export CSV
-          </button>
-        </div>
+        <button
+          className="btn-primary"
+          onClick={handleOpenAddModal}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 18px',
+            background: 'var(--primary-blue, #2563EB)',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            fontWeight: '600',
+            fontSize: '14px',
+            cursor: 'pointer',
+            boxShadow: '0 1px 3px rgba(37,99,235,0.2)',
+            transition: 'all 0.15s ease'
+          }}
+          onMouseOver={e => e.currentTarget.style.opacity = '0.92'}
+          onMouseOut={e => e.currentTarget.style.opacity = '1'}
+        >
+          <Plus size={18} />
+          {activeTab === 'business' ? 'Add New Business' : 'Add New Candidate'}
+        </button>
       </div>
 
-      {/* THREE-WAY TOP DIRECTORY NAVIGATION PILL */}
+      {/* DIRECTORY SECTION SWITCHER BAR */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -509,13 +766,14 @@ const DirectoryRegistrations = () => {
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            cursor: 'pointer'
+            cursor: 'pointer',
+            border: 'none'
           }}
           onMouseOver={e => e.currentTarget.style.color = '#0F172A'}
           onMouseOut={e => e.currentTarget.style.color = '#64748B'}
         >
           <Building2 size={16} />
-          Pro ERP Clients
+          Pro Business Clients ({proClientsCount})
         </button>
 
         <button
@@ -532,6 +790,7 @@ const DirectoryRegistrations = () => {
             alignItems: 'center',
             gap: '8px',
             cursor: 'pointer',
+            border: 'none',
             transition: 'all 0.15s'
           }}
         >
@@ -553,6 +812,7 @@ const DirectoryRegistrations = () => {
             alignItems: 'center',
             gap: '8px',
             cursor: 'pointer',
+            border: 'none',
             transition: 'all 0.15s'
           }}
         >
@@ -561,180 +821,410 @@ const DirectoryRegistrations = () => {
         </button>
       </div>
 
-      {/* KPI METRICS ROW */}
+      {/* CLICKABLE KPI METRIC CARDS (Filtered by click, matching Pro Business Clients) */}
       {activeTab === 'business' ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', marginBottom: '8px' }}>
           
-          <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '18px 20px', display: 'flex', alignItems: 'center', gap: '14px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-            <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          {/* Card 1: Total Stores */}
+          <div
+            onClick={() => { setSelectedFilter('All'); setCurrentPage(1); }}
+            style={{
+              background: 'white',
+              borderRadius: '16px',
+              border: selectedFilter === 'All' ? '2px solid #2563EB' : '1px solid #E2E8F0',
+              padding: '18px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '14px',
+              boxShadow: selectedFilter === 'All' ? '0 4px 12px rgba(37,99,235,0.12)' : '0 2px 4px rgba(0,0,0,0.02)',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+            title="Click to view all business stores"
+          >
+            <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <Store size={22} />
             </div>
-            <div>
-              <p style={{ margin: '0 0 3px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Total Stores Listed</p>
-              <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '800' }}>{businesses.length}</h3>
+            <div style={{ minWidth: 0 }}>
+              <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600', whiteSpace: 'nowrap' }}>Total Stores</p>
+              <h3 style={{ margin: 0, fontSize: '22px', color: '#0F172A', fontWeight: '700' }}>{businesses.length}</h3>
             </div>
           </div>
 
-          <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '18px 20px', display: 'flex', alignItems: 'center', gap: '14px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-            <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#DCFCE7', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          {/* Card 2: Verified Listings */}
+          <div
+            onClick={() => { setSelectedFilter(selectedFilter === 'Verified' ? 'All' : 'Verified'); setCurrentPage(1); }}
+            style={{
+              background: 'white',
+              borderRadius: '16px',
+              border: selectedFilter === 'Verified' ? '2px solid #16A34A' : '1px solid #E2E8F0',
+              padding: '18px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '14px',
+              boxShadow: selectedFilter === 'Verified' ? '0 4px 12px rgba(22,163,74,0.12)' : '0 2px 4px rgba(0,0,0,0.02)',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+            title="Click to filter verified stores"
+          >
+            <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: '#DCFCE7', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <ShieldCheck size={22} />
             </div>
-            <div>
-              <p style={{ margin: '0 0 3px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Verified Listings</p>
-              <h3 style={{ margin: 0, fontSize: '24px', color: '#16A34A', fontWeight: '800' }}>
+            <div style={{ minWidth: 0 }}>
+              <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600', whiteSpace: 'nowrap' }}>Verified Listings</p>
+              <h3 style={{ margin: 0, fontSize: '22px', color: '#16A34A', fontWeight: '700' }}>
                 {businesses.filter(b => b.isVerified).length}
               </h3>
             </div>
           </div>
 
-          <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '18px 20px', display: 'flex', alignItems: 'center', gap: '14px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-            <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#F5F3FF', color: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <MapPin size={22} />
+          {/* Card 3: Unverified Listings */}
+          <div
+            onClick={() => { setSelectedFilter(selectedFilter === 'Unverified' ? 'All' : 'Unverified'); setCurrentPage(1); }}
+            style={{
+              background: 'white',
+              borderRadius: '16px',
+              border: selectedFilter === 'Unverified' ? '2px solid #8B5CF6' : '1px solid #E2E8F0',
+              padding: '18px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '14px',
+              boxShadow: selectedFilter === 'Unverified' ? '0 4px 12px rgba(139,92,246,0.12)' : '0 2px 4px rgba(0,0,0,0.02)',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+            title="Click to filter unverified stores"
+          >
+            <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: '#F5F3FF', color: '#8B5CF6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <XCircle size={22} />
             </div>
-            <div>
-              <p style={{ margin: '0 0 3px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Cities Covered</p>
-              <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '800' }}>{businessCities.length || 1}</h3>
+            <div style={{ minWidth: 0 }}>
+              <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600', whiteSpace: 'nowrap' }}>Unverified Listings</p>
+              <h3 style={{ margin: 0, fontSize: '22px', color: '#0F172A', fontWeight: '700' }}>
+                {businesses.filter(b => !b.isVerified).length}
+              </h3>
             </div>
           </div>
 
-          <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '18px 20px', display: 'flex', alignItems: 'center', gap: '14px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-            <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#FEF3C7', color: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <Tag size={22} />
+          {/* Card 4: With PAN Proof */}
+          <div
+            onClick={() => { setSelectedFilter(selectedFilter === 'With Proof' ? 'All' : 'With Proof'); setCurrentPage(1); }}
+            style={{
+              background: 'white',
+              borderRadius: '16px',
+              border: selectedFilter === 'With Proof' ? '2px solid #D97706' : '1px solid #E2E8F0',
+              padding: '18px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '14px',
+              boxShadow: selectedFilter === 'With Proof' ? '0 4px 12px rgba(217,119,6,0.12)' : '0 2px 4px rgba(0,0,0,0.02)',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+            title="Click to filter stores with attached PAN proof"
+          >
+            <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: '#FEF3C7', color: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <FileCheck size={22} />
             </div>
-            <div>
-              <p style={{ margin: '0 0 3px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Store Tags Active</p>
-              <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '800' }}>
-                {businesses.reduce((acc, b) => acc + (b.tags?.length || 0), 0)}
+            <div style={{ minWidth: 0 }}>
+              <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600', whiteSpace: 'nowrap' }}>With PAN Proof</p>
+              <h3 style={{ margin: 0, fontSize: '22px', color: '#0F172A', fontWeight: '700' }}>
+                {businesses.filter(b => b.panProofUrl).length}
+              </h3>
+            </div>
+          </div>
+
+          {/* Card 5: Missing Proof */}
+          <div
+            onClick={() => { setSelectedFilter(selectedFilter === 'Missing Proof' ? 'All' : 'Missing Proof'); setCurrentPage(1); }}
+            style={{
+              background: 'white',
+              borderRadius: '16px',
+              border: selectedFilter === 'Missing Proof' ? '2px solid #EF4444' : '1px solid #E2E8F0',
+              padding: '18px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '14px',
+              boxShadow: selectedFilter === 'Missing Proof' ? '0 4px 12px rgba(239,68,68,0.12)' : '0 2px 4px rgba(0,0,0,0.02)',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+            title="Click to filter stores missing PAN proof"
+          >
+            <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: '#FEE2E2', color: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <AlertCircle size={22} />
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600', whiteSpace: 'nowrap' }}>Missing Proof</p>
+              <h3 style={{ margin: 0, fontSize: '22px', color: '#EF4444', fontWeight: '700' }}>
+                {businesses.filter(b => !b.panProofUrl).length}
               </h3>
             </div>
           </div>
 
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-          
-          <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '18px 20px', display: 'flex', alignItems: 'center', gap: '14px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-            <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <User size={22} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', marginBottom: '8px' }}>
+
+          {/* Card 1: Total Candidates */}
+          <div
+            onClick={() => { setSelectedFilter('All'); setCurrentPage(1); }}
+            style={{
+              background: 'white',
+              borderRadius: '16px',
+              border: selectedFilter === 'All' ? '2px solid #2563EB' : '1px solid #E2E8F0',
+              padding: '18px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '14px',
+              boxShadow: selectedFilter === 'All' ? '0 4px 12px rgba(37,99,235,0.12)' : '0 2px 4px rgba(0,0,0,0.02)',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+            title="Click to view all candidates"
+          >
+            <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Users size={22} />
             </div>
-            <div>
-              <p style={{ margin: '0 0 3px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Total Candidates</p>
-              <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '800' }}>{careers.length}</h3>
+            <div style={{ minWidth: 0 }}>
+              <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600', whiteSpace: 'nowrap' }}>Total Candidates</p>
+              <h3 style={{ margin: 0, fontSize: '22px', color: '#0F172A', fontWeight: '700' }}>{careers.length}</h3>
             </div>
           </div>
 
-          <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '18px 20px', display: 'flex', alignItems: 'center', gap: '14px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-            <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#DCFCE7', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <Award size={22} />
+          {/* Card 2: Available for Hire */}
+          <div
+            onClick={() => { setSelectedFilter(selectedFilter === 'Available' ? 'All' : 'Available'); setCurrentPage(1); }}
+            style={{
+              background: 'white',
+              borderRadius: '16px',
+              border: selectedFilter === 'Available' ? '2px solid #16A34A' : '1px solid #E2E8F0',
+              padding: '18px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '14px',
+              boxShadow: selectedFilter === 'Available' ? '0 4px 12px rgba(22,163,74,0.12)' : '0 2px 4px rgba(0,0,0,0.02)',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+            title="Click to filter candidates available for hire"
+          >
+            <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: '#DCFCE7', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <UserCheck size={22} />
             </div>
-            <div>
-              <p style={{ margin: '0 0 3px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Available for Hire</p>
-              <h3 style={{ margin: 0, fontSize: '24px', color: '#16A34A', fontWeight: '800' }}>
+            <div style={{ minWidth: 0 }}>
+              <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600', whiteSpace: 'nowrap' }}>Available for Hire</p>
+              <h3 style={{ margin: 0, fontSize: '22px', color: '#16A34A', fontWeight: '700' }}>
                 {careers.filter(c => c.isAvailableForHire !== false).length}
               </h3>
             </div>
           </div>
 
-          <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '18px 20px', display: 'flex', alignItems: 'center', gap: '14px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-            <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#F5F3FF', color: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <Clock size={22} />
+          {/* Card 3: Not Looking */}
+          <div
+            onClick={() => { setSelectedFilter(selectedFilter === 'Unavailable' ? 'All' : 'Unavailable'); setCurrentPage(1); }}
+            style={{
+              background: 'white',
+              borderRadius: '16px',
+              border: selectedFilter === 'Unavailable' ? '2px solid #64748B' : '1px solid #E2E8F0',
+              padding: '18px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '14px',
+              boxShadow: selectedFilter === 'Unavailable' ? '0 4px 12px rgba(100,116,139,0.12)' : '0 2px 4px rgba(0,0,0,0.02)',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+            title="Click to filter unavailable candidates"
+          >
+            <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: '#F1F5F9', color: '#64748B', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <UserX size={22} />
             </div>
-            <div>
-              <p style={{ margin: '0 0 3px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Immediate Joiners</p>
-              <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '800' }}>
-                {careers.filter(c => !c.availability || c.availability === 'Immediate').length}
+            <div style={{ minWidth: 0 }}>
+              <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600', whiteSpace: 'nowrap' }}>Not Looking</p>
+              <h3 style={{ margin: 0, fontSize: '22px', color: '#0F172A', fontWeight: '700' }}>
+                {careers.filter(c => c.isAvailableForHire === false).length}
               </h3>
             </div>
           </div>
 
-          <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '18px 20px', display: 'flex', alignItems: 'center', gap: '14px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-            <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#FEF3C7', color: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          {/* Card 4: Immediate Joiners */}
+          <div
+            onClick={() => { setSelectedFilter(selectedFilter === 'Immediate' ? 'All' : 'Immediate'); setCurrentPage(1); }}
+            style={{
+              background: 'white',
+              borderRadius: '16px',
+              border: selectedFilter === 'Immediate' ? '2px solid #8B5CF6' : '1px solid #E2E8F0',
+              padding: '18px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '14px',
+              boxShadow: selectedFilter === 'Immediate' ? '0 4px 12px rgba(139,92,246,0.12)' : '0 2px 4px rgba(0,0,0,0.02)',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+            title="Click to filter immediate joiners"
+          >
+            <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: '#F5F3FF', color: '#8B5CF6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Clock size={22} />
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600', whiteSpace: 'nowrap' }}>Immediate Joiners</p>
+              <h3 style={{ margin: 0, fontSize: '22px', color: '#0F172A', fontWeight: '700' }}>
+                {careers.filter(c => !c.availability || c.availability.toLowerCase().includes('immediate')).length}
+              </h3>
+            </div>
+          </div>
+
+          {/* Card 5: Experienced (1+ Yrs) */}
+          <div
+            onClick={() => { setSelectedFilter(selectedFilter === 'Experienced' ? 'All' : 'Experienced'); setCurrentPage(1); }}
+            style={{
+              background: 'white',
+              borderRadius: '16px',
+              border: selectedFilter === 'Experienced' ? '2px solid #D97706' : '1px solid #E2E8F0',
+              padding: '18px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '14px',
+              boxShadow: selectedFilter === 'Experienced' ? '0 4px 12px rgba(217,119,6,0.12)' : '0 2px 4px rgba(0,0,0,0.02)',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+            title="Click to filter experienced candidates"
+          >
+            <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: '#FEF3C7', color: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <Briefcase size={22} />
             </div>
-            <div>
-              <p style={{ margin: '0 0 3px 0', fontSize: '13px', color: '#64748B', fontWeight: '600' }}>Industry Sectors</p>
-              <h3 style={{ margin: 0, fontSize: '24px', color: '#0F172A', fontWeight: '800' }}>{careerSectors.length || 1}</h3>
+            <div style={{ minWidth: 0 }}>
+              <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#64748B', fontWeight: '600', whiteSpace: 'nowrap' }}>Experienced (1+ Yrs)</p>
+              <h3 style={{ margin: 0, fontSize: '22px', color: '#0F172A', fontWeight: '700' }}>
+                {careers.filter(c => c.experience && !c.experience.toLowerCase().includes('fresher')).length}
+              </h3>
             </div>
           </div>
 
         </div>
       )}
 
-      {/* FILTER & SEARCH BAR */}
-      <div style={{
-        background: 'white',
-        borderRadius: '16px',
-        border: '1px solid #E2E8F0',
-        padding: '14px 18px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '12px'
-      }}>
-        {/* Compact Search input */}
-        <div style={{ position: 'relative', width: '320px', maxWidth: '100%' }}>
-          <Search size={17} color="#94A3B8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+      {/* SEARCH & FILTER ROW (Identical design to Pro Business Clients) */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', marginTop: '4px' }}>
+        <div style={{ position: 'relative', width: '320px' }}>
+          <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted, #94A3B8)' }} />
           <input
             type="text"
-            placeholder={activeTab === 'business' ? "Search store name, owner, city..." : "Search candidate, role, skills, city..."}
+            placeholder={activeTab === 'business' ? "Search store name, owner, phone, city..." : "Search candidate, role, skills, city..."}
             value={searchQuery}
-            onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-            style={{
-              width: '100%',
-              height: '40px',
-              paddingLeft: '38px',
-              paddingRight: '12px',
-              borderRadius: '8px',
-              border: '1px solid #CBD5E1',
-              fontSize: '13.5px',
-              boxSizing: 'border-box'
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setCurrentPage(1);
             }}
+            style={{ width: '100%', padding: '10px 36px 10px 38px', borderRadius: 'var(--radius-lg, 10px)', border: '1px solid var(--border-color, #CBD5E1)', outline: 'none', background: 'white', fontSize: '13.5px', boxSizing: 'border-box' }}
           />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => { setSearchQuery(''); setCurrentPage(1); }}
+              style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted, #94A3B8)' }}
+              title="Clear search"
+            >
+              <X size={14} />
+            </button>
+          )}
         </div>
 
-        {/* Dropdowns */}
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-          <select
-            value={selectedStatus}
-            onChange={e => { setSelectedStatus(e.target.value); setCurrentPage(1); }}
-            style={{
-              height: '40px',
-              padding: '0 12px',
-              borderRadius: '8px',
-              border: '1px solid #CBD5E1',
-              fontSize: '13px',
-              background: 'white',
-              color: '#334155'
-            }}
-          >
-            <option value="All">All Statuses</option>
-            {activeTab === 'business' ? (
-              <>
-                <option value="Verified">Verified Only</option>
-                <option value="Unverified">Unverified Only</option>
-              </>
-            ) : (
-              <>
-                <option value="Available">Available for Hire</option>
-                <option value="Unavailable">Not Looking</option>
-              </>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* Custom Filter Dropdown */}
+          <div style={{ position: 'relative' }}>
+            <button
+              className="btn-secondary"
+              onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+              style={{ padding: '8px 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '8px', cursor: 'pointer', color: '#334155', fontWeight: '500' }}
+            >
+              <Filter size={16} />
+              {selectedFilter === 'All' ? (activeTab === 'business' ? 'All Stores' : 'All Candidates') : selectedFilter}
+              <ChevronDown size={16} />
+            </button>
+
+            {showFilterDropdown && (
+              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '8px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', width: '220px', zIndex: 10, overflow: 'hidden' }}>
+                {(activeTab === 'business'
+                  ? ['All Stores', 'Verified Only', 'Unverified Only', 'With PAN Proof', 'Missing Proof']
+                  : ['All Candidates', 'Available for Hire', 'Not Looking', 'Immediate Joiners', 'Experienced (1+ Yrs)']
+                ).map((filter, idx, arr) => {
+                  const filterVal = filter === 'All Stores' || filter === 'All Candidates' ? 'All'
+                    : filter === 'Verified Only' ? 'Verified'
+                    : filter === 'Unverified Only' ? 'Unverified'
+                    : filter === 'With PAN Proof' ? 'With Proof'
+                    : filter === 'Available for Hire' ? 'Available'
+                    : filter === 'Not Looking' ? 'Unavailable'
+                    : filter;
+                  const isSelected = selectedFilter === filterVal;
+                  return (
+                    <button
+                      key={filter}
+                      onClick={() => { setSelectedFilter(filterVal); setShowFilterDropdown(false); setCurrentPage(1); }}
+                      style={{
+                        display: 'block',
+                        width: '100%',
+                        textAlign: 'left',
+                        padding: '10px 16px',
+                        fontSize: '13px',
+                        color: isSelected ? '#2563EB' : '#0F172A',
+                        background: isSelected ? '#EFF6FF' : 'transparent',
+                        border: 'none',
+                        borderBottom: idx === arr.length - 1 ? 'none' : '1px solid #F1F5F9',
+                        fontWeight: isSelected ? '700' : '500',
+                        cursor: 'pointer'
+                      }}
+                      onMouseOver={(e) => { if (!isSelected) e.currentTarget.style.background = '#F8FAFC'; }}
+                      onMouseOut={(e) => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
+                    >
+                      {filter}
+                    </button>
+                  );
+                })}
+              </div>
             )}
-          </select>
+          </div>
+
+          <button
+            onClick={fetchData}
+            disabled={refreshing}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 14px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '13.5px', cursor: 'pointer' }}
+            title="Refresh directory data"
+          >
+            <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
+          </button>
+
+          <button
+            onClick={handleExportCSV}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 16px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '8px', color: '#475569', fontWeight: '500', fontSize: '13.5px', cursor: 'pointer' }}
+          >
+            <Download size={15} /> Export
+          </button>
         </div>
       </div>
 
       {/* DATA TABLE CONTAINER */}
       <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', overflow: 'hidden', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-        
+
         {loading ? (
           <div style={{ padding: '60px 20px', textAlign: 'center', color: '#64748B' }}>
             <p style={{ fontSize: '15px', fontWeight: '600' }}>Loading registrations...</p>
           </div>
         ) : paginatedList.length === 0 ? (
-          <div style={{ padding: '60px 20px', textAlign: 'center', color: '#64748B' }}>
-            <p style={{ fontSize: '15px', fontWeight: '600', marginBottom: '6px' }}>No registrations found</p>
-            <p style={{ fontSize: '13px', color: '#94A3B8' }}>Try adjusting your search query or filters.</p>
+          <div style={{ padding: '48px 20px', textAlign: 'center', color: '#94A3B8' }}>
+            {activeTab === 'business' ? (
+              <Store size={40} style={{ opacity: 0.3, marginBottom: '10px', display: 'inline-block' }} />
+            ) : (
+              <Briefcase size={40} style={{ opacity: 0.3, marginBottom: '10px', display: 'inline-block' }} />
+            )}
+            <h4 style={{ margin: '0 0 6px 0', color: '#334155', fontSize: '16px', fontWeight: '700' }}>
+              {activeTab === 'business' ? 'No Business Registrations Found' : 'No Career Registrations Found'}
+            </h4>
+            <p style={{ margin: 0, fontSize: '13.5px', color: '#94A3B8' }}>Try adjusting your search query or filters.</p>
           </div>
         ) : activeTab === 'business' ? (
           /* BUSINESS TABLE */
@@ -744,6 +1234,7 @@ const DirectoryRegistrations = () => {
                 <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                   <th style={{ padding: '14px 18px', width: '60px' }}>S.NO</th>
                   <th style={{ padding: '14px 18px' }}>BUSINESS / STORE</th>
+                  <th style={{ padding: '14px 18px' }}>PAN & PROOF</th>
                   <th style={{ padding: '14px 18px' }}>OWNER & CONTACT</th>
                   <th style={{ padding: '14px 18px' }}>LOCATION</th>
                   <th style={{ padding: '14px 18px' }}>TAGS & KEYWORDS</th>
@@ -756,7 +1247,7 @@ const DirectoryRegistrations = () => {
                   const serial = (currentPage - 1) * itemsPerPage + idx + 1;
                   return (
                     <tr key={b._id} style={{ borderBottom: '1px solid #F1F5F9', transition: 'background 0.15s' }} onMouseOver={e => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
-                      
+
                       <td style={{ padding: '14px 18px', color: '#64748B', fontWeight: '600' }}>
                         {serial}
                       </td>
@@ -770,28 +1261,58 @@ const DirectoryRegistrations = () => {
                             <span style={{ fontWeight: '700', color: '#0F172A', display: 'block' }}>
                               {b.businessName}
                             </span>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px', flexWrap: 'wrap' }}>
-                              <span style={{ fontSize: '11px', color: '#94A3B8' }}>
-                                ID: {b._id.slice(-6).toUpperCase()}
-                              </span>
-                              {b.panNumber && (
-                                <span style={{ fontSize: '10.5px', background: '#F1F5F9', color: '#334155', padding: '1px 5px', borderRadius: '4px', fontWeight: '700', fontFamily: 'monospace' }}>
-                                  PAN: {b.panNumber}
-                                </span>
-                              )}
-                              {b.panProofUrl && (
-                                <a
-                                  href={b.panProofUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  style={{ fontSize: '10.5px', color: '#2563EB', fontWeight: '700', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '2px' }}
-                                  title="View uploaded PAN proof document"
-                                >
-                                  Proof ↗
-                                </a>
-                              )}
-                            </div>
+                            <span style={{ fontSize: '11px', color: '#94A3B8' }}>
+                              ID: {b._id.slice(-6).toUpperCase()}
+                            </span>
                           </div>
+                        </div>
+                      </td>
+
+                      {/* Dedicated PAN & Proof Column */}
+                      <td style={{ padding: '14px 18px' }}>
+                        <div>
+                          {b.panNumber ? (
+                            <span style={{ fontWeight: '700', fontFamily: 'monospace', fontSize: '13px', color: '#0F172A', display: 'block', letterSpacing: '0.5px' }}>
+                              {b.panNumber}
+                            </span>
+                          ) : (
+                            <span style={{ color: '#94A3B8', fontSize: '12px', fontStyle: 'italic' }}>
+                              No PAN
+                            </span>
+                          )}
+
+                          {b.panProofUrl ? (
+                            <div style={{ marginTop: '5px' }}>
+                              <button
+                                type="button"
+                                onClick={() => setPreviewProofImage(b.panProofUrl)}
+                                style={{
+                                  padding: '2px 6px 2px 2px',
+                                  background: 'white',
+                                  border: '1.5px solid #CBD5E1',
+                                  borderRadius: '6px',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '6px'
+                                }}
+                                title="Click to view full PAN proof image"
+                              >
+                                <img
+                                  src={b.panProofUrl}
+                                  alt="Proof Thumbnail"
+                                  style={{ width: '42px', height: '28px', objectFit: 'cover', borderRadius: '4px', display: 'block' }}
+                                />
+                                <span style={{ fontSize: '11px', color: '#2563EB', fontWeight: '700' }}>
+                                  View
+                                </span>
+                              </button>
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: '11px', color: '#CBD5E1', display: 'block', marginTop: '2px' }}>
+                              No proof
+                            </span>
+                          )}
                         </div>
                       </td>
 
@@ -842,20 +1363,20 @@ const DirectoryRegistrations = () => {
                           style={{
                             padding: '5px 12px',
                             borderRadius: '12px',
-                            border: b.isVerified ? '1px solid #BBF7D0' : (b.panProofUrl ? '1px solid #BFDBFE' : '1px solid #E2E8F0'),
-                            fontSize: '11.5px',
+                            border: b.isVerified ? '1px solid #BBF7D0' : '1px solid #E2E8F0',
+                            fontSize: '12px',
                             fontWeight: '700',
                             cursor: 'pointer',
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: '5px',
-                            background: b.isVerified ? '#DCFCE7' : (b.panProofUrl ? '#EFF6FF' : '#F1F5F9'),
-                            color: b.isVerified ? '#166534' : (b.panProofUrl ? '#1D4ED8' : '#64748B')
+                            background: b.isVerified ? '#DCFCE7' : '#F1F5F9',
+                            color: b.isVerified ? '#166534' : '#64748B'
                           }}
-                          title={b.isVerified ? "Click to revoke verification" : "Click to mark as verified"}
+                          title={b.isVerified ? "Click to set Unverified" : "Click to set Verified"}
                         >
-                          {b.isVerified ? <CheckCircle2 size={13} /> : (b.panProofUrl ? <ShieldCheck size={13} /> : <XCircle size={13} />)}
-                          {b.isVerified ? 'Verified' : (b.panProofUrl ? 'Verify (Has Proof)' : 'Unverified')}
+                          {b.isVerified ? <CheckCircle2 size={13} color="#16A34A" /> : <XCircle size={13} color="#94A3B8" />}
+                          {b.isVerified ? 'Verified' : 'Unverified'}
                         </button>
                       </td>
 
@@ -915,7 +1436,7 @@ const DirectoryRegistrations = () => {
                   const isAvailable = c.isAvailableForHire !== false;
                   return (
                     <tr key={c._id} style={{ borderBottom: '1px solid #F1F5F9', transition: 'background 0.15s' }} onMouseOver={e => e.currentTarget.style.background = '#F8FAFC'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
-                      
+
                       <td style={{ padding: '14px 18px', color: '#64748B', fontWeight: '600' }}>
                         {serial}
                       </td>
@@ -1060,12 +1581,12 @@ const DirectoryRegistrations = () => {
 
       {/* VIEW DETAILS MODAL */}
       {viewItem && (
-        <div 
+        <div
           onClick={e => { if (e.target === e.currentTarget) setViewItem(null); }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}
         >
           <div style={{ background: 'white', borderRadius: '18px', width: '100%', maxWidth: '580px', maxHeight: '90vh', overflowY: 'auto', padding: '28px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px #E2E8F0' }}>
-            
+
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1342,12 +1863,12 @@ const DirectoryRegistrations = () => {
 
       {/* EDIT MODAL */}
       {editItem && (
-        <div 
+        <div
           onClick={e => { if (e.target === e.currentTarget) setEditItem(null); }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}
         >
           <div style={{ background: 'white', borderRadius: '18px', width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', padding: '28px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px #E2E8F0' }}>
-            
+
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#FEF3C7', color: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1374,47 +1895,47 @@ const DirectoryRegistrations = () => {
                 <>
                   <div>
                     <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Business / Shop Name *</label>
-                    <input type="text" value={editForm.businessName || ''} onChange={e => setEditForm({...editForm, businessName: e.target.value})} required style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', boxSizing: 'border-box' }} />
+                    <input type="text" value={editForm.businessName || ''} onChange={e => setEditForm({ ...editForm, businessName: e.target.value })} required style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', boxSizing: 'border-box' }} />
                   </div>
 
                   <div>
                     <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Owner / Contact Person Name</label>
-                    <input type="text" value={editForm.ownerName || ''} onChange={e => setEditForm({...editForm, ownerName: e.target.value})} style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', boxSizing: 'border-box' }} />
+                    <input type="text" value={editForm.ownerName || ''} onChange={e => setEditForm({ ...editForm, ownerName: e.target.value })} style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', boxSizing: 'border-box' }} />
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                     <div>
                       <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Contact Phone *</label>
-                      <input type="tel" maxLength={10} value={editForm.contactPhone || ''} onChange={e => setEditForm({...editForm, contactPhone: e.target.value})} required style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', boxSizing: 'border-box' }} />
+                      <input type="tel" maxLength={10} value={editForm.contactPhone || ''} onChange={e => setEditForm({ ...editForm, contactPhone: e.target.value })} required style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', boxSizing: 'border-box' }} />
                     </div>
                     <div>
                       <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>WhatsApp Number</label>
-                      <input type="tel" maxLength={10} value={editForm.whatsappNumber || ''} onChange={e => setEditForm({...editForm, whatsappNumber: e.target.value})} style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', boxSizing: 'border-box' }} />
+                      <input type="tel" maxLength={10} value={editForm.whatsappNumber || ''} onChange={e => setEditForm({ ...editForm, whatsappNumber: e.target.value })} style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', boxSizing: 'border-box' }} />
                     </div>
                   </div>
 
                   <div>
                     <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Business Email Address</label>
-                    <input type="email" placeholder="store@example.com" value={editForm.email || ''} onChange={e => setEditForm({...editForm, email: e.target.value})} style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', boxSizing: 'border-box' }} />
+                    <input type="email" placeholder="store@example.com" value={editForm.email || ''} onChange={e => setEditForm({ ...editForm, email: e.target.value })} style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', boxSizing: 'border-box' }} />
                   </div>
 
                   <div>
                     <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Shop Address</label>
-                    <input type="text" value={editForm.address || ''} onChange={e => setEditForm({...editForm, address: e.target.value})} style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }} />
+                    <input type="text" value={editForm.address || ''} onChange={e => setEditForm({ ...editForm, address: e.target.value })} style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }} />
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: '10px' }}>
                     <div>
                       <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>City *</label>
-                      <input type="text" value={editForm.city || ''} onChange={e => setEditForm({...editForm, city: e.target.value})} required style={{ width: '100%', height: '40px', padding: '0 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }} />
+                      <input type="text" value={editForm.city || ''} onChange={e => setEditForm({ ...editForm, city: e.target.value })} required style={{ width: '100%', height: '40px', padding: '0 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }} />
                     </div>
                     <div>
                       <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>State</label>
-                      <input type="text" placeholder="e.g. Karnataka" value={editForm.state || ''} onChange={e => setEditForm({...editForm, state: e.target.value})} style={{ width: '100%', height: '40px', padding: '0 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }} />
+                      <input type="text" placeholder="e.g. Karnataka" value={editForm.state || ''} onChange={e => setEditForm({ ...editForm, state: e.target.value })} style={{ width: '100%', height: '40px', padding: '0 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }} />
                     </div>
                     <div>
                       <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Pincode</label>
-                      <input type="text" maxLength={6} value={editForm.pincode || ''} onChange={e => setEditForm({...editForm, pincode: e.target.value})} style={{ width: '100%', height: '40px', padding: '0 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }} />
+                      <input type="text" maxLength={6} value={editForm.pincode || ''} onChange={e => setEditForm({ ...editForm, pincode: e.target.value })} style={{ width: '100%', height: '40px', padding: '0 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }} />
                     </div>
                   </div>
 
@@ -1467,12 +1988,12 @@ const DirectoryRegistrations = () => {
 
                   <div>
                     <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Website or Social Link</label>
-                    <input type="text" placeholder="https://..." value={editForm.websiteOrSocial || ''} onChange={e => setEditForm({...editForm, websiteOrSocial: e.target.value})} style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }} />
+                    <input type="text" placeholder="https://..." value={editForm.websiteOrSocial || ''} onChange={e => setEditForm({ ...editForm, websiteOrSocial: e.target.value })} style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }} />
                   </div>
 
                   <div>
                     <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>About Store / Specialities</label>
-                    <textarea rows={3} value={editForm.description || ''} onChange={e => setEditForm({...editForm, description: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+                    <textarea rows={3} value={editForm.description || ''} onChange={e => setEditForm({ ...editForm, description: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box', fontFamily: 'inherit' }} />
                   </div>
 
                   {/* Statutory KYC (PAN Details) */}
@@ -1488,7 +2009,7 @@ const DirectoryRegistrations = () => {
                           maxLength={10}
                           placeholder="ABCDE1234F"
                           value={editForm.panNumber || ''}
-                          onChange={e => setEditForm({...editForm, panNumber: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '')})}
+                          onChange={e => setEditForm({ ...editForm, panNumber: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') })}
                           style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase', background: 'white', boxSizing: 'border-box' }}
                         />
                       </div>
@@ -1525,7 +2046,7 @@ const DirectoryRegistrations = () => {
                       type="checkbox"
                       id="editVerified"
                       checked={Boolean(editForm.isVerified)}
-                      onChange={e => setEditForm({...editForm, isVerified: e.target.checked})}
+                      onChange={e => setEditForm({ ...editForm, isVerified: e.target.checked })}
                       style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                     />
                     <label htmlFor="editVerified" style={{ fontSize: '13.5px', fontWeight: '600', color: '#0F172A', cursor: 'pointer' }}>
@@ -1538,17 +2059,17 @@ const DirectoryRegistrations = () => {
                 <>
                   <div>
                     <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Full Name *</label>
-                    <input type="text" value={editForm.fullName || ''} onChange={e => setEditForm({...editForm, fullName: e.target.value})} required style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', boxSizing: 'border-box' }} />
+                    <input type="text" value={editForm.fullName || ''} onChange={e => setEditForm({ ...editForm, fullName: e.target.value })} required style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', boxSizing: 'border-box' }} />
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                     <div>
                       <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Job Category / Sector</label>
-                      <input type="text" value={editForm.jobCategory || ''} onChange={e => setEditForm({...editForm, jobCategory: e.target.value})} style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', boxSizing: 'border-box' }} />
+                      <input type="text" value={editForm.jobCategory || ''} onChange={e => setEditForm({ ...editForm, jobCategory: e.target.value })} style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', boxSizing: 'border-box' }} />
                     </div>
                     <div>
                       <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Total Experience</label>
-                      <select value={editForm.experience || '1-2 Years'} onChange={e => setEditForm({...editForm, experience: e.target.value})} style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', background: 'white', boxSizing: 'border-box' }}>
+                      <select value={editForm.experience || '1-2 Years'} onChange={e => setEditForm({ ...editForm, experience: e.target.value })} style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', background: 'white', boxSizing: 'border-box' }}>
                         <option value="Fresher">Fresher / No Experience</option>
                         <option value="Less than 1 Year">Less than 1 Year</option>
                         <option value="1-2 Years">1-2 Years</option>
@@ -1562,38 +2083,38 @@ const DirectoryRegistrations = () => {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                     <div>
                       <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Contact Phone *</label>
-                      <input type="tel" maxLength={10} value={editForm.contactPhone || ''} onChange={e => setEditForm({...editForm, contactPhone: e.target.value})} required style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', boxSizing: 'border-box' }} />
+                      <input type="tel" maxLength={10} value={editForm.contactPhone || ''} onChange={e => setEditForm({ ...editForm, contactPhone: e.target.value })} required style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', boxSizing: 'border-box' }} />
                     </div>
                     <div>
                       <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>WhatsApp Number</label>
-                      <input type="tel" maxLength={10} value={editForm.whatsappNumber || ''} onChange={e => setEditForm({...editForm, whatsappNumber: e.target.value})} style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', boxSizing: 'border-box' }} />
+                      <input type="tel" maxLength={10} value={editForm.whatsappNumber || ''} onChange={e => setEditForm({ ...editForm, whatsappNumber: e.target.value })} style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', boxSizing: 'border-box' }} />
                     </div>
                   </div>
 
                   <div>
                     <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Email Address</label>
-                    <input type="email" placeholder="candidate@example.com" value={editForm.email || ''} onChange={e => setEditForm({...editForm, email: e.target.value})} style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', boxSizing: 'border-box' }} />
+                    <input type="email" placeholder="candidate@example.com" value={editForm.email || ''} onChange={e => setEditForm({ ...editForm, email: e.target.value })} style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', boxSizing: 'border-box' }} />
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
                     <div>
                       <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>City *</label>
-                      <input type="text" value={editForm.city || ''} onChange={e => setEditForm({...editForm, city: e.target.value})} required style={{ width: '100%', height: '40px', padding: '0 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }} />
+                      <input type="text" value={editForm.city || ''} onChange={e => setEditForm({ ...editForm, city: e.target.value })} required style={{ width: '100%', height: '40px', padding: '0 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }} />
                     </div>
                     <div>
                       <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Area / Locality</label>
-                      <input type="text" placeholder="e.g. Indiranagar" value={editForm.currentArea || ''} onChange={e => setEditForm({...editForm, currentArea: e.target.value})} style={{ width: '100%', height: '40px', padding: '0 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }} />
+                      <input type="text" placeholder="e.g. Indiranagar" value={editForm.currentArea || ''} onChange={e => setEditForm({ ...editForm, currentArea: e.target.value })} style={{ width: '100%', height: '40px', padding: '0 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }} />
                     </div>
                     <div>
                       <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Pincode</label>
-                      <input type="text" maxLength={6} value={editForm.pincode || ''} onChange={e => setEditForm({...editForm, pincode: e.target.value})} style={{ width: '100%', height: '40px', padding: '0 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }} />
+                      <input type="text" maxLength={6} value={editForm.pincode || ''} onChange={e => setEditForm({ ...editForm, pincode: e.target.value })} style={{ width: '100%', height: '40px', padding: '0 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }} />
                     </div>
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                     <div>
                       <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Education / Qualification</label>
-                      <select value={editForm.qualification || ''} onChange={e => setEditForm({...editForm, qualification: e.target.value})} style={{ width: '100%', height: '40px', padding: '0 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', background: 'white', boxSizing: 'border-box' }}>
+                      <select value={editForm.qualification || ''} onChange={e => setEditForm({ ...editForm, qualification: e.target.value })} style={{ width: '100%', height: '40px', padding: '0 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', background: 'white', boxSizing: 'border-box' }}>
                         <option value="">Select Qualification</option>
                         <option value="10th / SSLC">10th / SSLC</option>
                         <option value="12th / HSC">12th / HSC</option>
@@ -1605,7 +2126,7 @@ const DirectoryRegistrations = () => {
                     </div>
                     <div>
                       <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Work Preference</label>
-                      <select value={editForm.employmentType || 'Full-time'} onChange={e => setEditForm({...editForm, employmentType: e.target.value})} style={{ width: '100%', height: '40px', padding: '0 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', background: 'white', boxSizing: 'border-box' }}>
+                      <select value={editForm.employmentType || 'Full-time'} onChange={e => setEditForm({ ...editForm, employmentType: e.target.value })} style={{ width: '100%', height: '40px', padding: '0 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', background: 'white', boxSizing: 'border-box' }}>
                         <option value="Full-time">Full-time</option>
                         <option value="Part-time">Part-time</option>
                         <option value="Contract / Freelance">Contract / Freelance</option>
@@ -1617,7 +2138,7 @@ const DirectoryRegistrations = () => {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                     <div>
                       <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Availability</label>
-                      <select value={editForm.availability || 'Immediate'} onChange={e => setEditForm({...editForm, availability: e.target.value})} style={{ width: '100%', height: '40px', padding: '0 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', background: 'white', boxSizing: 'border-box' }}>
+                      <select value={editForm.availability || 'Immediate'} onChange={e => setEditForm({ ...editForm, availability: e.target.value })} style={{ width: '100%', height: '40px', padding: '0 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', background: 'white', boxSizing: 'border-box' }}>
                         <option value="Immediate">Immediate</option>
                         <option value="Within 15 Days">Within 15 Days</option>
                         <option value="1 Month">1 Month</option>
@@ -1625,13 +2146,13 @@ const DirectoryRegistrations = () => {
                     </div>
                     <div>
                       <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Expected Salary</label>
-                      <input type="text" placeholder="e.g. ₹20,000 / month" value={editForm.expectedSalary || ''} onChange={e => setEditForm({...editForm, expectedSalary: e.target.value})} style={{ width: '100%', height: '40px', padding: '0 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }} />
+                      <input type="text" placeholder="e.g. ₹20,000 / month" value={editForm.expectedSalary || ''} onChange={e => setEditForm({ ...editForm, expectedSalary: e.target.value })} style={{ width: '100%', height: '40px', padding: '0 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }} />
                     </div>
                   </div>
 
                   <div>
                     <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Driving License (Optional)</label>
-                    <input type="text" placeholder="e.g. LMV / HMV / Two Wheeler / None" value={editForm.drivingLicense || ''} onChange={e => setEditForm({...editForm, drivingLicense: e.target.value})} style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }} />
+                    <input type="text" placeholder="e.g. LMV / HMV / Two Wheeler / None" value={editForm.drivingLicense || ''} onChange={e => setEditForm({ ...editForm, drivingLicense: e.target.value })} style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }} />
                   </div>
 
                   {/* Skills editor */}
@@ -1683,7 +2204,7 @@ const DirectoryRegistrations = () => {
 
                   <div>
                     <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Bio / Summary</label>
-                    <textarea rows={3} placeholder="About candidate..." value={editForm.bio || ''} onChange={e => setEditForm({...editForm, bio: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+                    <textarea rows={3} placeholder="About candidate..." value={editForm.bio || ''} onChange={e => setEditForm({ ...editForm, bio: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box', fontFamily: 'inherit' }} />
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 0' }}>
@@ -1691,7 +2212,7 @@ const DirectoryRegistrations = () => {
                       type="checkbox"
                       id="editAvailable"
                       checked={Boolean(editForm.isAvailableForHire)}
-                      onChange={e => setEditForm({...editForm, isAvailableForHire: e.target.checked})}
+                      onChange={e => setEditForm({ ...editForm, isAvailableForHire: e.target.checked })}
                       style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                     />
                     <label htmlFor="editAvailable" style={{ fontSize: '13.5px', fontWeight: '600', color: '#0F172A', cursor: 'pointer' }}>
@@ -1725,7 +2246,7 @@ const DirectoryRegistrations = () => {
 
       {/* DELETE CONFIRMATION MODAL */}
       {deleteTarget && (
-        <div 
+        <div
           onClick={e => { if (e.target === e.currentTarget) setDeleteTarget(null); }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}
         >
@@ -1758,6 +2279,643 @@ const DirectoryRegistrations = () => {
               >
                 {deleting ? 'Deleting...' : 'Yes, Delete'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ADD NEW REGISTRATION MODAL */}
+      {showAddModal && (
+        <div 
+          onClick={e => { if (e.target === e.currentTarget) setShowAddModal(false); }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.45)', backdropFilter: 'blur(2px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}
+        >
+          <div style={{ background: 'white', borderRadius: '18px', width: '100%', maxWidth: '620px', maxHeight: '90vh', overflowY: 'auto', padding: '28px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px #E2E8F0' }}>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {activeTab === 'business' ? <Store size={22} /> : <UserPlus size={22} />}
+                </div>
+                <div>
+                  <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#0F172A', margin: 0 }}>
+                    {activeTab === 'business' ? 'Add New Business Listing' : 'Add New Candidate Profile'}
+                  </h2>
+                  <span style={{ fontSize: '12px', color: '#64748B' }}>
+                    {activeTab === 'business' ? 'Register and list a local business storefront' : 'Create a new job seeker candidate profile'}
+                  </span>
+                </div>
+              </div>
+
+              <button 
+                type="button"
+                onClick={() => setShowAddModal(false)} 
+                style={{ background: '#F1F5F9', border: 'none', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748B' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateRegistration} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {activeTab === 'business' ? (
+                /* Business Fields */
+                <>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Business / Shop Name *</label>
+                    <input 
+                      type="text" 
+                      placeholder="e.g. Annapoorna Groceries & Provisions" 
+                      value={addForm.businessName || ''} 
+                      onChange={e => setAddForm({ ...addForm, businessName: e.target.value })} 
+                      required 
+                      style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', boxSizing: 'border-box' }} 
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Owner / Contact Person Name</label>
+                    <input 
+                      type="text" 
+                      placeholder="e.g. Sundar Raj" 
+                      value={addForm.ownerName || ''} 
+                      onChange={e => setAddForm({ ...addForm, ownerName: e.target.value })} 
+                      style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', boxSizing: 'border-box' }} 
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Contact Phone * (10 Digits)</label>
+                      <input 
+                        type="tel" 
+                        maxLength={10} 
+                        placeholder="9876543210" 
+                        value={addForm.contactPhone || ''} 
+                        onChange={e => setAddForm({ ...addForm, contactPhone: e.target.value.replace(/[^0-9]/g, '') })} 
+                        required 
+                        style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', boxSizing: 'border-box' }} 
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>WhatsApp Number</label>
+                      <input 
+                        type="tel" 
+                        maxLength={10} 
+                        placeholder="9876543210" 
+                        value={addForm.whatsappNumber || ''} 
+                        onChange={e => setAddForm({ ...addForm, whatsappNumber: e.target.value.replace(/[^0-9]/g, '') })} 
+                        style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', boxSizing: 'border-box' }} 
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Business Email Address</label>
+                    <input 
+                      type="email" 
+                      placeholder="store@example.com" 
+                      value={addForm.email || ''} 
+                      onChange={e => setAddForm({ ...addForm, email: e.target.value })} 
+                      style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', boxSizing: 'border-box' }} 
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Shop Address</label>
+                    <input 
+                      type="text" 
+                      placeholder="Shop No, Street, Landmark" 
+                      value={addForm.address || ''} 
+                      onChange={e => setAddForm({ ...addForm, address: e.target.value })} 
+                      style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }} 
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: '10px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>City *</label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. Bengaluru" 
+                        value={addForm.city || ''} 
+                        onChange={e => setAddForm({ ...addForm, city: e.target.value })} 
+                        required 
+                        style={{ width: '100%', height: '40px', padding: '0 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }} 
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>State</label>
+                      <input 
+                        type="text" 
+                        placeholder="Karnataka" 
+                        value={addForm.state || ''} 
+                        onChange={e => setAddForm({ ...addForm, state: e.target.value })} 
+                        style={{ width: '100%', height: '40px', padding: '0 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }} 
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Pincode</label>
+                      <input 
+                        type="text" 
+                        maxLength={6} 
+                        placeholder="560001" 
+                        value={addForm.pincode || ''} 
+                        onChange={e => setAddForm({ ...addForm, pincode: e.target.value.replace(/[^0-9]/g, '') })} 
+                        style={{ width: '100%', height: '40px', padding: '0 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }} 
+                      />
+                    </div>
+                  </div>
+
+                  {/* Category and Tags */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Business Sector / Category</label>
+                    <select
+                      value={addForm.category || 'Retail'}
+                      onChange={e => setAddForm({ ...addForm, category: e.target.value })}
+                      style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', background: 'white', boxSizing: 'border-box' }}
+                    >
+                      <option value="Retail">Retail Store</option>
+                      <option value="Wholesale">Wholesale & Distribution</option>
+                      <option value="Kirana & Grocery">Kirana & Grocery</option>
+                      <option value="Supermarket">Supermarket</option>
+                      <option value="Pharmacy / Medical">Pharmacy / Medical</option>
+                      <option value="Hardware & Electrical">Hardware & Electrical</option>
+                      <option value="Textiles & Garments">Textiles & Garments</option>
+                      <option value="Automobile & Garage">Automobile & Garage</option>
+                      <option value="Restaurant & Cafe">Restaurant & Cafe</option>
+                      <option value="Electronics">Electronics & Appliances</option>
+                    </select>
+                  </div>
+
+                  {/* Interactive Tags */}
+                  <div style={{ background: '#F8FAFC', padding: '14px', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
+                    <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', color: '#0F172A', marginBottom: '6px' }}>Store Tags & Keywords</label>
+                    {addForm.tags && addForm.tags.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
+                        {addForm.tags.map(t => (
+                          <span key={t} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: '#2563EB', color: 'white', fontSize: '12px', fontWeight: '700', padding: '4px 10px', borderRadius: '14px' }}>
+                            <span>✓ {t}</span>
+                            <button type="button" onClick={() => setAddForm(prev => ({ ...prev, tags: prev.tags.filter(x => x !== t) }))} style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', padding: 0, fontSize: '11px', display: 'flex', alignItems: 'center' }}>✕</button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <input
+                        type="text"
+                        placeholder="Add tag (e.g. Organic, Spices, Tools)"
+                        value={customAddTag}
+                        onChange={e => setCustomAddTag(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const val = customAddTag.trim();
+                            if (val && !addForm.tags?.includes(val)) {
+                              setAddForm(prev => ({ ...prev, tags: [...(prev.tags || []), val] }));
+                              setCustomAddTag('');
+                            }
+                          }
+                        }}
+                        style={{ flex: 1, height: '36px', padding: '0 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '12.5px' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const val = customAddTag.trim();
+                          if (val && !addForm.tags?.includes(val)) {
+                            setAddForm(prev => ({ ...prev, tags: [...(prev.tags || []), val] }));
+                            setCustomAddTag('');
+                          }
+                        }}
+                        style={{ height: '36px', padding: '0 12px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12.5px', fontWeight: '700', cursor: 'pointer' }}
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Website or Social Link</label>
+                    <input 
+                      type="text" 
+                      placeholder="https://..." 
+                      value={addForm.websiteOrSocial || ''} 
+                      onChange={e => setAddForm({ ...addForm, websiteOrSocial: e.target.value })} 
+                      style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }} 
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>About Store / Specialities</label>
+                    <textarea 
+                      rows={2} 
+                      placeholder="Brief description of the store offerings..." 
+                      value={addForm.description || ''} 
+                      onChange={e => setAddForm({ ...addForm, description: e.target.value })} 
+                      style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box', fontFamily: 'inherit' }} 
+                    />
+                  </div>
+
+                  {/* Statutory KYC (PAN Details) */}
+                  <div style={{ background: '#F8FAFC', padding: '12px 14px', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
+                    <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', color: '#0F172A', marginBottom: '8px' }}>
+                      Statutory KYC (PAN Details)
+                    </label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>PAN Card Number</label>
+                        <input
+                          type="text"
+                          maxLength={10}
+                          placeholder="ABCDE1234F"
+                          value={addForm.panNumber || ''}
+                          onChange={e => setAddForm({ ...addForm, panNumber: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') })}
+                          style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase', background: 'white', boxSizing: 'border-box' }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>PAN Proof (Direct Image Upload)</label>
+                        {addForm.panProofUrl ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'white', border: '1px solid #CBD5E1', padding: '6px 10px', borderRadius: '8px', minHeight: '52px', boxSizing: 'border-box' }}>
+                            <div style={{ width: '48px', height: '42px', borderRadius: '6px', overflow: 'hidden', background: '#F8FAFC', border: '1px solid #E2E8F0', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <img src={addForm.panProofUrl} alt="Proof" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                            </div>
+                            <div style={{ flex: 1, overflow: 'hidden' }}>
+                              <span style={{ fontSize: '11px', fontWeight: '700', color: '#166534', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                Image Attached
+                              </span>
+                              <label style={{ cursor: 'pointer', color: '#2563EB', fontSize: '11px', fontWeight: '700', display: 'inline-block', marginTop: '2px' }}>
+                                Change Photo
+                                <input type="file" accept="image/png,image/jpeg,image/webp,image/jpg" onChange={handleAddProofUpload} style={{ display: 'none' }} />
+                              </label>
+                            </div>
+                          </div>
+                        ) : (
+                          <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', height: '42px', background: 'white', border: '1.5px dashed #3B82F6', borderRadius: '8px', cursor: uploadingAddProof ? 'not-allowed' : 'pointer', color: '#2563EB', fontSize: '12px', fontWeight: '600' }}>
+                            {uploadingAddProof ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />}
+                            <span>{uploadingAddProof ? 'Uploading direct image...' : 'Upload Image Directly'}</span>
+                            <input type="file" accept="image/png,image/jpeg,image/webp,image/jpg" disabled={uploadingAddProof} onChange={handleAddProofUpload} style={{ display: 'none' }} />
+                          </label>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 0' }}>
+                    <input
+                      type="checkbox"
+                      id="addVerified"
+                      checked={Boolean(addForm.isVerified)}
+                      onChange={e => setAddForm({ ...addForm, isVerified: e.target.checked })}
+                      style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                    />
+                    <label htmlFor="addVerified" style={{ fontSize: '13.5px', fontWeight: '600', color: '#0F172A', cursor: 'pointer' }}>
+                      Mark as Verified Storefront (Instant Verification)
+                    </label>
+                  </div>
+                </>
+              ) : (
+                /* Career Fields */
+                <>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Candidate Full Name *</label>
+                    <input 
+                      type="text" 
+                      placeholder="e.g. Ramesh Kumar" 
+                      value={addForm.fullName || ''} 
+                      onChange={e => setAddForm({ ...addForm, fullName: e.target.value })} 
+                      required 
+                      style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', boxSizing: 'border-box' }} 
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Sector / Job Role *</label>
+                      <select
+                        value={addForm.jobCategory || 'Retail & Store Sales'}
+                        onChange={e => setAddForm({ ...addForm, jobCategory: e.target.value })}
+                        style={{ width: '100%', height: '40px', padding: '0 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', background: 'white', boxSizing: 'border-box' }}
+                      >
+                        <option value="Retail & Store Sales">Retail & Store Sales</option>
+                        <option value="Delivery Partner & Courier">Delivery Partner & Courier</option>
+                        <option value="Driver (LMV / HMV)">Driver (LMV / HMV)</option>
+                        <option value="Warehouse & Logistics">Warehouse & Logistics</option>
+                        <option value="Electrician & Technician">Electrician & Technician</option>
+                        <option value="Office Assistant & Peon">Office Assistant & Peon</option>
+                        <option value="Accounts & Billing Cashier">Accounts & Billing Cashier</option>
+                        <option value="Security Guard & Facility">Security Guard & Facility</option>
+                        <option value="Chef / Cook & Restaurant Staff">Chef / Cook & Restaurant Staff</option>
+                        <option value="Customer Support Executive">Customer Support Executive</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Experience</label>
+                      <select 
+                        value={addForm.experience || 'Fresher'} 
+                        onChange={e => setAddForm({ ...addForm, experience: e.target.value })} 
+                        style={{ width: '100%', height: '40px', padding: '0 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', background: 'white', boxSizing: 'border-box' }}
+                      >
+                        <option value="Fresher (0 - 1 year)">Fresher (0 - 1 year)</option>
+                        <option value="1-2 Years">1-2 Years</option>
+                        <option value="3-5 Years">3-5 Years</option>
+                        <option value="5+ Years">5+ Years</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Contact Phone * (10 Digits)</label>
+                      <input 
+                        type="tel" 
+                        maxLength={10} 
+                        placeholder="9876543210" 
+                        value={addForm.contactPhone || ''} 
+                        onChange={e => setAddForm({ ...addForm, contactPhone: e.target.value.replace(/[^0-9]/g, '') })} 
+                        required 
+                        style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', boxSizing: 'border-box' }} 
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>WhatsApp Number</label>
+                      <input 
+                        type="tel" 
+                        maxLength={10} 
+                        placeholder="9876543210" 
+                        value={addForm.whatsappNumber || ''} 
+                        onChange={e => setAddForm({ ...addForm, whatsappNumber: e.target.value.replace(/[^0-9]/g, '') })} 
+                        style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', boxSizing: 'border-box' }} 
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Email Address</label>
+                    <input 
+                      type="email" 
+                      placeholder="candidate@example.com" 
+                      value={addForm.email || ''} 
+                      onChange={e => setAddForm({ ...addForm, email: e.target.value })} 
+                      style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13.5px', boxSizing: 'border-box' }} 
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 1fr', gap: '10px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>City *</label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. Chennai" 
+                        value={addForm.city || ''} 
+                        onChange={e => setAddForm({ ...addForm, city: e.target.value })} 
+                        required 
+                        style={{ width: '100%', height: '40px', padding: '0 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }} 
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Area / Locality</label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. T. Nagar" 
+                        value={addForm.currentArea || ''} 
+                        onChange={e => setAddForm({ ...addForm, currentArea: e.target.value })} 
+                        style={{ width: '100%', height: '40px', padding: '0 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }} 
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Pincode</label>
+                      <input 
+                        type="text" 
+                        maxLength={6} 
+                        placeholder="600017" 
+                        value={addForm.pincode || ''} 
+                        onChange={e => setAddForm({ ...addForm, pincode: e.target.value.replace(/[^0-9]/g, '') })} 
+                        style={{ width: '100%', height: '40px', padding: '0 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }} 
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '10px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Qualification</label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. 12th Pass / Graduate" 
+                        value={addForm.qualification || ''} 
+                        onChange={e => setAddForm({ ...addForm, qualification: e.target.value })} 
+                        style={{ width: '100%', height: '40px', padding: '0 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }} 
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Driving License</label>
+                      <select 
+                        value={addForm.drivingLicense || 'None'} 
+                        onChange={e => setAddForm({ ...addForm, drivingLicense: e.target.value })} 
+                        style={{ width: '100%', height: '40px', padding: '0 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', background: 'white', boxSizing: 'border-box' }}
+                      >
+                        <option value="None">None</option>
+                        <option value="Two Wheeler">Two Wheeler</option>
+                        <option value="Four Wheeler (LMV)">Four Wheeler (LMV)</option>
+                        <option value="Commercial (HMV)">Commercial (HMV)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Availability</label>
+                      <select 
+                        value={addForm.availability || 'Immediate'} 
+                        onChange={e => setAddForm({ ...addForm, availability: e.target.value })} 
+                        style={{ width: '100%', height: '40px', padding: '0 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', background: 'white', boxSizing: 'border-box' }}
+                      >
+                        <option value="Immediate">Immediate Joiner</option>
+                        <option value="15 Days">Within 15 Days</option>
+                        <option value="1 Month">1 Month</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Expected Salary</label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. ₹18,000 / month" 
+                        value={addForm.expectedSalary || ''} 
+                        onChange={e => setAddForm({ ...addForm, expectedSalary: e.target.value })} 
+                        style={{ width: '100%', height: '40px', padding: '0 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }} 
+                      />
+                    </div>
+                  </div>
+
+                  {/* Skills Editor */}
+                  <div style={{ background: '#F8FAFC', padding: '14px', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
+                    <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', color: '#0F172A', marginBottom: '6px' }}>Skills & Specialities</label>
+                    {addForm.skills && addForm.skills.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
+                        {addForm.skills.map(s => (
+                          <span key={s} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: '#2563EB', color: 'white', fontSize: '12px', fontWeight: '700', padding: '4px 10px', borderRadius: '14px' }}>
+                            <span>✓ {s}</span>
+                            <button type="button" onClick={() => setAddForm(prev => ({ ...prev, skills: prev.skills.filter(x => x !== s) }))} style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', padding: 0, fontSize: '11px', display: 'flex', alignItems: 'center' }}>✕</button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <input
+                        type="text"
+                        placeholder="Add skill (e.g. Billing, Tally, Driving)"
+                        value={customAddSkill}
+                        onChange={e => setCustomAddSkill(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const val = customAddSkill.trim();
+                            if (val && !addForm.skills?.includes(val)) {
+                              setAddForm(prev => ({ ...prev, skills: [...(prev.skills || []), val] }));
+                              setCustomAddSkill('');
+                            }
+                          }
+                        }}
+                        style={{ flex: 1, height: '36px', padding: '0 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '12.5px' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const val = customAddSkill.trim();
+                          if (val && !addForm.skills?.includes(val)) {
+                            setAddForm(prev => ({ ...prev, skills: [...(prev.skills || []), val] }));
+                            setCustomAddSkill('');
+                          }
+                        }}
+                        style={{ height: '36px', padding: '0 12px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12.5px', fontWeight: '700', cursor: 'pointer' }}
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>Bio / Summary</label>
+                    <textarea 
+                      rows={2} 
+                      placeholder="Brief summary about the candidate..." 
+                      value={addForm.bio || ''} 
+                      onChange={e => setAddForm({ ...addForm, bio: e.target.value })} 
+                      style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box', fontFamily: 'inherit' }} 
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 0' }}>
+                    <input
+                      type="checkbox"
+                      id="addHireAvailable"
+                      checked={Boolean(addForm.isAvailableForHire)}
+                      onChange={e => setAddForm({ ...addForm, isAvailableForHire: e.target.checked })}
+                      style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                    />
+                    <label htmlFor="addHireAvailable" style={{ fontSize: '13.5px', fontWeight: '600', color: '#0F172A', cursor: 'pointer' }}>
+                      Actively Available for Immediate Placement / Hire
+                    </label>
+                  </div>
+                </>
+              )}
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  style={{ flex: 1, padding: '12px', background: 'white', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '13.5px', fontWeight: '600', color: '#475569', cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingRegistration}
+                  style={{ flex: 1, padding: '12px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13.5px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                >
+                  {creatingRegistration && <Loader2 size={16} className="animate-spin" />}
+                  {creatingRegistration ? 'Creating...' : (activeTab === 'business' ? 'Create Business Listing' : 'Create Candidate Profile')}
+                </button>
+              </div>
+            </form>
+
+          </div>
+        </div>
+      )}
+
+      {/* PAN PROOF IMAGE LIGHTBOX MODAL */}
+      {previewProofImage && (
+        <div
+          onClick={() => setPreviewProofImage(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(3px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            padding: '24px'
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              position: 'relative',
+              background: 'white',
+              borderRadius: '16px',
+              maxWidth: '85vw',
+              maxHeight: '85vh',
+              overflow: 'hidden',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.4)',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+          >
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '14px 20px',
+              borderBottom: '1px solid #E2E8F0',
+              background: '#F8FAFC'
+            }}>
+              <span style={{ fontSize: '14px', fontWeight: '700', color: '#0F172A' }}>
+                PAN Card Proof Document Preview
+              </span>
+              <button
+                type="button"
+                onClick={() => setPreviewProofImage(null)}
+                style={{
+                  background: '#E2E8F0',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '30px',
+                  height: '30px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: '#475569'
+                }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div style={{ padding: '16px', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#F1F5F9', overflow: 'auto' }}>
+              <img
+                src={previewProofImage}
+                alt="Enlarged PAN Proof"
+                style={{
+                  maxWidth: '100%',
+                  maxHeight: '70vh',
+                  objectFit: 'contain',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)'
+                }}
+              />
             </div>
           </div>
         </div>

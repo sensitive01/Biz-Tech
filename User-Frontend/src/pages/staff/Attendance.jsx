@@ -309,7 +309,13 @@ const Attendance = () => {
             {loading ? (
               <tr><td colSpan="8" style={{ padding: '32px', textAlign: 'center', color: '#64748B' }}>Loading...</td></tr>
             ) : filteredRecords.length === 0 ? (
-              <tr><td colSpan="8" style={{ padding: '64px 32px', textAlign: 'center', color: '#64748B' }}>No attendance records match your search.</td></tr>
+              <tr>
+                <td colSpan="8" style={{ textAlign: 'center', padding: '48px 20px', color: '#94A3B8' }}>
+                  <Clock size={40} style={{ opacity: 0.3, marginBottom: '10px', display: 'inline-block' }} />
+                  <h4 style={{ margin: '0 0 6px 0', color: '#334155', fontSize: '16px', fontWeight: '700' }}>No Attendance Records Found</h4>
+                  <p style={{ margin: 0, fontSize: '13.5px' }}>Staff clock-in and daily attendance check-ins will appear here.</p>
+                </td>
+              </tr>
             ) : paginatedRecords.map((record, index) => (
               <tr key={record._id} style={{ borderBottom: '1px solid #E2E8F0' }}>
                 <td style={{ padding: '16px 24px', fontSize: '15px', color: '#475569', fontWeight: '500' }}>{startIndex + index + 1}</td>

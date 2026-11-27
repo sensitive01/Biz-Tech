@@ -12,11 +12,12 @@ import {
   Truck,
   Filter,
   CheckCircle2,
-  ExternalLink,
-  ChevronRight,
   ShieldCheck,
-  RefreshCw
+  RefreshCw,
+  Store,
+  Mail
 } from 'lucide-react';
+import TablePagination from '@/components/TablePagination';
 
 const LocalDirectory = () => {
   const [activeTab, setActiveTab] = useState('careers'); // 'careers' | 'businesses'
@@ -24,20 +25,27 @@ const LocalDirectory = () => {
   const [businesses, setBusinesses] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Filters for Careers
+  // Search State
   const [careerSearch, setCareerSearch] = useState('');
-  const [selectedJobCategory, setSelectedJobCategory] = useState('All');
-  const [selectedCity, setSelectedCity] = useState('All');
-  const [selectedLicense, setSelectedLicense] = useState('All');
-
-  // Filters for Businesses
   const [businessSearch, setBusinessSearch] = useState('');
-  const [selectedBusinessCategory, setSelectedBusinessCategory] = useState('All');
-  const [selectedBusinessCity, setSelectedBusinessCity] = useState('All');
+
+  // Pagination
+  const [careerPage, setCareerPage] = useState(1);
+  const [careerItemsPerPage, setCareerItemsPerPage] = useState(10);
+  const [businessPage, setBusinessPage] = useState(1);
+  const [businessItemsPerPage, setBusinessItemsPerPage] = useState(10);
 
   useEffect(() => {
     fetchDirectoryData();
   }, [activeTab]);
+
+  useEffect(() => {
+    setCareerPage(1);
+  }, [careerSearch]);
+
+  useEffect(() => {
+    setBusinessPage(1);
+  }, [businessSearch]);
 
   const fetchDirectoryData = async () => {
     setLoading(true);
@@ -69,9 +77,6 @@ const LocalDirectory = () => {
 
   // Filtered Careers
   const filteredCareers = careers.filter(c => {
-    if (selectedJobCategory !== 'All' && c.jobCategory !== selectedJobCategory) return false;
-    if (selectedCity !== 'All' && c.city?.toLowerCase() !== selectedCity.toLowerCase()) return false;
-    if (selectedLicense !== 'All' && !c.drivingLicense?.toLowerCase().includes(selectedLicense.toLowerCase())) return false;
     if (careerSearch.trim()) {
       const term = careerSearch.toLowerCase();
       const matchName = c.fullName?.toLowerCase().includes(term);
@@ -85,8 +90,6 @@ const LocalDirectory = () => {
 
   // Filtered Businesses
   const filteredBusinesses = businesses.filter(b => {
-    if (selectedBusinessCategory !== 'All' && b.category !== selectedBusinessCategory) return false;
-    if (selectedBusinessCity !== 'All' && b.city?.toLowerCase() !== selectedBusinessCity.toLowerCase()) return false;
     if (businessSearch.trim()) {
       const term = businessSearch.toLowerCase();
       const matchName = b.businessName?.toLowerCase().includes(term);
@@ -98,12 +101,15 @@ const LocalDirectory = () => {
     return true;
   });
 
-  // Unique cities
-  const careerCities = Array.from(new Set(careers.map(c => c.city).filter(Boolean)));
-  const businessCities = Array.from(new Set(businesses.map(b => b.city).filter(Boolean)));
+  // Paginated slices
+  const paginatedCareers = filteredCareers.slice((careerPage - 1) * careerItemsPerPage, careerPage * careerItemsPerPage);
+  const paginatedBusinesses = filteredBusinesses.slice((businessPage - 1) * businessItemsPerPage, businessPage * businessItemsPerPage);
+
+  const careerStartIndex = (careerPage - 1) * careerItemsPerPage;
+  const businessStartIndex = (businessPage - 1) * businessItemsPerPage;
 
   return (
-    <div style={{ padding: '24px 32px', maxWidth: '1400px', margin: '0 auto' }}>
+    <div style={{ padding: '24px 32px', maxWidth: '1440px', margin: '0 auto' }}>
       
       {/* Header Banner */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
@@ -185,241 +191,251 @@ const LocalDirectory = () => {
       {/* ======================================================== */}
       {activeTab === 'careers' && (
         <div>
-          {/* Filter Bar */}
-          <div style={{ background: 'white', padding: '16px 20px', borderRadius: '14px', border: '1px solid #E2E8F0', marginBottom: '20px', display: 'flex', flexWrap: 'wrap', gap: '14px', alignItems: 'center' }}>
+          {/* Search Bar */}
+          <div style={{ background: 'white', padding: '16px 20px', borderRadius: '14px', border: '1px solid #E2E8F0', marginBottom: '20px', display: 'flex', alignItems: 'center' }}>
             
-            {/* Search */}
-            <div style={{ position: 'relative', flex: '1 1 240px' }}>
-              <Search size={16} color="#94A3B8" style={{ position: 'absolute', left: '12px', top: '12px' }} />
+            {/* Reduced width Search bar */}
+            <div style={{ position: 'relative', width: '280px', maxWidth: '100%' }}>
+              <Search size={16} color="#94A3B8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
               <input
                 type="text"
-                placeholder="Search by candidate name, skill, driver, role..."
+                placeholder="Search by candidate name, skill, role..."
                 value={careerSearch}
                 onChange={e => setCareerSearch(e.target.value)}
-                style={{ width: '100%', height: '38px', padding: '0 12px 0 36px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }}
+                style={{ width: '100%', height: '38px', padding: '0 12px 0 36px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box', outline: 'none' }}
               />
             </div>
 
-            {/* Role Filter */}
-            <div style={{ minWidth: '180px' }}>
-              <select
-                value={selectedJobCategory}
-                onChange={e => setSelectedJobCategory(e.target.value)}
-                style={{ width: '100%', height: '38px', padding: '0 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', background: 'white' }}
-              >
-                <option value="All">All Job Categories</option>
-                <option value="Commercial Driver & Transport">Commercial Driver & Transport</option>
-                <option value="Delivery Partner">Delivery & Logistics</option>
-                <option value="Sales & Marketing">Sales & Marketing</option>
-                <option value="Accounts & Billing">Accounts & Billing</option>
-                <option value="Retail & Counter Staff">Retail & Counter Staff</option>
-                <option value="Warehouse & Inventory">Warehouse & Inventory</option>
-                <option value="Electrician & Maintenance">Electrician & Maintenance</option>
-                <option value="Cook & Kitchen Staff">Cook & Kitchen Staff</option>
-              </select>
-            </div>
-
-            {/* City Filter */}
-            <div style={{ minWidth: '140px' }}>
-              <select
-                value={selectedCity}
-                onChange={e => setSelectedCity(e.target.value)}
-                style={{ width: '100%', height: '38px', padding: '0 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', background: 'white' }}
-              >
-                <option value="All">All Cities</option>
-                {careerCities.map(city => (
-                  <option key={city} value={city}>{city}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* License Filter */}
-            <div style={{ minWidth: '150px' }}>
-              <select
-                value={selectedLicense}
-                onChange={e => setSelectedLicense(e.target.value)}
-                style={{ width: '100%', height: '38px', padding: '0 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', background: 'white' }}
-              >
-                <option value="All">Any License</option>
-                <option value="HMV">HMV (Heavy Commercial)</option>
-                <option value="LMV">LMV (Light Vehicle)</option>
-                <option value="Two Wheeler">Two Wheeler</option>
-              </select>
-            </div>
-
-            {(careerSearch || selectedJobCategory !== 'All' || selectedCity !== 'All' || selectedLicense !== 'All') && (
-              <button
-                onClick={() => {
-                  setCareerSearch('');
-                  setSelectedJobCategory('All');
-                  setSelectedCity('All');
-                  setSelectedLicense('All');
-                }}
-                style={{ padding: '6px 12px', background: '#F1F5F9', border: '1px solid #CBD5E1', borderRadius: '6px', fontSize: '12px', fontWeight: '600', color: '#475569', cursor: 'pointer' }}
-              >
-                Clear Filters
-              </button>
-            )}
-
           </div>
 
-          {/* Candidates Grid */}
-          {loading ? (
-            <div style={{ padding: '48px', textAlign: 'center', color: '#64748B', fontSize: '14px' }}>
-              Loading talent directory...
-            </div>
-          ) : filteredCareers.length === 0 ? (
-            <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '48px', textAlign: 'center' }}>
-              <Users size={40} color="#94A3B8" style={{ marginBottom: '12px' }} />
-              <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#0F172A', margin: '0 0 6px 0' }}>No candidates found</h3>
-              <p style={{ margin: 0, fontSize: '13px', color: '#64748B' }}>
-                Try adjusting your search filters or check back as more candidates register.
-              </p>
-            </div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '16px' }}>
-              {filteredCareers.map(cand => {
-                const phone = cand.phone || '';
-                const whatsapp = cand.whatsappNumber || phone;
-                return (
-                  <div
-                    key={cand._id}
-                    style={{
-                      background: 'white',
-                      borderRadius: '16px',
-                      border: '1px solid #E2E8F0',
-                      padding: '20px',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.03)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between',
-                      transition: 'transform 0.15s ease, box-shadow 0.15s ease'
-                    }}
-                  >
-                    <div>
-                      {/* Top Header */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                          <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: '#EFF6FF', color: '#2563EB', fontWeight: '800', fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            {cand.fullName.charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#0F172A', margin: '0 0 2px 0' }}>
-                              {cand.fullName}
-                            </h3>
-                            <span style={{ fontSize: '13px', fontWeight: '600', color: '#2563EB' }}>
-                              {cand.jobCategory}
+          {/* Candidates Table View */}
+          <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+            <div style={{ overflowX: 'auto', width: '100%' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '950px', fontSize: '13.5px' }}>
+                <thead>
+                  <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    <th style={{ padding: '14px 18px', width: '60px' }}>S.NO</th>
+                    <th style={{ padding: '14px 18px' }}>CANDIDATE</th>
+                    <th style={{ padding: '14px 18px' }}>SECTOR & EXPERIENCE</th>
+                    <th style={{ padding: '14px 18px' }}>LOCATION</th>
+                    <th style={{ padding: '14px 18px' }}>SKILLS</th>
+                    <th style={{ padding: '14px 18px' }}>HIRE STATUS</th>
+                    <th style={{ padding: '14px 18px', textAlign: 'center' }}>ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr>
+                      <td colSpan="7" style={{ padding: '48px 20px', textAlign: 'center', color: '#64748B' }}>
+                        <RefreshCw size={24} className="spin" style={{ margin: '0 auto 8px auto', display: 'block' }} />
+                        Loading talent directory...
+                      </td>
+                    </tr>
+                  ) : filteredCareers.length === 0 ? (
+                    <tr>
+                      <td colSpan="7" style={{ textAlign: 'center', padding: '48px 20px', color: '#94A3B8' }}>
+                        <Users size={40} style={{ opacity: 0.3, marginBottom: '10px', display: 'inline-block' }} />
+                        <h4 style={{ margin: '0 0 6px 0', color: '#334155', fontSize: '16px', fontWeight: '700' }}>No Candidates Found</h4>
+                        <p style={{ margin: 0, fontSize: '13.5px' }}>
+                          Try adjusting your search filters or check back as more candidates register.
+                        </p>
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedCareers.map((cand, idx) => {
+                      const phone = cand.phone || '';
+                      const whatsapp = cand.whatsappNumber || phone;
+                      const serial = careerStartIndex + idx + 1;
+                      const isAvailable = cand.isAvailableForHire !== false;
+
+                      return (
+                        <tr
+                          key={cand._id}
+                          style={{ borderBottom: '1px solid #F1F5F9', transition: 'background 0.15s ease' }}
+                          onMouseOver={e => e.currentTarget.style.background = '#F8FAFC'}
+                          onMouseOut={e => e.currentTarget.style.background = 'transparent'}
+                        >
+                          {/* S.NO */}
+                          <td style={{ padding: '14px 18px', color: '#64748B', fontWeight: '600' }}>
+                            {serial}
+                          </td>
+
+                          {/* Candidate Name & Avatar */}
+                          <td style={{ padding: '14px 18px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <div style={{ width: '38px', height: '38px', borderRadius: '50%', background: '#EFF6FF', color: '#2563EB', fontWeight: '800', fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1px solid #DBEAFE' }}>
+                                {cand.fullName ? cand.fullName.charAt(0).toUpperCase() : 'U'}
+                              </div>
+                              <div>
+                                <span style={{ fontWeight: '700', color: '#0F172A', display: 'block', fontSize: '14px' }}>
+                                  {cand.fullName}
+                                </span>
+                                {cand._id && (
+                                  <span style={{ fontSize: '11px', color: '#94A3B8' }}>
+                                    ID: {cand._id.slice(-6).toUpperCase()}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Sector & Experience */}
+                          <td style={{ padding: '14px 18px' }}>
+                            <div style={{ fontWeight: '600', color: '#1E293B' }}>
+                              {cand.jobCategory || 'General Work'}
+                            </div>
+                            <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                              <span>Exp: <strong>{cand.experience || 'Fresher'}</strong></span>
+                              {cand.expectedSalary && (
+                                <span style={{ color: '#16A34A', fontWeight: '600' }}>
+                                  • Pay: {cand.expectedSalary}
+                                </span>
+                              )}
+                            </div>
+                            {cand.drivingLicense && cand.drivingLicense !== 'None' && (
+                              <div style={{ fontSize: '11.5px', color: '#B45309', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '3px' }}>
+                                <Truck size={12} color="#D97706" /> License: {cand.drivingLicense}
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Location */}
+                          <td style={{ padding: '14px 18px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontWeight: '600', color: '#334155' }}>
+                              <MapPin size={13} color="#64748B" />
+                              <span>{cand.city || 'City pending'}</span>
+                            </div>
+                            {cand.currentArea && (
+                              <div style={{ fontSize: '12px', color: '#64748B', paddingLeft: '18px' }}>
+                                {cand.currentArea}
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Skills */}
+                          <td style={{ padding: '14px 18px' }}>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', maxWidth: '220px' }}>
+                              {(cand.skills || []).map((sk, sIdx) => (
+                                <span
+                                  key={sIdx}
+                                  style={{
+                                    background: '#EFF6FF',
+                                    color: '#1D4ED8',
+                                    fontSize: '11px',
+                                    fontWeight: '600',
+                                    padding: '2px 8px',
+                                    borderRadius: '12px',
+                                    border: '1px solid #DBEAFE',
+                                    whiteSpace: 'nowrap'
+                                  }}
+                                >
+                                  {sk}
+                                </span>
+                              ))}
+                              {(!cand.skills || cand.skills.length === 0) && (
+                                <span style={{ color: '#94A3B8', fontSize: '12px' }}>—</span>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Hire Status */}
+                          <td style={{ padding: '14px 18px' }}>
+                            <span style={{
+                              fontSize: '11px',
+                              fontWeight: '700',
+                              padding: '3px 9px',
+                              borderRadius: '12px',
+                              background: isAvailable ? '#DCFCE7' : '#F1F5F9',
+                              color: isAvailable ? '#16A34A' : '#64748B',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              whiteSpace: 'nowrap'
+                            }}>
+                              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: isAvailable ? '#16A34A' : '#94A3B8' }}></span>
+                              {isAvailable ? 'Available' : 'Employed'}
                             </span>
-                          </div>
-                        </div>
+                          </td>
 
-                        <span style={{
-                          fontSize: '11px',
-                          fontWeight: '700',
-                          padding: '3px 8px',
-                          borderRadius: '12px',
-                          background: cand.isAvailableForHire ? '#DCFCE7' : '#F1F5F9',
-                          color: cand.isAvailableForHire ? '#16A34A' : '#64748B'
-                        }}>
-                          {cand.isAvailableForHire ? 'Available' : 'Employed'}
-                        </span>
-                      </div>
+                          {/* Action Buttons: Direct Call & WhatsApp */}
+                          <td style={{ padding: '14px 18px', textAlign: 'center' }}>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                              {phone && (
+                                <a
+                                  href={`tel:${phone}`}
+                                  title={`Call ${cand.fullName}`}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '5px',
+                                    padding: '7px 12px',
+                                    background: '#EFF6FF',
+                                    color: '#2563EB',
+                                    border: '1px solid #BFDBFE',
+                                    borderRadius: '8px',
+                                    fontSize: '12.5px',
+                                    fontWeight: '700',
+                                    textDecoration: 'none',
+                                    whiteSpace: 'nowrap',
+                                    transition: 'all 0.15s'
+                                  }}
+                                  onMouseOver={e => e.currentTarget.style.background = '#DBEAFE'}
+                                  onMouseOut={e => e.currentTarget.style.background = '#EFF6FF'}
+                                >
+                                  <Phone size={13} /> Call
+                                </a>
+                              )}
 
-                      {/* Details row */}
-                      <div style={{ fontSize: '12.5px', color: '#475569', display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '14px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <MapPin size={14} color="#64748B" />
-                          <span>{cand.city ? `${cand.city}${cand.currentArea ? `, ${cand.currentArea}` : ''}` : 'Location on request'}</span>
-                        </div>
+                              {whatsapp && (
+                                <a
+                                  href={`https://wa.me/91${whatsapp.replace(/\D/g, '')}?text=Hello%20${encodeURIComponent(cand.fullName)},%20we%20found%20your%20profile%20on%20BizTech%20and%20are%20looking%20to%20hire%20for%20${encodeURIComponent(cand.jobCategory || 'work')}.`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  title={`WhatsApp ${cand.fullName}`}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '5px',
+                                    padding: '7px 12px',
+                                    background: '#DCFCE7',
+                                    color: '#16A34A',
+                                    border: '1px solid #BBF7D0',
+                                    borderRadius: '8px',
+                                    fontSize: '12.5px',
+                                    fontWeight: '700',
+                                    textDecoration: 'none',
+                                    whiteSpace: 'nowrap',
+                                    transition: 'all 0.15s'
+                                  }}
+                                  onMouseOver={e => e.currentTarget.style.background = '#BBF7D0'}
+                                  onMouseOut={e => e.currentTarget.style.background = '#DCFCE7'}
+                                >
+                                  <MessageSquare size={13} /> WhatsApp
+                                </a>
+                              )}
+                            </div>
+                          </td>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <Award size={14} color="#64748B" />
-                          <span>Experience: <strong>{cand.experience || 'Fresher'}</strong></span>
-                          {cand.expectedSalary && (
-                            <span style={{ marginLeft: '6px', color: '#16A34A', fontWeight: '600' }}>
-                              • Pay: {cand.expectedSalary}
-                            </span>
-                          )}
-                        </div>
-
-                        {cand.drivingLicense && cand.drivingLicense !== 'None' && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <Truck size={14} color="#D97706" />
-                            <span style={{ color: '#B45309', fontWeight: '600' }}>License: {cand.drivingLicense}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Skill Tags */}
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '16px' }}>
-                        {(cand.skills || []).map((sk, idx) => (
-                          <span
-                            key={idx}
-                            style={{
-                              background: '#F1F5F9',
-                              color: '#334155',
-                              fontSize: '11.5px',
-                              fontWeight: '600',
-                              padding: '3px 8px',
-                              borderRadius: '12px'
-                            }}
-                          >
-                            {sk}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Action Contact Buttons */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', paddingTop: '12px', borderTop: '1px solid #F1F5F9' }}>
-                      <a
-                        href={`tel:${phone}`}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '6px',
-                          padding: '9px 12px',
-                          background: '#EFF6FF',
-                          color: '#2563EB',
-                          border: '1px solid #BFDBFE',
-                          borderRadius: '8px',
-                          fontSize: '13px',
-                          fontWeight: '700',
-                          textDecoration: 'none'
-                        }}
-                      >
-                        <Phone size={14} /> Call
-                      </a>
-
-                      <a
-                        href={`https://wa.me/91${whatsapp.replace(/\D/g, '')}?text=Hello%20${encodeURIComponent(cand.fullName)},%20we%20found%20your%20profile%20on%20BizTech%20and%20are%20looking%20to%20hire%20for%20${encodeURIComponent(cand.jobCategory)}.`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '6px',
-                          padding: '9px 12px',
-                          background: '#DCFCE7',
-                          color: '#16A34A',
-                          border: '1px solid #BBF7D0',
-                          borderRadius: '8px',
-                          fontSize: '13px',
-                          fontWeight: '700',
-                          textDecoration: 'none'
-                        }}
-                      >
-                        <MessageSquare size={14} /> WhatsApp
-                      </a>
-                    </div>
-
-                  </div>
-                );
-              })}
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
-          )}
+
+            {/* Pagination */}
+            {filteredCareers.length > 0 && (
+              <TablePagination
+                currentPage={careerPage}
+                totalPages={Math.ceil(filteredCareers.length / careerItemsPerPage) || 1}
+                itemsPerPage={careerItemsPerPage}
+                totalItems={filteredCareers.length}
+                onPageChange={setCareerPage}
+                onItemsPerPageChange={(val) => { setCareerItemsPerPage(val); setCareerPage(1); }}
+              />
+            )}
+          </div>
         </div>
       )}
 
@@ -428,209 +444,252 @@ const LocalDirectory = () => {
       {/* ======================================================== */}
       {activeTab === 'businesses' && (
         <div>
-          {/* Filter Bar */}
-          <div style={{ background: 'white', padding: '16px 20px', borderRadius: '14px', border: '1px solid #E2E8F0', marginBottom: '20px', display: 'flex', flexWrap: 'wrap', gap: '14px', alignItems: 'center' }}>
+          {/* Search Bar */}
+          <div style={{ background: 'white', padding: '16px 20px', borderRadius: '14px', border: '1px solid #E2E8F0', marginBottom: '20px', display: 'flex', alignItems: 'center' }}>
             
-            {/* Search */}
-            <div style={{ position: 'relative', flex: '1 1 240px' }}>
-              <Search size={16} color="#94A3B8" style={{ position: 'absolute', left: '12px', top: '12px' }} />
+            {/* Reduced width Search bar */}
+            <div style={{ position: 'relative', width: '280px', maxWidth: '100%' }}>
+              <Search size={16} color="#94A3B8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
               <input
                 type="text"
-                placeholder="Search by shop name, wholesale, retail, city, product tags..."
+                placeholder="Search shop name, tags, city..."
                 value={businessSearch}
                 onChange={e => setBusinessSearch(e.target.value)}
-                style={{ width: '100%', height: '38px', padding: '0 12px 0 36px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }}
+                style={{ width: '100%', height: '38px', padding: '0 12px 0 36px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box', outline: 'none' }}
               />
             </div>
 
-            {/* Category Filter */}
-            <div style={{ minWidth: '180px' }}>
-              <select
-                value={selectedBusinessCategory}
-                onChange={e => setSelectedBusinessCategory(e.target.value)}
-                style={{ width: '100%', height: '38px', padding: '0 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', background: 'white' }}
-              >
-                <option value="All">All Categories</option>
-                <option value="Retail">Retail Shop / Store</option>
-                <option value="Wholesale">Wholesale Trader / Supplier</option>
-                <option value="Kirana & Supermarket">Kirana & Supermarket</option>
-                <option value="Pharmacy & Medical">Pharmacy & Medical</option>
-                <option value="Hardware & Electrical">Hardware & Electrical</option>
-                <option value="Garments & Textiles">Garments & Textiles</option>
-                <option value="Automobile & Garage">Automobile & Garage</option>
-                <option value="Restaurant & Food">Restaurant & Food</option>
-                <option value="Distribution">Wholesale Distribution</option>
-              </select>
-            </div>
-
-            {/* City Filter */}
-            <div style={{ minWidth: '140px' }}>
-              <select
-                value={selectedBusinessCity}
-                onChange={e => setSelectedBusinessCity(e.target.value)}
-                style={{ width: '100%', height: '38px', padding: '0 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', background: 'white' }}
-              >
-                <option value="All">All Cities</option>
-                {businessCities.map(city => (
-                  <option key={city} value={city}>{city}</option>
-                ))}
-              </select>
-            </div>
-
-            {(businessSearch || selectedBusinessCategory !== 'All' || selectedBusinessCity !== 'All') && (
-              <button
-                onClick={() => {
-                  setBusinessSearch('');
-                  setSelectedBusinessCategory('All');
-                  setSelectedBusinessCity('All');
-                }}
-                style={{ padding: '6px 12px', background: '#F1F5F9', border: '1px solid #CBD5E1', borderRadius: '6px', fontSize: '12px', fontWeight: '600', color: '#475569', cursor: 'pointer' }}
-              >
-                Clear Filters
-              </button>
-            )}
-
           </div>
 
-          {/* Businesses Grid */}
-          {loading ? (
-            <div style={{ padding: '48px', textAlign: 'center', color: '#64748B', fontSize: '14px' }}>
-              Loading business directory...
-            </div>
-          ) : filteredBusinesses.length === 0 ? (
-            <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '48px', textAlign: 'center' }}>
-              <Building2 size={40} color="#94A3B8" style={{ marginBottom: '12px' }} />
-              <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#0F172A', margin: '0 0 6px 0' }}>No businesses found</h3>
-              <p style={{ margin: 0, fontSize: '13px', color: '#64748B' }}>
-                Try adjusting your filters or search keywords.
-              </p>
-            </div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '16px' }}>
-              {filteredBusinesses.map(biz => {
-                const phone = biz.phone || '';
-                const whatsapp = biz.whatsappNumber || phone;
-                return (
-                  <div
-                    key={biz._id}
-                    style={{
-                      background: 'white',
-                      borderRadius: '16px',
-                      border: '1px solid #E2E8F0',
-                      padding: '20px',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.03)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between'
-                    }}
-                  >
-                    <div>
-                      {/* Top Header */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
-                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                          <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Building2 size={22} />
-                          </div>
-                          <div>
-                            <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#0F172A', margin: '0 0 2px 0' }}>
-                              {biz.businessName}
-                            </h3>
-                            <span style={{ fontSize: '12.5px', color: '#64748B' }}>
-                              {biz.category} • {biz.ownerName ? `Owner: ${biz.ownerName}` : ''}
+          {/* Businesses Table View */}
+          <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+            <div style={{ overflowX: 'auto', width: '100%' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '950px', fontSize: '13.5px' }}>
+                <thead>
+                  <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    <th style={{ padding: '14px 18px', width: '60px' }}>S.NO</th>
+                    <th style={{ padding: '14px 18px' }}>BUSINESS / STORE</th>
+                    <th style={{ padding: '14px 18px' }}>OWNER & CONTACT</th>
+                    <th style={{ padding: '14px 18px' }}>LOCATION</th>
+                    <th style={{ padding: '14px 18px' }}>HOURS</th>
+                    <th style={{ padding: '14px 18px' }}>TAGS & KEYWORDS</th>
+                    <th style={{ padding: '14px 18px' }}>STATUS</th>
+                    <th style={{ padding: '14px 18px', textAlign: 'center' }}>ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr>
+                      <td colSpan="8" style={{ padding: '48px 20px', textAlign: 'center', color: '#64748B' }}>
+                        <RefreshCw size={24} className="spin" style={{ margin: '0 auto 8px auto', display: 'block' }} />
+                        Loading business directory...
+                      </td>
+                    </tr>
+                  ) : filteredBusinesses.length === 0 ? (
+                    <tr>
+                      <td colSpan="8" style={{ textAlign: 'center', padding: '48px 20px', color: '#94A3B8' }}>
+                        <Building2 size={40} style={{ opacity: 0.3, marginBottom: '10px', display: 'inline-block' }} />
+                        <h4 style={{ margin: '0 0 6px 0', color: '#334155', fontSize: '16px', fontWeight: '700' }}>No Businesses Found</h4>
+                        <p style={{ margin: 0, fontSize: '13.5px' }}>
+                          Try adjusting your search filters or keywords.
+                        </p>
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedBusinesses.map((biz, idx) => {
+                      const phone = biz.phone || '';
+                      const whatsapp = biz.whatsappNumber || phone;
+                      const serial = businessStartIndex + idx + 1;
+
+                      return (
+                        <tr
+                          key={biz._id}
+                          style={{ borderBottom: '1px solid #F1F5F9', transition: 'background 0.15s ease' }}
+                          onMouseOver={e => e.currentTarget.style.background = '#F8FAFC'}
+                          onMouseOut={e => e.currentTarget.style.background = 'transparent'}
+                        >
+                          {/* S.NO */}
+                          <td style={{ padding: '14px 18px', color: '#64748B', fontWeight: '600' }}>
+                            {serial}
+                          </td>
+
+                          {/* Business Name & Store Icon */}
+                          <td style={{ padding: '14px 18px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1px solid #DBEAFE' }}>
+                                <Store size={18} />
+                              </div>
+                              <div>
+                                <span style={{ fontWeight: '700', color: '#0F172A', display: 'block', fontSize: '14px' }}>
+                                  {biz.businessName}
+                                </span>
+                                <span style={{ fontSize: '12px', color: '#64748B' }}>
+                                  {biz.category || 'Retail'}
+                                </span>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Owner & Contact */}
+                          <td style={{ padding: '14px 18px' }}>
+                            <div style={{ fontWeight: '600', color: '#1E293B' }}>
+                              {biz.ownerName || 'Business Owner'}
+                            </div>
+                            {phone && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: '#64748B', marginTop: '2px' }}>
+                                <Phone size={12} /> {phone}
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Location */}
+                          <td style={{ padding: '14px 18px', maxWidth: '240px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontWeight: '600', color: '#334155' }}>
+                              <MapPin size={13} color="#64748B" />
+                              <span>{biz.city || 'City pending'}</span>
+                            </div>
+                            {biz.address && (
+                              <div style={{ fontSize: '12px', color: '#64748B', paddingLeft: '18px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={biz.address}>
+                                {biz.address}
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Operating Hours */}
+                          <td style={{ padding: '14px 18px', whiteSpace: 'nowrap' }}>
+                            {biz.operatingHours ? (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12.5px', color: '#475569' }}>
+                                <Clock size={13} color="#16A34A" />
+                                <span>{biz.operatingHours}</span>
+                              </div>
+                            ) : (
+                              <span style={{ color: '#94A3B8', fontSize: '12px' }}>—</span>
+                            )}
+                          </td>
+
+                          {/* Tags & Keywords */}
+                          <td style={{ padding: '14px 18px' }}>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', maxWidth: '220px' }}>
+                              {(biz.tags || []).map((t, tIdx) => (
+                                <span
+                                  key={tIdx}
+                                  style={{
+                                    background: '#F1F5F9',
+                                    color: '#334155',
+                                    fontSize: '11px',
+                                    fontWeight: '600',
+                                    padding: '2px 8px',
+                                    borderRadius: '12px',
+                                    whiteSpace: 'nowrap'
+                                  }}
+                                >
+                                  #{t}
+                                </span>
+                              ))}
+                              {(!biz.tags || biz.tags.length === 0) && (
+                                <span style={{ color: '#94A3B8', fontSize: '12px' }}>—</span>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Status */}
+                          <td style={{ padding: '14px 18px' }}>
+                            <span style={{
+                              fontSize: '11px',
+                              fontWeight: '700',
+                              padding: '3px 9px',
+                              borderRadius: '12px',
+                              background: '#DCFCE7',
+                              color: '#16A34A',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              whiteSpace: 'nowrap'
+                            }}>
+                              <ShieldCheck size={12} />
+                              Verified
                             </span>
-                          </div>
-                        </div>
+                          </td>
 
-                        <span style={{ fontSize: '11px', fontWeight: '700', padding: '3px 8px', borderRadius: '12px', background: '#DCFCE7', color: '#16A34A' }}>
-                          Verified
-                        </span>
-                      </div>
+                          {/* Actions: Call & WhatsApp */}
+                          <td style={{ padding: '14px 18px', textAlign: 'center' }}>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                              {phone && (
+                                <a
+                                  href={`tel:${phone}`}
+                                  title={`Call ${biz.businessName}`}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '5px',
+                                    padding: '7px 12px',
+                                    background: '#EFF6FF',
+                                    color: '#2563EB',
+                                    border: '1px solid #BFDBFE',
+                                    borderRadius: '8px',
+                                    fontSize: '12.5px',
+                                    fontWeight: '700',
+                                    textDecoration: 'none',
+                                    whiteSpace: 'nowrap',
+                                    transition: 'all 0.15s'
+                                  }}
+                                  onMouseOver={e => e.currentTarget.style.background = '#DBEAFE'}
+                                  onMouseOut={e => e.currentTarget.style.background = '#EFF6FF'}
+                                >
+                                  <Phone size={13} /> Call
+                                </a>
+                              )}
 
-                      {/* Details row */}
-                      <div style={{ fontSize: '12.5px', color: '#475569', display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '14px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <MapPin size={14} color="#64748B" />
-                          <span>{biz.address ? `${biz.address}, ` : ''}{biz.city || 'City on request'}</span>
-                        </div>
+                              {whatsapp && (
+                                <a
+                                  href={`https://wa.me/91${whatsapp.replace(/\D/g, '')}?text=Hello%20${encodeURIComponent(biz.businessName)},%20I%20found%20your%20business%20on%20BizTech%20and%20would%20like%20to%20enquire%20about%20products/supplies.`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  title={`WhatsApp ${biz.businessName}`}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '5px',
+                                    padding: '7px 12px',
+                                    background: '#DCFCE7',
+                                    color: '#16A34A',
+                                    border: '1px solid #BBF7D0',
+                                    borderRadius: '8px',
+                                    fontSize: '12.5px',
+                                    fontWeight: '700',
+                                    textDecoration: 'none',
+                                    whiteSpace: 'nowrap',
+                                    transition: 'all 0.15s'
+                                  }}
+                                  onMouseOver={e => e.currentTarget.style.background = '#BBF7D0'}
+                                  onMouseOut={e => e.currentTarget.style.background = '#DCFCE7'}
+                                >
+                                  <MessageSquare size={13} /> WhatsApp
+                                </a>
+                              )}
+                            </div>
+                          </td>
 
-                        {biz.operatingHours && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <Clock size={14} color="#16A34A" />
-                            <span>Hours: {biz.operatingHours}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Tags */}
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '16px' }}>
-                        {(biz.tags || []).map((t, idx) => (
-                          <span
-                            key={idx}
-                            style={{
-                              background: '#F1F5F9',
-                              color: '#334155',
-                              fontSize: '11.5px',
-                              fontWeight: '600',
-                              padding: '3px 8px',
-                              borderRadius: '12px'
-                            }}
-                          >
-                            #{t}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Action Contact Buttons */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', paddingTop: '12px', borderTop: '1px solid #F1F5F9' }}>
-                      <a
-                        href={`tel:${phone}`}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '6px',
-                          padding: '9px 12px',
-                          background: '#EFF6FF',
-                          color: '#2563EB',
-                          border: '1px solid #BFDBFE',
-                          borderRadius: '8px',
-                          fontSize: '13px',
-                          fontWeight: '700',
-                          textDecoration: 'none'
-                        }}
-                      >
-                        <Phone size={14} /> Call
-                      </a>
-
-                      <a
-                        href={`https://wa.me/91${whatsapp.replace(/\D/g, '')}?text=Hello%20${encodeURIComponent(biz.businessName)},%20I%20found%20your%20business%20on%20BizTech%20and%20would%20like%20to%20enquire%20about%20products/supplies.`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '6px',
-                          padding: '9px 12px',
-                          background: '#DCFCE7',
-                          color: '#16A34A',
-                          border: '1px solid #BBF7D0',
-                          borderRadius: '8px',
-                          fontSize: '13px',
-                          fontWeight: '700',
-                          textDecoration: 'none'
-                        }}
-                      >
-                        <MessageSquare size={14} /> WhatsApp
-                      </a>
-                    </div>
-
-                  </div>
-                );
-              })}
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
-          )}
+
+            {/* Pagination */}
+            {filteredBusinesses.length > 0 && (
+              <TablePagination
+                currentPage={businessPage}
+                totalPages={Math.ceil(filteredBusinesses.length / businessItemsPerPage) || 1}
+                itemsPerPage={businessItemsPerPage}
+                totalItems={filteredBusinesses.length}
+                onPageChange={setBusinessPage}
+                onItemsPerPageChange={(val) => { setBusinessItemsPerPage(val); setBusinessPage(1); }}
+              />
+            )}
+          </div>
         </div>
       )}
 

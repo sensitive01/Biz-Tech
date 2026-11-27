@@ -358,14 +358,12 @@ const PaymentApprovals = () => {
             <div>Loading payment approval requests...</div>
           </div>
         ) : approvals.length === 0 ? (
-          <div style={{ padding: '60px 20px', textAlign: 'center' }}>
-            <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: '#F1F5F9', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto' }}>
-              <ShieldCheck size={28} />
-            </div>
-            <h3 style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-title)', margin: '0 0 6px 0' }}>
+          <div style={{ padding: '48px 20px', textAlign: 'center', color: '#94A3B8' }}>
+            <ShieldCheck size={40} style={{ opacity: 0.3, marginBottom: '10px', display: 'inline-block' }} />
+            <h4 style={{ margin: '0 0 6px 0', color: '#334155', fontSize: '16px', fontWeight: '700' }}>
               No Payment Requests Found
-            </h3>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
+            </h4>
+            <p style={{ fontSize: '13.5px', color: '#94A3B8', margin: 0 }}>
               {statusFilter === 'All' 
                 ? 'When new tenants complete UPI QR onboarding, their requests will appear here for verification.' 
                 : `There are currently no requests with "${statusFilter}" status.`}

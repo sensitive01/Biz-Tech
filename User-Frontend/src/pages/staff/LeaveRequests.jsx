@@ -659,10 +659,10 @@ const LeaveRequests = () => {
                 <tr><td colSpan="7" style={{ padding: '36px', textAlign: 'center', color: '#64748B' }}>Loading requests...</td></tr>
               ) : filteredLeaves.length === 0 ? (
                 <tr>
-                  <td colSpan="7" style={{ padding: '64px 32px', textAlign: 'center', color: '#64748B' }}>
-                    <CalendarIcon size={36} color="#CBD5E1" style={{ marginBottom: '12px', display: 'inline-block' }} />
-                    <p style={{ margin: 0, fontWeight: '600', fontSize: '16px', color: '#334155' }}>No leaves or permissions found.</p>
-                    <p style={{ margin: '4px 0 0 0', fontSize: '13px' }}>Click "{isSoleOperator ? 'Record Time-Off' : 'Apply Leave / Permission'}" to create a new entry.</p>
+                  <td colSpan="7" style={{ textAlign: 'center', padding: '48px 20px', color: '#94A3B8' }}>
+                    <CalendarIcon size={40} style={{ opacity: 0.3, marginBottom: '10px', display: 'inline-block' }} />
+                    <h4 style={{ margin: '0 0 6px 0', color: '#334155', fontSize: '16px', fontWeight: '700' }}>No Leave Requests Found</h4>
+                    <p style={{ margin: 0, fontSize: '13.5px' }}>Staff leave applications, permissions, and time-off requests will appear here.</p>
                   </td>
                 </tr>
               ) : paginatedLeaves.map((leave, index) => {
